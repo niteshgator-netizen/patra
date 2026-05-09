@@ -3,11 +3,16 @@ class ChatwootFbProvider < Facebook::Messenger::Configuration::Providers::Base
   CHANNEL_APP_SECRET_KEYS = %w[app_secret app_secret_key client_secret api_secret].freeze
 
   def valid_verify_token?(verify_token)
-    # The facebook-messenger gem treats this method's return as a boolean
-    # in `if valid_verify_token?(token)`. The previous implementation returned
-    # the configured token string (always truthy when FB_VERIFY_TOKEN is set),
-    # so ANY incoming token was accepted. Compare explicitly.
-    expected = GlobalConfigService.load('FB_VERIFY_TOKEN', '')
+    # Read FB_VERIFY_TOKEN straight from ENV (not GlobalConfigService).
+    # GlobalConfigService caches the first-seen value into installation_configs
+    # and prefers the DB on every subsequent read, so a Railway env-var change
+    # would otherwise be silently shadowed by a stale DB row. Going direct to
+    # ENV makes verify-token rotation a simple env-update + restart.
+    #
+    # Note: the facebook-messenger gem uses this method's return value as a
+    # boolean (`if valid_verify_token?(token)`), so we must compare — not just
+    # return the expected token string.
+    expected = ENV.fetch('FB_VERIFY_TOKEN', '')
     expected.present? && verify_token == expected
   end
 
