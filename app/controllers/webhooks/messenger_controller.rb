@@ -56,7 +56,10 @@ class Webhooks::MessengerController < ActionController::API
   end
 
   def valid_token?(token)
-    token == GlobalConfigService.load('FB_VERIFY_TOKEN', '')
+    # Read straight from ENV — see config/initializers/facebook_messenger.rb
+    # for the rationale (GlobalConfigService caches DB values that shadow ENV).
+    expected = ENV.fetch('FB_VERIFY_TOKEN', '')
+    expected.present? && token == expected
   end
 
   # Used by MetaTokenVerifyConcern#verify_meta_signature! to validate the
