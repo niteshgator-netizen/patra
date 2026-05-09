@@ -2,8 +2,13 @@
 class ChatwootFbProvider < Facebook::Messenger::Configuration::Providers::Base
   CHANNEL_APP_SECRET_KEYS = %w[app_secret app_secret_key client_secret api_secret].freeze
 
-  def valid_verify_token?(_verify_token)
-    GlobalConfigService.load('FB_VERIFY_TOKEN', '')
+  def valid_verify_token?(verify_token)
+    # The facebook-messenger gem treats this method's return as a boolean
+    # in `if valid_verify_token?(token)`. The previous implementation returned
+    # the configured token string (always truthy when FB_VERIFY_TOKEN is set),
+    # so ANY incoming token was accepted. Compare explicitly.
+    expected = GlobalConfigService.load('FB_VERIFY_TOKEN', '')
+    expected.present? && verify_token == expected
   end
 
   def app_secret_for(page_id)
