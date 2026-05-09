@@ -1,13 +1,13 @@
 <svg width="2559" height="581" viewBox="0 0 2559 581" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icon: rounded purple square with white "P" -->
+  <!-- Icon: rounded purple square (the "P" of Patra) -->
   <rect x="0" y="34" width="512" height="512" rx="120" fill="#6366f1"/>
   <text x="256" y="290"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
         font-size="380" font-weight="800" fill="#ffffff"
         text-anchor="middle" dominant-baseline="central">P</text>
-  <!-- Wordmark -->
-  <text x="600" y="290"
+  <!-- Wordmark: "atra" in purple, completes the brand name -->
+  <text x="565" y="290"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-        font-size="380" font-weight="800" letter-spacing="-8" fill="#040101"
-        dominant-baseline="central">Patra</text>
+        font-size="480" font-weight="800" letter-spacing="-10" fill="#6366f1"
+        dominant-baseline="central">atra</text>
 </svg>
