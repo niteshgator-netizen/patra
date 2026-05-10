@@ -24,12 +24,6 @@ const channelList = computed(() => {
   const { apiChannelName } = globalConfig.value;
   const channels = [
     {
-      key: 'website',
-      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WEBSITE.TITLE'),
-      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.WEBSITE.DESCRIPTION'),
-      icon: 'i-woot-website',
-    },
-    {
       key: 'facebook',
       title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.TITLE'),
       description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.DESCRIPTION'),
@@ -46,12 +40,6 @@ const channelList = computed(() => {
       title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.SMS.TITLE'),
       description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.SMS.DESCRIPTION'),
       icon: 'i-woot-sms',
-    },
-    {
-      key: 'email',
-      title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.EMAIL.TITLE'),
-      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.EMAIL.DESCRIPTION'),
-      icon: 'i-woot-mail',
     },
     {
       key: 'api',
