@@ -80,12 +80,14 @@ class Ai::ReplyService
     end
 
     payload = Array(response.parsed_response['payload'])
+    # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
+    # 2/3 are activity/template — skip those, they're not part of the conversation.
     history = payload
-              .select { |m| %w[incoming outgoing].include?(m['message_type'].to_s) }
+              .select { |m| [0, 1].include?(m['message_type'].to_i) }
               .reject { |m| m['content'].to_s.strip.empty? }
               .sort_by { |m| m['created_at'].to_i }
               .last(HISTORY_LIMIT)
-              .map { |m| { 'role' => m['message_type'].to_s == 'incoming' ? 'user' : 'assistant', 'content' => m['content'].to_s } }
+              .map { |m| { 'role' => m['message_type'].to_i == 0 ? 'user' : 'assistant', 'content' => m['content'].to_s } }
 
     # Anthropic requires the first message to be `user`. Drop any leading
     # assistant turns so the API doesn't 400 with a role-ordering error.
