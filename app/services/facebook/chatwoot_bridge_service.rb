@@ -76,7 +76,7 @@ class Facebook::ChatwootBridgeService
   end
 
   def create_contact!
-    name = Facebook::GraphProfileService.fetch_name(@sender_id).presence || @sender_id
+    name = Facebook::GraphProfileService.fetch_name(@sender_id).presence || "Player #{@sender_id.to_s.last(4)}"
     response = http_post(
       "/api/v1/accounts/#{account_id}/contacts",
       body: { name: name, identifier: @sender_id }

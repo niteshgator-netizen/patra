@@ -14,8 +14,8 @@ class Ai::ReplyService
   ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'.freeze
   ANTHROPIC_VERSION = '2023-06-01'.freeze
   MODEL = 'claude-sonnet-4-6'.freeze
-  MAX_TOKENS = 500
-  HISTORY_LIMIT = 10
+  MAX_TOKENS = 150
+  HISTORY_LIMIT = 5
   HTTP_TIMEOUT = 30
   SKIP_LABEL = 'ai-off'.freeze
   # Single-quoted heredoc — no interpolation, so apostrophes inside the prompt
@@ -88,16 +88,30 @@ class Ai::ReplyService
     DO NOT GUESS. Say: 'Let me check on that for you, one moment!'
     and nothing else. This tells the human agent to take over.
 
-    TONE RULES:
-    - Be warm and friendly
-    - Use casual language like 'Hey!', 'Sure thing!', 'No problem!'
-    - Keep replies short and to the point
-    - Never say you are an AI
-    - Never make up information about their specific account
-    - If unsure about anything specific to their account, use escalation phrase above
+    Only use the escalation phrase for: specific account balances,
+    whether a payment was received, transaction disputes, custom deals,
+    or anything requiring checking their specific account.
+    Do NOT escalate for: general game questions, payment method questions,
+    cashout rules, bonus rules, referral questions - answer those directly.
+
+    TONE RULES - CRITICAL:
+    - Max 2 lines per reply, no exceptions
+    - Never use bullet points, numbers, headers
+    - Talk like a human agent texting
+    - Get straight to the point immediately
+    - One emoji max, only if natural
+    - Never say certainly/absolutely/great question
+    - Short is always better than long
   PROMPT
 
-  ESCALATION_PHRASE = 'Let me check on that for you, one moment!'.freeze
+  # Case-insensitive substring matches against the model's reply. We list both
+  # the canonical phrase and looser variants because the model may shorten or
+  # re-case the escalation cue ("Let me check on that.", "One moment please").
+  ESCALATION_PHRASES = [
+    'let me check on that for you, one moment!',
+    'let me check on that',
+    'one moment'
+  ].freeze
 
   def initialize(conversation_id)
     @conversation_id = conversation_id
@@ -117,12 +131,14 @@ class Ai::ReplyService
     return log_and_nil("no usable history conversation=#{@conversation_id}") if messages.empty?
 
     payment_info = fetch_payment_info
-    system_prompt = build_system_prompt(payment_info)
+    training_info = fetch_ai_training
+    persona_info = fetch_ai_persona
+    system_prompt = build_system_prompt(payment_info, training_info, persona_info)
 
     reply = invoke_anthropic(messages, system_prompt)
     return nil if reply.blank?
 
-    if reply.include?(ESCALATION_PHRASE)
+    if escalation?(reply)
       post_escalation_note(messages)
       return nil
     end
@@ -212,7 +228,65 @@ class Ai::ReplyService
     ''
   end
 
-  def build_system_prompt(payment_info)
+  # Pulls a persona definition (short_code: ai_persona) so ops can rename and
+  # re-voice the agent without a deploy. Empty / missing → no identity section
+  # is prepended to the prompt.
+  def fetch_ai_persona
+    response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/canned_responses",
+      headers: chatwoot_headers,
+      query: { search: 'ai_persona' },
+      timeout: HTTP_TIMEOUT
+    )
+
+    unless response.success?
+      Rails.logger.warn("[AiReply] ai_persona lookup HTTP #{response.code}: #{response.body}")
+      return ''
+    end
+
+    match = Array(response.parsed_response).find { |c| c['short_code'].to_s == 'ai_persona' }
+
+    if match.nil?
+      Rails.logger.info("[AiReply] ai_persona canned response not found in account=#{account_id}")
+      return ''
+    end
+
+    match['content'].to_s
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] ai_persona fetch error #{e.class}: #{e.message}")
+    ''
+  end
+
+  # Pulls a free-form "ops training notes" canned response (short_code:
+  # ai_training) so the team can refine model behavior from the Chatwoot UI
+  # without redeploying. Empty / missing → no extra section added.
+  def fetch_ai_training
+    response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/canned_responses",
+      headers: chatwoot_headers,
+      query: { search: 'ai_training' },
+      timeout: HTTP_TIMEOUT
+    )
+
+    unless response.success?
+      Rails.logger.warn("[AiReply] ai_training lookup HTTP #{response.code}: #{response.body}")
+      return ''
+    end
+
+    match = Array(response.parsed_response).find { |c| c['short_code'].to_s == 'ai_training' }
+
+    if match.nil?
+      Rails.logger.info("[AiReply] ai_training canned response not found in account=#{account_id}")
+      return ''
+    end
+
+    match['content'].to_s
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] ai_training fetch error #{e.class}: #{e.message}")
+    ''
+  end
+
+  def build_system_prompt(payment_info, training_info = '', persona_info = '')
     section = <<~SECTION.strip
       CURRENT PAYMENT DETAILS (read this before answering any payment question):
       #{payment_info}
@@ -227,7 +301,31 @@ class Ai::ReplyService
         'Let me check on that for you, one moment!' to escalate to human
     SECTION
 
-    SYSTEM_PROMPT.sub('<<<PAYMENT_INFO_SECTION>>>', section)
+    prompt = SYSTEM_PROMPT.sub('<<<PAYMENT_INFO_SECTION>>>', section)
+
+    unless persona_info.to_s.strip.empty?
+      persona_section = <<~PERSONA.strip
+        YOUR IDENTITY:
+        #{persona_info}
+
+        Rules about your identity:
+        - Always use the NAME above when asked your name
+        - Never reveal you are an AI, bot, or automated
+        - If asked are you a bot/AI/real say something like
+          'Haha no I'm real! Just busy sometimes 😄'
+        - Never use robotic phrases like 'How may I assist you today'
+      PERSONA
+      prompt = "#{persona_section}\n\n#{prompt}"
+    end
+
+    return prompt if training_info.to_s.strip.empty?
+
+    training_section = <<~TRAINING.strip
+      ADDITIONAL BUSINESS RULES (highest priority - follow these exactly):
+      #{training_info}
+    TRAINING
+
+    "#{prompt}\n#{training_section}\n"
   end
 
   # ---------- Anthropic ----------
@@ -264,6 +362,11 @@ class Ai::ReplyService
   end
 
   # ---------- Escalation ----------
+
+  def escalation?(reply)
+    downcased = reply.to_s.downcase
+    ESCALATION_PHRASES.any? { |phrase| downcased.include?(phrase) }
+  end
 
   # Drops a private note onto the conversation so a human agent picks it up
   # without the customer seeing it. private:true also means our own
