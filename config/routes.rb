@@ -606,6 +606,9 @@ Rails.application.routes.draw do
   post 'webhooks/instagram', to: 'webhooks/instagram#events'
   get 'webhooks/messenger', to: 'webhooks/messenger#verify'
   post 'webhooks/messenger', to: 'webhooks/messenger#events'
+  # Outbound Chatwoot → Facebook bridge: receives Chatwoot's `message_created`
+  # webhook and forwards eligible outgoing messages to FB via the Send API.
+  post 'webhooks/fb_reply', to: 'webhooks/fb_reply#receive'
   post 'webhooks/tiktok', to: 'webhooks/tiktok#events'
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
 
