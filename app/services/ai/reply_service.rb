@@ -18,6 +18,19 @@ class Ai::ReplyService
   HISTORY_LIMIT = 5
   HTTP_TIMEOUT = 30
   SKIP_LABEL = 'ai-off'.freeze
+  # If the freshest message in the conversation is older than this, the
+  # customer has likely moved on — a delayed AI reply would feel weird, so
+  # we bail rather than send one.
+  MESSAGE_FRESHNESS_WINDOW = 10.minutes
+  # Customer messages that match these exactly (case-insensitive, trimmed)
+  # short-circuit Anthropic — they don't need a model call.
+  SIMPLE_GREETINGS = %w[hi hey hello hii heyy heyyy sup yo].freeze
+  GREETING_REPLY = "Hey! 😊 How can I help you today?".freeze
+  # Redis cache for canned-response lookups. 10 min TTL is short enough that
+  # ops edits in the Chatwoot UI propagate quickly, long enough to absorb the
+  # per-message fetch traffic.
+  CANNED_CACHE_PREFIX = 'patra:canned:'.freeze
+  CANNED_CACHE_TTL = 600
   # Single-quoted heredoc — no interpolation, so apostrophes inside the prompt
   # (e.g. "won't") and the literal escalation phrase don't need escaping.
   SYSTEM_PROMPT = <<~'PROMPT'.freeze
@@ -122,13 +135,26 @@ class Ai::ReplyService
     return log_and_nil('ANTHROPIC_API_KEY not configured') if api_key.blank?
     return log_and_nil('CHATWOOT_BRIDGE_API_TOKEN not configured') if chatwoot_token.blank?
 
+    # Pulled up so the freshness check (which needs @latest_timestamp from the
+    # messages payload) can run before any other AI work.
+    messages = build_messages
+
+    if @latest_timestamp.to_i.positive? && (Time.current - Time.at(@latest_timestamp.to_i)) > MESSAGE_FRESHNESS_WINDOW
+      Rails.logger.info("[AiReply] skipping old message conv=#{@conversation_id}")
+      return nil
+    end
+
+    return log_and_nil("no usable history conversation=#{@conversation_id}") if messages.empty?
+
     if ai_disabled?
       Rails.logger.info("[AiReply] skipping conversation=#{@conversation_id} (label='#{SKIP_LABEL}')")
       return nil
     end
 
-    messages = build_messages
-    return log_and_nil("no usable history conversation=#{@conversation_id}") if messages.empty?
+    # Cheap-path canned hello — bypasses Anthropic entirely for one-word
+    # greetings like "hi"/"yo".
+    last_message = messages.last&.dig('content').to_s.downcase.strip
+    return GREETING_REPLY if SIMPLE_GREETINGS.include?(last_message)
 
     payment_info = fetch_payment_info
     training_info = fetch_ai_training
@@ -183,6 +209,9 @@ class Ai::ReplyService
     end
 
     payload = Array(response.parsed_response['payload'])
+    # Captured for the freshness check in `call`. Use the raw payload (every
+    # message type) so activity events still count as "the conversation is alive".
+    @latest_timestamp = payload.map { |m| m['created_at'].to_i }.max
     # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
     # 2/3 are activity/template — skip those, they're not part of the conversation.
     history = payload
@@ -198,11 +227,29 @@ class Ai::ReplyService
     history
   end
 
+  # Best-effort Redis read/write for canned-response content. Any Redis error
+  # (connection refused, $redis undefined in dev/test, etc.) is swallowed so
+  # the caller falls through to the HTTP path.
+  def read_canned_cache(short_code)
+    $redis.get("#{CANNED_CACHE_PREFIX}#{short_code}")
+  rescue StandardError
+    nil
+  end
+
+  def write_canned_cache(short_code, content)
+    $redis.setex("#{CANNED_CACHE_PREFIX}#{short_code}", CANNED_CACHE_TTL, content)
+  rescue StandardError
+    nil
+  end
+
   # Pulls the current payment-method tags/links from a Chatwoot canned response
   # so the prompt always reflects what ops has configured today (without a
   # deploy). Falls back to '' on any failure — the prompt template tells the
   # model to escalate when payment details are missing or blank.
   def fetch_payment_info
+    cached = read_canned_cache('payment_info')
+    return cached if cached.present?
+
     response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/canned_responses",
       headers: chatwoot_headers,
@@ -222,7 +269,9 @@ class Ai::ReplyService
       return ''
     end
 
-    match['content'].to_s
+    content = match['content'].to_s
+    write_canned_cache('payment_info', content)
+    content
   rescue StandardError => e
     Rails.logger.warn("[AiReply] payment_info fetch error #{e.class}: #{e.message}")
     ''
@@ -232,6 +281,9 @@ class Ai::ReplyService
   # re-voice the agent without a deploy. Empty / missing → no identity section
   # is prepended to the prompt.
   def fetch_ai_persona
+    cached = read_canned_cache('ai_persona')
+    return cached if cached.present?
+
     response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/canned_responses",
       headers: chatwoot_headers,
@@ -251,7 +303,9 @@ class Ai::ReplyService
       return ''
     end
 
-    match['content'].to_s
+    content = match['content'].to_s
+    write_canned_cache('ai_persona', content)
+    content
   rescue StandardError => e
     Rails.logger.warn("[AiReply] ai_persona fetch error #{e.class}: #{e.message}")
     ''
@@ -261,6 +315,9 @@ class Ai::ReplyService
   # ai_training) so the team can refine model behavior from the Chatwoot UI
   # without redeploying. Empty / missing → no extra section added.
   def fetch_ai_training
+    cached = read_canned_cache('ai_training')
+    return cached if cached.present?
+
     response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/canned_responses",
       headers: chatwoot_headers,
@@ -280,7 +337,9 @@ class Ai::ReplyService
       return ''
     end
 
-    match['content'].to_s
+    content = match['content'].to_s
+    write_canned_cache('ai_training', content)
+    content
   rescue StandardError => e
     Rails.logger.warn("[AiReply] ai_training fetch error #{e.class}: #{e.message}")
     ''
