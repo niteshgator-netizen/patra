@@ -57,6 +57,12 @@ class Facebook::SendApiService
       return false
     end
 
+    # Show typing dots then pause proportionally to the reply length, so the
+    # message lands at a human-feeling cadence rather than instantly. Typing
+    # indicator is best-effort — a failure there shouldn't block the send.
+    send_typing_indicator(psid)
+    sleep(typing_delay_seconds)
+
     response = HTTParty.post(
       "#{GRAPH_HOST}/#{GRAPH_API_VERSION}/me/messages",
       headers: { 'Content-Type' => 'application/json' },
@@ -78,6 +84,31 @@ class Facebook::SendApiService
       "[FbReply] Graph send failed conversation=#{@conversation_id} psid=#{psid} HTTP #{response.code}: #{response.body}"
     )
     false
+  end
+
+  def send_typing_indicator(psid)
+    response = HTTParty.post(
+      "#{GRAPH_HOST}/#{GRAPH_API_VERSION}/me/messages",
+      headers: { 'Content-Type' => 'application/json' },
+      body: {
+        recipient: { id: psid },
+        sender_action: 'typing_on',
+        access_token: page_access_token
+      }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+
+    return if response.success?
+
+    Rails.logger.warn("[FbReply] typing_on HTTP #{response.code} psid=#{psid}: #{response.body}")
+  rescue StandardError => e
+    Rails.logger.warn("[FbReply] typing_on error psid=#{psid} #{e.class}: #{e.message}")
+  end
+
+  # ~1s of "typing" per 20 characters, clamped to [2, 5] seconds so very
+  # short replies still feel human and long ones don't stall the worker.
+  def typing_delay_seconds
+    (@message_content.length / 20.0).round.clamp(2, 5)
   end
 
   # ---------- Config ----------
