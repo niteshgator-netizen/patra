@@ -28,8 +28,16 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
     end
 
     lock_key = format(SENDER_MUTEX_KEY, sender_id: sender_id)
+    result = nil
     with_lock(lock_key, SENDER_MUTEX_TIMEOUT) do
-      Facebook::ChatwootBridgeService.new(messaging).perform
+      result = Facebook::ChatwootBridgeService.new(messaging).perform
+    end
+
+    # Trigger the AI auto-reply after the bridge has persisted the inbound
+    # message. 3s delay gives Chatwoot a moment to fully commit the message
+    # before we read the conversation history back out.
+    if result.is_a?(Hash) && result[:conversation_id].present?
+      Ai::ReplyJob.set(wait: 3.seconds).perform_later(result[:conversation_id])
     end
   rescue Facebook::ChatwootBridgeService::ConfigurationError => e
     # Misconfiguration won't fix itself by retrying — log loud and drop.

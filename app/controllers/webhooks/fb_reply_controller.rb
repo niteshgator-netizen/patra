@@ -20,7 +20,14 @@ class Webhooks::FbReplyController < ActionController::API
   private
 
   def eligible?
-    inbox_id_matches? && outgoing? && !private_message?
+    inbox_id_matches? && outgoing? && !private_message? && !ai_self_message?
+  end
+
+  # Messages we logged ourselves via Ai::ReplyJob carry source_id="ai_auto".
+  # Skipping them here breaks the loop: AI reply → log to Chatwoot →
+  # message_created webhook → this controller → would re-send to FB.
+  def ai_self_message?
+    params[:source_id].to_s == 'ai_auto'
   end
 
   def inbox_id_matches?
