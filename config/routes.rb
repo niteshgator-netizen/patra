@@ -10,6 +10,11 @@ Rails.application.routes.draw do
 
   post 'resend_confirmation', to: 'auth/resend_confirmations#create'
 
+  # Public legal pages — required for Meta App Review and other OAuth providers.
+  # No authentication; LegalController extends ActionController::Base directly.
+  get '/privacy', to: 'legal#privacy'
+  get '/terms', to: 'legal#terms'
+
   ## renders the frontend paths only if its not an api only server
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('CW_API_ONLY_SERVER', false))
     root to: 'api#index'
