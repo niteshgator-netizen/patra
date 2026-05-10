@@ -590,7 +590,11 @@ Rails.application.routes.draw do
 
   # ----------------------------------------------------------------------
   # Routes for channel integrations
-  mount Facebook::Messenger::Server, at: 'bot'
+  # Facebook Messenger webhook — handled by our REST bridge (Webhooks::BotController)
+  # instead of the gem's mounted Rack server, so events flow to Chatwoot via the
+  # public API rather than the in-process FacebookPage channel.
+  get  'bot', to: 'webhooks/bot#verify'
+  post 'bot', to: 'webhooks/bot#events'
   get 'webhooks/twitter', to: 'api/v1/webhooks#twitter_crc'
   post 'webhooks/twitter', to: 'api/v1/webhooks#twitter_events'
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
