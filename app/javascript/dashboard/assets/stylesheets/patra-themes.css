@@ -251,3 +251,43 @@
   background-color: var(--patra-bg1) !important;
   color: var(--patra-text1) !important;
 }
+
+/* Modal surfaces — Chatwoot's modals render into a portal outside the main
+   app tree, so the design-token overrides above don't always reach them.
+   Skipped on light theme since Chatwoot's defaults already look right there. */
+:root[data-theme="dark"] .modal-container,
+:root[data-theme="dark"] .modal-body,
+:root[data-theme="dark"] .woot-modal,
+:root[data-theme="dark"] .woot-modal--expand,
+:root[data-theme="dark"] .dialog-contents,
+:root[data-theme="midnight"] .modal-container,
+:root[data-theme="midnight"] .modal-body,
+:root[data-theme="midnight"] .woot-modal,
+:root[data-theme="midnight"] .dialog-contents,
+:root[data-theme="forest"] .modal-container,
+:root[data-theme="forest"] .modal-body,
+:root[data-theme="forest"] .woot-modal,
+:root[data-theme="forest"] .dialog-contents {
+  background-color: var(--patra-bg2) !important;
+  color: var(--patra-text1) !important;
+}
+
+:root[data-theme="dark"] .modal-container input,
+:root[data-theme="dark"] .modal-container select,
+:root[data-theme="dark"] .modal-container textarea,
+:root[data-theme="midnight"] .modal-container input,
+:root[data-theme="midnight"] .modal-container select,
+:root[data-theme="midnight"] .modal-container textarea,
+:root[data-theme="forest"] .modal-container input,
+:root[data-theme="forest"] .modal-container select,
+:root[data-theme="forest"] .modal-container textarea {
+  background-color: var(--patra-bg3) !important;
+  color: var(--patra-text1) !important;
+  border-color: var(--patra-border) !important;
+}
+
+:root[data-theme="dark"] label,
+:root[data-theme="midnight"] label,
+:root[data-theme="forest"] label {
+  color: var(--patra-text2) !important;
+}
