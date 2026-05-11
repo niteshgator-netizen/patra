@@ -77,6 +77,13 @@ class Ai::ReplyService
     - Prefer ZERO emoji in most replies
     - Use casual words: 'yo', 'hey', 'sure thing', 'gotcha', 'lemme', 'np'
 
+    NAME / HANDLE IN REPLIES (critical):
+    - Do not drop the customer's real name or game username into routine replies
+    - Bad: "gotcha Marcus, $20 on gamevault..." — Good: "gotcha, $20 on gamevault..."
+    - Bad: "aight coolplayer123 lemme load that" — Good: "aight lemme load that"
+    - Only use a name or handle when it truly adds clarity (e.g. confirming which account)
+    - Never open with "yo {name}", "hey {name}", or "{name}," for filler
+
     GREETINGS (when customer is just saying hi/hey/hello/hi there):
     - 'heyyy wassup 😊' for "hi"
     - 'hey!' for "hello"
@@ -200,10 +207,11 @@ class Ai::ReplyService
     'one moment'
   ].freeze
 
-  # Tiered sentiment detection. Level 1 = impatience (AI replies warmly).
-  # Level 2 = real anger (AI replies with apology + solution attempt).
-  # Level 3 = explicit human request, OR Level 2 anger AFTER we already
-  # apologized → escalate to a human without another AI turn.
+  # Tiered sentiment detection (Bella stays in the thread for Levels 1 & 2).
+  # Level 1 = mild frustration / impatience → empathize, acknowledge, keep helping.
+  # Level 2 = strong anger / accusation (scam, wtf, etc.) → apologize + solve;
+  #   never escalate from these keywords alone.
+  # Level 3 = customer explicitly asks for a human/manager/supervisor → escalate only then.
   ANGER_LEVEL_1_KEYWORDS = [
     'where is', 'still waiting', 'taking long', 'taking forever',
     'not received', 'havent received', "haven't received",
@@ -214,13 +222,16 @@ class Ai::ReplyService
     'wtf', 'fuck', 'shit', 'ripped off', 'never again',
     'fix this now', 'lawsuit', 'report'
   ].freeze
-  ANGER_LEVEL_3_KEYWORDS = [
-    'real person', 'human agent', 'speak to manager', 'this is bs',
-    'reporting you'
+  # Substrings / phrases only — must read as an explicit ask for a real human escalation.
+  EXPLICIT_HUMAN_REQUEST_PHRASES = [
+    'real person', 'real human', 'human agent', 'actual person', 'live person',
+    'talk to manager', 'speak to manager', 'talk to a manager', 'speak to a manager',
+    'get me a manager', 'want a manager', 'need a manager', 'talk to your manager',
+    'talk to supervisor', 'speak to supervisor', 'talk to a supervisor',
+    'talk to a human', 'talk to human', 'speak to a human', 'speak to human',
+    'want a human', 'need a human', 'get me a human', 'get me someone real',
+    'connect me to a manager', 'speak to the owner'
   ].freeze
-  # Markers we look for in the most recent assistant message — if we already
-  # apologized and the customer is still angry, that's a Level 2 → escalate.
-  APOLOGY_MARKERS = ['sorry', 'apologize', 'frustrated', 'my bad'].freeze
 
   # Customer phrasing that should trigger a forced "send the BoltPay link"
   # behavior — keyed off the payment_info canned response.
@@ -232,6 +243,38 @@ class Ai::ReplyService
   def initialize(conversation_id, account_id: nil)
     @conversation_id = conversation_id
     @bridge_account_id = account_id
+  end
+
+  # Public so rake tasks and other callers can reuse the same denylist as
+  # message scanning (must stay above `private` in this file).
+  def self.username_value_denied?(value)
+    USERNAME_VALUE_DENYLIST.include?(value.to_s.strip.downcase)
+  end
+
+  # Data cleanup: contacts whose stored game_username is denylisted junk.
+  def self.contacts_with_denylisted_game_username(relation = Contact.all)
+    deny = USERNAME_VALUE_DENYLIST.map(&:downcase)
+    relation.where(
+      "LOWER(TRIM(COALESCE(custom_attributes->>'game_username', ''))) IN (?)",
+      deny
+    )
+  end
+
+  # Removes `game_username` from custom_attributes for denylisted values.
+  # Returns number of contacts updated. Logs each row.
+  def self.remove_denylisted_game_username_from_contacts!(relation: Contact.all, logger: Rails.logger)
+    cleared = 0
+    contacts_with_denylisted_game_username(relation).find_each do |contact|
+      raw = contact.custom_attributes.to_h.stringify_keys['game_username']
+      attrs = contact.custom_attributes.stringify_keys.except('game_username')
+      contact.update_columns(custom_attributes: attrs, updated_at: Time.current)
+      logger.info(
+        "[CleanInvalidUsernames] cleared game_username=#{raw.inspect} " \
+        "contact_id=#{contact.id} account_id=#{contact.account_id}"
+      )
+      cleared += 1
+    end
+    cleared
   end
 
   def call
@@ -256,12 +299,13 @@ class Ai::ReplyService
       return nil
     end
 
-    # Tiered sentiment handling — see detect_anger_level. Level 3 hands off
-    # to a human immediately; Levels 1 & 2 keep the AI in the loop but inject
-    # an empathy hint into the prompt so the reply is appropriately warm.
+    # Tiered sentiment handling — see detect_anger_level. Only explicit
+    # requests for a human/manager (Level 3) hand off; Levels 1 & 2 inject
+    # empathy / apologize-and-solve hints — Bella does not auto-escalate on
+    # anger words alone (e.g. scam, wtf, fraud).
     sentiment_level = detect_anger_level(messages)
     if sentiment_level == :escalate
-      escalate_to_human(messages, 'angry after AI attempt')
+      escalate_to_human(messages, 'explicit human/manager request')
       return nil
     end
     empathy_hint = empathy_hint_for(sentiment_level)
@@ -415,7 +459,7 @@ class Ai::ReplyService
   end
 
   # Builds a one-line summary about the contact behind this conversation so
-  # the model can personalize (greet by name, recognize returning players).
+  # the model has context (name, game handle, returning-player signal).
   # Pulls from three Chatwoot endpoints; any single failure short-circuits to
   # '' so the prompt simply omits the section rather than blocking the reply.
   def fetch_player_profile
@@ -445,10 +489,14 @@ class Ai::ReplyService
     additional_attrs = contact['additional_attributes'].is_a?(Hash) ? contact['additional_attributes'] : {}
 
     # Use stored game_username if we already have one, otherwise scan recent
-    # messages and persist the result for future calls.
-    game_username = custom_attrs['game_username'].presence ||
-                    additional_attrs['game_username'].presence ||
-                    store_player_username(contact_id)
+    # messages and persist the result for future calls. Drop junk stored earlier.
+    raw_stored = custom_attrs['game_username'].presence ||
+                 additional_attrs['game_username'].presence
+    if raw_stored.present? && self.class.username_value_denied?(raw_stored)
+      clear_game_username(contact_id)
+      raw_stored = nil
+    end
+    game_username = raw_stored.presence || store_player_username(contact_id)
 
     # 3. Past conversations → count = "previous interactions"
     convos_response = HTTParty.get(
@@ -459,7 +507,9 @@ class Ai::ReplyService
     conversations_count = convos_response.success? ? Array(convos_response.parsed_response['payload']).length : 0
 
     parts = []
-    parts << "Player name: #{name}" if name.present?
+    if name.present?
+      parts << "Contact display name (internal — do not greet or echo unless confirming identity): #{name}"
+    end
     parts << "Customer's game username: #{game_username}" if game_username.present?
     parts << "Previous interactions: #{conversations_count}"
     notes = (additional_attrs['notes'] || custom_attrs['notes']).to_s.strip
@@ -470,35 +520,47 @@ class Ai::ReplyService
     ''
   end
 
-  # Scans the most recent 20 messages for a self-declared username pattern
-  # ("my username is X", "username: X", "my id is X", "my tag is X") and, if
-  # found, PATCHes the contact's custom_attributes.game_username so future
-  # replies can address the player by their in-game handle. Chatwoot merges
-  # custom_attributes on update, so this is a safe partial write.
+  # Values that must never be persisted as game_username (greetings, acks,
+  # business keywords mistaken for handles, etc.). Checked case-insensitively.
+  USERNAME_VALUE_DENYLIST = %w[
+    test testing hi hello hey yes no ok okay sure thanks thx ty yo wassup sup
+    load cashout deposit scam scammer wtf fraud fire good bad
+  ].freeze
+
+  # Persists game_username only when:
+  # 1) Customer writes an explicit line ("username: X", "my username is X",
+  #    "my game username is X", or a clear correction like "my real username is X"), or
+  # 2) Customer sends a single plausible handle token and the nearest prior
+  #    assistant turn asked for their game username (see ASSISTANT_USERNAME_PROMPT_REGEX).
+  # Chatwoot merges custom_attributes on update; removals use destroy_custom_attributes.
   # Returns the detected username on success, nil on no-match or any failure.
-  USERNAME_PATTERN = /
-    (?:my\s+(?:game\s+)?username\s+is|
-       my\s+(?:game\s+)?username\s*:|
-       (?:game\s+)?username\s+is|
-       (?:game\s+)?username\s*:|
-       username\s*:|
-       my\s+id\s+is|
-       my\s+tag\s+is)
-    \s*([^\s.,;:!?]+)
+  USERNAME_EXPLICIT_PATTERN = /
+    (?:
+      my\s+(?:game\s+)?username\s+is|
+      my\s+(?:game\s+)?username\s*:|
+      (?:^|[\s>])(?:game\s+)?username\s*:
+    )
+    \s*
+    ([^\s.,;:!?]+)
+  /ix
+  USERNAME_CORRECTION_PATTERN = /
+    (?:
+      my\s+real\s+(?:game\s+)?username\s+is|
+      actually\s+(?:my\s+)?(?:real\s+)?(?:game\s+)?username\s+is|
+      (?:wrong|sorry)[,:\s]+(?:my\s+)?(?:real\s+)?(?:game\s+)?username\s+is|
+      correct(?:ion)?[,:\s]+(?:my\s+)?(?:real\s+)?(?:game\s+)?username\s+is
+    )
+    \s*
+    ([^\s.,;:!?]+)
   /ix
   USERNAME_SCAN_LIMIT = 20
-
-  # Username-only replies (common behavior: player sends just their handle).
-  # Kept conservative to avoid misclassifying "juwa" or "cashapp" as a
-  # game username.
-  HANDLE_ONLY_PATTERN = /\A[a-zA-Z0-9][a-zA-Z0-9_.-]{2,24}\z/.freeze
-  HANDLE_NEEDS_DIGIT_OR_SEPARATOR = /[0-9_.-]/.freeze
-  HANDLE_BLACKLIST = %w[
-    hi hey hello hii heyy heyyy sup yo
-    cashapp venmo paypal chime
-    card credit debit visa mastercard
-    googlepay appley pay applepay
-  ].freeze
+  # Bella asked for their in-game handle (matches phrasing in SYSTEM_PROMPT / ops style).
+  ASSISTANT_USERNAME_PROMPT_REGEX = /
+    what(?:'s|s|\s+is)\s+your\s+[\w\s]{0,24}username
+    |\byour\s+\w+\s+username\b
+    |\busername\s*\?
+    |,\s*username\s*\?
+  /ix
 
   def store_player_username(contact_id)
     return nil if contact_id.blank?
@@ -510,38 +572,96 @@ class Ai::ReplyService
     )
     return nil unless messages_response.success?
 
-    recent = Array(messages_response.parsed_response['payload'])
-             .select { |m| chat_message_type(m) == 0 } # only customer/incoming messages
-             .sort_by { |m| message_created_at_unix(m['created_at']) }
-             .last(USERNAME_SCAN_LIMIT)
+    timeline = username_scan_timeline(messages_response.parsed_response['payload'])
+    action = detect_username_action_from_timeline(timeline)
+    return nil if action.nil?
 
-    # Iterate newest first so a later correction wins over an earlier mention.
-    username = nil
-    recent.reverse_each do |m|
-      content = m['content'].to_s.strip
+    case action[:type]
+    when :clear
+      clear_game_username(contact_id)
+      nil
+    when :set
+      persist_game_username(contact_id, action[:value])
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] store_player_username error contact=#{contact_id} #{e.class}: #{e.message}")
+    nil
+  end
+
+  def username_scan_timeline(payload)
+    Array(payload)
+      .select { |m| (t = chat_message_type(m)) && [0, 1].include?(t) }
+      .reject { |m| m['content'].to_s.strip.empty? }
+      .sort_by { |m| message_created_at_unix(m['created_at']) }
+      .last(USERNAME_SCAN_LIMIT * 2)
+  end
+
+  # Newest customer messages first; first actionable row wins (latest customer intent).
+  def detect_username_action_from_timeline(timeline)
+    incoming_indices = timeline.each_with_index.filter_map { |m, i| i if chat_message_type(m) == 0 }
+    incoming_indices.reverse_each do |idx|
+      message = timeline[idx]
+      content = message['content'].to_s.strip
       next if content.empty?
 
-      match = content.match(USERNAME_PATTERN)
-      if match
-        username = match[1].strip
-        break
+      if (m = content.match(USERNAME_CORRECTION_PATTERN))
+        token = normalize_username_capture(m[1])
+        next if token.blank?
+
+        return { type: :clear } if self.class.username_value_denied?(token)
+
+        return { type: :set, value: token }
       end
 
-      # Normalize handle-ish text like "@handle!" -> "handle".
-      handle_candidate = content.sub(/\A[@#]/, '')
-      handle_candidate = handle_candidate.sub(/[.,;:!?]+\z/, '')
+      if (m = content.match(USERNAME_EXPLICIT_PATTERN))
+        token = normalize_username_capture(m[1])
+        next if token.blank?
+        next if self.class.username_value_denied?(token)
 
-      downcased = handle_candidate.downcase
-      next if HANDLE_BLACKLIST.include?(downcased)
-
-      # Handle-only detection: "juwa_123", "hustle09", etc.
-      if handle_candidate.match?(HANDLE_ONLY_PATTERN) && handle_candidate.match?(HANDLE_NEEDS_DIGIT_OR_SEPARATOR)
-        username = handle_candidate
-        break
+        return { type: :set, value: token }
       end
+
+      next unless single_word_username_reply?(content)
+
+      assistant = prior_assistant_message(timeline, idx)
+      next if assistant.blank?
+      next unless assistant_prompted_game_username?(assistant['content'].to_s)
+
+      token = normalize_username_capture(content.sub(/\A[@#]/, '').sub(/[.,;:!?]+\z/, ''))
+      next if token.blank?
+      next if self.class.username_value_denied?(token)
+
+      return { type: :set, value: token }
     end
-    return nil if username.blank?
+    nil
+  end
 
+  def single_word_username_reply?(content)
+    normalized = content.gsub(/\s+/, ' ').strip
+    return false if normalized.include?(' ')
+
+    token = normalize_username_capture(normalized.sub(/\A[@#]/, '').sub(/[.,;:!?]+\z/, ''))
+    token.present? && token.match?(/\A[a-zA-Z0-9][a-zA-Z0-9_.-]{0,48}\z/)
+  end
+
+  def prior_assistant_message(timeline, incoming_index)
+    return nil if incoming_index < 1
+
+    (incoming_index - 1).downto(0) do |j|
+      return timeline[j] if chat_message_type(timeline[j]) == 1
+    end
+    nil
+  end
+
+  def assistant_prompted_game_username?(text)
+    text.match?(ASSISTANT_USERNAME_PROMPT_REGEX)
+  end
+
+  def normalize_username_capture(raw)
+    raw.to_s.strip.sub(/\A[@#]+/, '').sub(/[.,;:!?]+\z/, '')
+  end
+
+  def persist_game_username(contact_id, username)
     patch_response = HTTParty.patch(
       "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
       headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
@@ -556,9 +676,23 @@ class Ai::ReplyService
       Rails.logger.warn("[AiReply] failed to persist game_username HTTP #{patch_response.code}: #{patch_response.body}")
       nil
     end
-  rescue StandardError => e
-    Rails.logger.warn("[AiReply] store_player_username error contact=#{contact_id} #{e.class}: #{e.message}")
-    nil
+  end
+
+  def clear_game_username(contact_id)
+    return if contact_id.blank?
+
+    response = HTTParty.post(
+      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}/destroy_custom_attributes",
+      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+      body: { custom_attributes: ['game_username'] }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+
+    if response.success?
+      Rails.logger.info("[AiReply] cleared game_username contact=#{contact_id}")
+    else
+      Rails.logger.warn("[AiReply] clear game_username HTTP #{response.code}: #{response.body}")
+    end
   end
 
   # Fetches every canned response in the account and formats them as
@@ -763,13 +897,17 @@ class Ai::ReplyService
         CURRENT PLAYER INFO:
         #{player_profile}
 
-        Use this to personalize your response. If you know their name
-        use it naturally. If they are a returning player treat them warmly.
+        Use CURRENT PLAYER INFO for context only (records / continuity).
+        Do not address the customer by their real name or game username in
+        ordinary replies. Never open with "yo {name}", "gotcha {name},",
+        "{name} —", or slip their handle into casual confirmations — write the
+        same line without the name unless you are explicitly confirming who
+        they are (they asked "is this my account?" style).
         If CURRENT PLAYER INFO already includes a line starting with
         "Customer's game username:", do not ask for it again. If the
         username is missing, ask for it once (only one question) after
         they mention loading/cashout/cashing out/bonus. After the customer provides
-        it, never ask again. Always greet returning players by username.
+        it, never ask again.
 
         GREETING RULES:
         - If "Previous interactions: 1" (their first conversation): send
@@ -855,28 +993,25 @@ class Ai::ReplyService
   end
 
   # Returns :escalate / :level_2 / :level_1 / nil based on the latest user
-  # message. :escalate triggers an immediate hand-off; :level_1 and :level_2
-  # keep the AI in the loop but signal the prompt to be more empathetic.
+  # message. :escalate only when they explicitly demand a human/manager;
+  # :level_1 / :level_2 keep Bella in the loop with tailored tone hints.
   def detect_anger_level(messages)
     user_msgs = messages.select { |m| m['role'] == 'user' }
     return nil if user_msgs.empty?
 
     latest = user_msgs.last['content'].to_s.downcase
 
-    return :escalate if matches_any_keyword?(latest, ANGER_LEVEL_3_KEYWORDS)
+    return :escalate if explicit_human_request?(latest)
 
-    if matches_any_keyword?(latest, ANGER_LEVEL_2_KEYWORDS)
-      last_assistant = messages.select { |m| m['role'] == 'assistant' }.last
-      if last_assistant
-        prior = last_assistant['content'].to_s.downcase
-        return :escalate if APOLOGY_MARKERS.any? { |w| prior.include?(w) }
-      end
-      return :level_2
-    end
-
+    return :level_2 if matches_any_keyword?(latest, ANGER_LEVEL_2_KEYWORDS)
     return :level_1 if matches_any_keyword?(latest, ANGER_LEVEL_1_KEYWORDS)
 
     nil
+  end
+
+  def explicit_human_request?(text)
+    down = text.to_s.downcase
+    EXPLICIT_HUMAN_REQUEST_PHRASES.any? { |phrase| down.include?(phrase) }
   end
 
   # Word-boundary match for single words, substring match for phrases. Stops
@@ -896,9 +1031,12 @@ class Ai::ReplyService
   def empathy_hint_for(level)
     case level
     when :level_2
-      'CUSTOMER IS FRUSTRATED. Apologize warmly and try to solve their problem. Be empathetic. No emojis.'
+      'CUSTOMER IS ANGRY OR UPSET (e.g. accusations, strong language). Do NOT offer a manager or human handoff unless they explicitly asked for one. ' \
+      'Apologize briefly, own the wait/confusion, and move straight to fixing it — ask for what you need (e.g. game username, screenshot) like a real rep. ' \
+      'Tone example (do not copy verbatim): hey im so sorry for the wait, whats your username so i can fix this asap? Stay casual; no corporate speak.'
     when :level_1
-      'CUSTOMER SEEMS IMPATIENT. Be warm and fast to acknowledge their concern. No emojis here.'
+      'CUSTOMER SHOWS MILD FRUSTRATION OR IMPATIENCE (wait time, where is my load, etc.). Acknowledge it with empathy and reassure you are on it — no handoff. ' \
+      'Tone example (do not copy verbatim): i totally get it, lemme check rn 🙏 Keep it short and human; one emoji max only if it fits.'
     end
   end
 
