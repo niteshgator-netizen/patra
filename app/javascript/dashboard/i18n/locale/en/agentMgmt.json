@@ -41,10 +41,10 @@
           "PLACEHOLDER": "Please enter an email address of the agent"
         },
         "PASSWORD": {
-          "LABEL": "Initial Password (optional)",
-          "PLACEHOLDER": "Leave blank to send an email invite instead",
-          "ERROR": "Password must be at least 6 characters",
-          "HELP_TEXT": "If set, the agent can log in immediately. Otherwise an admin can send them a reset email from the Edit screen."
+          "LABEL": "Password",
+          "PLACEHOLDER": "Set agent login password",
+          "REQUIRED_ERROR": "Password is required",
+          "ERROR": "Password must be at least 6 characters"
         },
         "SUBMIT": "Add Agent"
       },
