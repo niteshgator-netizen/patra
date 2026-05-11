@@ -1,19 +1,21 @@
-# Generates a draft reply for a Chatwoot conversation using the Anthropic
-# Messages API. Returns the reply text on success, or nil when:
+# Generates a draft reply for a Chatwoot conversation using xAI's
+# OpenAI-compatible Chat Completions endpoint. Returns the reply text on
+# success, or nil when:
 #   - the conversation carries the `ai-off` label (opt-out)
 #   - the message history can't be fetched
 #   - no usable history exists
-#   - the Anthropic call fails for any reason
+#   - the upstream LLM call fails for any reason
 #
 # Configuration (all read at call time):
-#   ANTHROPIC_API_KEY            — required
+#   XAI_API_KEY                  — required
 #   CHATWOOT_BRIDGE_API_TOKEN    — required (to read conversation + messages)
 #   CHATWOOT_BRIDGE_BASE_URL     — defaults to https://patrahq.com
 #   CHATWOOT_BRIDGE_ACCOUNT_ID   — defaults to 2
 class Ai::ReplyService
-  ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'.freeze
-  ANTHROPIC_VERSION = '2023-06-01'.freeze
-  MODEL = 'claude-sonnet-4-6'.freeze
+  # xAI ships an OpenAI-compatible Chat Completions endpoint, hence the
+  # {role, content} message format and the choices[0].message.content shape.
+  XAI_URL = 'https://api.x.ai/v1/chat/completions'.freeze
+  MODEL = 'grok-4'.freeze
   MAX_TOKENS = 150
   HISTORY_LIMIT = 5
   HTTP_TIMEOUT = 30
@@ -132,7 +134,7 @@ class Ai::ReplyService
 
   def call
     return nil if @conversation_id.blank?
-    return log_and_nil('ANTHROPIC_API_KEY not configured') if api_key.blank?
+    return log_and_nil('XAI_API_KEY not configured') if api_key.blank?
     return log_and_nil('CHATWOOT_BRIDGE_API_TOKEN not configured') if chatwoot_token.blank?
 
     # Pulled up so the freshness check (which needs @latest_timestamp from the
@@ -159,7 +161,8 @@ class Ai::ReplyService
     payment_info = fetch_payment_info
     training_info = fetch_ai_training
     persona_info = fetch_ai_persona
-    system_prompt = build_system_prompt(payment_info, training_info, persona_info)
+    player_profile = fetch_player_profile
+    system_prompt = build_system_prompt(payment_info, training_info, persona_info, player_profile)
 
     reply = invoke_anthropic(messages, system_prompt)
     return nil if reply.blank?
@@ -225,6 +228,53 @@ class Ai::ReplyService
     # assistant turns so the API doesn't 400 with a role-ordering error.
     history.shift while history.any? && history.first['role'] != 'user'
     history
+  end
+
+  # Builds a one-line summary about the contact behind this conversation so
+  # the model can personalize (greet by name, recognize returning players).
+  # Pulls from three Chatwoot endpoints; any single failure short-circuits to
+  # '' so the prompt simply omits the section rather than blocking the reply.
+  def fetch_player_profile
+    # 1. Conversation → sender id + name
+    conv_response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+    return '' unless conv_response.success?
+
+    sender_name = conv_response.parsed_response.dig('meta', 'sender', 'name')
+    contact_id = conv_response.parsed_response.dig('meta', 'sender', 'id')
+    return '' if contact_id.blank?
+
+    # 2. Contact → additional_attributes (may carry ops-curated notes)
+    contact_response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+    return '' unless contact_response.success?
+
+    contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
+    name = (sender_name.presence || contact['name']).to_s
+    additional = contact['additional_attributes'].is_a?(Hash) ? contact['additional_attributes'] : {}
+
+    # 3. Past conversations → count = "previous interactions"
+    convos_response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}/conversations",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+    conversations_count = convos_response.success? ? Array(convos_response.parsed_response['payload']).length : 0
+
+    parts = []
+    parts << "Player name: #{name}" if name.present?
+    parts << "Previous interactions: #{conversations_count}"
+    parts << "Notes: #{additional['notes']}" if additional['notes'].to_s.strip.present?
+    parts.join(', ')
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] player profile fetch error conversation=#{@conversation_id} #{e.class}: #{e.message}")
+    ''
   end
 
   # Best-effort Redis read/write for canned-response content. Any Redis error
@@ -345,7 +395,7 @@ class Ai::ReplyService
     ''
   end
 
-  def build_system_prompt(payment_info, training_info = '', persona_info = '')
+  def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '')
     section = <<~SECTION.strip
       CURRENT PAYMENT DETAILS (read this before answering any payment question):
       #{payment_info}
@@ -377,43 +427,55 @@ class Ai::ReplyService
       prompt = "#{persona_section}\n\n#{prompt}"
     end
 
-    return prompt if training_info.to_s.strip.empty?
+    unless training_info.to_s.strip.empty?
+      training_section = <<~TRAINING.strip
+        ADDITIONAL BUSINESS RULES (highest priority - follow these exactly):
+        #{training_info}
+      TRAINING
+      prompt = "#{prompt}\n#{training_section}\n"
+    end
 
-    training_section = <<~TRAINING.strip
-      ADDITIONAL BUSINESS RULES (highest priority - follow these exactly):
-      #{training_info}
-    TRAINING
+    unless player_profile.to_s.strip.empty?
+      player_section = <<~PLAYER.strip
+        CURRENT PLAYER INFO:
+        #{player_profile}
 
-    "#{prompt}\n#{training_section}\n"
+        Use this to personalize your response. If you know their name
+        use it naturally. If they are a returning player treat them warmly.
+      PLAYER
+      prompt = "#{prompt}\n#{player_section}\n"
+    end
+
+    prompt
   end
 
   # ---------- Anthropic ----------
 
   def invoke_anthropic(messages, system_prompt)
     response = HTTParty.post(
-      ANTHROPIC_URL,
+      XAI_URL,
       headers: {
-        'x-api-key' => api_key,
-        'anthropic-version' => ANTHROPIC_VERSION,
-        'content-type' => 'application/json'
+        'Authorization' => "Bearer #{api_key}",
+        'Content-Type' => 'application/json'
       },
       body: {
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: system_prompt,
-        messages: messages
+        # xAI uses OpenAI's wire format — system prompt goes in as the first
+        # message instead of a top-level `system` field.
+        messages: [{ role: 'system', content: system_prompt }, *messages]
       }.to_json,
       timeout: HTTP_TIMEOUT
     )
 
     unless response.success?
-      Rails.logger.error("[AiReply] Anthropic HTTP #{response.code} conversation=#{@conversation_id}: #{response.body}")
+      Rails.logger.error("[AiReply] xAI HTTP #{response.code} conversation=#{@conversation_id}: #{response.body}")
       return nil
     end
 
-    text = response.parsed_response.dig('content', 0, 'text')
+    text = response.parsed_response.dig('choices', 0, 'message', 'content')
     if text.blank?
-      Rails.logger.warn("[AiReply] Anthropic returned no text conversation=#{@conversation_id} body=#{response.body}")
+      Rails.logger.warn("[AiReply] xAI returned no text conversation=#{@conversation_id} body=#{response.body}")
       return nil
     end
 
@@ -468,7 +530,7 @@ class Ai::ReplyService
   end
 
   def api_key
-    ENV.fetch('ANTHROPIC_API_KEY', '').to_s
+    ENV.fetch('XAI_API_KEY', '').to_s
   end
 
   def base_url
