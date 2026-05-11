@@ -317,7 +317,7 @@ class Ai::ReplyService
                           .select { |m| m['role'] == 'assistant' }
                           .any? { |m| m['content'].to_s.match?(ANY_EMOJI_PATTERN) }
 
-    # Cheap-path canned hello — bypasses Anthropic entirely for pure
+    # Cheap-path canned hello — bypasses LLM APIs entirely for pure
     # greetings.
     last_message = messages.last&.dig('content').to_s.downcase.strip
     normalized_greeting = last_message
@@ -332,6 +332,68 @@ class Ai::ReplyService
         greeting_reply = greeting_reply.gsub(ANY_EMOJI_PATTERN, '').strip
       end
       return greeting_reply
+    end
+
+    @grok_payment_injection = nil
+    routing_has_image = @routing_has_image.present?
+    image_url = @routing_image_url.to_s
+    last_user_plain = @routing_last_incoming_raw_content.to_s
+
+    complexity = Ai::ComplexityClassifier.classify(
+      last_user_plain,
+      has_attachment: routing_has_image
+    )
+    Rails.logger.info("[ReplyService] complexity=#{complexity} msg_len=#{last_user_plain.length}")
+
+    case complexity
+    when :has_image
+      if image_url.present?
+        payment = Ai::ImagePaymentExtractor.new(image_url).extract
+        if payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
+          append_patra_finance_log!(payment)
+          Rails.logger.info(
+            "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]}"
+          )
+          @grok_payment_injection = [
+            "Customer just sent a payment screenshot: $#{payment[:amount]} via #{payment[:platform]}.",
+            'Confirm receipt naturally, ask for their game username if not on file, and offer the correct bonus per the rules ($5+ deposit = 20-40% bonus based on loyalty tier).'
+          ].join(' ')
+        else
+          sub = if last_user_plain.strip.present?
+                  Ai::ComplexityClassifier.classify(last_user_plain, has_attachment: false)
+                else
+                  :simple
+                end
+          case sub
+          when :simple
+            reply = Ai::HaikuClient.new(
+              system_prompt: self.class::SYSTEM_PROMPT,
+              conversation_history: build_conversation_history
+            ).generate_reply
+            if reply.present?
+              Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
+              return reply
+            end
+
+            Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
+          when :complex
+            Rails.logger.info('[ReplyService] routed=grok')
+          end
+        end
+      end
+    when :simple
+      reply = Ai::HaikuClient.new(
+        system_prompt: self.class::SYSTEM_PROMPT,
+        conversation_history: build_conversation_history
+      ).generate_reply
+      if reply.blank?
+        Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
+      else
+        Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
+        return reply
+      end
+    when :complex
+      Rails.logger.info('[ReplyService] routed=grok')
     end
 
     payment_info = fetch_payment_info
@@ -358,7 +420,8 @@ class Ai::ReplyService
     system_prompt = "#{system_prompt}\n#{emoji_guard}\nSITUATION: #{empathy_hint}\n" if empathy_hint
     system_prompt = "#{system_prompt}\n#{emoji_guard}\n" unless empathy_hint
 
-    reply = invoke_anthropic(messages, system_prompt)
+    grok_messages = apply_grok_payment_injection(messages)
+    reply = invoke_anthropic(grok_messages, system_prompt)
     return nil if reply.blank?
 
     if escalation?(reply)
@@ -370,6 +433,12 @@ class Ai::ReplyService
   rescue StandardError => e
     Rails.logger.error("[AiReply] failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
     nil
+  end
+
+  # Public: last-built { 'role' => 'user'|'assistant', 'content' => String }[]
+  # for Haiku (same shape as the xAI/Grok `messages` array).
+  def build_conversation_history
+    @conversation_history_for_llm || []
   end
 
   private
@@ -442,20 +511,126 @@ class Ai::ReplyService
     @latest_timestamp = payload.map { |m| message_created_at_unix(m['created_at']) }.max
     # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
     # 2/3 are activity/template — skip those, they're not part of the conversation.
-    history = payload
-              .select { |m| (t = chat_message_type(m)) && [0, 1].include?(t) }
-              .reject { |m| m['content'].to_s.strip.empty? }
-              .sort_by { |m| message_created_at_unix(m['created_at']) }
-              .last(HISTORY_LIMIT)
-              .map do |m|
-                t = chat_message_type(m)
-                { 'role' => t == 0 ? 'user' : 'assistant', 'content' => m['content'].to_s }
-              end
+    raw_slice = payload
+                .select { |m| (t = chat_message_type(m)) && [0, 1].include?(t) }
+                .reject { |m| reject_empty_message?(m) }
+                .sort_by { |m| message_created_at_unix(m['created_at']) }
+                .last(HISTORY_LIMIT)
+
+    capture_routing_context_from_raw_slice(raw_slice)
+    history = format_conversation_history_from_raw_slice(raw_slice)
+    @conversation_history_for_llm = history
 
     # Anthropic requires the first message to be `user`. Drop any leading
     # assistant turns so the API doesn't 400 with a role-ordering error.
     history.shift while history.any? && history.first['role'] != 'user'
     history
+  end
+
+  def reject_empty_message?(m)
+    return false if m['content'].to_s.strip.present?
+
+    chat_message_type(m) == 0 && message_has_image_attachments?(m) ? false : true
+  end
+
+  def message_has_image_attachments?(m)
+    Array(m['attachments']).any? { |a| attachment_image?(a) }
+  end
+
+  def attachment_image?(attachment)
+    ft = attachment['file_type'] || attachment[:file_type]
+    ft.to_s == 'image' || ft.to_s == '0' || ft == 0
+  end
+
+  def capture_routing_context_from_raw_slice(raw_slice)
+    last_incoming = Array(raw_slice).reverse.find { |m| chat_message_type(m) == 0 }
+    if last_incoming
+      @routing_last_incoming_raw_content = last_incoming['content'].to_s
+      imgs = Array(last_incoming['attachments']).select { |a| attachment_image?(a) }
+      first = imgs.first
+      url = first && (first['data_url'].presence || first['thumb_url'].presence)
+      @routing_image_url = url.to_s.presence
+      @routing_has_image = imgs.any? && @routing_image_url.present?
+    else
+      @routing_last_incoming_raw_content = ''
+      @routing_image_url = nil
+      @routing_has_image = false
+    end
+  end
+
+  def format_conversation_history_from_raw_slice(raw_slice)
+    Array(raw_slice).map do |m|
+      t = chat_message_type(m)
+      content = m['content'].to_s
+      content = '[image]' if content.strip.empty? && message_has_image_attachments?(m)
+      { 'role' => t == 0 ? 'user' : 'assistant', 'content' => content }
+    end
+  end
+
+  def apply_grok_payment_injection(base_messages)
+    inj = @grok_payment_injection.to_s.strip
+    return base_messages if inj.blank?
+
+    duped = base_messages.map(&:dup)
+    idx = duped.rindex { |m| m['role'].to_s == 'user' }
+    return base_messages if idx.nil?
+
+    row = duped[idx].dup
+    existing = row['content'].to_s
+    row['content'] = "#{inj}\n\n#{existing}".strip
+    duped[idx] = row
+    duped
+  end
+
+  def append_patra_finance_log!(payment)
+    contact_id = fetch_sender_contact_id
+    return if contact_id.blank?
+
+    contact_response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+    return unless contact_response.success?
+
+    contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
+    attrs = (contact['custom_attributes'] || {}).stringify_keys
+    logs = Array.wrap(attrs['patra_finance_logs'])
+    logs << {
+      'kind' => 'deposit',
+      'amount' => payment[:amount],
+      'platform' => payment[:platform].to_s,
+      'recipient' => payment[:recipient].to_s,
+      'logged_at' => Time.current.iso8601,
+      'source' => 'image_auto'
+    }
+    attrs['patra_finance_logs'] = logs
+
+    patch_response = HTTParty.patch(
+      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+      body: { custom_attributes: attrs }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+
+    return if patch_response.success?
+
+    Rails.logger.warn(
+      "[ReplyService] patra_finance_logs patch failed HTTP #{patch_response.code}: #{patch_response.body}"
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] append_patra_finance_log! #{e.class}: #{e.message}")
+  end
+
+  def fetch_sender_contact_id
+    conv_response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+    return nil unless conv_response.success?
+
+    conv_response.parsed_response.dig('meta', 'sender', 'id')
   end
 
   # Builds a one-line summary about the contact behind this conversation so
