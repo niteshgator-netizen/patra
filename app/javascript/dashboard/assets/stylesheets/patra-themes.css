@@ -24,6 +24,20 @@
   --patra-amber: #f59e0b;
   --patra-amber-soft: #2a1f05;
   --patra-border: rgba(255, 255, 255, 0.07);
+
+  /* Override Chatwoot's shipped CSS variables so the rest of the app
+     re-skins with this theme. !important is needed because Chatwoot's
+     defaults are declared on :root and our [data-theme] attribute selector
+     has the same specificity. */
+  --color-background: #0f0f13 !important;
+  --color-background-light: #16161d !important;
+  --s-25: #0f0f13 !important;
+  --s-50: #16161d !important;
+  --s-75: #1e1e28 !important;
+  --w-25: #f0f0f5 !important;
+  --w-50: #a0a0b8 !important;
+  --color-woot: #7c6ff7 !important;
+  color-scheme: dark;
 }
 
 :root[data-theme="light"] {
@@ -42,6 +56,16 @@
   --patra-amber: #d97706;
   --patra-amber-soft: #fef3c7;
   --patra-border: rgba(0, 0, 0, 0.08);
+
+  --color-background: #ffffff !important;
+  --color-background-light: #f5f5f7 !important;
+  --s-25: #ffffff !important;
+  --s-50: #f5f5f7 !important;
+  --s-75: #f0f0f5 !important;
+  --w-25: #111118 !important;
+  --w-50: #555568 !important;
+  --color-woot: #534ab7 !important;
+  color-scheme: light;
 }
 
 :root[data-theme="midnight"] {
@@ -60,6 +84,16 @@
   --patra-amber: #fbbf24;
   --patra-amber-soft: #2a1f05;
   --patra-border: rgba(255, 255, 255, 0.05);
+
+  --color-background: #070712 !important;
+  --color-background-light: #0d0d1a !important;
+  --s-25: #070712 !important;
+  --s-50: #0d0d1a !important;
+  --s-75: #12122a !important;
+  --w-25: #e8e8ff !important;
+  --w-50: #9090c0 !important;
+  --color-woot: #a78bfa !important;
+  color-scheme: dark;
 }
 
 :root[data-theme="forest"] {
@@ -78,4 +112,14 @@
   --patra-amber: #fbbf24;
   --patra-amber-soft: #2a1f05;
   --patra-border: rgba(255, 255, 255, 0.06);
+
+  --color-background: #0a1a0f !important;
+  --color-background-light: #0f2218 !important;
+  --s-25: #0a1a0f !important;
+  --s-50: #0f2218 !important;
+  --s-75: #142d1e !important;
+  --w-25: #e8f5ee !important;
+  --w-50: #80b090 !important;
+  --color-woot: #34d399 !important;
+  color-scheme: dark;
 }
