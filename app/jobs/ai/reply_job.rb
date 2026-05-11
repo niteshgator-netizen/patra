@@ -12,11 +12,22 @@ class Ai::ReplyJob < ApplicationJob
   HTTP_TIMEOUT = 10
   AI_SOURCE_ID = 'ai_auto'.freeze
 
-  def perform(conversation_id)
-    reply_text = Ai::ReplyService.new(conversation_id).call
-    return if reply_text.blank?
+  def perform(conversation_id, bridge_account_id = nil)
+    @bridge_account_id = bridge_account_id
+    reply_text = Ai::ReplyService.new(conversation_id, account_id: bridge_account_id).call
+    if reply_text.blank?
+      Rails.logger.info("[AiReply] job finished without sending conversation=#{conversation_id}")
+      return
+    end
 
-    Facebook::SendApiService.new(conversation_id, reply_text).call
+    sent = Facebook::SendApiService.new(
+      conversation_id,
+      reply_text,
+      account_id: effective_account_id
+    ).call
+    unless sent
+      Rails.logger.warn("[AiReply] Facebook send failed after draft conversation=#{conversation_id}")
+    end
     log_to_chatwoot(conversation_id, reply_text)
   end
 
@@ -24,7 +35,7 @@ class Ai::ReplyJob < ApplicationJob
 
   def log_to_chatwoot(conversation_id, content)
     response = HTTParty.post(
-      "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{conversation_id}/messages",
+      "#{base_url}/api/v1/accounts/#{effective_account_id}/conversations/#{conversation_id}/messages",
       headers: {
         'api_access_token' => ENV.fetch('CHATWOOT_BRIDGE_API_TOKEN', ''),
         'Content-Type' => 'application/json',
@@ -50,7 +61,11 @@ class Ai::ReplyJob < ApplicationJob
     ENV.fetch('CHATWOOT_BRIDGE_BASE_URL', 'https://patrahq.com').to_s.chomp('/')
   end
 
-  def account_id
+  def effective_account_id
+    aid = @bridge_account_id
+    aid = aid.to_i if aid.present?
+    return aid if aid.present? && aid.positive?
+
     ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
   end
 end

@@ -36,9 +36,16 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
     # Trigger the AI auto-reply after the bridge has persisted the inbound
     # message. 3s delay gives Chatwoot a moment to fully commit the message
     # before we read the conversation history back out.
-    if result.is_a?(Hash) && result[:conversation_id].present?
-      tag_customer_recency(result[:account_id], result[:contact_id], result[:conversation_id])
-      Ai::ReplyJob.set(wait: 3.seconds).perform_later(result[:conversation_id])
+    if result.is_a?(Hash)
+      conv_id = result[:conversation_id].presence || result['conversation_id'].presence
+      if conv_id.present?
+        acc_id = result[:account_id].presence || result['account_id'].presence
+        contact_id = result[:contact_id].presence || result['contact_id'].presence
+        tag_customer_recency(acc_id, contact_id, conv_id)
+        # Pass the same account_id the bridge used (from resolved API inbox), not only
+        # CHATWOOT_BRIDGE_ACCOUNT_ID — otherwise Ai::ReplyService hits the wrong tenant.
+        Ai::ReplyJob.set(wait: 3.seconds).perform_later(conv_id, acc_id)
+      end
     end
   rescue Facebook::ChatwootBridgeService::ConfigurationError => e
     # Misconfiguration won't fix itself by retrying — log loud and drop.
