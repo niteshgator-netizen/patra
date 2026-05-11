@@ -12,6 +12,10 @@ class Agents extends ApiClient {
       emails,
     });
   }
+
+  setPassword(id, password) {
+    return axios.post(`${this.url}/${id}/set_password`, { password });
+  }
 }
 
 export default new Agents();

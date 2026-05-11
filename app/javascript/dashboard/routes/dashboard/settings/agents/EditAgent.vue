@@ -51,6 +51,8 @@ const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
 const selectedRoleId = ref(props.customRoleId || props.type);
 const agentCredentials = ref({ email: props.email });
+const newPassword = ref('');
+const isSettingPassword = ref(false);
 
 const rules = {
   agentName: { required, minLength: minLength(1) },
@@ -151,6 +153,29 @@ const resetPassword = async () => {
     useAlert(t('AGENT_MGMT.EDIT.PASSWORD_RESET.ERROR_MESSAGE'));
   }
 };
+
+const setPassword = async () => {
+  if (!newPassword.value || newPassword.value.length < 6) {
+    useAlert(t('AGENT_MGMT.EDIT.SET_PASSWORD.MIN_LENGTH_ERROR'));
+    return;
+  }
+  isSettingPassword.value = true;
+  try {
+    await store.dispatch('agents/setPassword', {
+      id: props.id,
+      password: newPassword.value,
+    });
+    newPassword.value = '';
+    useAlert(t('AGENT_MGMT.EDIT.SET_PASSWORD.SUCCESS_MESSAGE'));
+  } catch (error) {
+    useAlert(
+      error?.response?.data?.error ||
+        t('AGENT_MGMT.EDIT.SET_PASSWORD.ERROR_MESSAGE')
+    );
+  } finally {
+    isSettingPassword.value = false;
+  }
+};
 </script>
 
 <template>
@@ -200,6 +225,35 @@ const resetPassword = async () => {
           </select>
           <span v-if="v$.agentAvailability.$error" class="message">
             {{ $t('AGENT_MGMT.EDIT.FORM.AGENT_AVAILABILITY.ERROR') }}
+          </span>
+        </label>
+      </div>
+
+      <!-- Owner-set password (no email round-trip). Hidden for SAML accounts
+           since their password is managed by the IdP. -->
+      <div v-if="provider !== 'saml'" class="w-full">
+        <label>
+          {{ $t('AGENT_MGMT.EDIT.SET_PASSWORD.LABEL') }}
+          <div class="flex gap-2">
+            <input
+              v-model="newPassword"
+              type="password"
+              autocomplete="new-password"
+              class="flex-1"
+              :placeholder="$t('AGENT_MGMT.EDIT.SET_PASSWORD.PLACEHOLDER')"
+            />
+            <Button
+              type="button"
+              :label="$t('AGENT_MGMT.EDIT.SET_PASSWORD.SUBMIT')"
+              :disabled="
+                !newPassword || newPassword.length < 6 || isSettingPassword
+              "
+              :is-loading="isSettingPassword"
+              @click.prevent="setPassword"
+            />
+          </div>
+          <span class="text-xs text-n-slate-11">
+            {{ $t('AGENT_MGMT.EDIT.SET_PASSWORD.HELP_TEXT') }}
           </span>
         </label>
       </div>

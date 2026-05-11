@@ -40,6 +40,12 @@
           "LABEL": "Email Address",
           "PLACEHOLDER": "Please enter an email address of the agent"
         },
+        "PASSWORD": {
+          "LABEL": "Initial Password (optional)",
+          "PLACEHOLDER": "Leave blank to send an email invite instead",
+          "ERROR": "Password must be at least 6 characters",
+          "HELP_TEXT": "If set, the agent can log in immediately. Otherwise an admin can send them a reset email from the Edit screen."
+        },
         "SUBMIT": "Add Agent"
       },
       "API": {
@@ -95,6 +101,15 @@
         "ADMIN_SUCCESS_MESSAGE": "An email with reset password instructions has been sent to the agent",
         "SUCCESS_MESSAGE": "Agent password reset successfully",
         "ERROR_MESSAGE": "Could not connect to Woot Server, Please try again later"
+      },
+      "SET_PASSWORD": {
+        "LABEL": "Set New Password",
+        "PLACEHOLDER": "Enter a new password (min 6 characters)",
+        "HELP_TEXT": "Sets the agent's password directly without sending an email.",
+        "SUBMIT": "Update",
+        "MIN_LENGTH_ERROR": "Password must be at least 6 characters",
+        "SUCCESS_MESSAGE": "Password updated. Tell the agent their new credentials.",
+        "ERROR_MESSAGE": "Could not update password. Please try again."
       }
     },
     "SEARCH_PLACEHOLDER": "Search agents...",
