@@ -105,10 +105,20 @@ class Facebook::SendApiService
     Rails.logger.warn("[FbReply] typing_on error psid=#{psid} #{e.class}: #{e.message}")
   end
 
-  # ~1s of "typing" per 20 characters, clamped to [2, 5] seconds so very
-  # short replies still feel human and long ones don't stall the worker.
+  # Tiered "typing" delay — longer messages take noticeably longer to type,
+  # plus a half-to-one-and-a-half second of jitter so two replies in a row
+  # don't land with the same cadence. Total range: ~2s for tiny replies up
+  # to ~8.5s for long ones.
   def typing_delay_seconds
-    (@message_content.length / 20.0).round.clamp(2, 5)
+    message_length = @message_content.to_s.length
+    base = case message_length
+           when 0..30 then 1.5
+           when 31..60 then 2.5
+           when 61..100 then 4.0
+           when 101..150 then 5.5
+           else 7.0
+           end
+    base + rand(0.5..1.5)
   end
 
   # ---------- Config ----------

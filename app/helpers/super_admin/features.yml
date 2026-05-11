@@ -5,14 +5,14 @@
 saml:
   name: 'SAML SSO'
   description: 'Configuration for controlling SAML Single Sign-On availability'
-  enabled: <%= ChatwootApp.enterprise? %>
+  enabled: false
   icon: 'icon-lock-line'
   config_key: 'saml'
   enterprise: true
 custom_branding:
   name: 'Custom Branding'
   description: 'Apply your own branding to this installation.'
-  enabled: <%= (ChatwootHub.pricing_plan != 'community') %>
+  enabled: false
   icon: 'icon-paint-brush-line'
   config_key: 'custom_branding'
   enterprise: true
@@ -25,13 +25,13 @@ agent_capacity:
 audit_logs:
   name: 'Audit Logs'
   description: 'Track and trace account activities with ease with detailed audit logs.'
-  enabled: <%= (ChatwootHub.pricing_plan != 'community') %>
+  enabled: false
   icon: 'icon-menu-search-line'
   enterprise: true
 disable_branding:
   name: 'Disable Branding'
   description: 'Disable branding on live-chat widget and external emails.'
-  enabled: <%= (ChatwootHub.pricing_plan != 'community') %>
+  enabled: false
   icon: 'icon-sailbot-fill'
   enterprise: true
 
@@ -44,7 +44,7 @@ help_center:
 captain:
   name: 'Captain'
   description: 'Enable AI-powered conversations with your customers.'
-  enabled: true
+  enabled: false
   icon: 'icon-captain'
   config_key: 'captain'
 

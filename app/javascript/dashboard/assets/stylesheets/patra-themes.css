@@ -291,3 +291,91 @@
 :root[data-theme="forest"] label {
   color: var(--patra-text2) !important;
 }
+
+/* Conversation reply box + private-note mode — Chatwoot ships a beige tone
+   for private notes that reads as "light card" even when surrounding chrome
+   is dark. Pin both to theme tokens. */
+:root[data-theme="dark"] .private-note,
+:root[data-theme="midnight"] .private-note,
+:root[data-theme="forest"] .private-note {
+  background-color: #2a1f05 !important;
+  color: var(--patra-text1) !important;
+}
+
+:root[data-theme="dark"] .reply-box,
+:root[data-theme="dark"] .reply-box-wrap,
+:root[data-theme="midnight"] .reply-box,
+:root[data-theme="midnight"] .reply-box-wrap,
+:root[data-theme="forest"] .reply-box,
+:root[data-theme="forest"] .reply-box-wrap {
+  background-color: var(--patra-bg2) !important;
+}
+
+/* Conversation-card status pills + VIP badge + avatar online dot.
+   Class hooks come from ConversationCard.vue's template. */
+.status-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+}
+.status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-pill.ai-on {
+  background: var(--patra-green-soft);
+  color: var(--patra-green);
+}
+.status-pill.needs-attention {
+  background: var(--patra-red-soft);
+  color: var(--patra-red);
+}
+.vip-badge {
+  font-size: 9px;
+  background: #7c3f00;
+  color: #fbbf24;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.online-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--patra-green);
+  border: 2px solid var(--patra-bg1);
+  pointer-events: none;
+}
+
+/* Profile dropdown surfaces (the "Set your availability / Profile / Log out"
+   menu and any other foundation-css dropdown) — render light by default
+   even with dark Chatwoot mode active. */
+:root[data-theme="dark"] .dropdown-pane,
+:root[data-theme="dark"] .dropdown-menu,
+:root[data-theme="dark"] .menu-item,
+:root[data-theme="midnight"] .dropdown-pane,
+:root[data-theme="midnight"] .dropdown-menu,
+:root[data-theme="midnight"] .menu-item,
+:root[data-theme="forest"] .dropdown-pane,
+:root[data-theme="forest"] .dropdown-menu,
+:root[data-theme="forest"] .menu-item {
+  background-color: var(--patra-bg2) !important;
+  color: var(--patra-text1) !important;
+  border-color: var(--patra-border) !important;
+}
+
+:root[data-theme="dark"] .menu-item:hover,
+:root[data-theme="midnight"] .menu-item:hover,
+:root[data-theme="forest"] .menu-item:hover {
+  background-color: var(--patra-bg3) !important;
+}
