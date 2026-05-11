@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::OwnerStatsController < Api::V1::Accounts::BaseController
-  before_action :ensure_account_administrator!
+  before_action :check_authorization
 
   def show
     render json: OwnerStats::Aggregator.new(Current.account).call
@@ -9,7 +9,7 @@ class Api::V1::Accounts::OwnerStatsController < Api::V1::Accounts::BaseControlle
 
   private
 
-  def ensure_account_administrator!
-    raise Pundit::NotAuthorizedError unless Current.account_user&.administrator?
+  def check_authorization
+    authorize :report, :view?
   end
 end

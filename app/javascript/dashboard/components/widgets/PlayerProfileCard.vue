@@ -12,9 +12,33 @@ const props = defineProps({
 const { t } = useI18n();
 
 const attrs = computed(() => {
-  if (!props.contact?.custom_attributes) return {};
-  return { ...props.contact.custom_attributes };
+  const raw = props.contact?.custom_attributes;
+  if (!raw || typeof raw !== 'object') return {};
+  return { ...raw };
 });
+
+const PREDEFINED_ATTR_KEYS = new Set([
+  'game_username',
+  'preferred_platform',
+  'loyalty_tier',
+  'deposit_count',
+  'total_deposits',
+  'total_cashouts',
+  'last_deposit_amount',
+  'last_deposit_date',
+  'last_cashout_date',
+  'last_cashout_intent_date',
+  'preferred_payment_method',
+  'preferred_bonus_percentage',
+  'first_contact_date',
+  'notes',
+]);
+
+function humanizeAttrKey(key) {
+  return String(key)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
 
 const tierClass = computed(() => {
   const tier = (attrs.value.loyalty_tier || '').toString().toLowerCase();
@@ -135,7 +159,26 @@ const filledRows = computed(() =>
   rows.value.filter(r => r.value != null && String(r.value).trim() !== '')
 );
 
-const isEmpty = computed(() => filledRows.value.length === 0);
+const extraAttrRows = computed(() => {
+  const out = [];
+  Object.entries(attrs.value).forEach(([key, value]) => {
+    if (PREDEFINED_ATTR_KEYS.has(key)) return;
+    if (value == null || String(value).trim() === '') return;
+    out.push({
+      key: `extra_${key}`,
+      label: humanizeAttrKey(key),
+      value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+    });
+  });
+  return out.sort((a, b) => a.label.localeCompare(b.label));
+});
+
+const displayRows = computed(() => [
+  ...filledRows.value,
+  ...extraAttrRows.value,
+]);
+
+const isEmpty = computed(() => displayRows.value.length === 0);
 </script>
 
 <template>
@@ -162,7 +205,7 @@ const isEmpty = computed(() => filledRows.value.length === 0);
     </p>
     <dl v-else class="m-0 space-y-2">
       <div
-        v-for="row in filledRows"
+        v-for="row in displayRows"
         :key="row.key"
         class="min-w-0"
       >

@@ -110,7 +110,11 @@ module OwnerStats
       escalated = Conversation.where(id: conv_ids).where("COALESCE(cached_label_list, '') LIKE ?", '%needs-human%').count
       total_ai = conv_ids.size
       msg_counts = Message.unscoped.where(conversation_id: conv_ids).group(:conversation_id).count
-      avg_msgs = (msg_counts.values.sum.to_f / msg_counts.size).round(1)
+      avg_msgs = if msg_counts.size.positive?
+                   (msg_counts.values.sum.to_f / msg_counts.size).round(1)
+                 else
+                   0.0
+                 end
 
       {
         avg_messages_per_ai_conversation: avg_msgs,

@@ -65,6 +65,27 @@ export default {
     additionalAttributes() {
       return this.contact.additional_attributes || {};
     },
+    /** True when contact has messaged within the last 7 days (UI mirrors dormancy rules). */
+    isPlayerRecentlyActive() {
+      const raw = this.contact?.last_activity_at;
+      if (raw == null || raw === '') return false;
+      const seconds = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+      if (Number.isNaN(seconds) || seconds <= 0) return false;
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      return Date.now() - seconds * 1000 < sevenDaysMs;
+    },
+    reengageDisabled() {
+      return this.isReengaging || this.isPlayerRecentlyActive;
+    },
+    reengageTooltip() {
+      if (this.isReengaging) {
+        return this.$t('CONTACT_PANEL.REENGAGE_SENDING');
+      }
+      if (this.isPlayerRecentlyActive) {
+        return this.$t('CONTACT_PANEL.REENGAGE_PLAYER_ACTIVE');
+      }
+      return this.$t('CONTACT_PANEL.REENGAGE_TOOLTIP');
+    },
     location() {
       const {
         country = '',
@@ -142,11 +163,15 @@ export default {
       this.updateContactField({ [field]: value });
     },
     async reengageContact() {
-      if (!this.contact?.id || this.isReengaging) return;
+      if (!this.contact?.id || this.isReengaging || this.isPlayerRecentlyActive) {
+        return;
+      }
       this.isReengaging = true;
       try {
         const { data } = await ContactAPI.reengage(this.contact.id);
-        useAlert(data.message);
+        useAlert(data.message || this.$t('CONTACT_PANEL.REENGAGE_SUCCESS'), {
+          duration: 4500,
+        });
         await this.$store.dispatch('contacts/show', { id: this.contact.id });
       } catch (error) {
         const msg =
@@ -307,7 +332,10 @@ export default {
           <SocialIcons :social-profiles="socialProfiles" />
         </div>
       </div>
-      <div class="flex items-center w-full mt-0.5 gap-2">
+      <div
+        class="flex flex-wrap items-center w-full mt-0.5 gap-2"
+        :aria-label="$t('CONTACT_PANEL.CONTACT_ACTIONS')"
+      >
         <ComposeConversation :contact-id="String(contact.id)">
           <template #trigger>
             <NextButton
@@ -319,16 +347,21 @@ export default {
             />
           </template>
         </ComposeConversation>
-        <NextButton
-          v-tooltip.top-end="$t('CONTACT_PANEL.REENGAGE_TOOLTIP')"
-          icon="i-lucide-sparkles"
-          slate
-          faded
-          sm
-          :is-loading="isReengaging"
-          :disabled="isReengaging"
-          @click="reengageContact"
-        />
+        <span
+          v-tooltip.top-end="reengageTooltip"
+          class="inline-flex min-w-0 max-w-full"
+        >
+          <NextButton
+            :label="$t('CONTACT_PANEL.REENGAGE_BUTTON')"
+            icon="i-lucide-sparkles"
+            amber
+            solid
+            sm
+            :is-loading="isReengaging"
+            :disabled="reengageDisabled"
+            @click="reengageContact"
+          />
+        </span>
         <VoiceCallButton
           :phone="contact.phone_number"
           :contact-id="contact.id"

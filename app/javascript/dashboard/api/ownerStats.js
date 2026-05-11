@@ -6,8 +6,10 @@ class OwnerStatsApi extends ApiClient {
     super('owner_stats', { accountScoped: true, apiVersion: 'v1' });
   }
 
-  show() {
-    return axios.get(this.url);
+  show(accountId = null) {
+    const id = accountId ?? this.accountIdFromRoute;
+    const base = `${this.apiVersion}/accounts/${id}`;
+    return axios.get(`${base}/owner_stats`);
   }
 }
 
