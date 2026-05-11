@@ -203,6 +203,22 @@ watch(
           {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
+      <!-- Patra: AI status pill — red when the conversation carries the
+           `ai-off` label, green otherwise. -->
+      <div class="my-0 mx-2 mt-0.5">
+        <span
+          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+          :class="
+            (chat.labels || []).includes('ai-off')
+              ? 'bg-[var(--patra-red-soft)] text-[var(--patra-red)]'
+              : 'bg-[var(--patra-green-soft)] text-[var(--patra-green)]'
+          "
+        >
+          {{
+            (chat.labels || []).includes('ai-off') ? '👤 Human' : '🤖 AI on'
+          }}
+        </span>
+      </div>
       <div
         class="absolute flex flex-col ltr:right-3 rtl:left-3"
         :class="showMetaSection ? 'top-8' : 'top-4'"

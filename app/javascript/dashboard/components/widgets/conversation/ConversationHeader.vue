@@ -15,6 +15,7 @@ import { useInbox } from 'dashboard/composables/useInbox';
 import { useI18n } from 'vue-i18n';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useAlert } from 'dashboard/composables';
+import { emitter } from 'shared/helpers/mitt';
 
 const props = defineProps({
   chat: {
@@ -102,6 +103,30 @@ const copyConversationId = async () => {
     // error
   }
 };
+
+// Patra: AI toggle / take-over. `ai-off` is the opt-out label the Ai::ReplyJob
+// reads server-side; toggling it here is enough to pause or resume auto-reply.
+const aiOff = computed(() =>
+  (currentChat.value?.labels || []).includes('ai-off')
+);
+
+const updateAiLabel = async action => {
+  const id = currentChat.value?.id;
+  if (!id) return;
+  await store.dispatch('bulkActions/process', {
+    type: 'Conversation',
+    ids: [id],
+    labels: { [action]: ['ai-off'] },
+  });
+};
+
+const toggleAiOff = () => updateAiLabel(aiOff.value ? 'remove' : 'add');
+
+const takeOver = async () => {
+  if (!aiOff.value) await updateAiLabel('add');
+  // ReplyBox listens for this and focuses its editor — see ReplyBox.vue.
+  emitter.emit('patra:focus-reply');
+};
 </script>
 
 <template>
@@ -172,6 +197,28 @@ const copyConversationId = async () => {
         :parent-width="width"
         class="hidden md:flex"
       />
+      <!-- Patra: AI status / pause toggle -->
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap"
+        :class="
+          aiOff
+            ? 'bg-[var(--patra-red-soft)] text-[var(--patra-red)] border-[var(--patra-red)]'
+            : 'bg-[var(--patra-green-soft)] text-[var(--patra-green)] border-[var(--patra-green)]'
+        "
+        @click="toggleAiOff"
+      >
+        {{ aiOff ? '👤 Human — AI Paused' : '🤖 Bella — AI Active' }}
+      </button>
+      <!-- Patra: human take-over (adds ai-off + focuses reply editor) -->
+      <button
+        v-if="!aiOff"
+        type="button"
+        class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap bg-[var(--patra-amber-soft)] text-[var(--patra-amber)] border-[var(--patra-amber)]"
+        @click="takeOver"
+      >
+        Take over
+      </button>
       <MoreActions :conversation-id="currentChat.id" />
     </div>
   </div>
