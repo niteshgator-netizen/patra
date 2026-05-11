@@ -163,15 +163,16 @@
   font-weight: 600;
   margin-left: 4px;
 }
-.online-dot {
+.online-status-dot {
   position: absolute;
   bottom: 0;
   right: 0;
   width: 10px;
   height: 10px;
+  background: #22c55e;
   border-radius: 50%;
-  background: var(--patra-green);
-  border: 2px solid var(--patra-bg1);
+  border: 2px solid var(--patra-bg2, white);
+  z-index: 2;
   pointer-events: none;
 }
 
