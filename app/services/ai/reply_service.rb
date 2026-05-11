@@ -392,11 +392,14 @@ class Ai::ReplyService
 
     contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
     name = (sender_name.presence || contact['name']).to_s
-    additional = contact['additional_attributes'].is_a?(Hash) ? contact['additional_attributes'] : {}
+    custom_attrs = contact['custom_attributes'].is_a?(Hash) ? contact['custom_attributes'] : {}
+    additional_attrs = contact['additional_attributes'].is_a?(Hash) ? contact['additional_attributes'] : {}
 
     # Use stored game_username if we already have one, otherwise scan recent
     # messages and persist the result for future calls.
-    game_username = additional['game_username'].presence || store_player_username(contact_id)
+    game_username = custom_attrs['game_username'].presence ||
+                    additional_attrs['game_username'].presence ||
+                    store_player_username(contact_id)
 
     # 3. Past conversations → count = "previous interactions"
     convos_response = HTTParty.get(
@@ -408,10 +411,11 @@ class Ai::ReplyService
 
     parts = []
     parts << "Player name: #{name}" if name.present?
-    parts << "Game username: #{game_username}" if game_username.present?
+    parts << "Customer's game username: #{game_username}" if game_username.present?
     parts << "Previous interactions: #{conversations_count}"
-    parts << "Notes: #{additional['notes']}" if additional['notes'].to_s.strip.present?
-    parts.join(', ')
+    notes = (additional_attrs['notes'] || custom_attrs['notes']).to_s.strip
+    parts << "Notes: #{notes}" if notes.present?
+    parts.join("\n")
   rescue StandardError => e
     Rails.logger.warn("[AiReply] player profile fetch error conversation=#{@conversation_id} #{e.class}: #{e.message}")
     ''
@@ -419,12 +423,33 @@ class Ai::ReplyService
 
   # Scans the most recent 20 messages for a self-declared username pattern
   # ("my username is X", "username: X", "my id is X", "my tag is X") and, if
-  # found, PATCHes the contact's additional_attributes.game_username so future
+  # found, PATCHes the contact's custom_attributes.game_username so future
   # replies can address the player by their in-game handle. Chatwoot merges
-  # additional_attributes on update, so this is a safe partial write.
+  # custom_attributes on update, so this is a safe partial write.
   # Returns the detected username on success, nil on no-match or any failure.
-  USERNAME_PATTERN = /(?:my\s+username\s+is|username\s*:|my\s+id\s+is|my\s+tag\s+is)\s*([^\s.,;:!?]+)/i
+  USERNAME_PATTERN = /
+    (?:my\s+(?:game\s+)?username\s+is|
+       my\s+(?:game\s+)?username\s*:|
+       (?:game\s+)?username\s+is|
+       (?:game\s+)?username\s*:|
+       username\s*:|
+       my\s+id\s+is|
+       my\s+tag\s+is)
+    \s*([^\s.,;:!?]+)
+  /ix
   USERNAME_SCAN_LIMIT = 20
+
+  # Username-only replies (common behavior: player sends just their handle).
+  # Kept conservative to avoid misclassifying "juwa" or "cashapp" as a
+  # game username.
+  HANDLE_ONLY_PATTERN = /\A[a-zA-Z0-9][a-zA-Z0-9_.-]{2,24}\z/.freeze
+  HANDLE_NEEDS_DIGIT_OR_SEPARATOR = /[0-9_.-]/.freeze
+  HANDLE_BLACKLIST = %w[
+    hi hey hello hii heyy heyyy sup yo
+    cashapp venmo paypal chime
+    card credit debit visa mastercard
+    googlepay appley pay applepay
+  ].freeze
 
   def store_player_username(contact_id)
     return nil if contact_id.blank?
@@ -437,15 +462,32 @@ class Ai::ReplyService
     return nil unless messages_response.success?
 
     recent = Array(messages_response.parsed_response['payload'])
+             .select { |m| chat_message_type(m) == 0 } # only customer/incoming messages
              .sort_by { |m| message_created_at_unix(m['created_at']) }
              .last(USERNAME_SCAN_LIMIT)
 
     # Iterate newest first so a later correction wins over an earlier mention.
     username = nil
     recent.reverse_each do |m|
-      match = m['content'].to_s.match(USERNAME_PATTERN)
+      content = m['content'].to_s.strip
+      next if content.empty?
+
+      match = content.match(USERNAME_PATTERN)
       if match
         username = match[1].strip
+        break
+      end
+
+      # Normalize handle-ish text like "@handle!" -> "handle".
+      handle_candidate = content.sub(/\A[@#]/, '')
+      handle_candidate = handle_candidate.sub(/[.,;:!?]+\z/, '')
+
+      downcased = handle_candidate.downcase
+      next if HANDLE_BLACKLIST.include?(downcased)
+
+      # Handle-only detection: "juwa_123", "hustle09", etc.
+      if handle_candidate.match?(HANDLE_ONLY_PATTERN) && handle_candidate.match?(HANDLE_NEEDS_DIGIT_OR_SEPARATOR)
+        username = handle_candidate
         break
       end
     end
@@ -454,7 +496,7 @@ class Ai::ReplyService
     patch_response = HTTParty.patch(
       "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
       headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
-      body: { additional_attributes: { game_username: username } }.to_json,
+      body: { custom_attributes: { game_username: username } }.to_json,
       timeout: HTTP_TIMEOUT
     )
 
@@ -674,9 +716,11 @@ class Ai::ReplyService
 
         Use this to personalize your response. If you know their name
         use it naturally. If they are a returning player treat them warmly.
-        If you learn the player's game username from conversation,
-        remember it and use it. Never ask for username if already known.
-        Always greet returning players by their username.
+        If CURRENT PLAYER INFO already includes a line starting with
+        "Customer's game username:", do not ask for it again. If the
+        username is missing, ask for it once (only one question). After
+        the customer provides it, never ask again. Always greet returning
+        players by username.
 
         GREETING RULES:
         - If "Previous interactions: 1" (their first conversation): warm
