@@ -170,7 +170,6 @@ export default {
 
 <style lang="scss">
 @import './assets/scss/app';
-@import './assets/stylesheets/patra-themes.css';
 
 .v-popper--theme-tooltip .v-popper__inner {
   background: black !important;
