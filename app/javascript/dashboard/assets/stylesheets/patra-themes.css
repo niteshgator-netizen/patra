@@ -1,0 +1,81 @@
+/**
+ * Patra theme tokens. Applied via `data-theme` attribute on <html> — see
+ * PatraThemeSwitcher.vue. The bare `:root` selector mirrors the dark theme so
+ * there's no flash before the boot script in App.vue applies the saved theme.
+ *
+ * Use in a component: `bg-[var(--patra-bg2)] text-[var(--patra-text1)]`
+ * (Tailwind arbitrary value) or plain `background: var(--patra-bg2);` in CSS.
+ */
+
+:root,
+:root[data-theme="dark"] {
+  --patra-bg1: #0f0f13;
+  --patra-bg2: #16161d;
+  --patra-bg3: #1e1e28;
+  --patra-text1: #f0f0f5;
+  --patra-text2: #a0a0b8;
+  --patra-text3: #606078;
+  --patra-accent: #7c6ff7;
+  --patra-accent-soft: #2a2550;
+  --patra-green: #22c55e;
+  --patra-green-soft: #0f2a1a;
+  --patra-red: #ef4444;
+  --patra-red-soft: #2a1010;
+  --patra-amber: #f59e0b;
+  --patra-amber-soft: #2a1f05;
+  --patra-border: rgba(255, 255, 255, 0.07);
+}
+
+:root[data-theme="light"] {
+  --patra-bg1: #f5f5f7;
+  --patra-bg2: #ffffff;
+  --patra-bg3: #f0f0f5;
+  --patra-text1: #111118;
+  --patra-text2: #555568;
+  --patra-text3: #9999b0;
+  --patra-accent: #534ab7;
+  --patra-accent-soft: #eeedfe;
+  --patra-green: #1a9e5c;
+  --patra-green-soft: #e1f5ee;
+  --patra-red: #dc2626;
+  --patra-red-soft: #fee2e2;
+  --patra-amber: #d97706;
+  --patra-amber-soft: #fef3c7;
+  --patra-border: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="midnight"] {
+  --patra-bg1: #070712;
+  --patra-bg2: #0d0d1a;
+  --patra-bg3: #12122a;
+  --patra-text1: #e8e8ff;
+  --patra-text2: #9090c0;
+  --patra-text3: #505080;
+  --patra-accent: #a78bfa;
+  --patra-accent-soft: #1e1a40;
+  --patra-green: #34d399;
+  --patra-green-soft: #0d2a1a;
+  --patra-red: #f87171;
+  --patra-red-soft: #2a1010;
+  --patra-amber: #fbbf24;
+  --patra-amber-soft: #2a1f05;
+  --patra-border: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme="forest"] {
+  --patra-bg1: #0a1a0f;
+  --patra-bg2: #0f2218;
+  --patra-bg3: #142d1e;
+  --patra-text1: #e8f5ee;
+  --patra-text2: #80b090;
+  --patra-text3: #406050;
+  --patra-accent: #34d399;
+  --patra-accent-soft: #0d2a1a;
+  --patra-green: #4ade80;
+  --patra-green-soft: #0d2a1a;
+  --patra-red: #f87171;
+  --patra-red-soft: #2a1010;
+  --patra-amber: #fbbf24;
+  --patra-amber-soft: #2a1f05;
+  --patra-border: rgba(255, 255, 255, 0.06);
+}

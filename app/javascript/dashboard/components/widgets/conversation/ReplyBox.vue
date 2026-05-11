@@ -520,6 +520,8 @@ export default {
     );
     emitter.on(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
     emitter.on(CMD_AI_ASSIST, this.executeCopilotAction);
+    // Patra: fired by the "Take over" button on the conversation header.
+    emitter.on('patra:focus-reply', this.focusFromPatra);
   },
   unmounted() {
     document.removeEventListener('paste', this.onPaste);
@@ -531,8 +533,12 @@ export default {
       this.onNewConversationModalActive
     );
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
+    emitter.off('patra:focus-reply', this.focusFromPatra);
   },
   methods: {
+    focusFromPatra() {
+      this.$nextTick(() => this.messageEditor?.focusEditorInputField());
+    },
     getDraftKey(
       conversationId = this.conversationIdByRoute,
       replyType = this.replyType
