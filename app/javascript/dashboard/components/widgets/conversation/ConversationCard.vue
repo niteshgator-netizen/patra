@@ -59,6 +59,17 @@ const showMetaSection = computed(() => {
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
 
+// Patra: AI handling vs. needs-attention, VIP badge, online indicator.
+const aiOff = computed(() => (props.chat?.labels || []).includes('ai-off'));
+const aiStatus = computed(() => (aiOff.value ? 'needs-attention' : 'ai-on'));
+const aiStatusLabel = computed(() =>
+  aiOff.value ? 'Needs attention' : 'AI handling'
+);
+const hasVipLabel = computed(() => (props.chat?.labels || []).includes('vip'));
+const isContactOnline = computed(
+  () => props.currentContact?.availability_status === 'online'
+);
+
 const showLabelsSection = computed(() => {
   return props.chat.labels?.length > 0 || hasSlaPolicyId.value;
 });
@@ -173,6 +184,7 @@ watch(
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
         {{ currentContact.name }}
+        <span v-if="hasVipLabel" class="vip-badge">⭐ VIP</span>
       </h4>
       <VoiceCallStatus
         v-if="voiceCallData.status"
@@ -203,20 +215,11 @@ watch(
           {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
-      <!-- Patra: AI status pill — red when the conversation carries the
-           `ai-off` label, green otherwise. -->
-      <div class="my-0 mx-2 mt-0.5">
-        <span
-          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-          :class="
-            (chat.labels || []).includes('ai-off')
-              ? 'bg-[var(--patra-red-soft)] text-[var(--patra-red)]'
-              : 'bg-[var(--patra-green-soft)] text-[var(--patra-green)]'
-          "
-        >
-          {{
-            (chat.labels || []).includes('ai-off') ? '👤 Human' : '🤖 AI on'
-          }}
+      <!-- Patra: AI handling status pill. Class hooks land in patra-themes.css. -->
+      <div class="mx-2">
+        <span class="status-pill" :class="aiStatus">
+          <span class="dot" />
+          {{ aiStatusLabel }}
         </span>
       </div>
       <div

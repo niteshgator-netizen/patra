@@ -127,6 +127,23 @@ const takeOver = async () => {
   // ReplyBox listens for this and focuses its editor — see ReplyBox.vue.
   emitter.emit('patra:focus-reply');
 };
+
+// Patra: channel emoji + display name for the sub-row under the contact name.
+const CHANNEL_LABELS = {
+  'Channel::FacebookPage': { icon: '📘', name: 'Facebook' },
+  'Channel::Instagram': { icon: '📸', name: 'Instagram' },
+  'Channel::Whatsapp': { icon: '💬', name: 'WhatsApp' },
+  'Channel::Telegram': { icon: '✈️', name: 'Telegram' },
+};
+const channelMeta = computed(() => {
+  const fallback = { icon: '💬', name: inbox.value?.name || 'Chat' };
+  return CHANNEL_LABELS[inbox.value?.channel_type] || fallback;
+});
+const channelIcon = computed(() => channelMeta.value.icon);
+const channelName = computed(() => channelMeta.value.name);
+const isContactActive = computed(
+  () => props.chat?.meta?.sender?.availability_status === 'online'
+);
 </script>
 
 <template>
@@ -166,6 +183,13 @@ const takeOver = async () => {
             class="text-n-amber-10 my-0 mx-0 min-w-[14px] flex-shrink-0"
             icon="warning"
           />
+        </div>
+        <!-- Patra: channel + presence sub-row -->
+        <div
+          class="chat-sub flex items-center gap-1 text-xs text-n-slate-11"
+        >
+          <span>{{ channelIcon }} {{ channelName }}</span>
+          <span v-if="isContactActive">· Active now</span>
         </div>
 
         <div

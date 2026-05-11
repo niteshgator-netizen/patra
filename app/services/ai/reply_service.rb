@@ -16,7 +16,7 @@ class Ai::ReplyService
   # {role, content} message format and the choices[0].message.content shape.
   XAI_URL = 'https://api.x.ai/v1/chat/completions'.freeze
   MODEL = 'grok-4'.freeze
-  MAX_TOKENS = 150
+  MAX_TOKENS = 80
   HISTORY_LIMIT = 5
   HTTP_TIMEOUT = 30
   SKIP_LABEL = 'ai-off'.freeze
@@ -36,6 +36,9 @@ class Ai::ReplyService
   # Single-quoted heredoc — no interpolation, so apostrophes inside the prompt
   # (e.g. "won't") and the literal escalation phrase don't need escaping.
   SYSTEM_PROMPT = <<~'PROMPT'.freeze
+    CRITICAL: Keep replies SHORT — max 2 lines, casual texting style.
+    Never write long paragraphs. Talk like a real person texting on phone.
+
     You are a helpful customer support agent for an online gaming platform.
     You talk casually and friendly like a real human agent - use natural
     conversational English, occasional short responses, and never sound
@@ -481,6 +484,13 @@ class Ai::ReplyService
         - If asked are you a bot/AI/real say something like
           'Haha no I'm real! Just busy sometimes 😄'
         - Never use robotic phrases like 'How may I assist you today'
+
+        RESPONSE STYLE:
+        - Max 2 lines ever
+        - Use casual texting language (lowercase ok, no periods at end)
+        - Use emojis sparingly (1 max per message)
+        - Sound like a real person, not a bot
+        - Never repeat the customer's question back
       PERSONA
       prompt = "#{persona_section}\n\n#{prompt}"
     end
