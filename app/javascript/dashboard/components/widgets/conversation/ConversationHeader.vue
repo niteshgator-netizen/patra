@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
 import BackButton from '../BackButton.vue';
-import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
@@ -90,10 +89,6 @@ const inbox = computed(() => {
   return store.getters['inboxes/getInbox'](inboxId);
 });
 
-const hasMultipleInboxes = computed(
-  () => store.getters['inboxes/getInboxes'].length > 1
-);
-
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
 
 const copyConversationId = async () => {
@@ -129,19 +124,17 @@ const takeOver = async () => {
   emitter.emit('patra:focus-reply');
 };
 
-// Patra: channel emoji + display name for the sub-row under the contact name.
-const CHANNEL_LABELS = {
-  'Channel::FacebookPage': { icon: '📘', name: 'Facebook' },
-  'Channel::Instagram': { icon: '📸', name: 'Instagram' },
-  'Channel::Whatsapp': { icon: '💬', name: 'WhatsApp' },
-  'Channel::Telegram': { icon: '✈️', name: 'Telegram' },
+// Patra: channel emoji for the inbox row (label is always inbox.name to avoid duplicating channel vs inbox).
+const CHANNEL_ICONS = {
+  'Channel::FacebookPage': '💬',
+  'Channel::Instagram': '📸',
+  'Channel::Whatsapp': '💬',
+  'Channel::Telegram': '✈️',
 };
-const channelMeta = computed(() => {
-  const fallback = { icon: '💬', name: inbox.value?.name || 'Chat' };
-  return CHANNEL_LABELS[inbox.value?.channel_type] || fallback;
-});
-const channelIcon = computed(() => channelMeta.value.icon);
-const channelName = computed(() => channelMeta.value.name);
+const channelIcon = computed(
+  () => CHANNEL_ICONS[inbox.value?.channel_type] || '💬'
+);
+const inboxDisplayName = computed(() => inbox.value?.name || 'Chat');
 
 // Patra: contact presence ("Active now" / "Active Xm ago") for the
 // sub-row under the contact name. Backend service formats the text and
@@ -217,7 +210,7 @@ const avatarPresenceStatus = computed(() => {
       >
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
           <span
-            class="text-sm font-medium truncate leading-tight text-n-slate-12"
+            class="text-base font-semibold truncate leading-tight text-n-slate-12"
           >
             {{ currentContact.name }}
           </span>
@@ -241,29 +234,27 @@ const avatarPresenceStatus = computed(() => {
         >
           {{ contactPresence.last_active }}
         </div>
-        <!-- Patra: channel sub-row -->
+        <!-- Patra: inbox + conversation id (one line; inbox name once, id de-emphasized) -->
         <div
-          class="chat-sub flex items-center gap-1 text-xs text-n-slate-11"
+          class="flex items-center gap-1 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap max-w-full"
         >
-          <span>{{ channelIcon }} {{ channelName }}</span>
-        </div>
-
-        <div
-          class="flex items-center gap-1 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap"
-        >
+          <span class="truncate shrink min-w-0">
+            {{ channelIcon }} {{ inboxDisplayName }}
+          </span>
+          <span class="text-n-slate-10 shrink-0" aria-hidden="true">•</span>
           <button
             type="button"
-            class="truncate text-label-small text-n-slate-11 hover:text-n-slate-12 !p-0 cucursor-pointer"
+            class="shrink-0 text-[11px] font-normal leading-none text-n-slate-10 hover:text-n-slate-11 !p-0 cursor-pointer tabular-nums"
             @click="copyConversationId"
           >
-            {{ `#${chat.id}` }}
+            #{{ chat.id }}
           </button>
-          <span v-if="hasMultipleInboxes">•</span>
-          <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
-          <span v-if="isSnoozed">•</span>
-          <span v-if="isSnoozed" class="font-medium text-n-amber-10">
-            {{ snoozedDisplayText }}
-          </span>
+          <template v-if="isSnoozed">
+            <span class="text-n-slate-10 shrink-0" aria-hidden="true">•</span>
+            <span class="truncate font-medium text-n-amber-10 shrink min-w-0">
+              {{ snoozedDisplayText }}
+            </span>
+          </template>
         </div>
       </div>
     </div>

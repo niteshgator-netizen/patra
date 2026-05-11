@@ -6,6 +6,7 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'macros' },
   { name: 'conversation_info' },
   { name: 'contact_attributes' },
+  { name: 'player_profile' },
   { name: 'contact_notes' },
   { name: 'shared_files' },
   { name: 'previous_conversation' },

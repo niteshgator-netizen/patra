@@ -337,6 +337,7 @@ class Ai::ReplyService
     payment_info = fetch_payment_info
     training_info = fetch_ai_training
     persona_info = fetch_ai_persona
+    Players::ProfileService.new(conversation_id: @conversation_id, account_id: @bridge_account_id).sync!
     player_profile = fetch_player_profile
     canned_responses_text = fetch_all_canned_responses
     payment_link_hint = needs_payment_link?(messages)
@@ -511,12 +512,68 @@ class Ai::ReplyService
     end
     parts << "Customer's game username: #{game_username}" if game_username.present?
     parts << "Previous interactions: #{conversations_count}"
+    parts.concat(player_vault_lines(custom_attrs))
+    tone = player_tone_directive(custom_attrs)
+    parts << tone if tone.present?
     notes = (additional_attrs['notes'] || custom_attrs['notes']).to_s.strip
     parts << "Notes: #{notes}" if notes.present?
     parts.join("\n")
   rescue StandardError => e
     Rails.logger.warn("[AiReply] player profile fetch error conversation=#{@conversation_id} #{e.class}: #{e.message}")
     ''
+  end
+
+  # One line per tracked vault field (contact custom_attributes) for the LLM.
+  def player_vault_lines(custom_attrs)
+    h = custom_attrs.stringify_keys
+    rows = []
+    rows << "Preferred platform (last detected): #{h['preferred_platform']}" if h['preferred_platform'].present?
+    if h['total_deposits'].present?
+      rows << "Total deposits (running sum, USD): #{format('%.2f', h['total_deposits'].to_f)}"
+    end
+    if h['total_cashouts'].present? && h['total_cashouts'].to_f.positive?
+      rows << "Total cashouts (running sum, USD): #{format('%.2f', h['total_cashouts'].to_f)}"
+    end
+    rows << "Last deposit amount (USD): #{h['last_deposit_amount']}" if h['last_deposit_amount'].present?
+    rows << "Last deposit date: #{h['last_deposit_date']}" if h['last_deposit_date'].present?
+    rows << "Last cashout date: #{h['last_cashout_date']}" if h['last_cashout_date'].present?
+    rows << "Last cashout intent expressed at: #{h['last_cashout_intent_date']}" if h['last_cashout_intent_date'].present?
+    rows << "Deposit count: #{h['deposit_count']}" if h['deposit_count'].present?
+    if h['preferred_payment_method'].present?
+      rows << "Preferred payment method (last detected): #{h['preferred_payment_method']}"
+    end
+    rows << "Loyalty tier: #{h['loyalty_tier']}" if h['loyalty_tier'].present?
+    rows << "First contact date: #{h['first_contact_date']}" if h['first_contact_date'].present?
+    if h['preferred_bonus_percentage'].present?
+      rows << "Preferred bonus % (last mentioned): #{h['preferred_bonus_percentage']}%"
+    end
+    return [] if rows.empty?
+
+    ['Player profile vault (structured):', *rows]
+  end
+
+  # Short directive so Bella adjusts warmth without naming the customer.
+  def player_tone_directive(custom_attrs)
+    h = custom_attrs.stringify_keys
+    tier = h['loyalty_tier'].to_s.downcase
+    count = h['deposit_count'].to_i
+    total = format('%.2f', h['total_deposits'].to_f)
+
+    case tier
+    when 'vip'
+      "RELATIONSHIP TONE: VIP player (#{count} deposits, ~$#{total} lifetime loads). Be extra warm and appreciative; " \
+      'they are a core regular — never sound transactional or cold.'
+    when 'loyal'
+      "RELATIONSHIP TONE: Loyal player (#{count} deposits). Sound like you know them already — friendly, no hand-holding."
+    when 'regular'
+      "RELATIONSHIP TONE: Regular player (#{count} deposits). Normal buddy energy, still concise."
+    when 'casual'
+      'RELATIONSHIP TONE: Casual player (a few deposits). Welcoming but keep replies short.'
+    when 'new'
+      'RELATIONSHIP TONE: New or nearly new player (0–1 deposits). Friendly hello energy; do not push hard on bonuses.'
+    else
+      ''
+    end
   end
 
   # Values that must never be persisted as game_username (greetings, acks,

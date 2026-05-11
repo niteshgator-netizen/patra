@@ -208,6 +208,7 @@ Rails.application.routes.draw do
               get :contactable_inboxes
               get :presence, to: 'contacts/presences#show'
               post :destroy_custom_attributes
+              post :reengage
               delete :avatar
             end
             scope module: :contacts do
@@ -397,6 +398,7 @@ Rails.application.routes.draw do
           end
 
           resources :upload, only: [:create]
+          resource :owner_stats, only: [:show]
         end
       end
       # end of account scoped api routes

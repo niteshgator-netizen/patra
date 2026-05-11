@@ -363,6 +363,7 @@
       "CONVERSATION_INFO": "Conversation Information",
       "CONTACT_NOTES": "Contact Notes",
       "CONTACT_ATTRIBUTES": "Contact Attributes",
+      "PLAYER_PROFILE": "Player profile",
       "PREVIOUS_CONVERSATION": "Previous Conversations",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Linked Linear Issues",
@@ -464,5 +465,25 @@
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again"
+  },
+  "PLAYER_PROFILE": {
+    "TIER_BADGE": "Loyalty",
+    "EMPTY": "No player vault data yet. It fills in as the customer chats (deposits, platform, payment method).",
+    "FIELDS": {
+      "GAME_USERNAME": "Game username",
+      "PREFERRED_PLATFORM": "Preferred platform",
+      "TOTAL_DEPOSITS": "Total deposits",
+      "TOTAL_CASHOUTS": "Total cashouts",
+      "LAST_DEPOSIT_AMOUNT": "Last deposit",
+      "LAST_DEPOSIT_DATE": "Last deposit date",
+      "LAST_CASHOUT_DATE": "Last cashout",
+      "LAST_CASHOUT_INTENT": "Cashout requested",
+      "DEPOSIT_COUNT": "Deposit count",
+      "PREFERRED_PAYMENT": "Preferred payment",
+      "LOYALTY_TIER": "Loyalty tier",
+      "FIRST_CONTACT": "First contact",
+      "PREFERRED_BONUS": "Preferred bonus %",
+      "NOTES": "Notes"
+    }
   }
 }

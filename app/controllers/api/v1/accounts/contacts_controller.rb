@@ -11,9 +11,11 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   RESULTS_PER_PAGE = 15
 
-  before_action :check_authorization
+  before_action :check_authorization, except: [:reengage]
   before_action :set_current_page, only: [:index, :active, :search, :filter]
-  before_action :fetch_contact, only: [:show, :update, :destroy, :avatar, :contactable_inboxes, :destroy_custom_attributes]
+  before_action :fetch_contact, only: [:show, :update, :destroy, :avatar, :contactable_inboxes, :destroy_custom_attributes,
+                                        :reengage]
+  before_action :authorize_contact_reengage, only: [:reengage]
   before_action :set_include_contact_inboxes, only: [:index, :active, :search, :filter, :show, :update]
 
   def index
@@ -114,7 +116,21 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     @contact
   end
 
+  def reengage
+    result = ::Reengagement::SendService.new(contact: @contact, skip_dormancy_check: true).call
+    if result[:ok]
+      render json: { message: I18n.t('reengagement.sent') }, status: :ok
+    else
+      reason = result[:reason].presence || :error
+      render json: { message: I18n.t("reengagement.errors.#{reason}") }, status: :unprocessable_entity
+    end
+  end
+
   private
+
+  def authorize_contact_reengage
+    authorize(@contact, :reengage?)
+  end
 
   # TODO: Move this to a finder class
   def resolved_contacts

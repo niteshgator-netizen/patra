@@ -24,6 +24,7 @@ import ShopifyOrdersList from 'dashboard/components/widgets/conversation/Shopify
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+import PlayerProfileCard from 'dashboard/components/widgets/PlayerProfileCard.vue';
 
 const props = defineProps({
   conversationId: {
@@ -218,6 +219,18 @@ onMounted(() => {
                   $t('CONVERSATION_CUSTOM_ATTRIBUTES.NO_RECORDS_FOUND')
                 "
               />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'player_profile' && contact.id">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.PLAYER_PROFILE')"
+              :is-open="isContactSidebarItemOpen('is_player_profile_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_player_profile_open', value)
+              "
+            >
+              <PlayerProfileCard :contact="contact" />
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'previous_conversation'">
