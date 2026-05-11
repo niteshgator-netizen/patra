@@ -239,12 +239,23 @@ const avatarPresenceStatus = computed(() => {
             icon="warning"
           />
         </div>
-        <!-- Patra: channel + presence sub-row -->
+        <!-- Patra: active status (under contact name) -->
+        <div
+          v-if="fbPresence.last_active"
+          class="text-xs leading-tight"
+          :class="
+            fbPresence.online
+              ? 'text-[var(--patra-green)]'
+              : 'text-n-slate-11'
+          "
+        >
+          {{ fbPresence.last_active }}
+        </div>
+        <!-- Patra: channel sub-row -->
         <div
           class="chat-sub flex items-center gap-1 text-xs text-n-slate-11"
         >
           <span>{{ channelIcon }} {{ channelName }}</span>
-          <span v-if="fbPresence.last_active">· {{ fbPresence.last_active }}</span>
         </div>
 
         <div
