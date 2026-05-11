@@ -60,10 +60,16 @@ const showMetaSection = computed(() => {
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
 
 // Patra: AI handling vs. needs-attention, VIP badge, online indicator.
-const aiOff = computed(() => (props.chat?.labels || []).includes('ai-off'));
-const aiStatus = computed(() => (aiOff.value ? 'needs-attention' : 'ai-on'));
+const conversationLabels = computed(() => props.chat?.labels || []);
+const needsAiAttention = computed(() => {
+  const labels = conversationLabels.value;
+  return labels.includes('ai-off') || labels.includes('needs-human');
+});
+const aiStatus = computed(() =>
+  needsAiAttention.value ? 'needs-attention' : 'ai-on'
+);
 const aiStatusLabel = computed(() =>
-  aiOff.value ? 'Needs attention' : 'AI handling'
+  needsAiAttention.value ? 'Needs attention' : 'AI handling'
 );
 const hasVipLabel = computed(() => (props.chat?.labels || []).includes('vip'));
 const isContactOnline = computed(

@@ -19,6 +19,16 @@ class Facebook::ChatwootBridgeService
 
   HTTP_TIMEOUT = 10
 
+  # Lookup-only: resolves Patra inbox from page_id and finds an existing Chatwoot contact by PSID.
+  def self.find_contact_id_by_psid(psid, page_id:)
+    return nil if psid.blank? || page_id.blank?
+
+    svc = allocate
+    svc.instance_variable_set(:@sender_id, psid.to_s)
+    svc.instance_variable_set(:@page_id, page_id.to_s)
+    svc.send(:find_contact_id)
+  end
+
   def initialize(messaging)
     messaging = messaging.with_indifferent_access if messaging.respond_to?(:with_indifferent_access)
     @messaging = messaging
@@ -43,6 +53,8 @@ class Facebook::ChatwootBridgeService
     conversation_id = ensure_conversation!(contact_id)
     message_id = create_message!(conversation_id)
 
+    Facebook::ContactLastActive.record!(contact_id, at: messenger_active_at)
+
     Rails.logger.info(
       "[BotBridge] delivered mid=#{@mid} sender=#{@sender_id} recipient=#{@recipient} " \
       "contact=#{contact_id} conversation=#{conversation_id} message=#{message_id}"
@@ -57,6 +69,12 @@ class Facebook::ChatwootBridgeService
   end
 
   private
+
+  def messenger_active_at
+    return Time.current if @timestamp.blank?
+
+    Time.zone.at(@timestamp.to_f / 1000.0)
+  end
 
   # ---------- Contact ----------
 
@@ -86,11 +104,20 @@ class Facebook::ChatwootBridgeService
   end
 
   def create_contact!
-    name = Facebook::GraphProfileService.fetch_name(@sender_id, page_access_token: graph_page_access_token)
-            .presence || "Player #{@sender_id.to_s.last(4)}"
+    profile = Facebook::GraphProfileService.fetch_profile(@sender_id, page_access_token: graph_page_access_token)
+    name = profile[:name].presence || "Player #{@sender_id.to_s.last(4)}"
+    facebook_profile = "https://facebook.com/#{@sender_id}"
+
+    body = {
+      name: name,
+      identifier: @sender_id,
+      custom_attributes: { facebook_profile: facebook_profile }
+    }
+    body[:avatar_url] = profile[:profile_pic] if profile[:profile_pic].present?
+
     response = http_post(
       "/api/v1/accounts/#{account_id}/contacts",
-      body: { name: name, identifier: @sender_id }
+      body: body
     )
 
     raise BridgeError, "contact create failed HTTP #{response.code}: #{response.body}" unless response.success?
@@ -219,6 +246,7 @@ class Facebook::ChatwootBridgeService
   def graph_page_access_token
     return @graph_page_access_token if defined?(@graph_page_access_token)
 
-    @graph_page_access_token = bridge_inbox&.channel&.additional_attributes&.dig('fb_page_access_token').presence
+    @graph_page_access_token = bridge_inbox&.channel&.additional_attributes&.dig('fb_page_access_token').presence ||
+                               ENV.fetch('FB_PAGE_ACCESS_TOKEN', '').presence
   end
 end

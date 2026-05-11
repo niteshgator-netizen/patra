@@ -206,6 +206,7 @@ Rails.application.routes.draw do
             end
             member do
               get :contactable_inboxes
+              get :presence, to: 'contacts/presences#show'
               post :destroy_custom_attributes
               delete :avatar
             end
