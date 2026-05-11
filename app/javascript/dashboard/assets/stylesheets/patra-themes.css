@@ -1,29 +1,24 @@
 /**
- * Patra theme tokens.
+ * Patra theme overrides — dark only.
  *
- * Architecture note: Chatwoot's design system stores colors as
- * space-separated RGB integers (e.g. `28 29 32`) so they compose with
- * Tailwind's alpha-channel pattern: `rgb(var(--background-color) / <alpha>)`.
- * Overrides MUST use that same format — hex values break the rgb() compose.
+ * The light/midnight/forest blocks were removed once we retired the custom
+ * theme switcher and handed appearance back to Chatwoot's native toggle.
  *
- * Tokens overridden per theme (the load-bearing ones):
- *   --background-color       main app background       (bg-n-background)
- *   --surface-1, --surface-2 panels / cards            (bg-n-solid-1, -2)
- *   --surface-active         active row/tab            (bg-n-solid-active)
- *   --card-color             conversation cards, msgs  (bg-n-card)
- *   --button-color           button background         (bg-n-button-color)
- *   --solid-1..3             elevated solid panels
- *   --border-weak, --border-strong  borders/dividers
- *   --slate-1..3             panel bg slots used by `bg-n-slate-1` etc.
- *   --slate-11, --slate-12   secondary/primary text    (text-n-slate-11/12)
+ * IMPORTANT: these rules are gated on `[data-theme="dark"]` on `<html>`. The
+ * native Chatwoot appearance toggle does NOT set that attribute — it toggles
+ * a `.dark` class on `<html>`. For these rules to actually apply you need
+ * something to set `data-theme="dark"`. If you'd rather have them follow the
+ * native toggle instead, swap every `[data-theme="dark"]` selector to `.dark`
+ * (or duplicate the rules to match both).
  *
- * The `--patra-*` namespace also stays defined for our own additions (the
- * AI pills on ConversationCard, the header toggle buttons).
+ * Chatwoot's design system stores colors as space-separated RGB integers
+ * (e.g. `28 29 32`) so they compose with Tailwind's alpha-channel pattern:
+ * `rgb(var(--background-color) / <alpha>)`. Overrides MUST use that same
+ * format — hex values break the rgb() compose.
  */
 
-:root,
 :root[data-theme="dark"] {
-  /* Patra tokens (used by our own pills/buttons) */
+  /* Patra tokens (used by status pills / VIP badge / online dot below) */
   --patra-bg1: #0f0f13;
   --patra-bg2: #16161d;
   --patra-bg3: #1e1e28;
@@ -55,8 +50,7 @@
   --border-strong: 50 50 64 !important;
   --label-background: 30 30 40 !important;
 
-  /* Slate scale remap — slate-12 is the primary text colour and slate-1..3
-     back most panel backgrounds. */
+  /* Slate scale remap — slate-12 is primary text; slate-1..3 back panel bgs. */
   --slate-1: 15 15 19 !important;
   --slate-2: 22 22 29 !important;
   --slate-3: 30 30 40 !important;
@@ -71,143 +65,8 @@
   color-scheme: dark;
 }
 
-:root[data-theme="light"] {
-  --patra-bg1: #f5f5f7;
-  --patra-bg2: #ffffff;
-  --patra-bg3: #f0f0f5;
-  --patra-text1: #111118;
-  --patra-text2: #555568;
-  --patra-text3: #9999b0;
-  --patra-accent: #534ab7;
-  --patra-accent-soft: #eeedfe;
-  --patra-green: #1a9e5c;
-  --patra-green-soft: #e1f5ee;
-  --patra-red: #dc2626;
-  --patra-red-soft: #fee2e2;
-  --patra-amber: #d97706;
-  --patra-amber-soft: #fef3c7;
-  --patra-border: rgba(0, 0, 0, 0.08);
-
-  --background-color: 245 245 247 !important;
-  --surface-1: 255 255 255 !important;
-  --surface-2: 255 255 255 !important;
-  --surface-active: 240 240 245 !important;
-  --card-color: 255 255 255 !important;
-  --button-color: 255 255 255 !important;
-  --solid-1: 255 255 255 !important;
-  --solid-2: 255 255 255 !important;
-  --solid-3: 248 248 252 !important;
-  --solid-active: 238 237 254 !important;
-  --border-weak: 234 234 234 !important;
-  --border-strong: 226 227 231 !important;
-  --label-background: 247 247 247 !important;
-
-  --slate-1: 252 252 253 !important;
-  --slate-2: 249 249 251 !important;
-  --slate-3: 240 240 243 !important;
-  --slate-4: 232 232 236 !important;
-  --slate-5: 224 225 230 !important;
-  --slate-6: 217 217 224 !important;
-  --slate-9: 153 153 176 !important;
-  --slate-10: 128 131 141 !important;
-  --slate-11: 85 85 104 !important;
-  --slate-12: 17 17 24 !important;
-
-  color-scheme: light;
-}
-
-:root[data-theme="midnight"] {
-  --patra-bg1: #070712;
-  --patra-bg2: #0d0d1a;
-  --patra-bg3: #12122a;
-  --patra-text1: #e8e8ff;
-  --patra-text2: #9090c0;
-  --patra-text3: #505080;
-  --patra-accent: #a78bfa;
-  --patra-accent-soft: #1e1a40;
-  --patra-green: #34d399;
-  --patra-green-soft: #0d2a1a;
-  --patra-red: #f87171;
-  --patra-red-soft: #2a1010;
-  --patra-amber: #fbbf24;
-  --patra-amber-soft: #2a1f05;
-  --patra-border: rgba(255, 255, 255, 0.05);
-
-  --background-color: 7 7 18 !important;
-  --surface-1: 13 13 26 !important;
-  --surface-2: 18 18 42 !important;
-  --surface-active: 30 26 64 !important;
-  --card-color: 13 13 26 !important;
-  --button-color: 18 18 42 !important;
-  --solid-1: 13 13 26 !important;
-  --solid-2: 18 18 42 !important;
-  --solid-3: 30 26 64 !important;
-  --solid-active: 30 26 64 !important;
-  --border-weak: 18 18 42 !important;
-  --border-strong: 40 35 80 !important;
-  --label-background: 18 18 42 !important;
-
-  --slate-1: 7 7 18 !important;
-  --slate-2: 13 13 26 !important;
-  --slate-3: 18 18 42 !important;
-  --slate-4: 24 24 52 !important;
-  --slate-5: 30 30 60 !important;
-  --slate-6: 40 35 80 !important;
-  --slate-9: 80 80 128 !important;
-  --slate-10: 110 110 160 !important;
-  --slate-11: 144 144 192 !important;
-  --slate-12: 232 232 255 !important;
-
-  color-scheme: dark;
-}
-
-:root[data-theme="forest"] {
-  --patra-bg1: #0a1a0f;
-  --patra-bg2: #0f2218;
-  --patra-bg3: #142d1e;
-  --patra-text1: #e8f5ee;
-  --patra-text2: #80b090;
-  --patra-text3: #406050;
-  --patra-accent: #34d399;
-  --patra-accent-soft: #0d2a1a;
-  --patra-green: #4ade80;
-  --patra-green-soft: #0d2a1a;
-  --patra-red: #f87171;
-  --patra-red-soft: #2a1010;
-  --patra-amber: #fbbf24;
-  --patra-amber-soft: #2a1f05;
-  --patra-border: rgba(255, 255, 255, 0.06);
-
-  --background-color: 10 26 15 !important;
-  --surface-1: 15 34 24 !important;
-  --surface-2: 20 45 30 !important;
-  --surface-active: 30 60 40 !important;
-  --card-color: 15 34 24 !important;
-  --button-color: 20 45 30 !important;
-  --solid-1: 15 34 24 !important;
-  --solid-2: 20 45 30 !important;
-  --solid-3: 30 60 40 !important;
-  --solid-active: 30 60 40 !important;
-  --border-weak: 20 45 30 !important;
-  --border-strong: 40 70 50 !important;
-  --label-background: 20 45 30 !important;
-
-  --slate-1: 10 26 15 !important;
-  --slate-2: 15 34 24 !important;
-  --slate-3: 20 45 30 !important;
-  --slate-4: 26 56 38 !important;
-  --slate-5: 32 64 44 !important;
-  --slate-6: 40 70 50 !important;
-  --slate-9: 64 96 80 !important;
-  --slate-10: 96 144 112 !important;
-  --slate-11: 128 176 144 !important;
-  --slate-12: 232 245 238 !important;
-
-  color-scheme: dark;
-}
-
-/* Direct element fallbacks — backstop for any surface that still styles
-   via legacy class hooks rather than the design-token variables above. */
+/* Direct element fallbacks — backstop for any surface that still styles via
+   legacy class hooks rather than the design-token variables above. */
 :root[data-theme="dark"] body,
 :root[data-theme="dark"] #app,
 :root[data-theme="dark"] .app-wrapper,
@@ -219,100 +78,59 @@
   color: var(--patra-text1) !important;
 }
 
-:root[data-theme="light"] body,
-:root[data-theme="light"] #app,
-:root[data-theme="light"] .app-wrapper,
-:root[data-theme="light"] .sidebar,
-:root[data-theme="light"] .conversations-list-wrap,
-:root[data-theme="light"] .conversation--details,
-:root[data-theme="light"] .row {
-  background-color: var(--patra-bg1) !important;
-  color: var(--patra-text1) !important;
-}
-
-:root[data-theme="midnight"] body,
-:root[data-theme="midnight"] #app,
-:root[data-theme="midnight"] .app-wrapper,
-:root[data-theme="midnight"] .sidebar,
-:root[data-theme="midnight"] .conversations-list-wrap,
-:root[data-theme="midnight"] .conversation--details,
-:root[data-theme="midnight"] .row {
-  background-color: var(--patra-bg1) !important;
-  color: var(--patra-text1) !important;
-}
-
-:root[data-theme="forest"] body,
-:root[data-theme="forest"] #app,
-:root[data-theme="forest"] .app-wrapper,
-:root[data-theme="forest"] .sidebar,
-:root[data-theme="forest"] .conversations-list-wrap,
-:root[data-theme="forest"] .conversation--details,
-:root[data-theme="forest"] .row {
-  background-color: var(--patra-bg1) !important;
-  color: var(--patra-text1) !important;
-}
-
 /* Modal surfaces — Chatwoot's modals render into a portal outside the main
-   app tree, so the design-token overrides above don't always reach them.
-   Skipped on light theme since Chatwoot's defaults already look right there. */
+   app tree, so the design-token overrides above don't always reach them. */
 :root[data-theme="dark"] .modal-container,
 :root[data-theme="dark"] .modal-body,
 :root[data-theme="dark"] .woot-modal,
 :root[data-theme="dark"] .woot-modal--expand,
-:root[data-theme="dark"] .dialog-contents,
-:root[data-theme="midnight"] .modal-container,
-:root[data-theme="midnight"] .modal-body,
-:root[data-theme="midnight"] .woot-modal,
-:root[data-theme="midnight"] .dialog-contents,
-:root[data-theme="forest"] .modal-container,
-:root[data-theme="forest"] .modal-body,
-:root[data-theme="forest"] .woot-modal,
-:root[data-theme="forest"] .dialog-contents {
+:root[data-theme="dark"] .dialog-contents {
   background-color: var(--patra-bg2) !important;
   color: var(--patra-text1) !important;
 }
 
 :root[data-theme="dark"] .modal-container input,
 :root[data-theme="dark"] .modal-container select,
-:root[data-theme="dark"] .modal-container textarea,
-:root[data-theme="midnight"] .modal-container input,
-:root[data-theme="midnight"] .modal-container select,
-:root[data-theme="midnight"] .modal-container textarea,
-:root[data-theme="forest"] .modal-container input,
-:root[data-theme="forest"] .modal-container select,
-:root[data-theme="forest"] .modal-container textarea {
+:root[data-theme="dark"] .modal-container textarea {
   background-color: var(--patra-bg3) !important;
   color: var(--patra-text1) !important;
   border-color: var(--patra-border) !important;
 }
 
-:root[data-theme="dark"] label,
-:root[data-theme="midnight"] label,
-:root[data-theme="forest"] label {
+:root[data-theme="dark"] label {
   color: var(--patra-text2) !important;
 }
 
 /* Conversation reply box + private-note mode — Chatwoot ships a beige tone
    for private notes that reads as "light card" even when surrounding chrome
    is dark. Pin both to theme tokens. */
-:root[data-theme="dark"] .private-note,
-:root[data-theme="midnight"] .private-note,
-:root[data-theme="forest"] .private-note {
+:root[data-theme="dark"] .private-note {
   background-color: #2a1f05 !important;
   color: var(--patra-text1) !important;
 }
 
 :root[data-theme="dark"] .reply-box,
-:root[data-theme="dark"] .reply-box-wrap,
-:root[data-theme="midnight"] .reply-box,
-:root[data-theme="midnight"] .reply-box-wrap,
-:root[data-theme="forest"] .reply-box,
-:root[data-theme="forest"] .reply-box-wrap {
+:root[data-theme="dark"] .reply-box-wrap {
   background-color: var(--patra-bg2) !important;
 }
 
+/* Profile dropdown surfaces — the "Set your availability / Profile / Log out"
+   menu and any other foundation-css dropdown. */
+:root[data-theme="dark"] .dropdown-pane,
+:root[data-theme="dark"] .dropdown-menu,
+:root[data-theme="dark"] .menu-item {
+  background-color: var(--patra-bg2) !important;
+  color: var(--patra-text1) !important;
+  border-color: var(--patra-border) !important;
+}
+
+:root[data-theme="dark"] .menu-item:hover {
+  background-color: var(--patra-bg3) !important;
+}
+
 /* Conversation-card status pills + VIP badge + avatar online dot.
-   Class hooks come from ConversationCard.vue's template. */
+   Class hooks come from ConversationCard.vue's template. Ungated by theme
+   so the pills look right whether the dark vars resolved or not. */
 .status-pill {
   font-size: 10px;
   padding: 2px 7px;
@@ -357,32 +175,8 @@
   pointer-events: none;
 }
 
-/* Profile dropdown surfaces (the "Set your availability / Profile / Log out"
-   menu and any other foundation-css dropdown) — render light by default
-   even with dark Chatwoot mode active. */
-:root[data-theme="dark"] .dropdown-pane,
-:root[data-theme="dark"] .dropdown-menu,
-:root[data-theme="dark"] .menu-item,
-:root[data-theme="midnight"] .dropdown-pane,
-:root[data-theme="midnight"] .dropdown-menu,
-:root[data-theme="midnight"] .menu-item,
-:root[data-theme="forest"] .dropdown-pane,
-:root[data-theme="forest"] .dropdown-menu,
-:root[data-theme="forest"] .menu-item {
-  background-color: var(--patra-bg2) !important;
-  color: var(--patra-text1) !important;
-  border-color: var(--patra-border) !important;
-}
-
-:root[data-theme="dark"] .menu-item:hover,
-:root[data-theme="midnight"] .menu-item:hover,
-:root[data-theme="forest"] .menu-item:hover {
-  background-color: var(--patra-bg3) !important;
-}
-
-/* Patra premium look — applies to every theme. Token-driven so the four
-   themes each give their own flavor of the same shape (row dividers, active
-   highlight, header chrome, message-list bg, metadata muting). */
+/* Patra premium look — token-driven row dividers, active highlight, header
+   chrome, message-list bg, metadata muting. Ungated by theme. */
 .conversations-list .conversation--item {
   border-bottom: 1px solid var(--patra-border) !important;
   padding: 12px 16px !important;

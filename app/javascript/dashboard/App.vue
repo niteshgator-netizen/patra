@@ -80,7 +80,6 @@ export default {
   mounted() {
     this.initializeColorTheme();
     this.listenToThemeChanges();
-    this.initializePatraTheme();
     // If user locale is set, use it; otherwise use account locale
     this.setLocale(
       this.uiSettings?.locale || window.chatwootConfig.selectedLocale
@@ -98,18 +97,6 @@ export default {
     listenToThemeChanges() {
       const mql = window.matchMedia('(prefers-color-scheme: dark)');
       mql.onchange = e => setColorTheme(e.matches);
-    },
-    // Reads the saved Patra theme and applies it via [data-theme] on <html>
-    // so the CSS variables in patra-themes.css resolve correctly. Independent
-    // of Chatwoot's existing dark/light mode (those use a different system).
-    initializePatraTheme() {
-      let saved = 'dark';
-      try {
-        saved = localStorage.getItem('patra_theme') || 'dark';
-      } catch (e) {
-        // localStorage may be unavailable; fall through with default
-      }
-      document.documentElement.setAttribute('data-theme', saved);
     },
     setLocale(locale) {
       if (locale) {
