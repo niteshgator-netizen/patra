@@ -45,6 +45,18 @@ export default {
   },
   methods: {
     dynamicTime,
+    hasAiOffLabel(notification) {
+      const labels = notification?.primary_actor?.labels || [];
+      return labels.includes('ai-off');
+    },
+    aiStatusClass(notification) {
+      return this.hasAiOffLabel(notification) ? 'needs-attention' : 'ai-on';
+    },
+    aiStatusText(notification) {
+      return this.hasAiOffLabel(notification)
+        ? 'Needs attention'
+        : 'AI handling';
+    },
   },
 };
 </script>
@@ -94,6 +106,13 @@ export default {
                 class="overflow-hidden notification--message-title whitespace-nowrap text-ellipsis"
               >
                 {{ notificationItem.push_message_title }}
+              </span>
+              <span
+                class="ai-status-pill"
+                :class="aiStatusClass(notificationItem)"
+              >
+                <span class="dot"></span>
+                {{ aiStatusText(notificationItem) }}
               </span>
             </div>
           </td>
@@ -207,5 +226,33 @@ export default {
 
 .notification--message-title {
   @apply text-n-slate-12;
+}
+
+.ai-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-top: 4px;
+}
+
+.ai-status-pill .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ai-status-pill.ai-on {
+  background: #e1f5ee;
+  color: #085041;
+}
+
+.ai-status-pill.needs-attention {
+  background: #faece7;
+  color: #712b13;
 }
 </style>

@@ -25,12 +25,32 @@ export const state = {
   },
 };
 
+const TWO_DAYS_IN_MS = 2 * 24 * 60 * 60 * 1000;
+
+const getCreatedAtMs = createdAt => {
+  if (!createdAt) return Date.now();
+  return typeof createdAt === 'number'
+    ? createdAt * 1000
+    : new Date(createdAt).getTime();
+};
+
+const isDeadFacebookPageInbox = inbox => {
+  return (
+    inbox.channel_type === 'Channel::FacebookPage' &&
+    inbox.conversations_count === 0 &&
+    Date.now() - getCreatedAtMs(inbox.created_at) > TWO_DAYS_IN_MS
+  );
+};
+
+const visibleInboxRecords = records =>
+  records.filter(inbox => !isDeadFacebookPageInbox(inbox));
+
 export const getters = {
   getInboxes($state) {
-    return $state.records;
+    return visibleInboxRecords($state.records);
   },
   getAllInboxes($state) {
-    return camelcaseKeys($state.records, { deep: true });
+    return camelcaseKeys(visibleInboxRecords($state.records), { deep: true });
   },
   getWhatsAppTemplates: $state => inboxId => {
     const [inbox] = $state.records.filter(

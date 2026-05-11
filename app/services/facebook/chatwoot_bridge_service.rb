@@ -21,12 +21,17 @@ class Facebook::ChatwootBridgeService
 
   def initialize(messaging)
     messaging = messaging.with_indifferent_access if messaging.respond_to?(:with_indifferent_access)
-    @messaging   = messaging
-    @sender_id   = messaging.dig('sender', 'id').to_s
-    @recipient   = messaging.dig('recipient', 'id').to_s
-    @text        = messaging.dig('message', 'text').to_s
-    @mid         = messaging.dig('message', 'mid').to_s
-    @timestamp   = messaging['timestamp']
+    @messaging = messaging
+    @sender_id = messaging.dig('sender', 'id').to_s
+    @recipient = messaging.dig('recipient', 'id').to_s
+    @text = messaging.dig('message', 'text').to_s
+    @mid = messaging.dig('message', 'mid').to_s
+    @timestamp = messaging['timestamp']
+    @page_id = (
+      messaging['_patra_fb_page_id'] ||
+      messaging[:_patra_fb_page_id] ||
+      @recipient
+    ).to_s
   end
 
   def perform
@@ -43,7 +48,12 @@ class Facebook::ChatwootBridgeService
       "contact=#{contact_id} conversation=#{conversation_id} message=#{message_id}"
     )
 
-    { contact_id: contact_id, conversation_id: conversation_id, message_id: message_id }
+    {
+      contact_id: contact_id,
+      conversation_id: conversation_id,
+      message_id: message_id,
+      account_id: account_id
+    }
   end
 
   private
@@ -76,7 +86,8 @@ class Facebook::ChatwootBridgeService
   end
 
   def create_contact!
-    name = Facebook::GraphProfileService.fetch_name(@sender_id).presence || "Player #{@sender_id.to_s.last(4)}"
+    name = Facebook::GraphProfileService.fetch_name(@sender_id, page_access_token: graph_page_access_token)
+            .presence || "Player #{@sender_id.to_s.last(4)}"
     response = http_post(
       "/api/v1/accounts/#{account_id}/contacts",
       body: { name: name, identifier: @sender_id }
@@ -110,14 +121,14 @@ class Facebook::ChatwootBridgeService
     end
 
     conversations = Array(response.parsed_response['payload'])
-    open = conversations.find { |c| c['inbox_id'].to_i == inbox_id && c['status'] == 'open' }
+    open = conversations.find { |c| c['inbox_id'].to_i == resolved_inbox_id && c['status'] == 'open' }
     open && open['id']
   end
 
   def create_conversation!(contact_id)
     response = http_post(
       "/api/v1/accounts/#{account_id}/conversations",
-      body: { inbox_id: inbox_id, contact_id: contact_id }
+      body: { inbox_id: resolved_inbox_id, contact_id: contact_id }
     )
 
     raise BridgeError, "conversation create failed HTTP #{response.code}: #{response.body}" unless response.success?
@@ -125,7 +136,7 @@ class Facebook::ChatwootBridgeService
     id = response.parsed_response['id']
     raise BridgeError, "conversation create returned no id: #{response.body}" if id.blank?
 
-    Rails.logger.info("[BotBridge] created conversation id=#{id} contact=#{contact_id} inbox=#{inbox_id}")
+    Rails.logger.info("[BotBridge] created conversation id=#{id} contact=#{contact_id} inbox=#{resolved_inbox_id}")
     id
   end
 
@@ -177,14 +188,37 @@ class Facebook::ChatwootBridgeService
   end
 
   def account_id
-    @account_id ||= ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
+    @account_id ||= bridge_inbox&.account_id || ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
   end
 
-  def inbox_id
-    @inbox_id ||= ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
+  def resolved_inbox_id
+    @resolved_inbox_id ||= bridge_inbox&.id || ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
   end
 
   def api_token
     @api_token ||= ENV.fetch('CHATWOOT_BRIDGE_API_TOKEN', '').to_s
+  end
+
+  def bridge_inbox
+    return @bridge_inbox if defined?(@bridge_inbox)
+
+    @bridge_inbox = resolve_bridge_inbox
+  end
+
+  def resolve_bridge_inbox
+    return nil if @page_id.blank?
+
+    Inbox.where(channel_type: 'Channel::Api')
+         .joins(
+           'INNER JOIN channel_api ON channel_api.id = inboxes.channel_id ' \
+           "AND inboxes.channel_type = 'Channel::Api'"
+         )
+         .find_by("channel_api.additional_attributes->>'fb_page_id' = ?", @page_id)
+  end
+
+  def graph_page_access_token
+    return @graph_page_access_token if defined?(@graph_page_access_token)
+
+    @graph_page_access_token = bridge_inbox&.channel&.additional_attributes&.dig('fb_page_access_token').presence
   end
 end

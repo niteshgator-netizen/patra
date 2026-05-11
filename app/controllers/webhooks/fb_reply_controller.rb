@@ -31,8 +31,12 @@ class Webhooks::FbReplyController < ActionController::API
   end
 
   def inbox_id_matches?
-    expected = ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
-    params.dig(:inbox, :id).to_i == expected
+    inbox_id = params.dig(:inbox, :id).to_i
+    return true if inbox_id == ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
+
+    inbox = Inbox.find_by(id: inbox_id)
+    inbox&.channel_type == 'Channel::Api' &&
+      inbox.channel&.additional_attributes&.dig('fb_page_id').present?
   end
 
   def outgoing?
@@ -51,6 +55,7 @@ class Webhooks::FbReplyController < ActionController::API
       return
     end
 
-    Webhooks::FbReplyJob.perform_later(conversation_id, content.to_s)
+    account_id = params.dig(:account, :id)
+    Webhooks::FbReplyJob.perform_later(conversation_id, content.to_s, account_id)
   end
 end

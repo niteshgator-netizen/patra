@@ -2,7 +2,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRouter, RouterLink } from 'vue-router';
 import { useAlert, useTrack } from 'dashboard/composables';
 import { ONBOARDING_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { useAccount } from 'dashboard/composables/useAccount';
@@ -31,6 +31,8 @@ const store = useStore();
 const { accountId, currentAccount, updateAccount } = useAccount();
 const { enabledLanguages } = useConfig();
 const currentUser = useMapGetter('getCurrentUser');
+const currentRole = useMapGetter('getCurrentRole');
+const inboxes = useMapGetter('inboxes/getInboxes');
 
 const userRole = ref('');
 const website = ref('');
@@ -73,6 +75,18 @@ const isEnriching = computed(
     !enrichmentTimedOut.value &&
     currentAccount.value?.custom_attributes?.onboarding_step === 'enrichment'
 );
+const showPatraFacebookConnect = computed(() => {
+  if (currentRole.value !== 'administrator') return false;
+  const cfg = typeof window !== 'undefined' ? window.chatwootConfig || {} : {};
+  if (!cfg.fbAppId) return false;
+  const n = inboxes.value.filter(
+    i =>
+      i.channel_type === 'Channel::Api' &&
+      i.additional_attributes?.fb_page_id
+  ).length;
+  return n === 0;
+});
+
 const companyLogo = computed(() => {
   const logos = currentAccount.value?.custom_attributes?.brand_info?.logos;
   if (!logos?.length) return '';
@@ -161,6 +175,7 @@ const startEnrichmentTimer = () => {
 };
 
 onMounted(() => {
+  store.dispatch('inboxes/get');
   populateFormFields();
   useTrack(ONBOARDING_EVENTS.ACCOUNT_DETAILS_VISITED);
   if (isEnriching.value) startEnrichmentTimer();
@@ -274,6 +289,21 @@ const handleSubmit = async () => {
             {{ userName }}
           </span>
         </div>
+        <OnboardingFormRow
+          v-if="showPatraFacebookConnect"
+          :title="t('PATRA_CONNECT_FACEBOOK.ONBOARDING_ROW_TITLE')"
+          icon="i-lucide-facebook"
+        >
+          <RouterLink
+            :to="{
+              name: 'patra_connect_facebook',
+              params: { accountId },
+            }"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          >
+            {{ t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK') }}
+          </RouterLink>
+        </OnboardingFormRow>
         <OnboardingFormRow
           :title="t('ONBOARDING_NEXT.FIELDS.EMAIL')"
           icon="i-lucide-mail"

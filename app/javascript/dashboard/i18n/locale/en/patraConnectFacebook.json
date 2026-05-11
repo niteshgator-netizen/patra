@@ -1,0 +1,18 @@
+{
+  "PATRA_CONNECT_FACEBOOK": {
+    "TITLE": "Connect Facebook Pages",
+    "SUBTITLE": "Authorize with Facebook, choose which Pages to connect, and we will create a separate inbox for each Page.",
+    "CONNECT_BUTTON": "Connect Facebook",
+    "SELECT_ALL": "Select all",
+    "CONNECT_PAGES": "Connect {count} pages",
+    "SIDEBAR_LINK": "+ Connect Facebook",
+    "ONBOARDING_ROW_TITLE": "Facebook Messenger",
+    "SUCCESS": "Facebook pages connected. Your new inboxes are ready.",
+    "ERRORS": {
+      "MISSING_APP_ID": "Facebook is not configured on this server (missing app id).",
+      "LOGIN_CANCELLED": "Facebook login was cancelled or did not complete.",
+      "SELECT_ONE": "Select at least one page to connect.",
+      "GENERIC": "Something went wrong. Please try again."
+    }
+  }
+}

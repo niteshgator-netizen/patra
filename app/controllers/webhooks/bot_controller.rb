@@ -48,10 +48,12 @@ class Webhooks::BotController < ActionController::API
 
   def enqueue_message_events(payload)
     Array(payload[:entry]).each do |entry|
+      page_id = entry[:id].to_s
       Array(entry[:messaging]).each do |messaging|
         next unless processable?(messaging)
 
-        Webhooks::FacebookBridgeJob.perform_later(messaging.deep_stringify_keys)
+        job_payload = messaging.deep_stringify_keys.merge('_patra_fb_page_id' => page_id)
+        Webhooks::FacebookBridgeJob.perform_later(job_payload)
       rescue StandardError => e
         Rails.logger.error("[BotBridge] failed to enqueue messaging event: #{e.class}: #{e.message}")
       end

@@ -5,12 +5,13 @@ class Facebook::GraphProfileService
   GRAPH_HOST = 'https://graph.facebook.com'.freeze
   TIMEOUT = 5
 
-  def self.fetch_name(psid)
-    new(psid).fetch_name
+  def self.fetch_name(psid, page_access_token: nil)
+    new(psid, page_access_token: page_access_token).fetch_name
   end
 
-  def initialize(psid)
+  def initialize(psid, page_access_token: nil)
     @psid = psid.to_s
+    @page_access_token_override = page_access_token
   end
 
   def fetch_name
@@ -37,6 +38,6 @@ class Facebook::GraphProfileService
   private
 
   def access_token
-    @access_token ||= ENV.fetch('FB_PAGE_ACCESS_TOKEN', '').to_s
+    @access_token ||= @page_access_token_override.presence || ENV.fetch('FB_PAGE_ACCESS_TOKEN', '').to_s
   end
 end

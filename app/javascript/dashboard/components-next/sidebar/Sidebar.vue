@@ -177,6 +177,32 @@ const sortedInboxes = computed(() =>
   inboxes.value.slice().sort((a, b) => a.name.localeCompare(b.name))
 );
 
+const currentRole = useMapGetter('getCurrentRole');
+const showPatraFacebookConnect = computed(() => {
+  if (currentRole.value !== 'administrator') return false;
+  const cfg = typeof window !== 'undefined' ? window.chatwootConfig || {} : {};
+  if (!cfg.fbAppId) return false;
+  const fbBridgeCount = inboxes.value.filter(
+    i =>
+      i.channel_type === 'Channel::Api' &&
+      i.additional_attributes?.fb_page_id
+  ).length;
+  return fbBridgeCount === 0;
+});
+
+const patraFacebookConnectNav = computed(() =>
+  showPatraFacebookConnect.value
+    ? [
+        {
+          name: 'PatraConnectFacebook',
+          label: t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK'),
+          icon: 'i-lucide-facebook',
+          to: accountScopedRoute('patra_connect_facebook'),
+        },
+      ]
+    : []
+);
+
 const closeMobileSidebar = () => {
   if (!props.isMobileSidebarOpen) return;
   emit('closeMobileSidebar');
@@ -277,8 +303,10 @@ const menuItems = computed(() => {
           name: 'Channels',
           label: t('SIDEBAR.CHANNELS'),
           icon: 'i-lucide-mailbox',
-          activeOn: ['conversation_through_inbox'],
-          children: sortedInboxes.value.map(inbox => ({
+          activeOn: ['conversation_through_inbox', 'patra_connect_facebook'],
+          children: [
+            ...patraFacebookConnectNav.value,
+            ...sortedInboxes.value.map(inbox => ({
             name: `${inbox.name}-${inbox.id}`,
             label: inbox.name,
             icon: h(ChannelIcon, { inbox, class: 'size-[16px]' }),
@@ -290,6 +318,7 @@ const menuItems = computed(() => {
                 inbox,
               }),
           })),
+          ],
         },
         {
           name: 'Labels',

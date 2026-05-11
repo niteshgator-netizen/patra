@@ -37,7 +37,7 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
     # message. 3s delay gives Chatwoot a moment to fully commit the message
     # before we read the conversation history back out.
     if result.is_a?(Hash) && result[:conversation_id].present?
-      tag_customer_recency(result[:contact_id], result[:conversation_id])
+      tag_customer_recency(result[:account_id], result[:contact_id], result[:conversation_id])
       Ai::ReplyJob.set(wait: 3.seconds).perform_later(result[:conversation_id])
     end
   rescue Facebook::ChatwootBridgeService::ConfigurationError => e
@@ -64,11 +64,12 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
   # Adds a `new-customer` or `returning-customer` label so the dashboard
   # can filter by lifecycle stage. Best-effort — failure is logged but never
   # blocks the AI reply enqueue.
-  def tag_customer_recency(contact_id, conversation_id)
+  def tag_customer_recency(account_id, contact_id, conversation_id)
     return if contact_id.blank? || conversation_id.blank?
 
+    aid = account_id.presence || patra_account_id
     count_response = HTTParty.get(
-      "#{patra_base_url}/api/v1/accounts/#{patra_account_id}/contacts/#{contact_id}/conversations",
+      "#{patra_base_url}/api/v1/accounts/#{aid}/contacts/#{contact_id}/conversations",
       headers: patra_headers,
       timeout: 10
     )
@@ -78,7 +79,7 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
     label = convo_count <= 1 ? 'new-customer' : 'returning-customer'
 
     HTTParty.post(
-      "#{patra_base_url}/api/v1/accounts/#{patra_account_id}/bulk_actions",
+      "#{patra_base_url}/api/v1/accounts/#{aid}/bulk_actions",
       headers: patra_headers.merge('Content-Type' => 'application/json'),
       body: { type: 'Conversation', ids: [conversation_id], labels: { add: [label] } }.to_json,
       timeout: 10
