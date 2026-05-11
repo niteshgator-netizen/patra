@@ -104,7 +104,7 @@ class Facebook::ChatwootBridgeService
   end
 
   def create_contact!
-    profile = Facebook::GraphProfileService.fetch_profile(@sender_id, page_access_token: graph_page_access_token)
+    profile = safe_fetch_graph_profile
     name = profile[:name].presence || "Player #{@sender_id.to_s.last(4)}"
     facebook_profile = "https://facebook.com/#{@sender_id}"
 
@@ -128,6 +128,17 @@ class Facebook::ChatwootBridgeService
 
     Rails.logger.info("[BotBridge] created contact id=#{id} psid=#{@sender_id} name=#{name}")
     id
+  end
+
+  # Profile enrichment is best-effort: a Graph API failure (HTTP 400, expired
+  # token, network blip, etc.) must never block contact/conversation creation.
+  def safe_fetch_graph_profile
+    Facebook::GraphProfileService.fetch_profile(@sender_id, page_access_token: graph_page_access_token)
+  rescue StandardError => e
+    Rails.logger.warn(
+      "[BotBridge] Graph profile lookup raised psid=#{@sender_id} #{e.class}: #{e.message}; falling back to default name"
+    )
+    { name: nil, profile_pic: nil }
   end
 
   # ---------- Conversation ----------
