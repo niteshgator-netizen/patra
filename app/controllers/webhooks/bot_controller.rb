@@ -28,7 +28,11 @@ class Webhooks::BotController < ActionController::API
 
   # POST /bot
   def events
-    payload = params.to_unsafe_hash
+    # JSON bodies parse into string-keyed hashes; symbol lookups (:object, :entry)
+    # would be nil and we'd drop every webhook as "non-page". Indifferent access
+    # matches MessengerController's params['object'] pattern without changing call sites.
+    params.permit!
+    payload = params.to_unsafe_hash.with_indifferent_access
     Rails.logger.info("[BotBridge] received webhook object=#{payload[:object]} entries=#{Array(payload[:entry]).size}")
 
     if payload[:object].to_s != 'page'
