@@ -7,6 +7,7 @@ import {
 } from 'shared/helpers/CustomErrors';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import ContactAPI from 'dashboard/api/contacts';
 import ContactInfoRow from './ContactInfoRow.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SocialIcons from './SocialIcons.vue';
@@ -53,6 +54,7 @@ export default {
       showEditModal: false,
       isEditingName: false,
       editName: '',
+      isReengaging: false,
     };
   },
   computed: {
@@ -138,6 +140,21 @@ export default {
     },
     onFieldUpdate(field, value) {
       this.updateContactField({ [field]: value });
+    },
+    async reengageContact() {
+      if (!this.contact?.id || this.isReengaging) return;
+      this.isReengaging = true;
+      try {
+        const { data } = await ContactAPI.reengage(this.contact.id);
+        useAlert(data.message);
+        await this.$store.dispatch('contacts/show', { id: this.contact.id });
+      } catch (error) {
+        const msg =
+          error.response?.data?.message || this.$t('CONTACT_PANEL.REENGAGE_ERROR');
+        useAlert(msg);
+      } finally {
+        this.isReengaging = false;
+      }
     },
     async updateContactField(attrs) {
       const contactId = this.contact.id;
@@ -302,6 +319,16 @@ export default {
             />
           </template>
         </ComposeConversation>
+        <NextButton
+          v-tooltip.top-end="$t('CONTACT_PANEL.REENGAGE_TOOLTIP')"
+          icon="i-lucide-sparkles"
+          slate
+          faded
+          sm
+          :is-loading="isReengaging"
+          :disabled="isReengaging"
+          @click="reengageContact"
+        />
         <VoiceCallButton
           :phone="contact.phone_number"
           :contact-id="contact.id"

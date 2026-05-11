@@ -80,3 +80,9 @@ patra_refresh_fb_tokens_job:
   cron: '0 3 * * 0'
   class: 'Patra::RefreshFbTokensJob'
   queue: scheduled_jobs
+
+# Daily at 10:00 UTC — dormant Facebook Messenger players (adjust cron for local 10 AM if needed)
+reengagement_dormant_player_job:
+  cron: '0 10 * * *'
+  class: 'Reengagement::DormantPlayerJob'
+  queue: scheduled_jobs

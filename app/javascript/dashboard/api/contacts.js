@@ -103,6 +103,10 @@ class ContactAPI extends ApiClient {
   exportContacts(queryPayload) {
     return axios.post(`${this.url}/export`, queryPayload);
   }
+
+  reengage(contactId) {
+    return axios.post(`${this.url}/${contactId}/reengage`);
+  }
 }
 
 export default new ContactAPI();

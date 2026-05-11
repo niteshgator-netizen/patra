@@ -325,6 +325,17 @@ en:
       active_hours_ago: Active %{count}h ago
     online:
       delete: '%{contact_name} is Online, please try again later'
+  reengagement:
+    sent: 'Re-engagement message was sent on Facebook Messenger.'
+    errors:
+      blocked: 'This contact is blocked.'
+      blocked_labels: 'Re-engagement is disabled for this contact (labels).'
+      loyalty_tier: 'Re-engagement only runs for contacts whose loyalty tier is set and is not new.'
+      recent_reengagement: 'A re-engagement message was already sent to this contact within the last 14 days.'
+      no_messenger_conversation: 'No Facebook Messenger conversation was found for this contact.'
+      channel_disconnected: 'Facebook is disconnected for this inbox. Reconnect the channel and try again.'
+      not_dormant: 'This contact messaged recently; re-engagement is only for dormant players (7+ days).'
+      error: 'Could not send the re-engagement message. Please try again later.'
   integration_apps:
     # Note: webhooks and dashboard_apps don't need short_description as they use different modal components
     dashboard_apps:
