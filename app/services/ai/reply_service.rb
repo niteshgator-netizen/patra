@@ -259,6 +259,10 @@ class Ai::ReplyService
     name = (sender_name.presence || contact['name']).to_s
     additional = contact['additional_attributes'].is_a?(Hash) ? contact['additional_attributes'] : {}
 
+    # Use stored game_username if we already have one, otherwise scan recent
+    # messages and persist the result for future calls.
+    game_username = additional['game_username'].presence || store_player_username(contact_id)
+
     # 3. Past conversations → count = "previous interactions"
     convos_response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}/conversations",
@@ -269,12 +273,66 @@ class Ai::ReplyService
 
     parts = []
     parts << "Player name: #{name}" if name.present?
+    parts << "Game username: #{game_username}" if game_username.present?
     parts << "Previous interactions: #{conversations_count}"
     parts << "Notes: #{additional['notes']}" if additional['notes'].to_s.strip.present?
     parts.join(', ')
   rescue StandardError => e
     Rails.logger.warn("[AiReply] player profile fetch error conversation=#{@conversation_id} #{e.class}: #{e.message}")
     ''
+  end
+
+  # Scans the most recent 20 messages for a self-declared username pattern
+  # ("my username is X", "username: X", "my id is X", "my tag is X") and, if
+  # found, PATCHes the contact's additional_attributes.game_username so future
+  # replies can address the player by their in-game handle. Chatwoot merges
+  # additional_attributes on update, so this is a safe partial write.
+  # Returns the detected username on success, nil on no-match or any failure.
+  USERNAME_PATTERN = /(?:my\s+username\s+is|username\s*:|my\s+id\s+is|my\s+tag\s+is)\s*([^\s.,;:!?]+)/i
+  USERNAME_SCAN_LIMIT = 20
+
+  def store_player_username(contact_id)
+    return nil if contact_id.blank?
+
+    messages_response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}/messages",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+    return nil unless messages_response.success?
+
+    recent = Array(messages_response.parsed_response['payload'])
+             .sort_by { |m| m['created_at'].to_i }
+             .last(USERNAME_SCAN_LIMIT)
+
+    # Iterate newest first so a later correction wins over an earlier mention.
+    username = nil
+    recent.reverse_each do |m|
+      match = m['content'].to_s.match(USERNAME_PATTERN)
+      if match
+        username = match[1].strip
+        break
+      end
+    end
+    return nil if username.blank?
+
+    patch_response = HTTParty.patch(
+      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+      body: { additional_attributes: { game_username: username } }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+
+    if patch_response.success?
+      Rails.logger.info("[AiReply] stored game_username=#{username} contact=#{contact_id}")
+      username
+    else
+      Rails.logger.warn("[AiReply] failed to persist game_username HTTP #{patch_response.code}: #{patch_response.body}")
+      nil
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] store_player_username error contact=#{contact_id} #{e.class}: #{e.message}")
+    nil
   end
 
   # Best-effort Redis read/write for canned-response content. Any Redis error
@@ -442,6 +500,9 @@ class Ai::ReplyService
 
         Use this to personalize your response. If you know their name
         use it naturally. If they are a returning player treat them warmly.
+        If you learn the player's game username from conversation,
+        remember it and use it. Never ask for username if already known.
+        Always greet returning players by their username.
       PLAYER
       prompt = "#{prompt}\n#{player_section}\n"
     end
