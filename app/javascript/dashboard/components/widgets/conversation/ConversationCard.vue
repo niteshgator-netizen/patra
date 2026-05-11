@@ -70,14 +70,15 @@ const isContactOnline = computed(
   () => props.currentContact?.availability_status === 'online'
 );
 
-// Patra: "active in last 5 min" — based on the most recent non-activity
-// message (filters out auto-resolves and system events). created_at is
-// Unix seconds; multiply by 1000 for JS milliseconds.
 const isCustomerOnline = computed(() => {
-  const lastMsg = props.chat?.last_non_activity_message;
-  if (!lastMsg?.created_at) return false;
-  const t = lastMsg.created_at * 1000;
-  return Date.now() - t < 5 * 60 * 1000;
+  const lastMsg =
+    props.chat?.messages?.[props.chat.messages.length - 1] ||
+    props.chat?.last_non_activity_message;
+  if (!lastMsg) return false;
+  const createdAt = lastMsg.created_at;
+  const timestamp =
+    typeof createdAt === 'number' ? createdAt * 1000 : new Date(createdAt).getTime();
+  return Date.now() - timestamp < 5 * 60 * 1000;
 });
 
 const showLabelsSection = computed(() => {
@@ -135,7 +136,7 @@ watch(
     @contextmenu="$emit('contextmenu', $event)"
   >
     <div
-      class="relative"
+      class="avatar-wrapper"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -159,8 +160,7 @@ watch(
           </label>
         </template>
       </Avatar>
-      <!-- Patra: green dot when the customer has been active within 5 min. -->
-      <span v-if="isCustomerOnline" class="online-status-dot" />
+      <span v-if="isCustomerOnline" class="online-dot" />
     </div>
     <div class="px-0 py-3 flex-1 min-w-0 border-line">
       <div
@@ -263,3 +263,26 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.online-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 11px;
+  height: 11px;
+  background: #22c55e;
+  border-radius: 50%;
+  border: 2px solid white;
+  z-index: 2;
+}
+
+:global([data-theme='dark']) .online-dot {
+  border-color: #16161d;
+}
+</style>

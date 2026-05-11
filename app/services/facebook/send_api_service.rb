@@ -10,17 +10,25 @@ class Facebook::SendApiService
   GRAPH_API_VERSION = 'v18.0'.freeze
   HTTP_TIMEOUT = 10
 
-  def initialize(conversation_id, message_content)
+  def initialize(conversation_id, message_content, account_id: nil)
     @conversation_id = conversation_id
     @message_content = message_content.to_s
+    @account_id_override = account_id
   end
 
   def call
     return false if @conversation_id.blank?
     return false if @message_content.strip.empty?
 
-    psid = fetch_psid
-    return false if psid.blank?
+    convo = fetch_conversation_payload
+    return false if convo.blank?
+
+    @inbox_id = convo['inbox_id']
+    psid = convo.dig('meta', 'sender', 'identifier')
+    if psid.blank?
+      Rails.logger.error("[FbReply] no PSID on conversation=#{@conversation_id} (meta.sender.identifier missing)")
+      return false
+    end
 
     deliver_to_facebook(psid)
   rescue StandardError => e
@@ -30,7 +38,7 @@ class Facebook::SendApiService
 
   private
 
-  def fetch_psid
+  def fetch_conversation_payload
     response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}",
       headers: chatwoot_headers,
@@ -42,13 +50,7 @@ class Facebook::SendApiService
       return nil
     end
 
-    psid = response.parsed_response.dig('meta', 'sender', 'identifier')
-    if psid.blank?
-      Rails.logger.error("[FbReply] no PSID on conversation=#{@conversation_id} (meta.sender.identifier missing)")
-      return nil
-    end
-
-    psid
+    response.parsed_response
   end
 
   def deliver_to_facebook(psid)
@@ -132,10 +134,15 @@ class Facebook::SendApiService
   end
 
   def account_id
-    @account_id ||= ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
+    @account_id ||= @account_id_override.presence&.to_i ||
+                     ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
   end
 
   def page_access_token
-    ENV.fetch('FB_PAGE_ACCESS_TOKEN', '').to_s
+    return @page_access_token if defined?(@page_access_token)
+
+    inbox = Inbox.find_by(id: @inbox_id) if @inbox_id.present?
+    from_channel = inbox&.channel&.additional_attributes&.dig('fb_page_access_token').to_s
+    @page_access_token = from_channel.presence || ENV.fetch('FB_PAGE_ACCESS_TOKEN', '').to_s
   end
 end

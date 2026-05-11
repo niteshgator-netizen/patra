@@ -13,6 +13,7 @@ import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
 import OnboardingAccountDetails from './onboarding/Index.vue';
+import PatraConnectFacebook from './patra/PatraConnectFacebook.vue';
 
 export default {
   routes: [
@@ -30,6 +31,14 @@ export default {
         ...notificationRoutes,
         ...helpcenterRoutes.routes,
         ...campaignsRoutes.routes,
+        {
+          path: 'patra/connect-facebook',
+          name: 'patra_connect_facebook',
+          component: PatraConnectFacebook,
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
       ],
     },
     {

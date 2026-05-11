@@ -27,6 +27,7 @@ Rails.application.routes.draw do
     get '/app/accounts/:account_id/settings/inboxes/new/microsoft', to: 'dashboard#index', as: 'app_new_microsoft_inbox'
     get '/app/accounts/:account_id/settings/inboxes/new/instagram', to: 'dashboard#index', as: 'app_new_instagram_inbox'
     get '/app/accounts/:account_id/settings/inboxes/new/tiktok', to: 'dashboard#index', as: 'app_new_tiktok_inbox'
+    get '/app/accounts/:account_id/patra/connect-facebook', to: 'dashboard#index', as: 'app_patra_connect_facebook'
     get '/app/accounts/:account_id/settings/inboxes/new/:inbox_id/agents', to: 'dashboard#index', as: 'app_twitter_inbox_agents'
     get '/app/accounts/:account_id/settings/inboxes/new/:inbox_id/agents', to: 'dashboard#index', as: 'app_email_inbox_agents'
     get '/app/accounts/:account_id/settings/inboxes/new/:inbox_id/agents', to: 'dashboard#index', as: 'app_instagram_inbox_agents'
@@ -320,6 +321,11 @@ Rails.application.routes.draw do
 
           namespace :whatsapp do
             resource :authorization, only: [:create]
+          end
+
+          namespace :patra do
+            post 'fb_connect', to: 'facebook_connect#fb_connect'
+            post 'fb_connect_pages', to: 'facebook_connect#fb_connect_pages'
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]

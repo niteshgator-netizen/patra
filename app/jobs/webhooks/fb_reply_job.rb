@@ -5,7 +5,7 @@
 class Webhooks::FbReplyJob < ApplicationJob
   queue_as :default
 
-  def perform(conversation_id, message_content)
-    Facebook::SendApiService.new(conversation_id, message_content).call
+  def perform(conversation_id, message_content, account_id = nil)
+    Facebook::SendApiService.new(conversation_id, message_content, account_id: account_id).call
   end
 end
