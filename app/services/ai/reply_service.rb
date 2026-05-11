@@ -8,6 +8,7 @@
 #
 # Configuration (all read at call time):
 #   XAI_API_KEY                  — required
+#   XAI_MODEL                    — optional (defaults to grok-4.3)
 #   CHATWOOT_BRIDGE_API_TOKEN    — required (to read conversation + messages)
 #   CHATWOOT_BRIDGE_BASE_URL     — defaults to https://patrahq.com
 #   CHATWOOT_BRIDGE_ACCOUNT_ID   — defaults to 2
@@ -15,7 +16,8 @@ class Ai::ReplyService
   # xAI ships an OpenAI-compatible Chat Completions endpoint, hence the
   # {role, content} message format and the choices[0].message.content shape.
   XAI_URL = 'https://api.x.ai/v1/chat/completions'.freeze
-  MODEL = 'grok-4'.freeze
+  # Override with XAI_MODEL in ENV if xAI renames IDs; grok-4 alone is often rejected/deprecated upstream.
+  MODEL = ENV.fetch('XAI_MODEL', 'grok-4.3').freeze
   MAX_TOKENS = 80
   HISTORY_LIMIT = 5
   HTTP_TIMEOUT = 30
@@ -24,6 +26,9 @@ class Ai::ReplyService
   # customer has likely moved on — a delayed AI reply would feel weird, so
   # we bail rather than send one.
   MESSAGE_FRESHNESS_WINDOW = 10.minutes
+  # `created_at` must be a real Unix second for the freshness gate. Values below
+  # this (e.g. `String#to_i` on ISO8601 → 2026) are treated as unusable for staleness.
+  FRESHNESS_UNIX_MIN = 946_684_800 # 2000-01-01 UTC
   # Customer messages that match these exactly (case-insensitive, trimmed)
   # short-circuit Anthropic — they don't need a model call.
   SIMPLE_GREETINGS = %w[hi hey hello hii heyy heyyy sup yo].freeze
@@ -201,8 +206,9 @@ class Ai::ReplyService
     'google pay', 'bolt', 'secure link', 'online pay'
   ].freeze
 
-  def initialize(conversation_id)
+  def initialize(conversation_id, account_id: nil)
     @conversation_id = conversation_id
+    @bridge_account_id = account_id
   end
 
   def call
@@ -214,7 +220,8 @@ class Ai::ReplyService
     # messages payload) can run before any other AI work.
     messages = build_messages
 
-    if @latest_timestamp.to_i.positive? && (Time.current - Time.at(@latest_timestamp.to_i)) > MESSAGE_FRESHNESS_WINDOW
+    latest_unix = message_created_at_unix(@latest_timestamp)
+    if latest_unix >= FRESHNESS_UNIX_MIN && (Time.current - Time.at(latest_unix)) > MESSAGE_FRESHNESS_WINDOW
       Rails.logger.info("[AiReply] skipping old message conv=#{@conversation_id}")
       return nil
     end
@@ -292,6 +299,38 @@ class Ai::ReplyService
     labels.include?(SKIP_LABEL)
   end
 
+  # Normalizes Chatwoot message_type (integer enum, string digits, or legacy string names).
+  def chat_message_type(message)
+    raw = message['message_type']
+    case raw
+    when 0, '0', 'incoming' then 0
+    when 1, '1', 'outgoing' then 1
+    else
+      int = raw.to_i
+      return int if [0, 1].include?(int)
+
+      nil
+    end
+  end
+
+  # Unix seconds for sorting / freshness. Handles Integer and ISO8601 strings; avoids
+  # `String#to_i` on timestamps (which yields a useless year fragment).
+  def message_created_at_unix(raw)
+    case raw
+    when Integer then raw
+    when Numeric then raw.to_i
+    when String
+      s = raw.strip
+      return s.to_i if s.match?(/\A\d{10,}\z/)
+
+      Time.zone.parse(s).to_i
+    else
+      raw.to_i
+    end
+  rescue ArgumentError, TypeError
+    0
+  end
+
   def build_messages
     response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}/messages",
@@ -307,15 +346,18 @@ class Ai::ReplyService
     payload = Array(response.parsed_response['payload'])
     # Captured for the freshness check in `call`. Use the raw payload (every
     # message type) so activity events still count as "the conversation is alive".
-    @latest_timestamp = payload.map { |m| m['created_at'].to_i }.max
+    @latest_timestamp = payload.map { |m| message_created_at_unix(m['created_at']) }.max
     # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
     # 2/3 are activity/template — skip those, they're not part of the conversation.
     history = payload
-              .select { |m| [0, 1].include?(m['message_type'].to_i) }
+              .select { |m| (t = chat_message_type(m)) && [0, 1].include?(t) }
               .reject { |m| m['content'].to_s.strip.empty? }
-              .sort_by { |m| m['created_at'].to_i }
+              .sort_by { |m| message_created_at_unix(m['created_at']) }
               .last(HISTORY_LIMIT)
-              .map { |m| { 'role' => m['message_type'].to_i == 0 ? 'user' : 'assistant', 'content' => m['content'].to_s } }
+              .map do |m|
+                t = chat_message_type(m)
+                { 'role' => t == 0 ? 'user' : 'assistant', 'content' => m['content'].to_s }
+              end
 
     # Anthropic requires the first message to be `user`. Drop any leading
     # assistant turns so the API doesn't 400 with a role-ordering error.
@@ -395,7 +437,7 @@ class Ai::ReplyService
     return nil unless messages_response.success?
 
     recent = Array(messages_response.parsed_response['payload'])
-             .sort_by { |m| m['created_at'].to_i }
+             .sort_by { |m| message_created_at_unix(m['created_at']) }
              .last(USERNAME_SCAN_LIMIT)
 
     # Iterate newest first so a later correction wins over an earlier mention.
@@ -855,6 +897,14 @@ class Ai::ReplyService
   end
 
   def account_id
-    @account_id ||= ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
+    @account_id ||= begin
+      aid = @bridge_account_id
+      aid = aid.to_i if aid.present?
+      if aid.present? && aid.positive?
+        aid
+      else
+        ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
+      end
+    end
   end
 end
