@@ -29,10 +29,25 @@ class Ai::ReplyService
   # `created_at` must be a real Unix second for the freshness gate. Values below
   # this (e.g. `String#to_i` on ISO8601 → 2026) are treated as unusable for staleness.
   FRESHNESS_UNIX_MIN = 946_684_800 # 2000-01-01 UTC
-  # Customer messages that match these exactly (case-insensitive, trimmed)
-  # short-circuit Anthropic — they don't need a model call.
-  SIMPLE_GREETINGS = %w[hi hey hello hii heyy heyyy sup yo].freeze
-  GREETING_REPLY = 'yo whats good'.freeze
+  # Used to send ultra-short, non-AI sounding replies for pure greetings.
+  # Only applies when the customer's message is exactly the greeting (after
+  # light normalization like trimming and trailing punctuation).
+  GREETINGS_REPLIES = {
+    'hi' => 'heyyy wassup 😊',
+    'hii' => 'heyyy wassup 😊',
+    'hello' => 'hey!',
+    'hey' => "yo what's good",
+    'heyy' => 'heyy!',
+    'heyyy' => 'heyyy wassup 😊',
+    'hi there' => 'heyy!',
+    'yo' => "yo what's good",
+    'sup' => "yo what's good"
+  }.freeze
+
+  ALLOWED_EMOJIS = ['😊', '😂', '🙏'].freeze
+  # Rough "any emoji" detection to let us enforce "no more emojis" once we
+  # already used one earlier in this conversation.
+  ANY_EMOJI_PATTERN = /[\u{1F300}-\u{1FAFF}]/.freeze
   # Redis cache for canned-response lookups. 10 min TTL is short enough that
   # ops edits in the Chatwoot UI propagate quickly, long enough to absorb the
   # per-message fetch traffic.
@@ -51,6 +66,7 @@ class Ai::ReplyService
     - 'Is there anything else?'
     - 'Feel free to ask'
     - 'Thank you for reaching out'
+    - 'what can i help you with today?'
     - Any corporate or AI-sounding phrase
 
     REPLY STYLE:
@@ -58,37 +74,43 @@ class Ai::ReplyService
     - Max 1-2 short lines per reply (under 20 words ideal)
     - Lowercase ok, skip periods at end of casual replies
     - One topic per reply only
-    - Most replies have ZERO emoji (use sparingly when genuinely fitting)
+    - Prefer ZERO emoji in most replies
     - Use casual words: 'yo', 'hey', 'sure thing', 'gotcha', 'lemme', 'np'
 
-    GREETINGS (when customer says hi/hey/yo/sup):
-    ✅ 'yo whats good'
-    ✅ 'hey! you loading today?'
-    ✅ 'sup, what game we playing'
-    ✅ 'hey hey, what we doing today'
-    ✅ 'yo'
-    ❌ 'Hello! How can I help you today?' (FORBIDDEN)
-    ❌ 'Hi! Welcome! 😊 How can I assist?' (FORBIDDEN)
+    GREETINGS (when customer is just saying hi/hey/hello/hi there):
+    - 'heyyy wassup 😊' for "hi"
+    - 'hey!' for "hello"
+    - 'yo what's good' for "hey"
+    - 'heyy!' for "hi there"
+    - If the customer's message is ONLY a greeting, respond with a casual greeting only (no questions)
+
+    BUSINESS ENGAGEMENT (important):
+    - Only start talking loading/deposits, cashout/redeem, or bonuses if the
+      customer's message mentions one of: load/loading, deposit/pay/payment,
+      cashout/redeem/withdraw, cashing out, bonus/freeplay/promo.
+    - If their message is just a greeting, reply with the casual greeting only
+      and wait (no questions).
 
     EXAMPLES:
     Customer: 'i wanna load juwa'
-    ✅ 'aight whats your juwa username'
-    ✅ 'sure thing, username?'
+    'aight whats your juwa username'
+    'sure thing, username?'
 
     Customer: 'how do i pay'
-    ✅ 'cashapp, chime, venmo or paypal — which?'
+    'cashapp, chime, venmo or paypal — which?'
 
     Customer: 'send cashapp'
-    ✅ 'send to $hustle09 and drop the screenshot when ur done'
+    'send to $hustle09 and drop the screenshot when ur done'
 
     Customer: 'what bonus'
-    ✅ 'for $20+ i got 25% bonus for ya'
+    'for $20+ i got 25% bonus for ya'
 
     EMOJI RULE:
-    Default = ZERO emojis. Only use ONE emoji when it actually fits naturally:
-    - New player welcome: 🎉 (once)
-    - Big win/exciting: 🔥 (once)
-    - Never two emojis. Never on every message.
+    Allowed emojis only: 😊 😂 🙏
+    Prefer ZERO emojis.
+    Max 1 emoji for the entire conversation. If any previous assistant message used an emoji, output ZERO emojis now.
+    If you do use an emoji, use at most ONE emoji in your reply and only when it genuinely fits.
+    Never use 👋 🎮 ✅ or any other emoji.
 
     BUSINESS KNOWLEDGE:
 
@@ -165,6 +187,7 @@ class Ai::ReplyService
     - Get straight to the point immediately
     - One emoji max, only if natural
     - Never say certainly/absolutely/great question
+    - If the customer message is only a greeting, never ask a question; just send the casual hello back
     - Short is always better than long
   PROMPT
 
@@ -243,10 +266,29 @@ class Ai::ReplyService
     end
     empathy_hint = empathy_hint_for(sentiment_level)
 
-    # Cheap-path canned hello — bypasses Anthropic entirely for one-word
-    # greetings like "hi"/"yo".
+    # Enforce emoji sparingly. If an emoji was already used by Bella in a
+    # previous assistant turn, this conversation should get ZERO emoji from
+    # now on (including in the quick greeting shortcut).
+    emoji_already_used = messages
+                          .select { |m| m['role'] == 'assistant' }
+                          .any? { |m| m['content'].to_s.match?(ANY_EMOJI_PATTERN) }
+
+    # Cheap-path canned hello — bypasses Anthropic entirely for pure
+    # greetings.
     last_message = messages.last&.dig('content').to_s.downcase.strip
-    return GREETING_REPLY if SIMPLE_GREETINGS.include?(last_message)
+    normalized_greeting = last_message
+                            .gsub(/[!?.,]+$/, '')
+                            .gsub(/\s+/, ' ')
+
+    greeting_reply = GREETINGS_REPLIES[normalized_greeting]
+    if greeting_reply
+      if emoji_already_used
+        # Strip all allowed emojis (and any other emoji that might be in the
+        # mapping) to guarantee no additional emoji in this conversation.
+        greeting_reply = greeting_reply.gsub(ANY_EMOJI_PATTERN, '').strip
+      end
+      return greeting_reply
+    end
 
     payment_info = fetch_payment_info
     training_info = fetch_ai_training
@@ -262,7 +304,14 @@ class Ai::ReplyService
       canned_responses_text,
       payment_link_hint
     )
-    system_prompt = "#{system_prompt}\nSITUATION: #{empathy_hint}\n" if empathy_hint
+    emoji_guard = if emoji_already_used
+      "EMOJI GUARD: An emoji has already been used earlier in this conversation by Bella. Use ZERO emojis in your reply. Do not use any emoji at all."
+    else
+      "EMOJI GUARD: Use emojis sparingly and only if truly natural. Allowed emojis: 😊 😂 🙏. Prefer ZERO emojis. If you include an emoji, use at most ONE emoji in your reply."
+    end
+
+    system_prompt = "#{system_prompt}\n#{emoji_guard}\nSITUATION: #{empathy_hint}\n" if empathy_hint
+    system_prompt = "#{system_prompt}\n#{emoji_guard}\n" unless empathy_hint
 
     reply = invoke_anthropic(messages, system_prompt)
     return nil if reply.blank?
@@ -718,16 +767,17 @@ class Ai::ReplyService
         use it naturally. If they are a returning player treat them warmly.
         If CURRENT PLAYER INFO already includes a line starting with
         "Customer's game username:", do not ask for it again. If the
-        username is missing, ask for it once (only one question). After
-        the customer provides it, never ask again. Always greet returning
-        players by username.
+        username is missing, ask for it once (only one question) after
+        they mention loading/cashout/cashing out/bonus. After the customer provides
+        it, never ask again. Always greet returning players by username.
 
         GREETING RULES:
-        - If "Previous interactions: 1" (their first conversation): warm
-          welcome ("Hey! Welcome 😊"), ask their game username, briefly
-          mention "we load 20+ game platforms" — keep to 1 line.
-        - Otherwise: skip intro entirely. Greet by username if known,
-          reference last_game if known, get to the action fast.
+        - If "Previous interactions: 1" (their first conversation): send
+          the casual hello back (no business questions). Do not ask for
+          username here.
+        - Otherwise: skip intro entirely. If this message is just a
+          greeting, keep it casual and wait; only get to business when
+          they mention loading/cashout/cashing out/bonus.
       PLAYER
       prompt = "#{prompt}\n#{player_section}\n"
     end
