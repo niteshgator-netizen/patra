@@ -73,6 +73,9 @@ export const actions = {
       throw new Error(error);
     }
   },
+  setPassword: async (_ctx, { id, password }) => {
+    await AgentAPI.setPassword(id, password);
+  },
   updateSingleAgentPresence: ({ commit }, { id, availabilityStatus }) => {
     commit(types.default.UPDATE_SINGLE_AGENT_PRESENCE, {
       id,

@@ -1,5 +1,6 @@
 class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   before_action :fetch_agent, except: [:create, :index, :bulk_create]
+  before_action :validate_set_password, only: [:set_password]
   before_action :check_authorization
   before_action :validate_limit, only: [:create]
   before_action :validate_limit_for_bulk_create, only: [:bulk_create]
@@ -15,11 +16,23 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
       role: new_agent_params['role'],
       availability: new_agent_params['availability'],
       auto_offline: new_agent_params['auto_offline'],
+      password: new_agent_params['password'],
       inviter: current_user,
       account: Current.account
     )
 
     @agent = builder.perform
+  end
+
+  # Owner-initiated password reset. Sets a new password on the agent directly
+  # without sending a Devise reset email, and auto-confirms the account if it
+  # was still pending confirmation. Authorization is already enforced by the
+  # `check_authorization` before_action.
+  def set_password
+    @agent.password = params[:password]
+    @agent.skip_confirmation! unless @agent.confirmed?
+    @agent.save!
+    head :ok
   end
 
   def update
@@ -80,7 +93,13 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def new_agent_params
-    params.require(:agent).permit(:email, :name, :role, :availability, :auto_offline)
+    params.require(:agent).permit(:email, :name, :role, :availability, :auto_offline, :password)
+  end
+
+  def validate_set_password
+    return if params[:password].is_a?(String) && params[:password].length >= 6
+
+    render json: { error: 'Password must be at least 6 characters' }, status: :unprocessable_entity
   end
 
   def agents

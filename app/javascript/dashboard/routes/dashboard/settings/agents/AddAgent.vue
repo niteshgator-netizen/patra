@@ -4,7 +4,7 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useVuelidate } from '@vuelidate/core';
-import { required, email } from '@vuelidate/validators';
+import { required, email, minLength, helpers } from '@vuelidate/validators';
 import Button from 'dashboard/components-next/button/Button.vue';
 
 const emit = defineEmits(['close']);
@@ -15,17 +15,27 @@ const { t } = useI18n();
 const agentName = ref('');
 const agentEmail = ref('');
 const selectedRoleId = ref('agent');
+const agentPassword = ref('');
+
+// Password is optional — when provided, enforce Devise's 6-char minimum.
+// When blank we send no `password` field and the backend seeds a random one.
+const passwordIfPresent = helpers.withParams(
+  { type: 'passwordIfPresent' },
+  value => !value || value.length >= 6
+);
 
 const rules = {
   agentName: { required },
   agentEmail: { required, email },
   selectedRoleId: { required },
+  agentPassword: { passwordIfPresent, minLengthIfPresent: minLength(0) },
 };
 
 const v$ = useVuelidate(rules, {
   agentName,
   agentEmail,
   selectedRoleId,
+  agentPassword,
 });
 
 const uiFlags = useMapGetter('agents/getUIFlags');
@@ -75,6 +85,10 @@ const addAgent = async () => {
       payload.custom_role_id = selectedRole.value.id;
     } else {
       payload.role = selectedRole.value.name;
+    }
+
+    if (agentPassword.value) {
+      payload.password = agentPassword.value;
     }
 
     await store.dispatch('agents/create', payload);
@@ -144,6 +158,25 @@ const addAgent = async () => {
             :placeholder="$t('AGENT_MGMT.ADD.FORM.EMAIL.PLACEHOLDER')"
             @input="v$.agentEmail.$touch"
           />
+        </label>
+      </div>
+
+      <div class="w-full">
+        <label :class="{ error: v$.agentPassword.$error }">
+          {{ $t('AGENT_MGMT.ADD.FORM.PASSWORD.LABEL') }}
+          <input
+            v-model="agentPassword"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="$t('AGENT_MGMT.ADD.FORM.PASSWORD.PLACEHOLDER')"
+            @input="v$.agentPassword.$touch"
+          />
+          <span v-if="v$.agentPassword.$error" class="message">
+            {{ $t('AGENT_MGMT.ADD.FORM.PASSWORD.ERROR') }}
+          </span>
+          <span class="text-xs text-n-slate-11">
+            {{ $t('AGENT_MGMT.ADD.FORM.PASSWORD.HELP_TEXT') }}
+          </span>
         </label>
       </div>
 
