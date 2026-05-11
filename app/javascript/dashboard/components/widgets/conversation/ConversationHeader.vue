@@ -143,61 +143,51 @@ const channelMeta = computed(() => {
 const channelIcon = computed(() => channelMeta.value.icon);
 const channelName = computed(() => channelMeta.value.name);
 
-const supportsFacebookPresence = computed(() => {
-  const ch = inbox.value?.channel_type;
-  if (ch === 'Channel::FacebookPage') return true;
-  if (ch === 'Channel::Api' && inbox.value?.additional_attributes?.fb_page_id) {
-    return true;
-  }
-  return false;
-});
+// Patra: contact presence ("Active now" / "Active Xm ago") for the
+// sub-row under the contact name. Backend service formats the text and
+// returns last_active=null for entries older than 24h, which hides it.
+const contactPresence = ref({ online: false, last_active: null });
+let presencePollTimer = null;
 
-const fbPresence = ref({ online: false, last_active: null });
-let fbPresencePollTimer = null;
-
-const fetchFacebookPresence = async () => {
-  if (!supportsFacebookPresence.value) return;
+const fetchContactPresence = async () => {
   const contactId = props.chat?.meta?.sender?.id;
   if (!contactId) return;
   try {
     const { data } = await ContactAPI.getPresence(contactId);
-    fbPresence.value = {
+    contactPresence.value = {
       online: Boolean(data.online),
       last_active: data.last_active || null,
     };
   } catch {
-    fbPresence.value = { online: false, last_active: null };
+    contactPresence.value = { online: false, last_active: null };
   }
 };
 
-const startFacebookPresencePolling = () => {
-  if (fbPresencePollTimer) clearInterval(fbPresencePollTimer);
-  if (!supportsFacebookPresence.value) return;
-  fetchFacebookPresence();
-  fbPresencePollTimer = setInterval(fetchFacebookPresence, 30_000);
+const startPresencePolling = () => {
+  if (presencePollTimer) clearInterval(presencePollTimer);
+  fetchContactPresence();
+  presencePollTimer = setInterval(fetchContactPresence, 30_000);
 };
 
 onMounted(() => {
-  startFacebookPresencePolling();
+  startPresencePolling();
 });
 
 onBeforeUnmount(() => {
-  if (fbPresencePollTimer) clearInterval(fbPresencePollTimer);
+  if (presencePollTimer) clearInterval(presencePollTimer);
 });
 
 watch(
-  () => [props.chat?.id, props.chat?.meta?.sender?.id, inbox.value?.id],
+  () => [props.chat?.id, props.chat?.meta?.sender?.id],
   () => {
-    fbPresence.value = { online: false, last_active: null };
-    startFacebookPresencePolling();
+    contactPresence.value = { online: false, last_active: null };
+    startPresencePolling();
   }
 );
 
 const avatarPresenceStatus = computed(() => {
-  if (!supportsFacebookPresence.value) {
-    return currentContact.value?.availability_status || null;
-  }
-  return fbPresence.value.online ? 'online' : null;
+  if (contactPresence.value.online) return 'online';
+  return currentContact.value?.availability_status || null;
 });
 </script>
 
@@ -241,15 +231,15 @@ const avatarPresenceStatus = computed(() => {
         </div>
         <!-- Patra: active status (under contact name) -->
         <div
-          v-if="fbPresence.last_active"
+          v-if="contactPresence.last_active"
           class="text-xs leading-tight"
           :class="
-            fbPresence.online
+            contactPresence.online
               ? 'text-[var(--patra-green)]'
               : 'text-n-slate-11'
           "
         >
-          {{ fbPresence.last_active }}
+          {{ contactPresence.last_active }}
         </div>
         <!-- Patra: channel sub-row -->
         <div

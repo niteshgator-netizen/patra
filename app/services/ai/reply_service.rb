@@ -198,13 +198,13 @@ class Ai::ReplyService
     - Short is always better than long
   PROMPT
 
-  # Case-insensitive substring matches against the model's reply. We list both
-  # the canonical phrase and looser variants because the model may shorten or
-  # re-case the escalation cue ("Let me check on that.", "One moment please").
+  # Case-insensitive substring matches against the model's reply. Kept for
+  # logging/diagnostics only — we do NOT create private escalation notes from
+  # these phrases (notes are reserved for explicit customer human/manager asks).
   ESCALATION_PHRASES = [
     'let me check on that for you, one moment!',
-    'let me check on that',
-    'one moment'
+    'let me check on that for you, one moment',
+    'let me check on that for you'
   ].freeze
 
   # Tiered sentiment detection (Bella stays in the thread for Levels 1 & 2).
@@ -218,7 +218,7 @@ class Ai::ReplyService
     'why', 'when'
   ].freeze
   ANGER_LEVEL_2_KEYWORDS = [
-    'scam', 'fraud', 'cheated', 'stole', 'fake', 'angry', 'pissed',
+    'scam', 'scammer', 'fraud', 'cheated', 'stole', 'fake', 'angry', 'pissed',
     'wtf', 'fuck', 'shit', 'ripped off', 'never again',
     'fix this now', 'lawsuit', 'report'
   ].freeze
@@ -361,8 +361,7 @@ class Ai::ReplyService
     return nil if reply.blank?
 
     if escalation?(reply)
-      post_escalation_note(messages)
-      return nil
+      Rails.logger.info("[AiReply] model used account-check handoff phrase conv=#{@conversation_id} (no private escalation note)")
     end
 
     Rails.logger.info("[AiReply] drafted conversation=#{@conversation_id} chars=#{reply.length}")
@@ -1031,27 +1030,24 @@ class Ai::ReplyService
   def empathy_hint_for(level)
     case level
     when :level_2
-      'CUSTOMER IS ANGRY OR UPSET (e.g. accusations, strong language). Do NOT offer a manager or human handoff unless they explicitly asked for one. ' \
-      'Apologize briefly, own the wait/confusion, and move straight to fixing it — ask for what you need (e.g. game username, screenshot) like a real rep. ' \
-      'Tone example (do not copy verbatim): hey im so sorry for the wait, whats your username so i can fix this asap? Stay casual; no corporate speak.'
+      'CUSTOMER IS ANGRY OR UPSET (e.g. scam/fraud accusations, strong language). Do NOT say let me check on that / one moment / manager handoff. ' \
+      'Do NOT offer a manager or human unless they explicitly asked for one. Apologize briefly, own the confusion, then ask for their game username ' \
+      'so you can help (even if they have not mentioned load yet — you need the handle to look into it). ' \
+      'Tone example (do not copy verbatim): hey im really sorry this feels off, whats your game username so i can sort this? Stay casual; no corporate speak.'
     when :level_1
       'CUSTOMER SHOWS MILD FRUSTRATION OR IMPATIENCE (wait time, where is my load, etc.). Acknowledge it with empathy and reassure you are on it — no handoff. ' \
       'Tone example (do not copy verbatim): i totally get it, lemme check rn 🙏 Keep it short and human; one emoji max only if it fits.'
     end
   end
 
-  # Posts a private note flagging an angry customer, then adds both ai-off and
-  # needs-human labels to the conversation. `bulk_actions/process` is what
-  # Chatwoot's own bulk label endpoint uses — we hit the REST API the same way.
+  # Posts the AI escalation private note and adds needs-human (not ai-off) so
+  # a teammate can take over. Only used when the customer explicitly asked for
+  # a human/manager — never for anger keywords alone.
   def escalate_to_human(messages, matched_keyword)
-    Rails.logger.info("[AiReply] escalating angry-customer conversation=#{@conversation_id} match=#{matched_keyword}")
+    Rails.logger.info("[AiReply] escalating explicit-handoff conversation=#{@conversation_id} match=#{matched_keyword}")
 
-    last_three = messages.select { |m| m['role'] == 'user' }
-                         .last(3)
-                         .map { |m| "- #{m['content'].to_s.strip}" }
-                         .join("\n")
-    note = "🚨 ANGRY CUSTOMER — Reason: #{matched_keyword}\n" \
-           "Sentiment: negative. Last 3 messages:\n#{last_three}"
+    last_user_message = messages.reverse.find { |m| m['role'] == 'user' }&.dig('content').to_s.strip
+    note = "🤖 AI escalation: Customer needs human attention - #{last_user_message}"
 
     HTTParty.post(
       "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}/messages",
@@ -1063,7 +1059,7 @@ class Ai::ReplyService
     HTTParty.post(
       "#{base_url}/api/v1/accounts/#{account_id}/bulk_actions",
       headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
-      body: { type: 'Conversation', ids: [@conversation_id], labels: { add: %w[ai-off needs-human] } }.to_json,
+      body: { type: 'Conversation', ids: [@conversation_id], labels: { add: %w[needs-human] } }.to_json,
       timeout: HTTP_TIMEOUT
     )
   rescue StandardError => e
@@ -1078,31 +1074,6 @@ class Ai::ReplyService
 
     text = last_user['content'].to_s.downcase
     PAYMENT_LINK_KEYWORDS.any? { |kw| text.include?(kw) }
-  end
-
-  # Drops a private note onto the conversation so a human agent picks it up
-  # without the customer seeing it. private:true also means our own
-  # FbReplyController will skip the resulting message_created webhook (via
-  # `private_message?`), so the note never leaks back out to Facebook.
-  def post_escalation_note(history)
-    last_user_message = history.reverse.find { |m| m['role'] == 'user' }&.dig('content').to_s
-
-    response = HTTParty.post(
-      "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}/messages",
-      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
-      body: {
-        content: "🤖 AI escalation: Customer needs human attention - #{last_user_message}",
-        message_type: 'outgoing',
-        private: true
-      }.to_json,
-      timeout: HTTP_TIMEOUT
-    )
-
-    if response.success?
-      Rails.logger.info("[AiReply] escalated conversation=#{@conversation_id}")
-    else
-      Rails.logger.error("[AiReply] escalation note HTTP #{response.code} conversation=#{@conversation_id}: #{response.body}")
-    end
   end
 
   # ---------- Helpers / config ----------
