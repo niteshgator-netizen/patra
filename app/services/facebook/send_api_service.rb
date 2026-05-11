@@ -130,7 +130,7 @@ class Facebook::SendApiService
   end
 
   def base_url
-    @base_url ||= ENV.fetch('CHATWOOT_BRIDGE_BASE_URL', 'https://patrahq.com').to_s.chomp('/')
+    @base_url ||= (ENV['CHATWOOT_BRIDGE_BASE_URL'].presence || 'http://localhost:3000').to_s.chomp('/')
   end
 
   def account_id
