@@ -1,14 +1,29 @@
 /**
- * Patra theme tokens. Applied via `data-theme` attribute on <html> — see
- * PatraThemeSwitcher.vue. The bare `:root` selector mirrors the dark theme so
- * there's no flash before the boot script in App.vue applies the saved theme.
+ * Patra theme tokens.
  *
- * Use in a component: `bg-[var(--patra-bg2)] text-[var(--patra-text1)]`
- * (Tailwind arbitrary value) or plain `background: var(--patra-bg2);` in CSS.
+ * Architecture note: Chatwoot's design system stores colors as
+ * space-separated RGB integers (e.g. `28 29 32`) so they compose with
+ * Tailwind's alpha-channel pattern: `rgb(var(--background-color) / <alpha>)`.
+ * Overrides MUST use that same format — hex values break the rgb() compose.
+ *
+ * Tokens overridden per theme (the load-bearing ones):
+ *   --background-color       main app background       (bg-n-background)
+ *   --surface-1, --surface-2 panels / cards            (bg-n-solid-1, -2)
+ *   --surface-active         active row/tab            (bg-n-solid-active)
+ *   --card-color             conversation cards, msgs  (bg-n-card)
+ *   --button-color           button background         (bg-n-button-color)
+ *   --solid-1..3             elevated solid panels
+ *   --border-weak, --border-strong  borders/dividers
+ *   --slate-1..3             panel bg slots used by `bg-n-slate-1` etc.
+ *   --slate-11, --slate-12   secondary/primary text    (text-n-slate-11/12)
+ *
+ * The `--patra-*` namespace also stays defined for our own additions (the
+ * AI pills on ConversationCard, the header toggle buttons).
  */
 
 :root,
 :root[data-theme="dark"] {
+  /* Patra tokens (used by our own pills/buttons) */
   --patra-bg1: #0f0f13;
   --patra-bg2: #16161d;
   --patra-bg3: #1e1e28;
@@ -25,18 +40,34 @@
   --patra-amber-soft: #2a1f05;
   --patra-border: rgba(255, 255, 255, 0.07);
 
-  /* Override Chatwoot's shipped CSS variables so the rest of the app
-     re-skins with this theme. !important is needed because Chatwoot's
-     defaults are declared on :root and our [data-theme] attribute selector
-     has the same specificity. */
-  --color-background: #0f0f13 !important;
-  --color-background-light: #16161d !important;
-  --s-25: #0f0f13 !important;
-  --s-50: #16161d !important;
-  --s-75: #1e1e28 !important;
-  --w-25: #f0f0f5 !important;
-  --w-50: #a0a0b8 !important;
-  --color-woot: #7c6ff7 !important;
+  /* Chatwoot semantic tokens — RGB triplets, no commas */
+  --background-color: 15 15 19 !important;
+  --surface-1: 22 22 29 !important;
+  --surface-2: 30 30 40 !important;
+  --surface-active: 42 37 80 !important;
+  --card-color: 22 22 29 !important;
+  --button-color: 30 30 40 !important;
+  --solid-1: 22 22 29 !important;
+  --solid-2: 30 30 40 !important;
+  --solid-3: 42 42 56 !important;
+  --solid-active: 42 37 80 !important;
+  --border-weak: 30 30 40 !important;
+  --border-strong: 50 50 64 !important;
+  --label-background: 30 30 40 !important;
+
+  /* Slate scale remap — slate-12 is the primary text colour and slate-1..3
+     back most panel backgrounds. */
+  --slate-1: 15 15 19 !important;
+  --slate-2: 22 22 29 !important;
+  --slate-3: 30 30 40 !important;
+  --slate-4: 36 36 50 !important;
+  --slate-5: 42 42 56 !important;
+  --slate-6: 50 50 64 !important;
+  --slate-9: 96 96 120 !important;
+  --slate-10: 128 128 152 !important;
+  --slate-11: 160 160 184 !important;
+  --slate-12: 240 240 245 !important;
+
   color-scheme: dark;
 }
 
@@ -57,14 +88,31 @@
   --patra-amber-soft: #fef3c7;
   --patra-border: rgba(0, 0, 0, 0.08);
 
-  --color-background: #ffffff !important;
-  --color-background-light: #f5f5f7 !important;
-  --s-25: #ffffff !important;
-  --s-50: #f5f5f7 !important;
-  --s-75: #f0f0f5 !important;
-  --w-25: #111118 !important;
-  --w-50: #555568 !important;
-  --color-woot: #534ab7 !important;
+  --background-color: 245 245 247 !important;
+  --surface-1: 255 255 255 !important;
+  --surface-2: 255 255 255 !important;
+  --surface-active: 240 240 245 !important;
+  --card-color: 255 255 255 !important;
+  --button-color: 255 255 255 !important;
+  --solid-1: 255 255 255 !important;
+  --solid-2: 255 255 255 !important;
+  --solid-3: 248 248 252 !important;
+  --solid-active: 238 237 254 !important;
+  --border-weak: 234 234 234 !important;
+  --border-strong: 226 227 231 !important;
+  --label-background: 247 247 247 !important;
+
+  --slate-1: 252 252 253 !important;
+  --slate-2: 249 249 251 !important;
+  --slate-3: 240 240 243 !important;
+  --slate-4: 232 232 236 !important;
+  --slate-5: 224 225 230 !important;
+  --slate-6: 217 217 224 !important;
+  --slate-9: 153 153 176 !important;
+  --slate-10: 128 131 141 !important;
+  --slate-11: 85 85 104 !important;
+  --slate-12: 17 17 24 !important;
+
   color-scheme: light;
 }
 
@@ -85,14 +133,31 @@
   --patra-amber-soft: #2a1f05;
   --patra-border: rgba(255, 255, 255, 0.05);
 
-  --color-background: #070712 !important;
-  --color-background-light: #0d0d1a !important;
-  --s-25: #070712 !important;
-  --s-50: #0d0d1a !important;
-  --s-75: #12122a !important;
-  --w-25: #e8e8ff !important;
-  --w-50: #9090c0 !important;
-  --color-woot: #a78bfa !important;
+  --background-color: 7 7 18 !important;
+  --surface-1: 13 13 26 !important;
+  --surface-2: 18 18 42 !important;
+  --surface-active: 30 26 64 !important;
+  --card-color: 13 13 26 !important;
+  --button-color: 18 18 42 !important;
+  --solid-1: 13 13 26 !important;
+  --solid-2: 18 18 42 !important;
+  --solid-3: 30 26 64 !important;
+  --solid-active: 30 26 64 !important;
+  --border-weak: 18 18 42 !important;
+  --border-strong: 40 35 80 !important;
+  --label-background: 18 18 42 !important;
+
+  --slate-1: 7 7 18 !important;
+  --slate-2: 13 13 26 !important;
+  --slate-3: 18 18 42 !important;
+  --slate-4: 24 24 52 !important;
+  --slate-5: 30 30 60 !important;
+  --slate-6: 40 35 80 !important;
+  --slate-9: 80 80 128 !important;
+  --slate-10: 110 110 160 !important;
+  --slate-11: 144 144 192 !important;
+  --slate-12: 232 232 255 !important;
+
   color-scheme: dark;
 }
 
@@ -113,13 +178,76 @@
   --patra-amber-soft: #2a1f05;
   --patra-border: rgba(255, 255, 255, 0.06);
 
-  --color-background: #0a1a0f !important;
-  --color-background-light: #0f2218 !important;
-  --s-25: #0a1a0f !important;
-  --s-50: #0f2218 !important;
-  --s-75: #142d1e !important;
-  --w-25: #e8f5ee !important;
-  --w-50: #80b090 !important;
-  --color-woot: #34d399 !important;
+  --background-color: 10 26 15 !important;
+  --surface-1: 15 34 24 !important;
+  --surface-2: 20 45 30 !important;
+  --surface-active: 30 60 40 !important;
+  --card-color: 15 34 24 !important;
+  --button-color: 20 45 30 !important;
+  --solid-1: 15 34 24 !important;
+  --solid-2: 20 45 30 !important;
+  --solid-3: 30 60 40 !important;
+  --solid-active: 30 60 40 !important;
+  --border-weak: 20 45 30 !important;
+  --border-strong: 40 70 50 !important;
+  --label-background: 20 45 30 !important;
+
+  --slate-1: 10 26 15 !important;
+  --slate-2: 15 34 24 !important;
+  --slate-3: 20 45 30 !important;
+  --slate-4: 26 56 38 !important;
+  --slate-5: 32 64 44 !important;
+  --slate-6: 40 70 50 !important;
+  --slate-9: 64 96 80 !important;
+  --slate-10: 96 144 112 !important;
+  --slate-11: 128 176 144 !important;
+  --slate-12: 232 245 238 !important;
+
   color-scheme: dark;
+}
+
+/* Direct element fallbacks — backstop for any surface that still styles
+   via legacy class hooks rather than the design-token variables above. */
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] #app,
+:root[data-theme="dark"] .app-wrapper,
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .conversations-list-wrap,
+:root[data-theme="dark"] .conversation--details,
+:root[data-theme="dark"] .row {
+  background-color: var(--patra-bg1) !important;
+  color: var(--patra-text1) !important;
+}
+
+:root[data-theme="light"] body,
+:root[data-theme="light"] #app,
+:root[data-theme="light"] .app-wrapper,
+:root[data-theme="light"] .sidebar,
+:root[data-theme="light"] .conversations-list-wrap,
+:root[data-theme="light"] .conversation--details,
+:root[data-theme="light"] .row {
+  background-color: var(--patra-bg1) !important;
+  color: var(--patra-text1) !important;
+}
+
+:root[data-theme="midnight"] body,
+:root[data-theme="midnight"] #app,
+:root[data-theme="midnight"] .app-wrapper,
+:root[data-theme="midnight"] .sidebar,
+:root[data-theme="midnight"] .conversations-list-wrap,
+:root[data-theme="midnight"] .conversation--details,
+:root[data-theme="midnight"] .row {
+  background-color: var(--patra-bg1) !important;
+  color: var(--patra-text1) !important;
+}
+
+:root[data-theme="forest"] body,
+:root[data-theme="forest"] #app,
+:root[data-theme="forest"] .app-wrapper,
+:root[data-theme="forest"] .sidebar,
+:root[data-theme="forest"] .conversations-list-wrap,
+:root[data-theme="forest"] .conversation--details,
+:root[data-theme="forest"] .row {
+  background-color: var(--patra-bg1) !important;
+  color: var(--patra-text1) !important;
 }

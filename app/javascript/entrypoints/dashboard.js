@@ -32,7 +32,6 @@ import { vResizeObserver } from '@vueuse/components';
 import { directive as onClickaway } from 'vue3-click-away';
 
 import 'floating-vue/dist/style.css';
-import '../dashboard/assets/stylesheets/patra-themes.css';
 
 const i18n = createI18n({
   legacy: false, // https://github.com/intlify/vue-i18n/issues/1902
@@ -112,3 +111,7 @@ initalizeRouter();
 window.onload = () => {
   app.mount('#app');
 };
+
+// Patra theme overrides — imported LAST so they win in the CSS cascade over
+// Chatwoot's defaults and any component-scoped styles emitted later.
+import '../dashboard/assets/stylesheets/patra-themes.css';
