@@ -5,8 +5,8 @@ export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'conversation_actions' },
   { name: 'macros' },
   { name: 'conversation_info' },
-  { name: 'contact_attributes' },
   { name: 'player_profile' },
+  { name: 'contact_attributes' },
   { name: 'contact_notes' },
   { name: 'shared_files' },
   { name: 'previous_conversation' },
@@ -35,6 +35,24 @@ const slugifyChannel = name =>
  * @param {Object} uiSettings - Reactive UI settings object.
  * @returns {Array} Ordered list of sidebar items.
  */
+const mergeMissingConversationSidebarItems = (savedOrder, defaultOrder) => {
+  const result = savedOrder.map(item => ({ ...item }));
+  defaultOrder.forEach((defaultItem, defaultIndex) => {
+    if (result.some(i => i.name === defaultItem.name)) return;
+    let insertAt = result.length;
+    for (let i = defaultIndex - 1; i >= 0; i -= 1) {
+      const prevName = defaultOrder[i].name;
+      const prevIdx = result.findIndex(r => r.name === prevName);
+      if (prevIdx !== -1) {
+        insertAt = prevIdx + 1;
+        break;
+      }
+    }
+    result.splice(insertAt, 0, { ...defaultItem });
+  });
+  return result;
+};
+
 const useConversationSidebarItemsOrder = uiSettings => {
   return computed(() => {
     const { conversation_sidebar_items_order: itemsOrder } = uiSettings.value;
@@ -42,15 +60,10 @@ const useConversationSidebarItemsOrder = uiSettings => {
     if (!itemsOrder) {
       return [...DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER];
     }
-    // Create a copy of itemsOrder to avoid mutating the original store object.
-    const itemsOrderCopy = [...itemsOrder];
-    // If the sidebar order doesn't have the new elements, then add them to the list.
-    DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER.forEach(item => {
-      if (!itemsOrderCopy.find(i => i.name === item.name)) {
-        itemsOrderCopy.push(item);
-      }
-    });
-    return itemsOrderCopy;
+    return mergeMissingConversationSidebarItems(
+      [...itemsOrder],
+      DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER
+    );
   });
 };
 

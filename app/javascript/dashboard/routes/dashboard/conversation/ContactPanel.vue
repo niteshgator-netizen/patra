@@ -39,6 +39,7 @@ const props = defineProps({
 
 const {
   updateUISettings,
+  uiSettings,
   isContactSidebarItemOpen,
   conversationSidebarItemsOrder,
   toggleSidebarUIState,
@@ -109,6 +110,23 @@ watch(contactId, (newContactId, prevContactId) => {
   }
 });
 
+const syncConversationSidebarItemsFromSettings = () => {
+  if (dragging.value) return;
+  conversationSidebarItems.value = conversationSidebarItemsOrder.value.map(
+    item => ({ ...item })
+  );
+};
+
+watch(conversationSidebarItemsOrder, syncConversationSidebarItemsFromSettings, {
+  deep: true,
+  immediate: true,
+});
+
+const togglePlayerProfileAccordion = () => {
+  const current = uiSettings.value.is_player_profile_open ?? true;
+  updateUISettings({ is_player_profile_open: !current });
+};
+
 const onDragEnd = () => {
   dragging.value = false;
   updateUISettings({
@@ -124,7 +142,6 @@ const closeContactPanel = () => {
 };
 
 onMounted(() => {
-  conversationSidebarItems.value = conversationSidebarItemsOrder.value;
   getContactDetails();
   store.dispatch('attributes/get', 0);
   // Load integrations to ensure linear integration state is available
@@ -221,14 +238,12 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <div v-else-if="element.name === 'player_profile' && contact.id">
+          <div v-else-if="element.name === 'player_profile'">
             <AccordionItem
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.PLAYER_PROFILE')"
-              :is-open="isContactSidebarItemOpen('is_player_profile_open')"
+              :is-open="uiSettings.is_player_profile_open ?? true"
               compact
-              @toggle="
-                value => toggleSidebarUIState('is_player_profile_open', value)
-              "
+              @toggle="togglePlayerProfileAccordion"
             >
               <PlayerProfileCard :contact="contact" />
             </AccordionItem>
