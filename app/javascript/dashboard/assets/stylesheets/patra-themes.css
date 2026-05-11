@@ -379,3 +379,30 @@
 :root[data-theme="forest"] .menu-item:hover {
   background-color: var(--patra-bg3) !important;
 }
+
+/* Patra premium look — applies to every theme. Token-driven so the four
+   themes each give their own flavor of the same shape (row dividers, active
+   highlight, header chrome, message-list bg, metadata muting). */
+.conversations-list .conversation--item {
+  border-bottom: 1px solid var(--patra-border) !important;
+  padding: 12px 16px !important;
+}
+
+.conversations-list .conversation--item.active {
+  background: var(--patra-accent-soft) !important;
+  border-left: 3px solid var(--patra-accent) !important;
+}
+
+.conversation--header {
+  background: var(--patra-bg2) !important;
+  border-bottom: 1px solid var(--patra-border) !important;
+}
+
+.conversation--messages-list {
+  background: var(--patra-bg1) !important;
+}
+
+.message-text--metadata {
+  font-size: 10px !important;
+  opacity: 0.6 !important;
+}
