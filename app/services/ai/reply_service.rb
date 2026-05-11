@@ -131,17 +131,27 @@ class Ai::ReplyService
     'one moment'
   ].freeze
 
-  # Tokens that signal an angry / frustrated customer. We escalate to a human
-  # the moment any of these appears in a recent user message — no AI reply.
-  # Multi-word phrases are matched as substrings; single words use word
-  # boundaries so e.g. "report" doesn't fire on "reports".
-  ANGER_KEYWORDS = [
-    'scam', 'fraud', 'cheated', 'stole', 'lawsuit', 'report', 'fake',
-    'angry', 'pissed', 'wtf', 'fuck', 'shit', 'ripped off', 'never again',
-    'fix this now', 'speak to manager', 'real person', 'human agent',
-    'this is bs', 'reporting you'
+  # Tiered sentiment detection. Level 1 = impatience (AI replies warmly).
+  # Level 2 = real anger (AI replies with apology + solution attempt).
+  # Level 3 = explicit human request, OR Level 2 anger AFTER we already
+  # apologized → escalate to a human without another AI turn.
+  ANGER_LEVEL_1_KEYWORDS = [
+    'where is', 'still waiting', 'taking long', 'taking forever',
+    'not received', 'havent received', "haven't received",
+    'why', 'when'
   ].freeze
-  ANGER_SCAN_LIMIT = 5
+  ANGER_LEVEL_2_KEYWORDS = [
+    'scam', 'fraud', 'cheated', 'stole', 'fake', 'angry', 'pissed',
+    'wtf', 'fuck', 'shit', 'ripped off', 'never again',
+    'fix this now', 'lawsuit', 'report'
+  ].freeze
+  ANGER_LEVEL_3_KEYWORDS = [
+    'real person', 'human agent', 'speak to manager', 'this is bs',
+    'reporting you'
+  ].freeze
+  # Markers we look for in the most recent assistant message — if we already
+  # apologized and the customer is still angry, that's a Level 2 → escalate.
+  APOLOGY_MARKERS = ['sorry', 'apologize', 'frustrated', 'my bad'].freeze
 
   # Customer phrasing that should trigger a forced "send the BoltPay link"
   # behavior — keyed off the payment_info canned response.
@@ -175,13 +185,15 @@ class Ai::ReplyService
       return nil
     end
 
-    # Sentiment escalation — angry-customer keywords bypass the model entirely,
-    # add ai-off + needs-human labels, and drop a private note for a human.
-    angry_hit = detect_anger(messages)
-    if angry_hit
-      escalate_to_human(messages, angry_hit)
+    # Tiered sentiment handling — see detect_anger_level. Level 3 hands off
+    # to a human immediately; Levels 1 & 2 keep the AI in the loop but inject
+    # an empathy hint into the prompt so the reply is appropriately warm.
+    sentiment_level = detect_anger_level(messages)
+    if sentiment_level == :escalate
+      escalate_to_human(messages, 'angry after AI attempt')
       return nil
     end
+    empathy_hint = empathy_hint_for(sentiment_level)
 
     # Cheap-path canned hello — bypasses Anthropic entirely for one-word
     # greetings like "hi"/"yo".
@@ -202,6 +214,7 @@ class Ai::ReplyService
       canned_responses_text,
       payment_link_hint
     )
+    system_prompt = "#{system_prompt}\nSITUATION: #{empathy_hint}\n" if empathy_hint
 
     reply = invoke_anthropic(messages, system_prompt)
     return nil if reply.blank?
@@ -557,59 +570,51 @@ class Ai::ReplyService
           'Haha no I'm real! Just busy sometimes 😄'
         - Never use robotic phrases like 'How may I assist you today'
 
-        REPLY STYLE — WARM + SHORT:
-        - Keep replies SHORT (1-2 lines, under 20 words ideal) BUT WARM
-        - Sound like a caring friend who texts fast, not a corporate bot
-        - Always feel welcoming, never curt or robotic
-        - Use friendly casual words: 'hey', 'sure thing', 'no worries',
-          'gotcha', 'lemme grab that for you'
-        - 1 emoji per reply is great (😊 🔥 💯 👀 ✨) — never spam emojis
-        - One topic per reply — don't info dump
-        - Wait for customer to ask next thing
-        - Never use bullet points or lists in replies
-        - Never say corporate phrases like 'I'd be happy to assist'
-        - Always make customer feel valued
+        REPLY STYLE — SOUND HUMAN NOT AI:
 
-        EXAMPLES OF PERFECT REPLIES:
+        CRITICAL RULES:
+        - NEVER say 'How can I help you today?' or 'How may I assist you?'
+          — these scream AI/bot. Forbidden phrases.
+        - NEVER use emojis on every message — use them MAX 1 in every 4-5 messages
+        - Sound like a real friendly person texting, not customer service
+        - Reply SHORT — 1-2 lines max, under 20 words ideal
+        - One topic per reply
 
-        Customer: 'hi'
-        Good: 'hey! 😊 what can i help you with today?'
+        GREETING EXAMPLES (when customer says hi/hey):
+        ✅ 'yo whats good'
+        ✅ 'hey! you loading today?'
+        ✅ 'whats up, you here to play?'
+        ✅ 'hey hey'
+        ✅ 'hi there, what can i do for you'
+        ❌ 'Hello! How can I help you today?' (AI-sounding, forbidden)
+        ❌ 'Hi! Welcome! How may I assist you?' (forbidden)
+        ❌ 'Hey 😊 how can I help you today?' (forbidden)
 
+        GENERAL EXAMPLES:
         Customer: 'i wanna load juwa'
-        Good: 'sure thing! what's your juwa username?'
+        ✅ 'sure thing whats your juwa username'
+        ✅ 'cool, juwa username?'
 
         Customer: 'how do i pay'
-        Good: 'we got cashapp, chime, venmo or paypal — which works for you?'
+        ✅ 'cashapp, chime, venmo or paypal — which?'
+        ✅ 'we got cashapp venmo chime or paypal'
 
         Customer: 'username is hustle99'
-        Good: 'got it hustle99! how much you wanna load?'
+        ✅ 'got it hustle99, how much loading'
+        ✅ 'noted! how much you sending'
 
-        Customer: 'send me cashapp'
-        Good: 'sure! send to $hustle09 and drop me the screenshot when done 🔥'
+        Customer: 'send cashapp'
+        ✅ 'send to $hustle09 and drop me the screenshot'
 
-        Customer: 'what bonus do i get'
-        Good: 'for $20+ loads i got you with 25% bonus! wanna go for it?'
+        Customer: 'what bonus'
+        ✅ 'for $20+ i got 25% bonus for ya'
 
-        Customer: 'im a new player'
-        Good: 'welcome welcome! 🎉 super excited to have you. which game catches your eye?'
-
-        Customer: 'i havent received my cashout'
-        Good: 'oh no let me check on that for you right away!'
-        (then triggers escalation to human)
-
-        PERSONALITY:
-        - Friendly, energetic, helpful
-        - Like a real person who genuinely likes their job
-        - Never makes customer feel rushed
-        - Always positive, never negative tone
-        - Quick to acknowledge ('got it', 'sure thing', 'on it')
-
-        NEVER DO:
-        - Long explanations
-        - Repeating customer's question back
-        - Multiple things in one reply
-        - Sound robotic or formal
-        - Be dismissive or short to the point of rude
+        EMOJI USAGE:
+        - Save emojis for moments that matter
+        - Welcome a NEW player: 1 emoji ok (🎉 or 😊)
+        - Bonus/exciting moment: 1 emoji ok (🔥)
+        - Apology or empathy: 0 emojis (sounds fake)
+        - Most regular replies: NO emoji
 
         ANTI-REPETITION:
         Don't repeat info from your previous replies. Move conversation forward.
@@ -718,22 +723,52 @@ class Ai::ReplyService
     ESCALATION_PHRASES.any? { |phrase| downcased.include?(phrase) }
   end
 
-  # Scans the most recent user-role messages for anger keywords. Returns the
-  # matched keyword (so we can quote it in the private note) or nil.
-  def detect_anger(messages)
-    recent_user = messages.select { |m| m['role'] == 'user' }.last(ANGER_SCAN_LIMIT)
-    recent_user.reverse_each do |msg|
-      text = msg['content'].to_s.downcase
-      hit = ANGER_KEYWORDS.find do |kw|
-        if kw.include?(' ')
-          text.include?(kw)
-        else
-          text.match?(/\b#{Regexp.escape(kw)}\b/)
-        end
+  # Returns :escalate / :level_2 / :level_1 / nil based on the latest user
+  # message. :escalate triggers an immediate hand-off; :level_1 and :level_2
+  # keep the AI in the loop but signal the prompt to be more empathetic.
+  def detect_anger_level(messages)
+    user_msgs = messages.select { |m| m['role'] == 'user' }
+    return nil if user_msgs.empty?
+
+    latest = user_msgs.last['content'].to_s.downcase
+
+    return :escalate if matches_any_keyword?(latest, ANGER_LEVEL_3_KEYWORDS)
+
+    if matches_any_keyword?(latest, ANGER_LEVEL_2_KEYWORDS)
+      last_assistant = messages.select { |m| m['role'] == 'assistant' }.last
+      if last_assistant
+        prior = last_assistant['content'].to_s.downcase
+        return :escalate if APOLOGY_MARKERS.any? { |w| prior.include?(w) }
       end
-      return hit if hit
+      return :level_2
     end
+
+    return :level_1 if matches_any_keyword?(latest, ANGER_LEVEL_1_KEYWORDS)
+
     nil
+  end
+
+  # Word-boundary match for single words, substring match for phrases. Stops
+  # "report" tripping on "reports" while still catching "fix this now".
+  def matches_any_keyword?(text, keywords)
+    keywords.any? do |kw|
+      if kw.include?(' ')
+        text.include?(kw)
+      else
+        text.match?(/\b#{Regexp.escape(kw)}\b/)
+      end
+    end
+  end
+
+  # Empathy directives injected after the regular system prompt. Kept terse
+  # so they don't blow up token spend on a frustrated customer reply.
+  def empathy_hint_for(level)
+    case level
+    when :level_2
+      'CUSTOMER IS FRUSTRATED. Apologize warmly and try to solve their problem. Be empathetic. No emojis.'
+    when :level_1
+      'CUSTOMER SEEMS IMPATIENT. Be warm and fast to acknowledge their concern. No emojis here.'
+    end
   end
 
   # Posts a private note flagging an angry customer, then adds both ai-off and

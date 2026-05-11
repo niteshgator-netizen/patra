@@ -70,12 +70,14 @@ const isContactOnline = computed(
   () => props.currentContact?.availability_status === 'online'
 );
 
-// Patra: "active in last 5 min" derived from the conversation's last
-// activity timestamp. `chat.timestamp` is Unix seconds.
-const isOnline = computed(() => {
-  const ts = props.chat?.timestamp;
-  if (!ts) return false;
-  return Date.now() - ts * 1000 < 5 * 60 * 1000;
+// Patra: "active in last 5 min" — based on the most recent non-activity
+// message (filters out auto-resolves and system events). created_at is
+// Unix seconds; multiply by 1000 for JS milliseconds.
+const isCustomerOnline = computed(() => {
+  const lastMsg = props.chat?.last_non_activity_message;
+  if (!lastMsg?.created_at) return false;
+  const t = lastMsg.created_at * 1000;
+  return Date.now() - t < 5 * 60 * 1000;
 });
 
 const showLabelsSection = computed(() => {
@@ -158,7 +160,7 @@ watch(
         </template>
       </Avatar>
       <!-- Patra: green dot when the customer has been active within 5 min. -->
-      <span v-if="isOnline && !hideThumbnail" class="online-dot" />
+      <span v-if="isCustomerOnline" class="online-status-dot" />
     </div>
     <div class="px-0 py-3 flex-1 min-w-0 border-line">
       <div
