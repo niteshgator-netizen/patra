@@ -58,7 +58,7 @@ class Ai::ReplyJob < ApplicationJob
   end
 
   def base_url
-    (ENV['CHATWOOT_BRIDGE_BASE_URL'].presence || 'http://localhost:3000').to_s.chomp('/')
+    ENV.fetch('CHATWOOT_BRIDGE_BASE_URL', 'http://chatwoot.railway.internal:3000').to_s.chomp('/')
   end
 
   def effective_account_id

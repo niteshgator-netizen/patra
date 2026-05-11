@@ -10,7 +10,7 @@
 #   XAI_API_KEY                  — required
 #   XAI_MODEL                    — optional (defaults to grok-4.3)
 #   CHATWOOT_BRIDGE_API_TOKEN    — required (to read conversation + messages)
-#   CHATWOOT_BRIDGE_BASE_URL     — defaults to http://localhost:3000
+#   CHATWOOT_BRIDGE_BASE_URL     — defaults to http://chatwoot.railway.internal:3000
 #   CHATWOOT_BRIDGE_ACCOUNT_ID   — defaults to 2
 class Ai::ReplyService
   # xAI ships an OpenAI-compatible Chat Completions endpoint, hence the
@@ -893,7 +893,7 @@ class Ai::ReplyService
   end
 
   def base_url
-    @base_url ||= (ENV['CHATWOOT_BRIDGE_BASE_URL'].presence || 'http://localhost:3000').to_s.chomp('/')
+    @base_url ||= ENV.fetch('CHATWOOT_BRIDGE_BASE_URL', 'http://chatwoot.railway.internal:3000').to_s.chomp('/')
   end
 
   def account_id

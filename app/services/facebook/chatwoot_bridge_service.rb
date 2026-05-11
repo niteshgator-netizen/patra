@@ -9,8 +9,8 @@
 #
 # Configuration is read from ENV so credentials and target tenant can be
 # rotated without code changes:
-#   CHATWOOT_BRIDGE_BASE_URL   default http://localhost:3000 (same host as the app;
-#                              set to your public URL only when calling Chatwoot from outside)
+#   CHATWOOT_BRIDGE_BASE_URL   default http://chatwoot.railway.internal:3000 (internal service URL;
+#                              set http://localhost:3000 for same-process local dev)
 #   CHATWOOT_BRIDGE_ACCOUNT_ID default 2
 #   CHATWOOT_BRIDGE_INBOX_ID   default 2
 #   CHATWOOT_BRIDGE_API_TOKEN  required (Chatwoot user/agent api_access_token)
@@ -223,7 +223,7 @@ class Facebook::ChatwootBridgeService
   # ---------- Config ----------
 
   def base_url
-    @base_url ||= (ENV['CHATWOOT_BRIDGE_BASE_URL'].presence || 'http://localhost:3000').to_s.chomp('/')
+    @base_url ||= ENV.fetch('CHATWOOT_BRIDGE_BASE_URL', 'http://chatwoot.railway.internal:3000').to_s.chomp('/')
   end
 
   def account_id

@@ -96,7 +96,7 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
   end
 
   def patra_base_url
-    (ENV['CHATWOOT_BRIDGE_BASE_URL'].presence || 'http://localhost:3000').to_s.chomp('/')
+    ENV.fetch('CHATWOOT_BRIDGE_BASE_URL', 'http://chatwoot.railway.internal:3000').to_s.chomp('/')
   end
 
   def patra_account_id
