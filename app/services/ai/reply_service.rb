@@ -131,6 +131,25 @@ class Ai::ReplyService
     'one moment'
   ].freeze
 
+  # Tokens that signal an angry / frustrated customer. We escalate to a human
+  # the moment any of these appears in a recent user message — no AI reply.
+  # Multi-word phrases are matched as substrings; single words use word
+  # boundaries so e.g. "report" doesn't fire on "reports".
+  ANGER_KEYWORDS = [
+    'scam', 'fraud', 'cheated', 'stole', 'lawsuit', 'report', 'fake',
+    'angry', 'pissed', 'wtf', 'fuck', 'shit', 'ripped off', 'never again',
+    'fix this now', 'speak to manager', 'real person', 'human agent',
+    'this is bs', 'reporting you'
+  ].freeze
+  ANGER_SCAN_LIMIT = 5
+
+  # Customer phrasing that should trigger a forced "send the BoltPay link"
+  # behavior — keyed off the payment_info canned response.
+  PAYMENT_LINK_KEYWORDS = [
+    'card', 'credit', 'debit', 'visa', 'mastercard', 'apple pay',
+    'google pay', 'bolt', 'secure link', 'online pay'
+  ].freeze
+
   def initialize(conversation_id)
     @conversation_id = conversation_id
   end
@@ -156,6 +175,14 @@ class Ai::ReplyService
       return nil
     end
 
+    # Sentiment escalation — angry-customer keywords bypass the model entirely,
+    # add ai-off + needs-human labels, and drop a private note for a human.
+    angry_hit = detect_anger(messages)
+    if angry_hit
+      escalate_to_human(messages, angry_hit)
+      return nil
+    end
+
     # Cheap-path canned hello — bypasses Anthropic entirely for one-word
     # greetings like "hi"/"yo".
     last_message = messages.last&.dig('content').to_s.downcase.strip
@@ -165,7 +192,16 @@ class Ai::ReplyService
     training_info = fetch_ai_training
     persona_info = fetch_ai_persona
     player_profile = fetch_player_profile
-    system_prompt = build_system_prompt(payment_info, training_info, persona_info, player_profile)
+    canned_responses_text = fetch_all_canned_responses
+    payment_link_hint = needs_payment_link?(messages)
+    system_prompt = build_system_prompt(
+      payment_info,
+      training_info,
+      persona_info,
+      player_profile,
+      canned_responses_text,
+      payment_link_hint
+    )
 
     reply = invoke_anthropic(messages, system_prompt)
     return nil if reply.blank?
@@ -338,6 +374,42 @@ class Ai::ReplyService
     nil
   end
 
+  # Fetches every canned response in the account and formats them as
+  # `short_code: content` blocks separated by blank lines. Cached in Redis the
+  # same way the per-code fetches are. Used to inject the full reference into
+  # the prompt so the model can cite ops-managed answers verbatim.
+  def fetch_all_canned_responses
+    cached = read_canned_cache('__all__')
+    return cached if cached.present?
+
+    response = HTTParty.get(
+      "#{base_url}/api/v1/accounts/#{account_id}/canned_responses",
+      headers: chatwoot_headers,
+      timeout: HTTP_TIMEOUT
+    )
+
+    unless response.success?
+      Rails.logger.warn("[AiReply] all canned-responses lookup HTTP #{response.code}: #{response.body}")
+      return ''
+    end
+
+    entries = Array(response.parsed_response).filter_map do |c|
+      short_code = c['short_code'].to_s.strip
+      content = c['content'].to_s.strip
+      next nil if short_code.empty? || content.empty?
+
+      "#{short_code}: #{content}"
+    end
+    return '' if entries.empty?
+
+    formatted = entries.join("\n\n")
+    write_canned_cache('__all__', formatted)
+    formatted
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] all canned-responses fetch error #{e.class}: #{e.message}")
+    ''
+  end
+
   # Best-effort Redis read/write for canned-response content. Any Redis error
   # (connection refused, $redis undefined in dev/test, etc.) is swallowed so
   # the caller falls through to the HTTP path.
@@ -456,7 +528,7 @@ class Ai::ReplyService
     ''
   end
 
-  def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '')
+  def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '', canned_responses = '', needs_payment_link = false)
     section = <<~SECTION.strip
       CURRENT PAYMENT DETAILS (read this before answering any payment question):
       #{payment_info}
@@ -513,8 +585,44 @@ class Ai::ReplyService
         If you learn the player's game username from conversation,
         remember it and use it. Never ask for username if already known.
         Always greet returning players by their username.
+
+        GREETING RULES:
+        - If "Previous interactions: 1" (their first conversation): warm
+          welcome ("Hey! Welcome 😊"), ask their game username, briefly
+          mention "we load 20+ game platforms" — keep to 1 line.
+        - Otherwise: skip intro entirely. Greet by username if known,
+          reference last_game if known, get to the action fast.
       PLAYER
       prompt = "#{prompt}\n#{player_section}\n"
+    end
+
+    unless canned_responses.to_s.strip.empty?
+      canned_section = <<~CANNED.strip
+        AVAILABLE QUICK ANSWERS (use these EXACT texts where they fit):
+        #{canned_responses}
+
+        USAGE RULES:
+        - Customer asks about payment methods → use payment_info verbatim
+        - Customer asks about bonuses → reference ai_training rules
+        - Never make up info that already exists in a canned response
+      CANNED
+      prompt = "#{prompt}\n#{canned_section}\n"
+    end
+
+    payment_link_section = <<~PAYRULES.strip
+      PAYMENT LINK RULE:
+      - Card / Apple Pay / Google Pay / Visa / Mastercard → ALWAYS send the
+        BoltPay link from CURRENT PAYMENT DETAILS above
+      - Cash App → give the CASHAPP tag from payment_info
+      - Venmo → give the VENMO tag
+      - Chime → give the CHIME tag
+      - PayPal → give the PAYPAL email
+      - Never ask "which method?" if the customer already named one
+    PAYRULES
+    prompt = "#{prompt}\n#{payment_link_section}\n"
+
+    if needs_payment_link
+      prompt = "#{prompt}\nIMMEDIATE INSTRUCTION: The customer just mentioned a card or pay-link option. You MUST include the BoltPay/CARD link from CURRENT PAYMENT DETAILS in this reply — do not ask them which method.\n"
     end
 
     prompt
@@ -558,6 +666,64 @@ class Ai::ReplyService
   def escalation?(reply)
     downcased = reply.to_s.downcase
     ESCALATION_PHRASES.any? { |phrase| downcased.include?(phrase) }
+  end
+
+  # Scans the most recent user-role messages for anger keywords. Returns the
+  # matched keyword (so we can quote it in the private note) or nil.
+  def detect_anger(messages)
+    recent_user = messages.select { |m| m['role'] == 'user' }.last(ANGER_SCAN_LIMIT)
+    recent_user.reverse_each do |msg|
+      text = msg['content'].to_s.downcase
+      hit = ANGER_KEYWORDS.find do |kw|
+        if kw.include?(' ')
+          text.include?(kw)
+        else
+          text.match?(/\b#{Regexp.escape(kw)}\b/)
+        end
+      end
+      return hit if hit
+    end
+    nil
+  end
+
+  # Posts a private note flagging an angry customer, then adds both ai-off and
+  # needs-human labels to the conversation. `bulk_actions/process` is what
+  # Chatwoot's own bulk label endpoint uses — we hit the REST API the same way.
+  def escalate_to_human(messages, matched_keyword)
+    Rails.logger.info("[AiReply] escalating angry-customer conversation=#{@conversation_id} match=#{matched_keyword}")
+
+    last_three = messages.select { |m| m['role'] == 'user' }
+                         .last(3)
+                         .map { |m| "- #{m['content'].to_s.strip}" }
+                         .join("\n")
+    note = "🚨 ANGRY CUSTOMER — Reason: #{matched_keyword}\n" \
+           "Sentiment: negative. Last 3 messages:\n#{last_three}"
+
+    HTTParty.post(
+      "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}/messages",
+      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+      body: { content: note, message_type: 'outgoing', private: true }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+
+    HTTParty.post(
+      "#{base_url}/api/v1/accounts/#{account_id}/bulk_actions",
+      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+      body: { type: 'Conversation', ids: [@conversation_id], labels: { add: %w[ai-off needs-human] } }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+  rescue StandardError => e
+    Rails.logger.error("[AiReply] escalate_to_human failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
+  end
+
+  # True if the latest user message mentions a card / pay-link keyword.
+  # Drives the "you MUST send the BoltPay link" directive in the prompt.
+  def needs_payment_link?(messages)
+    last_user = messages.reverse.find { |m| m['role'] == 'user' }
+    return false unless last_user
+
+    text = last_user['content'].to_s.downcase
+    PAYMENT_LINK_KEYWORDS.any? { |kw| text.include?(kw) }
   end
 
   # Drops a private note onto the conversation so a human agent picks it up
