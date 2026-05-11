@@ -319,6 +319,10 @@ en:
     survey:
       response: 'Please rate this conversation, %{link}'
   contacts:
+    facebook_presence:
+      active_now: Active now
+      active_minutes_ago: Active %{count}m ago
+      active_hours_ago: Active %{count}h ago
     online:
       delete: '%{contact_name} is Online, please try again later'
   integration_apps:

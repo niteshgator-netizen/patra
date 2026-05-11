@@ -10,8 +10,9 @@
 # We deliberately:
 #   - return 200 even on internal failure so Facebook never disables the
 #     webhook subscription (any failure that escapes is logged loudly);
-#   - skip echoes (`message.is_echo == true`), delivery/read receipts, and
-#     non-text messages — only honest user-typed messages flow through.
+#   - skip echoes (`message.is_echo == true`), delivery receipts, and
+#     non-text messages — only honest user-typed messages flow through the
+#     bridge; read receipts enqueue a lightweight presence job (last active).
 class Webhooks::BotController < ActionController::API
   # GET /bot
   def verify
@@ -50,6 +51,10 @@ class Webhooks::BotController < ActionController::API
     Array(payload[:entry]).each do |entry|
       page_id = entry[:id].to_s
       Array(entry[:messaging]).each do |messaging|
+        if read_receipt?(messaging)
+          enqueue_read_presence(messaging, page_id)
+          next
+        end
         next unless processable?(messaging)
 
         job_payload = messaging.deep_stringify_keys.merge('_patra_fb_page_id' => page_id)
@@ -58,6 +63,15 @@ class Webhooks::BotController < ActionController::API
         Rails.logger.error("[BotBridge] failed to enqueue messaging event: #{e.class}: #{e.message}")
       end
     end
+  end
+
+  def read_receipt?(messaging)
+    messaging.is_a?(Hash) && messaging[:read].present?
+  end
+
+  def enqueue_read_presence(messaging, page_id)
+    job_payload = messaging.deep_stringify_keys.merge('_patra_fb_page_id' => page_id)
+    Webhooks::FacebookPresenceJob.perform_later(job_payload)
   end
 
   def processable?(messaging)

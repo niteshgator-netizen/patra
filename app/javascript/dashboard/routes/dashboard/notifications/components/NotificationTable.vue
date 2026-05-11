@@ -45,15 +45,15 @@ export default {
   },
   methods: {
     dynamicTime,
-    hasAiOffLabel(notification) {
+    needsAiAttention(notification) {
       const labels = notification?.primary_actor?.labels || [];
-      return labels.includes('ai-off');
+      return labels.includes('ai-off') || labels.includes('needs-human');
     },
     aiStatusClass(notification) {
-      return this.hasAiOffLabel(notification) ? 'needs-attention' : 'ai-on';
+      return this.needsAiAttention(notification) ? 'needs-attention' : 'ai-on';
     },
     aiStatusText(notification) {
-      return this.hasAiOffLabel(notification)
+      return this.needsAiAttention(notification)
         ? 'Needs attention'
         : 'AI handling';
     },

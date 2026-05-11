@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
@@ -16,6 +16,7 @@ import { useI18n } from 'vue-i18n';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useAlert } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
+import ContactAPI from 'dashboard/api/contacts';
 
 const props = defineProps({
   chat: {
@@ -141,9 +142,63 @@ const channelMeta = computed(() => {
 });
 const channelIcon = computed(() => channelMeta.value.icon);
 const channelName = computed(() => channelMeta.value.name);
-const isContactActive = computed(
-  () => props.chat?.meta?.sender?.availability_status === 'online'
+
+const supportsFacebookPresence = computed(() => {
+  const ch = inbox.value?.channel_type;
+  if (ch === 'Channel::FacebookPage') return true;
+  if (ch === 'Channel::Api' && inbox.value?.additional_attributes?.fb_page_id) {
+    return true;
+  }
+  return false;
+});
+
+const fbPresence = ref({ online: false, last_active: null });
+let fbPresencePollTimer = null;
+
+const fetchFacebookPresence = async () => {
+  if (!supportsFacebookPresence.value) return;
+  const contactId = props.chat?.meta?.sender?.id;
+  if (!contactId) return;
+  try {
+    const { data } = await ContactAPI.getPresence(contactId);
+    fbPresence.value = {
+      online: Boolean(data.online),
+      last_active: data.last_active || null,
+    };
+  } catch {
+    fbPresence.value = { online: false, last_active: null };
+  }
+};
+
+const startFacebookPresencePolling = () => {
+  if (fbPresencePollTimer) clearInterval(fbPresencePollTimer);
+  if (!supportsFacebookPresence.value) return;
+  fetchFacebookPresence();
+  fbPresencePollTimer = setInterval(fetchFacebookPresence, 30_000);
+};
+
+onMounted(() => {
+  startFacebookPresencePolling();
+});
+
+onBeforeUnmount(() => {
+  if (fbPresencePollTimer) clearInterval(fbPresencePollTimer);
+});
+
+watch(
+  () => [props.chat?.id, props.chat?.meta?.sender?.id, inbox.value?.id],
+  () => {
+    fbPresence.value = { online: false, last_active: null };
+    startFacebookPresencePolling();
+  }
 );
+
+const avatarPresenceStatus = computed(() => {
+  if (!supportsFacebookPresence.value) {
+    return currentContact.value?.availability_status || null;
+  }
+  return fbPresence.value.online ? 'online' : null;
+});
 </script>
 
 <template>
@@ -163,7 +218,7 @@ const isContactActive = computed(
         :name="currentContact.name"
         :src="currentContact.thumbnail"
         :size="32"
-        :status="currentContact.availability_status"
+        :status="avatarPresenceStatus"
         hide-offline-status
         rounded-full
       />
@@ -189,7 +244,7 @@ const isContactActive = computed(
           class="chat-sub flex items-center gap-1 text-xs text-n-slate-11"
         >
           <span>{{ channelIcon }} {{ channelName }}</span>
-          <span v-if="isContactActive">· Active now</span>
+          <span v-if="fbPresence.last_active">· {{ fbPresence.last_active }}</span>
         </div>
 
         <div

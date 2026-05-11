@@ -123,6 +123,19 @@ const snoozedText = computed(() => {
     : t('INBOX.TYPES_NEXT.SNOOZED_ENDS');
 });
 
+// Patra: same AI pills as ConversationCard (patra-themes.css `.status-pill`).
+const conversationLabels = computed(() => primaryActor.value?.labels || []);
+const needsAiAttention = computed(() => {
+  const labels = conversationLabels.value;
+  return labels.includes('ai-off') || labels.includes('needs-human');
+});
+const aiStatus = computed(() =>
+  needsAiAttention.value ? 'needs-attention' : 'ai-on'
+);
+const aiStatusLabel = computed(() =>
+  needsAiAttention.value ? 'Needs attention' : 'AI handling'
+);
+
 const contextMenuActions = {
   close: () => {
     isContextMenuOpen.value = false;
@@ -167,6 +180,12 @@ onBeforeMount(contextMenuActions.close);
         class="mt-1"
       />
       <p v-dompurify-html="formattedMessage" class="mb-0 line-clamp-2" />
+    </div>
+    <div class="ltr:pl-7 rtl:pr-7 -mt-0.5">
+      <span class="status-pill" :class="aiStatus">
+        <span class="dot" />
+        {{ aiStatusLabel }}
+      </span>
     </div>
     <div class="flex items-center justify-between h-6 gap-2">
       <div class="flex items-center flex-1 min-w-0 gap-1">

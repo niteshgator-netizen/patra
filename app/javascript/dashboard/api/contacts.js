@@ -31,6 +31,10 @@ class ContactAPI extends ApiClient {
     return axios.get(`${this.url}/${id}?include_contact_inboxes=false`);
   }
 
+  getPresence(id) {
+    return axios.get(`${this.url}/${id}/presence`);
+  }
+
   update(id, data) {
     return axios.patch(`${this.url}/${id}?include_contact_inboxes=false`, data);
   }
