@@ -10,7 +10,7 @@ module OwnerStats
 
     def initialize(account)
       @account = account
-      @tz = ActiveSupport::TimeZone[account.reporting_timezone.presence] || Time.zone
+      @tz = (account.reporting_timezone.presence && ActiveSupport::TimeZone[account.reporting_timezone]) || Time.zone
       @now = @tz.now
     end
 
