@@ -240,9 +240,13 @@ class Ai::ReplyService
     'google pay', 'bolt', 'secure link', 'online pay'
   ].freeze
 
-  def initialize(conversation_id, account_id: nil)
+  def initialize(conversation_id, account_id: nil, attachments: nil)
     @conversation_id = conversation_id
     @bridge_account_id = account_id
+    # FB bridge hands us the raw FB webhook attachments (string-keyed for
+    # ActiveJob serialization). Normalize once so the rest of the file can
+    # use a stable [{ url:, type: }] shape with symbol keys.
+    @attachments = normalize_fb_attachments(attachments)
   end
 
   # Public so rake tasks and other callers can reuse the same denylist as
@@ -279,6 +283,13 @@ class Ai::ReplyService
 
   def call
     return nil if @conversation_id.blank?
+
+    # Production verification — confirms the FB attachment array survived the
+    # FacebookBridgeJob → ReplyJob → ReplyService chain.
+    Rails.logger.info(
+      "[ReplyService] attachments_count=#{@attachments.size} first_url=#{@attachments.first&.[](:url)}"
+    )
+
     return log_and_nil('XAI_API_KEY not configured') if api_key.blank?
     return log_and_nil('CHATWOOT_BRIDGE_API_TOKEN not configured') if chatwoot_token.blank?
 
@@ -335,8 +346,14 @@ class Ai::ReplyService
     end
 
     @grok_payment_injection = nil
-    routing_has_image = @routing_has_image.present?
-    image_url = @routing_image_url.to_s
+    # Prefer the FB-bridge attachment (the bridge bypasses Chatwoot's Message AR
+    # attachments association entirely), falling back to whatever
+    # capture_routing_context_from_raw_slice picked up from Chatwoot's REST
+    # payload — that fallback is effectively dead today but kept for the day
+    # the bridge starts persisting attachments.
+    fb_image_url = first_fb_image_url
+    routing_has_image = fb_image_url.present? || @routing_has_image.present?
+    image_url = fb_image_url.presence || @routing_image_url.to_s
     last_user_plain = @routing_last_incoming_raw_content.to_s
 
     complexity = Ai::ComplexityClassifier.classify(
@@ -540,6 +557,31 @@ class Ai::ReplyService
   def attachment_image?(attachment)
     ft = attachment['file_type'] || attachment[:file_type]
     ft.to_s == 'image' || ft.to_s == '0' || ft == 0
+  end
+
+  # Accepts whatever ReplyJob hands us (nil, [], or the bridge-flattened list
+  # of { 'type' => 'image', 'url' => '...' } hashes — possibly with symbol keys
+  # depending on Sidekiq serialization round-trips). Filters out anything
+  # without a usable URL so callers can rely on `first&.[](:url)`.
+  def normalize_fb_attachments(raw)
+    Array(raw).filter_map do |item|
+      next unless item.is_a?(Hash)
+
+      h = item.transform_keys(&:to_s)
+      url = h['url'].to_s.presence || h.dig('payload', 'url').to_s.presence
+      next if url.blank?
+
+      { type: h['type'].to_s, url: url }
+    end
+  end
+
+  # FB tags screenshots as type=image. Anything with no type still gets
+  # treated as an image — better to over-trigger ImagePaymentExtractor (which
+  # cheaply returns is_payment:false for non-payment shots) than to silently
+  # drop a real payment screenshot because FB labeled it oddly.
+  def first_fb_image_url
+    match = @attachments.find { |a| a[:type] == 'image' || a[:type].to_s.empty? }
+    match && match[:url].to_s
   end
 
   def capture_routing_context_from_raw_slice(raw_slice)

@@ -12,9 +12,13 @@ class Ai::ReplyJob < ApplicationJob
   HTTP_TIMEOUT = 10
   AI_SOURCE_ID = 'ai_auto'.freeze
 
-  def perform(conversation_id, bridge_account_id = nil)
+  def perform(conversation_id, bridge_account_id = nil, fb_attachments = nil)
     @bridge_account_id = bridge_account_id
-    reply_text = Ai::ReplyService.new(conversation_id, account_id: bridge_account_id).call
+    reply_text = Ai::ReplyService.new(
+      conversation_id,
+      account_id: bridge_account_id,
+      attachments: fb_attachments
+    ).call
     if reply_text.blank?
       Rails.logger.info("[AiReply] job finished without sending conversation=#{conversation_id}")
       return

@@ -42,9 +42,14 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
         acc_id = result[:account_id].presence || result['account_id'].presence
         contact_id = result[:contact_id].presence || result['contact_id'].presence
         tag_customer_recency(acc_id, contact_id, conv_id)
+        # The bridge only stores `text` in Chatwoot — FB attachments (images,
+        # etc.) never make it into the Message AR. Forward the raw FB attachment
+        # array directly so Ai::ReplyService can route image-payment screenshots.
+        # String keys keep ActiveJob serialization happy across Sidekiq retries.
+        fb_attachments = extract_fb_attachments(messaging)
         # Pass the same account_id the bridge used (from resolved API inbox), not only
         # CHATWOOT_BRIDGE_ACCOUNT_ID — otherwise Ai::ReplyService hits the wrong tenant.
-        Ai::ReplyJob.set(wait: 3.seconds).perform_later(conv_id, acc_id)
+        Ai::ReplyJob.set(wait: 3.seconds).perform_later(conv_id, acc_id, fb_attachments)
       end
     end
   rescue Facebook::ChatwootBridgeService::ConfigurationError => e
@@ -58,6 +63,21 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
   end
 
   private
+
+  # FB webhook payload puts attachments at messaging.message.attachments, each
+  # entry shaped { "type" => "image", "payload" => { "url" => "..." } }. Flatten
+  # to a simple [{ "type" => ..., "url" => ... }] list so the downstream job
+  # doesn't have to know FB's nesting.
+  def extract_fb_attachments(messaging)
+    Array(messaging.dig('message', 'attachments')).filter_map do |att|
+      next unless att.is_a?(Hash)
+
+      url = att.dig('payload', 'url').to_s
+      next if url.empty?
+
+      { 'type' => att['type'].to_s, 'url' => url }
+    end
+  end
 
   # SET NX EX returns truthy when we won the race, falsy when the key already
   # existed. We treat both `true` and the legacy `'OK'` reply as a successful
