@@ -1,26 +1,13 @@
-/* global axios */
+import CacheEnabledApiClient from './CacheEnabledApiClient';
 
-import ApiClient from './ApiClient';
-
-class PaymentHandlesAPI extends ApiClient {
+class PaymentHandlesAPI extends CacheEnabledApiClient {
   constructor() {
     super('payment_handles', { accountScoped: true });
   }
 
-  list() {
-    return this.get();
-  }
-
-  enable(id) {
-    return axios.post(`${this.url}/${id}/enable`, {});
-  }
-
-  disable(id) {
-    return axios.post(`${this.url}/${id}/disable`, {});
-  }
-
-  resetFailures(id) {
-    return axios.post(`${this.url}/${id}/reset_failures`, {});
+  // eslint-disable-next-line class-methods-use-this
+  get cacheModelName() {
+    return 'payment_handle';
   }
 }
 

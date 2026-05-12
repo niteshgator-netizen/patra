@@ -1333,6 +1333,22 @@ class Ai::ReplyService
   end
 
   def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '', canned_responses = '', needs_payment_link = false)
+    active_handle_hint = nil
+    begin
+      if defined?(Payments::HandleSelector) && @bridge_account_id.present?
+        acct = Account.find_by(id: @bridge_account_id)
+        if acct
+          cashapp_handle = Payments::HandleSelector.new(account: acct, platform: 'cashapp').pick_active
+          if cashapp_handle
+            display = cashapp_handle.display_name.presence || cashapp_handle.handle
+            active_handle_hint = "ACTIVE PAYMENT HANDLE: When the customer asks where to send payment for cashapp, tell them to send to '#{display}'. Use this exact handle. Do not use any other handle from training data or canned responses."
+          end
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.error("[ReplyService] active_handle_hint #{e.class}: #{e.message}")
+    end
+
     section = <<~SECTION.strip
       CURRENT PAYMENT DETAILS (read this before answering any payment question):
       #{payment_info}
@@ -1432,7 +1448,8 @@ class Ai::ReplyService
       prompt = "#{prompt}\nIMMEDIATE INSTRUCTION: The customer just mentioned a card or pay-link option. You MUST include the BoltPay/CARD link from CURRENT PAYMENT DETAILS in this reply — do not ask them which method.\n"
     end
 
-    "#{prompt.strip}\n\n#{payment_handles_context_for_prompt}\n"
+    base_prompt = "#{prompt.strip}\n\n#{payment_handles_context_for_prompt}\n"
+    active_handle_hint.present? ? "#{active_handle_hint}\n\n#{base_prompt}" : base_prompt
   end
 
   # ---------- Anthropic ----------
@@ -1691,7 +1708,9 @@ class Ai::ReplyService
     return unless PaymentHandle::PLATFORMS.include?(platform.to_s)
 
     handle = account.payment_handles.where(platform: platform).find { |ph| ph.normalized_handle == recip_normalized }
-    Payments::FailoverManager.new(handle).record_success! if handle
+    if defined?(Payments::FailoverManager) && handle
+      Payments::FailoverManager.new(handle).reset!
+    end
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] record_payment_handle_success #{e.class}: #{e.message}")
   end
