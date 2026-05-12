@@ -232,6 +232,7 @@ en:
       sla_missed_first_response: 'SLA target first response missed for conversation (#%{display_id})'
       sla_missed_next_response: 'SLA target next response missed for conversation (#%{display_id})'
       sla_missed_resolution: 'SLA target resolution missed for conversation (#%{display_id})'
+      patra_all_payment_handles_dead: 'Payment handles alert'
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:

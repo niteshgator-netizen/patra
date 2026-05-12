@@ -589,6 +589,13 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_applications'),
         },
         {
+          name: 'Settings Payment Handles',
+          label: t('PAYMENT_HANDLES.NAV_LABEL'),
+          icon: 'i-lucide-wallet',
+          to: accountScopedRoute('settings_integrations_payment_handles'),
+          activeOn: ['settings_integrations_payment_handles'],
+        },
+        {
           name: 'Settings Audit Logs',
           label: t('SIDEBAR.AUDIT_LOGS'),
           icon: 'i-lucide-briefcase',

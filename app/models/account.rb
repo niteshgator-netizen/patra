@@ -86,6 +86,7 @@ class Account < ApplicationRecord
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
+  has_many :payment_handles, dependent: :destroy_async
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async
   has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
@@ -163,6 +164,11 @@ class Account < ApplicationRecord
 
     enrichment_key = format(Redis::Alfred::ACCOUNT_ONBOARDING_ENRICHMENT, account_id: id)
     Redis::Alfred.exists?(enrichment_key) ? 'enrichment' : step
+  end
+
+  # Used when Account is polymorphic primary_actor (e.g. Patra payment-handle escalation).
+  def push_event_data
+    { id: id, name: name, account_id: id }
   end
 
   private

@@ -240,6 +240,7 @@ class Ai::ReplyService
     'google pay', 'bolt', 'secure link', 'online pay'
   ].freeze
 
+  # Legacy fallback when no `payment_handles` rows exist for a platform (image verification only).
   OUR_HANDLES = {
     'cashapp' => ['hustle09'],
     'paypal' => [],
@@ -431,16 +432,31 @@ class Ai::ReplyService
                 end
               end
 
+              acct = Account.find_by(id: account_id)
+              recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
+
               unless log_entry['flag_reason']
-                recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
                 platform = payment[:platform].to_s.downcase
-                expected = OUR_HANDLES[platform]
-                if recip_handle.present? && expected.present? && expected.is_a?(Array) && !expected.map(&:downcase).include?(recip_handle)
+                db_norms = if acct && PaymentHandle::PLATFORMS.include?(platform)
+                           acct.payment_handles.where(platform: platform).map(&:normalized_handle).uniq.reject(&:blank?)
+                         else
+                           []
+                         end
+                legacy = OUR_HANDLES[platform]
+                legacy_norms = Array(legacy).map { |h| h.to_s.gsub(/^[\$@]/, '').strip.downcase }.reject(&:blank?)
+                expected_norms = db_norms.presence || legacy_norms
+
+                if recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
                   log_entry['kind'] = 'flagged'
                   log_entry['flag_reason'] = 'recipient_mismatch'
-                  log_entry['expected_handle'] = expected.first
-                  Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected} got=#{recip_handle} contact=#{contact_id}")
-                  grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is $#{expected.first}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to $#{expected.first}. Do NOT confirm a deposit and do NOT offer a bonus."
+                  expected_display = if db_norms.any? && acct
+                                       Payments::HandleSelector.new(acct).pick(platform)&.display_handle
+                                     elsif legacy.present?
+                                       legacy.first.to_s.start_with?('$') ? legacy.first.to_s : "$#{legacy.first}"
+                                     end
+                  log_entry['expected_handle'] = expected_display
+                  Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected_norms} got=#{recip_handle} contact=#{contact_id}")
+                  grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is #{expected_display}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to #{expected_display}. Do NOT confirm a deposit and do NOT offer a bonus."
                 end
               end
 
@@ -452,6 +468,10 @@ class Ai::ReplyService
                 body: { custom_attributes: attrs }.to_json,
                 timeout: HTTP_TIMEOUT
               )
+
+              if patch_response.success? && log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
+                record_payment_handle_success!(acct, payment[:platform].to_s.downcase, recip_handle)
+              end
 
               unless patch_response.success?
                 Rails.logger.warn(
@@ -477,7 +497,7 @@ class Ai::ReplyService
           case sub
           when :simple
             reply = Ai::HaikuClient.new(
-              system_prompt: self.class::SYSTEM_PROMPT,
+              system_prompt: bella_system_prompt_with_payment_handles,
               conversation_history: build_conversation_history
             ).generate_reply
             if reply.present?
@@ -493,7 +513,7 @@ class Ai::ReplyService
       end
     when :simple
       reply = Ai::HaikuClient.new(
-        system_prompt: self.class::SYSTEM_PROMPT,
+        system_prompt: bella_system_prompt_with_payment_handles,
         conversation_history: build_conversation_history
       ).generate_reply
       if reply.blank?
@@ -521,7 +541,6 @@ class Ai::ReplyService
       canned_responses_text,
       payment_link_hint
     )
-    emoji_guard = if emoji_already_used
       "EMOJI GUARD: An emoji has already been used earlier in this conversation by Bella. Use ZERO emojis in your reply. Do not use any emoji at all."
     else
       "EMOJI GUARD: Use emojis sparingly and only if truly natural. Allowed emojis: 😊 😂 🙏. Prefer ZERO emojis. If you include an emoji, use at most ONE emoji in your reply."
@@ -1275,7 +1294,7 @@ class Ai::ReplyService
       prompt = "#{prompt}\nIMMEDIATE INSTRUCTION: The customer just mentioned a card or pay-link option. You MUST include the BoltPay/CARD link from CURRENT PAYMENT DETAILS in this reply — do not ask them which method.\n"
     end
 
-    prompt
+    "#{prompt.strip}\n\n#{payment_handles_context_for_prompt}\n"
   end
 
   # ---------- Anthropic ----------
@@ -1436,5 +1455,50 @@ class Ai::ReplyService
         ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
       end
     end
+  end
+
+  def bella_system_prompt_with_payment_handles
+    "#{self.class::SYSTEM_PROMPT}\n\n#{payment_handles_context_for_prompt}"
+  end
+
+  def payment_handles_context_for_prompt
+    account = Account.find_by(id: account_id)
+    unless account
+      return no_payment_handles_prompt_text
+    end
+
+    selector = Payments::HandleSelector.new(account)
+    usable = selector.usable_platforms
+    primary = {}
+    Array(usable).each do |plat|
+      h = selector.pick(plat)
+      primary[plat] = h&.display_handle
+    end
+
+    if primary.values.compact.any?
+      "CURRENT ACTIVE PAYMENT HANDLES (use these EXACT values when asked — do not invent or use old handles):\n" +
+        primary.map { |p, h| "#{p}: #{h}" }.join("\n")
+    else
+      no_payment_handles_prompt_text
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] payment_handles_context #{e.class}: #{e.message}")
+    ''
+  end
+
+  def no_payment_handles_prompt_text
+    'NO PAYMENT HANDLES ARE CURRENTLY AVAILABLE. If a customer asks where to send money, tell them politely ' \
+      "that you're checking with the team and a human will follow up shortly. Do NOT make up a handle. " \
+      'Add a note that escalation is needed.'
+  end
+
+  def record_payment_handle_success!(account, platform, recip_normalized)
+    return if account.blank? || platform.to_s.strip.empty? || recip_normalized.to_s.strip.empty?
+    return unless PaymentHandle::PLATFORMS.include?(platform.to_s)
+
+    handle = account.payment_handles.where(platform: platform).find { |ph| ph.normalized_handle == recip_normalized }
+    Payments::FailoverManager.new(handle).record_success! if handle
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] record_payment_handle_success #{e.class}: #{e.message}")
   end
 end

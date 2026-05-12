@@ -41,6 +41,7 @@ import contentTemplates from './contentTemplates.json';
 import mfa from './mfa.json';
 import onboarding from './onboarding.json';
 import patraConnectFacebook from './patraConnectFacebook.json';
+import paymentHandles from './paymentHandles.json';
 import yearInReview from './yearInReview.json';
 
 export default {
@@ -87,5 +88,6 @@ export default {
   ...mfa,
   ...onboarding,
   ...patraConnectFacebook,
+  ...paymentHandles,
   ...yearInReview,
 };
