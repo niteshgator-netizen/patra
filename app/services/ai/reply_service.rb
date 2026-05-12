@@ -436,22 +436,23 @@ class Ai::ReplyService
 
               if duplicate.nil?
                 fp = payment_screenshot_fingerprint_composite(payment)
-                cutoff = 24.hours.ago
-                duplicate = existing_logs.find do |e|
-                  next false unless e.is_a?(Hash)
+                if fp.present?
+                  cutoff = 24.hours.ago
+                  duplicate = existing_logs.find do |e|
+                    next false unless e.is_a?(Hash)
+                    next false unless payment_screenshot_fingerprint_composite(e) == fp
 
-                  next false unless payment_screenshot_fingerprint_composite(e) == fp
+                    ts = begin
+                      Time.parse(e['image_received_at'].to_s)
+                    rescue ArgumentError, TypeError, StandardError
+                      nil
+                    end
+                    next false if ts.nil?
 
-                  ts = begin
-                    Time.parse(e['image_received_at'].to_s)
-                  rescue ArgumentError, TypeError, StandardError
-                    nil
+                    ts >= cutoff
                   end
-                  next false if ts.nil?
-
-                  ts >= cutoff
+                  duplicate_match_tier = :fingerprint if duplicate
                 end
-                duplicate_match_tier = :fingerprint if duplicate
               end
 
               if duplicate
@@ -1595,7 +1596,22 @@ class Ai::ReplyService
   end
 
   def extracted_payment_status_normalized(raw)
-    raw.to_s.downcase.strip.presence || 'unknown'
+    s = raw.to_s.downcase.strip
+    return 'unknown' if s.blank?
+
+    # Map all failure variants to canonical 'failed'
+    failure_words = %w[failed cancel canceled cancelled declined rejected denied refused returned blocked reversed bounced void voided unsuccessful]
+    return 'failed' if failure_words.any? { |w| s.include?(w) }
+
+    # Map all success variants to canonical 'completed'
+    success_words = %w[completed complete success successful approved confirmed paid received delivered settled]
+    return 'completed' if success_words.any? { |w| s.include?(w) }
+
+    # Map all pending variants to canonical 'pending'
+    pending_words = %w[pending processing waiting awaiting sent submitted hold review verifying]
+    return 'pending' if pending_words.any? { |w| s.include?(w) }
+
+    s
   end
 
   # Maps ImagePaymentExtractor `status` (and legacy values) to a coarse bucket
@@ -1626,13 +1642,25 @@ class Ai::ReplyService
 
   # Composite key for duplicate screenshot detection when `transaction_id` is blank (e.g. Cash App pending).
   def payment_screenshot_fingerprint_composite(data)
-    [
-      (data[:amount] || data['amount']).to_s.strip,
-      (data[:sender_handle] || data['sender_handle']).to_s.strip.downcase,
-      (data[:recipient_handle] || data['recipient_handle']).to_s.strip.downcase,
-      (data[:transaction_time] || data['transaction_time']).to_s.strip,
-      (data[:platform] || data['platform']).to_s.strip.downcase
-    ].join('|')
+    amount = (data[:amount] || data['amount']).to_s.strip
+    sender = (data[:sender_handle] || data['sender_handle']).to_s.strip.downcase
+    recipient = (data[:recipient_handle] || data['recipient_handle']).to_s.strip.downcase
+    tx_time = (data[:transaction_time] || data['transaction_time']).to_s.strip
+    tx_date = (data[:transaction_date] || data['transaction_date']).to_s.strip
+    tx_id = (data[:transaction_id] || data['transaction_id']).to_s.strip
+    platform = (data[:platform] || data['platform']).to_s.strip.downcase
+    sender_name = (data[:sender_name] || data['sender_name']).to_s.strip.downcase
+    recipient_name = (data[:recipient_name] || data['recipient_name']).to_s.strip.downcase
+
+    # Count how many strong identifying fields are populated
+    strong_fields = [sender, recipient, tx_time, tx_date, tx_id, sender_name, recipient_name].count { |f| f.present? }
+
+    # If fewer than 3 strong fields are populated, the fingerprint isn't reliable enough.
+    # Return nil to disable soft duplicate matching for this screenshot (the strict transaction_id
+    # tier still runs separately and catches real duplicates).
+    return nil if strong_fields < 3
+
+    [amount, sender, recipient, tx_time, tx_date, sender_name, recipient_name, platform].join('|')
   end
 
   # True if the latest user message mentions a card / pay-link keyword.
@@ -1658,10 +1686,14 @@ class Ai::ReplyService
 
     strong_signals = [
       /\bit\s+failed\b/, /\bpayment\s+failed\b/, /\btransaction\s+failed\b/, /\bsend\s+failed\b/,
+      /\bstill\s+failed\b/, /\bagain\s+failed\b/, /\bjust\s+failed\b/, /\balso\s+failed\b/,
+      /\bfailed\s+again\b/, /\bfailed\s+too\b/, /\bfailed\s+this\s+time\b/,
       /\bdidn'?t\s+work\b/, /\bdoesn'?t\s+work\b/, /\bnot\s+working\b/, /\bwon'?t\s+work\b/,
-      /\bdeclined\b/, /\brejected\b/, /\bbounced\b/, /\bblocked\b/,
+      /\bstill\s+not\s+working\b/, /\bnot\s+working\s+either\b/,
+      /\bdeclined\b/, /\brejected\b/, /\bbounced\b/, /\bblocked\b/, /\bcanceled\b/, /\bcancelled\b/,
       /\bcouldn'?t\s+send\b/, /\bcan'?t\s+send\b/, /\bunable\s+to\s+send\b/,
-      /\bnot\s+going\s+through\b/, /\bdidn'?t\s+go\s+through\b/
+      /\bnot\s+going\s+through\b/, /\bdidn'?t\s+go\s+through\b/, /\bwon'?t\s+go\s+through\b/,
+      /\bno\s+luck\b/, /\bstill\s+no\s+luck\b/
     ]
 
     weak_signals = [/\berror\b/, /\bwrong\b/, /\bissue\b/, /\bproblem\b/]
