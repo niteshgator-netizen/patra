@@ -84,7 +84,9 @@ class Webhooks::BotController < ActionController::API
     message = messaging[:message]
     return false if message.blank? # delivery / read receipts / postbacks
     return false if message[:is_echo] # outgoing echoes from the page itself
-    return false if message[:text].to_s.strip.empty? # attachments-only / stickers
+    has_text = message[:text].to_s.strip.present?
+    has_image = Array(message[:attachments]).any? { |a| a.is_a?(Hash) && a[:type].to_s == 'image' }
+    return false unless has_text || has_image
 
     true
   end
