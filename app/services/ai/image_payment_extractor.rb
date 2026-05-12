@@ -8,8 +8,8 @@ require 'uri'
 module Ai
   class ImagePaymentExtractor
     ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
-    MODEL = 'claude-haiku-4-5-20251001'
-    MAX_TOKENS = 400
+    MODEL_NAME = 'claude-sonnet-4-6'
+    MAX_TOKENS = 500
     TIMEOUT_SEC = 15
 
     VISION_PROMPT = <<~'PROMPT'.freeze
@@ -87,8 +87,10 @@ module Ai
         return { is_payment: false, error: 'download_error', message: e.message }
       end
 
+      Rails.logger.info("[ImagePaymentExtractor] using model=#{MODEL_NAME}")
+
       body = {
-        model: MODEL,
+        model: MODEL_NAME,
         max_tokens: MAX_TOKENS,
         messages: [
           {
