@@ -430,7 +430,26 @@ class Ai::ReplyService
                   log_entry['kind'] = 'flagged'
                   log_entry['flag_reason'] = 'duplicate'
                   Rails.logger.warn("[ReplyService] DUPLICATE transaction_id=#{tx_id} contact=#{contact_id}")
-                  grok_injection = "DUPLICATE SCREENSHOT. Customer sent a receipt with transaction_id #{tx_id} that was already logged. Politely tell them you've already seen this exact receipt and ask for a fresh one if they made a new payment. Do NOT confirm a deposit and do NOT offer any bonus."
+                  original_time_raw = duplicate['image_received_at'].to_s
+                  original_status = duplicate['status'].to_s.presence || 'unknown'
+                  original_time = begin
+                    Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
+                  rescue ArgumentError, TypeError
+                    original_time_raw
+                  end
+                  formatted_time = begin
+                    Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
+                  rescue ArgumentError, TypeError
+                    original_time_raw
+                  end
+                  grok_injection = <<~INJ.squish
+                    DUPLICATE SCREENSHOT BLOCK. This exact transaction_id was already submitted at #{original_time}.
+                    Original status was '#{original_status}'. You MUST NOT confirm this payment or apply any bonus.
+                    Reply to the customer in Bella's casual lowercase tone: 'looks like you already used this one —
+                    i got you loaded up from this same screenshot at #{formatted_time}. each screenshot can only be
+                    used once, send a fresh one if you wanna add more.' Do not deviate from this script.
+                  INJ
+                  add_conversation_labels!(%w[fraud-watch duplicate-attempt])
                 end
               end
 
@@ -500,8 +519,8 @@ class Ai::ReplyService
 
             case reply_status_bucket
             when :pending
-              add_conversation_labels!(%w[payment-pending needs-human])
-              return "i see your payment but it's still showing pending — once it clears on your end lmk and i'll get you loaded up"
+              add_conversation_labels!(%w[payment-pending cashier-action-needed needs-human])
+              return "got it, accepting it on our end real quick — you'll be loaded up in a sec"
             when :failed
               backup_display = nil
               failed_ph = nil
