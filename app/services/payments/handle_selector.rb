@@ -11,18 +11,39 @@ module Payments
       return nil unless @account
       return nil if @platform.blank?
 
-      @account.payment_handles.active_for(@platform).find(&:available?)
+      candidates = @account.payment_handles
+                           .active_for(@platform)
+                           .to_a
+                           .select(&:available?)
+
+      return nil if candidates.empty?
+
+      candidates.min_by { |h| [h.failure_count || 0, h.priority || 999] }
     end
 
-    def pick_backup(failed_handle)
-      return nil unless @account && failed_handle
+    def pick_backup(failed_handle = nil)
+      return nil unless @account
 
-      plat = @platform.presence || failed_handle.platform.to_s.downcase
-      chain = @account.payment_handles.active_for(plat)
-      idx = chain.to_a.index { |h| h.normalized_handle == failed_handle.normalized_handle }
-      return chain.find(&:available?) if idx.nil?
+      plat = @platform.presence || failed_handle&.platform.to_s.downcase
+      return nil if plat.blank?
 
-      chain.to_a[(idx + 1)..]&.find(&:available?) || chain.find { |h| h.normalized_handle != failed_handle.normalized_handle && h.available? }
+      candidates = @account.payment_handles
+                           .active_for(plat)
+                           .to_a
+                           .select(&:available?)
+
+      return nil if candidates.empty?
+
+      if failed_handle
+        candidates = candidates.reject do |h|
+          h.id == failed_handle.id ||
+            h.normalized_handle == failed_handle.normalized_handle
+        end
+      end
+
+      return nil if candidates.empty?
+
+      candidates.min_by { |h| [h.failure_count || 0, h.priority || 999] }
     end
 
     def pick(platform)
