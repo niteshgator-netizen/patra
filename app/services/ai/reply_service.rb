@@ -410,6 +410,8 @@ class Ai::ReplyService
           }
 
           contact_id = fetch_sender_contact_id
+          acct = Account.find_by(id: account_id)
+          recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
           if contact_id.present?
             contact_response = HTTParty.get(
               "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
@@ -431,9 +433,6 @@ class Ai::ReplyService
                   grok_injection = "DUPLICATE SCREENSHOT. Customer sent a receipt with transaction_id #{tx_id} that was already logged. Politely tell them you've already seen this exact receipt and ask for a fresh one if they made a new payment. Do NOT confirm a deposit and do NOT offer any bonus."
                 end
               end
-
-              acct = Account.find_by(id: account_id)
-              recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
 
               unless log_entry['flag_reason']
                 platform = payment[:platform].to_s.downcase
@@ -460,6 +459,19 @@ class Ai::ReplyService
                 end
               end
 
+              if grok_injection.blank?
+                case extracted_payment_status_bucket(payment[:status])
+                when :pending
+                  if log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
+                    log_entry['status'] = 'Pending'
+                  end
+                when :failed
+                  if log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
+                    log_entry['status'] = 'Failed'
+                  end
+                end
+              end
+
               updated_logs = existing_logs + [log_entry]
               attrs['patra_finance_logs'] = updated_logs
               patch_response = HTTParty.patch(
@@ -469,7 +481,8 @@ class Ai::ReplyService
                 timeout: HTTP_TIMEOUT
               )
 
-              if patch_response.success? && log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
+              st = extracted_payment_status_normalized(payment[:status])
+              if patch_response.success? && log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank? && %w[completed success].include?(st)
                 record_payment_handle_success!(acct, payment[:platform].to_s.downcase, recip_handle)
               end
 
@@ -478,6 +491,77 @@ class Ai::ReplyService
                   "[ReplyService] patra_finance_logs patch failed HTTP #{patch_response.code}: #{patch_response.body}"
                 )
               end
+            end
+          end
+
+          unless grok_injection
+            reply_status_bucket = extracted_payment_status_bucket(payment[:status])
+            platform = payment[:platform].to_s.downcase
+
+            case reply_status_bucket
+            when :pending
+              add_conversation_labels!(%w[payment-pending needs-human])
+              return "i see your payment but it's still showing pending — once it clears on your end lmk and i'll get you loaded up"
+            when :failed
+              backup_display = nil
+              failed_ph = nil
+              if defined?(Payments::HandleSelector) && acct && PaymentHandle::PLATFORMS.include?(platform)
+                chain = acct.payment_handles.active_for(platform).order(:priority).to_a
+                idx = chain.index { |h| h.normalized_handle == recip_handle }
+                failed_ph = (idx ? chain[idx] : chain.first)
+                backup_ph = if idx
+                  chain[idx + 1]
+                elsif chain.many?
+                  chain.find { |h| h.normalized_handle != recip_handle }
+                end
+                backup_display = backup_ph&.display_handle
+              end
+
+              if backup_display.blank? && !defined?(Payments::HandleSelector)
+                legacy_handles = Array(OUR_HANDLES[platform]).map(&:to_s).reject(&:blank?)
+                legacy_norms = legacy_handles.map { |h| h.gsub(/^[\$@]/, '').strip.downcase }
+                lidx = legacy_norms.index(recip_handle)
+                alt_raw = if lidx && legacy_handles[lidx + 1]
+                  legacy_handles[lidx + 1]
+                elsif legacy_handles.many?
+                  legacy_handles.find { |h| h.gsub(/^[\$@]/, '').strip.downcase != recip_handle }
+                end
+                if alt_raw.present?
+                  backup_display = alt_raw.start_with?('$', '@') ? alt_raw : (platform == 'cashapp' ? "$#{alt_raw}" : "@#{alt_raw}")
+                end
+              end
+
+              if backup_display.present?
+                add_conversation_labels!(%w[payment-failed-retry])
+                if defined?(Payments::FailoverManager) && failed_ph
+                  begin
+                    Payments::FailoverManager.new(failed_ph).record_failure!
+                  rescue StandardError => e
+                    Rails.logger.warn("[ReplyService] FailoverManager.record_failure! #{e.class}: #{e.message}")
+                  end
+                end
+                return "looks like that one didn't go through, can you try sending it to #{backup_display} instead?"
+              end
+
+              if defined?(Payments::HandleSelector) && acct && PaymentHandle::PLATFORMS.include?(platform)
+                add_conversation_labels!(%w[payment-system-down needs-human])
+                if defined?(Payments::EscalationNotifier)
+                  begin
+                    Payments::EscalationNotifier.new(acct).notify_all_handles_dead(platform)
+                  rescue StandardError => e
+                    Rails.logger.warn("[ReplyService] EscalationNotifier #{e.class}: #{e.message}")
+                  end
+                end
+                return "having some issues on our end with payments right now, one sec — a manager will jump in to sort this out for you"
+              end
+
+              add_conversation_labels!(%w[payment-failed-retry])
+              return "looks like that one didn't go through, can you try again?"
+            when :unknown
+              add_conversation_labels!(%w[needs-human])
+              return "hmm i can't tell from the screenshot if it went through, can you confirm on your end?"
+            else
+              # :confirmed — completed/success; Bella confirms via LLM + bonus rules in injection
             end
           end
 
@@ -1411,6 +1495,41 @@ class Ai::ReplyService
     )
   rescue StandardError => e
     Rails.logger.error("[AiReply] escalate_to_human failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
+  end
+
+  # Best-effort label add for payment-screenshot follow-up (bulk_actions).
+  def add_conversation_labels!(labels)
+    list = Array(labels).map(&:to_s).reject(&:blank?)
+    return if list.empty?
+
+    HTTParty.post(
+      "#{base_url}/api/v1/accounts/#{account_id}/bulk_actions",
+      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+      body: { type: 'Conversation', ids: [@conversation_id], labels: { add: list } }.to_json,
+      timeout: HTTP_TIMEOUT
+    )
+  rescue StandardError => e
+    Rails.logger.error("[AiReply] add_conversation_labels failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
+  end
+
+  def extracted_payment_status_normalized(raw)
+    raw.to_s.downcase.strip.presence || 'unknown'
+  end
+
+  # Maps ImagePaymentExtractor `status` (and legacy values) to a coarse bucket
+  # for screenshot replies. Fraud flags (duplicate / recipient mismatch) are
+  # handled earlier via `grok_injection` — this runs only when that is nil.
+  def extracted_payment_status_bucket(raw)
+    case extracted_payment_status_normalized(raw)
+    when 'completed', 'success'
+      :confirmed
+    when 'pending', 'sent'
+      :pending
+    when 'failed'
+      :failed
+    else
+      :unknown
+    end
   end
 
   # True if the latest user message mentions a card / pay-link keyword.
