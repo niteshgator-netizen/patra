@@ -389,6 +389,7 @@ class Ai::ReplyService
           image_url_for_log = raw_h.dig('payload', 'url').presence || raw_h['url'].presence || image_url
           thumb_url_for_log = raw_h.dig('payload', 'thumb_url').presence || image_url_for_log
 
+          payment_status_bucket = extracted_payment_status_bucket(payment[:status])
           log_entry = {
             'kind' => 'deposit',
             'amount' => payment[:amount],
@@ -401,7 +402,8 @@ class Ai::ReplyService
             'transaction_date' => payment[:transaction_date],
             'transaction_time' => payment[:transaction_time],
             'note_or_memo' => payment[:note_or_memo],
-            'status' => payment[:status],
+            'status' => finance_log_status_label(payment_status_bucket),
+            'raw_status' => payment[:status],
             'confidence' => payment[:confidence],
             'image_url' => image_url_for_log,
             'image_thumb_url' => thumb_url_for_log,
@@ -424,33 +426,65 @@ class Ai::ReplyService
               existing_logs = Array.wrap(attrs['patra_finance_logs'])
 
               tx_id = payment[:transaction_id].to_s.strip
-              if tx_id.present?
+              duplicate = nil
+              duplicate_match_tier = nil
+
+              if tx_id.present? && tx_id.length > 3
                 duplicate = existing_logs.find { |e| e.is_a?(Hash) && e['transaction_id'].to_s.strip == tx_id }
-                if duplicate
-                  log_entry['kind'] = 'flagged'
-                  log_entry['flag_reason'] = 'duplicate'
-                  Rails.logger.warn("[ReplyService] DUPLICATE transaction_id=#{tx_id} contact=#{contact_id}")
-                  original_time_raw = duplicate['image_received_at'].to_s
-                  original_status = duplicate['status'].to_s.presence || 'unknown'
-                  original_time = begin
-                    Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
-                  rescue ArgumentError, TypeError
-                    original_time_raw
+                duplicate_match_tier = :transaction_id if duplicate
+              end
+
+              if duplicate.nil?
+                fp = payment_screenshot_fingerprint_composite(payment)
+                cutoff = 24.hours.ago
+                duplicate = existing_logs.find do |e|
+                  next false unless e.is_a?(Hash)
+
+                  next false unless payment_screenshot_fingerprint_composite(e) == fp
+
+                  ts = begin
+                    Time.parse(e['image_received_at'].to_s)
+                  rescue ArgumentError, TypeError, StandardError
+                    nil
                   end
-                  formatted_time = begin
-                    Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
-                  rescue ArgumentError, TypeError
-                    original_time_raw
-                  end
-                  grok_injection = <<~INJ.squish
-                    DUPLICATE SCREENSHOT BLOCK. This exact transaction_id was already submitted at #{original_time}.
-                    Original status was '#{original_status}'. You MUST NOT confirm this payment or apply any bonus.
-                    Reply to the customer in Bella's casual lowercase tone: 'looks like you already used this one —
-                    i got you loaded up from this same screenshot at #{formatted_time}. each screenshot can only be
-                    used once, send a fresh one if you wanna add more.' Do not deviate from this script.
-                  INJ
-                  add_conversation_labels!(%w[fraud-watch duplicate-attempt])
+                  next false if ts.nil?
+
+                  ts >= cutoff
                 end
+                duplicate_match_tier = :fingerprint if duplicate
+              end
+
+              if duplicate
+                log_entry['kind'] = 'flagged'
+                log_entry['flag_reason'] = duplicate_match_tier == :transaction_id ? 'duplicate' : 'duplicate-soft'
+                Rails.logger.warn(
+                  "[ReplyService] DUPLICATE tier=#{duplicate_match_tier} transaction_id=#{tx_id.inspect} contact=#{contact_id}"
+                )
+                original_time_raw = duplicate['image_received_at'].to_s
+                original_status = duplicate['raw_status'].presence || duplicate['status'].to_s.presence || 'unknown'
+                original_time = begin
+                  Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
+                rescue ArgumentError, TypeError
+                  original_time_raw
+                end
+                formatted_time = begin
+                  Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
+                rescue ArgumentError, TypeError
+                  original_time_raw
+                end
+                grok_injection = <<~INJ.squish
+                  DUPLICATE SCREENSHOT BLOCK. This exact transaction_id was already submitted at #{original_time}.
+                  Original status was '#{original_status}'. You MUST NOT confirm this payment or apply any bonus.
+                  Reply to the customer in Bella's casual lowercase tone: 'looks like you already used this one —
+                  i got you loaded up from this same screenshot at #{formatted_time}. each screenshot can only be
+                  used once, send a fresh one if you wanna add more.' Do not deviate from this script.
+                INJ
+                dup_labels = if duplicate_match_tier == :transaction_id
+                               %w[fraud-watch duplicate-attempt]
+                             else
+                               %w[fraud-watch duplicate-attempt soft-match]
+                             end
+                add_conversation_labels!(dup_labels)
               end
 
               unless log_entry['flag_reason']
@@ -1549,6 +1583,27 @@ class Ai::ReplyService
     else
       :unknown
     end
+  end
+
+  # Sidebar-friendly vault status (from `extracted_payment_status_bucket`).
+  def finance_log_status_label(bucket)
+    case bucket
+    when :confirmed then 'Confirmed'
+    when :pending then 'Pending'
+    when :failed then 'Failed'
+    else 'Unknown'
+    end
+  end
+
+  # Composite key for duplicate screenshot detection when `transaction_id` is blank (e.g. Cash App pending).
+  def payment_screenshot_fingerprint_composite(data)
+    [
+      (data[:amount] || data['amount']).to_s.strip,
+      (data[:sender_handle] || data['sender_handle']).to_s.strip.downcase,
+      (data[:recipient_handle] || data['recipient_handle']).to_s.strip.downcase,
+      (data[:transaction_time] || data['transaction_time']).to_s.strip,
+      (data[:platform] || data['platform']).to_s.strip.downcase
+    ].join('|')
   end
 
   # True if the latest user message mentions a card / pay-link keyword.
