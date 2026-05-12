@@ -201,3 +201,12 @@
   font-size: 10px !important;
   opacity: 0.6 !important;
 }
+
+/* Patra: cap inline message image size */
+.conversation-panel .message-bubble-container [data-bubble-name="image"] img,
+.conversation-panel .message-bubble-container [data-bubble-name="text"] .prose-bubble img {
+  max-height: 400px;
+  max-width: 320px;
+  object-fit: contain;
+  cursor: pointer;
+}
