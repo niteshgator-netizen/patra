@@ -541,6 +541,7 @@ class Ai::ReplyService
       canned_responses_text,
       payment_link_hint
     )
+    emoji_guard = if emoji_already_used
       "EMOJI GUARD: An emoji has already been used earlier in this conversation by Bella. Use ZERO emojis in your reply. Do not use any emoji at all."
     else
       "EMOJI GUARD: Use emojis sparingly and only if truly natural. Allowed emojis: 😊 😂 🙏. Prefer ZERO emojis. If you include an emoji, use at most ONE emoji in your reply."
