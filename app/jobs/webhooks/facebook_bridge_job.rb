@@ -27,6 +27,8 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
       return
     end
 
+    prepare_messaging_for_bridge!(messaging)
+
     lock_key = format(SENDER_MUTEX_KEY, sender_id: sender_id)
     result = nil
     with_lock(lock_key, SENDER_MUTEX_TIMEOUT) do
@@ -43,10 +45,10 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
         contact_id = result[:contact_id].presence || result['contact_id'].presence
         tag_customer_recency(acc_id, contact_id, conv_id)
         # The bridge only stores `text` in Chatwoot — FB attachments (images,
-        # etc.) never make it into the Message AR. Forward the raw FB attachment
-        # array directly so Ai::ReplyService can route image-payment screenshots.
-        # String keys keep ActiveJob serialization happy across Sidekiq retries.
-        fb_attachments = extract_fb_attachments(messaging)
+        # etc.) never make it into the Message AR. Forward the raw FB
+        # `message.attachments` array so Ai::ReplyService#normalize_fb_attachments
+        # can read `type` + `payload.url` from the webhook shape.
+        fb_attachments = messaging.dig('message', 'attachments')
         # Pass the same account_id the bridge used (from resolved API inbox), not only
         # CHATWOOT_BRIDGE_ACCOUNT_ID — otherwise Ai::ReplyService hits the wrong tenant.
         Ai::ReplyJob.set(wait: 3.seconds).perform_later(conv_id, acc_id, fb_attachments)
@@ -64,19 +66,23 @@ class Webhooks::FacebookBridgeJob < MutexApplicationJob
 
   private
 
-  # FB webhook payload puts attachments at messaging.message.attachments, each
-  # entry shaped { "type" => "image", "payload" => { "url" => "..." } }. Flatten
-  # to a simple [{ "type" => ..., "url" => ... }] list so the downstream job
-  # doesn't have to know FB's nesting.
-  def extract_fb_attachments(messaging)
-    Array(messaging.dig('message', 'attachments')).filter_map do |att|
-      next unless att.is_a?(Hash)
+  # ChatwootBridgeService rejects blank `message.text`. Image-only Messenger
+  # events omit `text`; synthesize a placeholder so the bridge persists a row
+  # and Ai::ReplyJob still receives raw `message.attachments`.
+  def prepare_messaging_for_bridge!(messaging)
+    message = messaging['message']
+    return unless message.is_a?(Hash)
 
-      url = att.dig('payload', 'url').to_s
-      next if url.empty?
+    text = message['text'].to_s
+    return if text.present?
 
-      { 'type' => att['type'].to_s, 'url' => url }
+    has_image = Array(message['attachments']).any? do |a|
+      a.is_a?(Hash) && a['type'].to_s == 'image'
     end
+    return unless has_image
+
+    Rails.logger.info("[FacebookBridgeJob] image-only message detected, attachments=#{message['attachments']&.size}")
+    message['text'] = '[image]'
   end
 
   # SET NX EX returns truthy when we won the race, falsy when the key already
