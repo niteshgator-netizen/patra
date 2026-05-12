@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'base64'
 require 'net/http'
 require 'json'
 require 'uri'
@@ -38,6 +39,38 @@ module Ai
       api_key = ENV['ANTHROPIC_API_KEY'].to_s
       return { is_payment: false, error: 'timeout' } if api_key.blank?
 
+      image_bytes = nil
+      media_type = nil
+      encoded = nil
+      begin
+        uri = URI.parse(@image_url)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = (uri.scheme == 'https')
+        http.open_timeout = 5
+        http.read_timeout = 10
+        request = Net::HTTP::Get.new(uri.request_uri)
+        response = http.request(request)
+        unless response.is_a?(Net::HTTPSuccess)
+          return { is_payment: false, error: 'download_failed', status: response.code }
+        end
+
+        image_bytes = response.body
+
+        media_type = case @image_url.to_s.downcase
+                       when /\.png(\?|$)/ then 'image/png'
+                       when /\.gif(\?|$)/ then 'image/gif'
+                       when /\.webp(\?|$)/ then 'image/webp'
+                       else 'image/jpeg'
+                       end
+        if response['content-type']&.start_with?('image/')
+          media_type = response['content-type'].split(';').first.strip
+        end
+
+        encoded = Base64.strict_encode64(image_bytes)
+      rescue StandardError => e
+        return { is_payment: false, error: 'download_error', message: e.message }
+      end
+
       body = {
         model: MODEL,
         max_tokens: MAX_TOKENS,
@@ -45,12 +78,14 @@ module Ai
           {
             role: 'user',
             content: [
-              { type: 'image', source: { type: 'url', url: @image_url } },
+              { type: 'image', source: { type: 'base64', media_type: media_type, data: encoded } },
               { type: 'text', text: VISION_PROMPT }
             ]
           }
         ]
       }
+
+      Rails.logger.info("[ImagePaymentExtractor] downloaded #{image_bytes.bytesize} bytes media_type=#{media_type}")
 
       response = post_json(body, api_key)
 
