@@ -398,6 +398,13 @@ Rails.application.routes.draw do
           end
 
           resources :upload, only: [:create]
+          resources :payment_handles, only: [:index, :show, :create, :update, :destroy] do
+            member do
+              post :enable
+              post :disable
+              post :reset_failures
+            end
+          end
           resource :owner_stats, only: [:show]
         end
       end

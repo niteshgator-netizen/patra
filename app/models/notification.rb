@@ -43,7 +43,8 @@ class Notification < ApplicationRecord
     participating_conversation_new_message: 5,
     sla_missed_first_response: 6,
     sla_missed_next_response: 7,
-    sla_missed_resolution: 8
+    sla_missed_resolution: 8,
+    patra_all_payment_handles_dead: 9
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES
@@ -76,6 +77,16 @@ class Notification < ApplicationRecord
   end
 
   def fcm_push_data
+    if patra_all_payment_handles_dead?
+      return {
+        id: id,
+        notification_type: notification_type,
+        primary_actor_id: primary_actor_id,
+        primary_actor_type: primary_actor_type,
+        primary_actor: { id: primary_actor_id }
+      }
+    end
+
     {
       id: id,
       notification_type: notification_type,
@@ -87,6 +98,8 @@ class Notification < ApplicationRecord
 
   # rubocop:disable Metrics/MethodLength
   def push_message_title
+    return I18n.t('notifications.notification_title.patra_all_payment_handles_dead') if patra_all_payment_handles_dead?
+
     notification_title_map = {
       'conversation_creation' => 'notifications.notification_title.conversation_creation',
       'conversation_assignment' => 'notifications.notification_title.conversation_assignment',
@@ -113,6 +126,8 @@ class Notification < ApplicationRecord
   # rubocop:enable Metrics/MethodLength
 
   def push_message_body
+    return meta['alert'].to_s if patra_all_payment_handles_dead?
+
     case notification_type
     when 'conversation_creation', 'sla_missed_first_response'
       message_body(conversation.messages.first)
