@@ -469,6 +469,21 @@
   "PLAYER_PROFILE": {
     "TIER_BADGE": "Loyalty",
     "EMPTY": "No player vault data yet. It fills in as the customer chats (deposits, platform, payment method).",
+    "PAYMENT_SCREENSHOTS": {
+      "SECTION_TITLE": "Recent payment screenshots",
+      "CLICK_FULL": "Click to view full",
+      "SCREENSHOT": "Screenshot",
+      "FROM_PREFIX": "From",
+      "STATUS_CONFIRMED": "Confirmed",
+      "STATUS_DUPLICATE": "Duplicate",
+      "STATUS_WRONG_RECIPIENT": "Wrong recipient",
+      "STATUS_STALE": "Stale",
+      "SAME_AS_ABOVE": "— same as above",
+      "BONUS_NOT_APPLIED": "Bonus not applied",
+      "EXPECTED_HANDLE": "Expected: {handle}",
+      "VIEW_ALL": "View all {count} payments",
+      "SHOW_RECENT": "Show recent only"
+    },
     "FIELDS": {
       "GAME_USERNAME": "Game username",
       "PREFERRED_PLATFORM": "Preferred platform",
