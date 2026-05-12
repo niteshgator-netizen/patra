@@ -633,6 +633,10 @@ class Ai::ReplyService
                 end
           case sub
           when :simple
+            if (text_failover_reply = maybe_reply_for_text_payment_failure(messages)).present?
+              return text_failover_reply
+            end
+
             reply = Ai::HaikuClient.new(
               system_prompt: bella_system_prompt_with_payment_handles,
               conversation_history: build_conversation_history
@@ -649,6 +653,10 @@ class Ai::ReplyService
         end
       end
     when :simple
+      if (text_failover_reply = maybe_reply_for_text_payment_failure(messages)).present?
+        return text_failover_reply
+      end
+
       reply = Ai::HaikuClient.new(
         system_prompt: bella_system_prompt_with_payment_handles,
         conversation_history: build_conversation_history
@@ -661,6 +669,10 @@ class Ai::ReplyService
       end
     when :complex
       Rails.logger.info('[ReplyService] routed=grok')
+    end
+
+    if (text_failover_reply = maybe_reply_for_text_payment_failure(messages)).present?
+      return text_failover_reply
     end
 
     payment_info = fetch_payment_info
@@ -1631,6 +1643,126 @@ class Ai::ReplyService
 
     text = last_user['content'].to_s.downcase
     PAYMENT_LINK_KEYWORDS.any? { |kw| text.include?(kw) }
+  end
+
+  # True when the latest user text looks like a payment failure AND recent
+  # turns mention a handle, amount, or payment routing intent (last 6 msgs).
+  def text_payment_failure_signal?(messages)
+    return false if messages.blank?
+
+    last_user = messages.reverse.find { |m| (m[:role] || m['role']).to_s == 'user' }
+    return false unless last_user
+
+    last_text = (last_user[:content] || last_user['content']).to_s.downcase
+    return false if last_text.blank?
+
+    strong_signals = [
+      /\bit\s+failed\b/, /\bpayment\s+failed\b/, /\btransaction\s+failed\b/, /\bsend\s+failed\b/,
+      /\bdidn'?t\s+work\b/, /\bdoesn'?t\s+work\b/, /\bnot\s+working\b/, /\bwon'?t\s+work\b/,
+      /\bdeclined\b/, /\brejected\b/, /\bbounced\b/, /\bblocked\b/,
+      /\bcouldn'?t\s+send\b/, /\bcan'?t\s+send\b/, /\bunable\s+to\s+send\b/,
+      /\bnot\s+going\s+through\b/, /\bdidn'?t\s+go\s+through\b/
+    ]
+
+    weak_signals = [/\berror\b/, /\bwrong\b/, /\bissue\b/, /\bproblem\b/]
+
+    has_strong = strong_signals.any? { |re| last_text.match?(re) }
+    has_weak = weak_signals.any? { |re| last_text.match?(re) }
+    return false unless has_strong || has_weak
+
+    recent_messages = messages.last(6)
+    context_text = recent_messages.map { |m| (m[:content] || m['content']).to_s.downcase }.join(' ')
+
+    has_handle_mention = context_text.match?(/\$[a-z0-9]+/i) || context_text.match?(/send\s+(to|it)\s+to/)
+    has_amount = context_text.match?(/\$\d+/) || context_text.match?(/\b\d+\s+(dollars?|bucks?)\b/)
+    has_payment_intent = context_text.match?(/where\s+(do|to)\s+i?\s*send/) || context_text.match?(/where\s+to\s+pay/)
+
+    has_payment_context = has_handle_mention || has_amount || has_payment_intent
+
+    (has_strong && has_payment_context) || (has_weak && has_payment_context)
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] text_payment_failure_signal? crashed: #{e.class}: #{e.message}")
+    false
+  end
+
+  # Cash App text failover: offer backup handle or escalate. Returns reply
+  # text or nil (nil → caller continues with normal Bella / LLM flow).
+  def maybe_reply_for_text_payment_failure(messages)
+    return nil if @grok_payment_injection.present?
+    return nil unless defined?(Payments::HandleSelector) && @bridge_account_id.present?
+    return nil unless text_payment_failure_signal?(messages)
+
+    acct = Account.find_by(id: @bridge_account_id)
+    return nil unless acct
+
+    recent_bella_text = messages.last(6)
+                           .select { |m| (m[:role] || m['role']).to_s == 'assistant' }
+                           .map { |m| (m[:content] || m['content']).to_s }
+                           .join(' ')
+
+    failed_handle = nil
+    begin
+      acct.payment_handles.where(platform: 'cashapp').each do |ph|
+        display = ph.display_name.to_s.downcase
+        normalized = ph.normalized_handle.to_s.downcase
+        next if display.blank? && normalized.blank?
+
+        down = recent_bella_text.downcase
+        if display.present? && down.include?(display)
+          failed_handle = ph
+          break
+        end
+        if normalized.present? && down.include?(normalized)
+          failed_handle = ph
+          break
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[ReplyService] text failover handle scan crashed: #{e.class}: #{e.message}")
+      return nil
+    end
+
+    return nil unless failed_handle
+
+    backup = begin
+      Payments::HandleSelector.new(account: acct, platform: 'cashapp').pick_backup(failed_handle)
+    rescue StandardError => e
+      Rails.logger.warn("[ReplyService] HandleSelector.pick_backup crashed: #{e.class}: #{e.message}")
+      nil
+    end
+
+    if backup
+      if defined?(Payments::FailoverManager)
+        begin
+          Payments::FailoverManager.new(failed_handle).record_failure!
+        rescue StandardError => e
+          Rails.logger.warn("[ReplyService] FailoverManager crashed: #{e.class}: #{e.message}")
+        end
+      end
+
+      add_conversation_labels!(%w[payment-failed-retry text-detected])
+
+      backup_display = backup.display_name.presence || backup.handle
+      reply = "ah no worries — try sending it to #{backup_display} instead, that one's working"
+      failed_label = failed_handle.display_name.presence || failed_handle.handle
+      Rails.logger.info("[ReplyService] Text failover: #{failed_label} → #{backup_display}")
+      reply
+    else
+      add_conversation_labels!(%w[payment-system-down needs-human])
+
+      if defined?(Payments::EscalationNotifier)
+        begin
+          Payments::EscalationNotifier.new(acct).notify_all_handles_dead('cashapp')
+        rescue StandardError => e
+          Rails.logger.warn("[ReplyService] EscalationNotifier crashed: #{e.class}: #{e.message}")
+        end
+      end
+
+      "having some issues on our end with payments right now, one sec — a manager will jump in to sort this out for you"
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] maybe_reply_for_text_payment_failure crashed: #{e.class}: #{e.message}")
+    nil
   end
 
   # ---------- Helpers / config ----------
