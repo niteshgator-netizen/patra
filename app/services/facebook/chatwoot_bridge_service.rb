@@ -1,3 +1,8 @@
+require 'net/http'
+require 'json'
+require 'securerandom'
+require 'uri'
+
 # Pushes a single Facebook Messenger event into Chatwoot via its public REST
 # API, bypassing the broken in-process FacebookPage channel pipeline.
 #
@@ -19,6 +24,8 @@ class Facebook::ChatwootBridgeService
   class ConfigurationError < BridgeError; end
 
   HTTP_TIMEOUT = 10
+  IMAGE_DOWNLOAD_OPEN_TIMEOUT = 5
+  IMAGE_DOWNLOAD_READ_TIMEOUT = 10
 
   # Lookup-only: resolves Patra inbox from page_id and finds an existing Chatwoot contact by PSID.
   def self.find_contact_id_by_psid(psid, page_id:)
@@ -182,14 +189,48 @@ class Facebook::ChatwootBridgeService
   # ---------- Message ----------
 
   def create_message!(conversation_id)
-    response = http_post(
-      "/api/v1/accounts/#{account_id}/conversations/#{conversation_id}/messages",
-      body: { content: @text, message_type: 'incoming', private: false, source_id: @mid }
-    )
+    path = "/api/v1/accounts/#{account_id}/conversations/#{conversation_id}/messages"
+    image_tuple = download_first_fb_image_if_any
 
-    raise BridgeError, "message create failed HTTP #{response.code}: #{response.body}" unless response.success?
+    response =
+      if image_tuple
+        image_bytes, media_type, filename = image_tuple
+        boundary = "----rubyChatwootBridge#{SecureRandom.hex(16)}"
+        body = build_multipart_body(
+          boundary,
+          {
+            'content' => '',
+            'message_type' => 'incoming',
+            'source_id' => @mid
+          },
+          'attachments[]',
+          image_bytes,
+          filename,
+          media_type
+        )
+        http_post_multipart(path, body, "multipart/form-data; boundary=#{boundary}")
+      else
+        http_post(
+          path,
+          body: { content: @text, message_type: 'incoming', private: false, source_id: @mid }
+        )
+      end
 
-    response.parsed_response['id']
+    if image_tuple
+      unless net_response_success?(response)
+        raise BridgeError, "message create failed HTTP #{response.code}: #{response.body}"
+      end
+
+      Rails.logger.info(
+        "[ChatwootBridge] uploaded image attachment bytes=#{image_tuple[0].bytesize} media_type=#{image_tuple[1]}"
+      )
+      parsed = JSON.parse(response.body)
+      parsed['id']
+    else
+      raise BridgeError, "message create failed HTTP #{response.code}: #{response.body}" unless response.success?
+
+      response.parsed_response['id']
+    end
   end
 
   # ---------- HTTP ----------
@@ -210,6 +251,97 @@ class Facebook::ChatwootBridgeService
       body: body.to_json,
       timeout: HTTP_TIMEOUT
     )
+  end
+
+  def first_fb_image_attachment_url
+    Array(@messaging.dig('message', 'attachments')).each do |att|
+      next unless att.is_a?(Hash)
+      next unless att['type'].to_s == 'image'
+
+      payload = att['payload']
+      url =
+        (payload.is_a?(Hash) ? (payload['url'] || payload[:url]) : nil) ||
+        att['url'] ||
+        att[:url]
+      return url.to_s.strip.presence if url.present?
+    end
+    nil
+  end
+
+  # Returns [image_bytes, media_type, filename] or nil if URL missing / download fails.
+  def download_first_fb_image_if_any
+    url = first_fb_image_attachment_url
+    return nil if url.blank?
+
+    uri = URI.parse(url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = (uri.scheme == 'https')
+    http.open_timeout = IMAGE_DOWNLOAD_OPEN_TIMEOUT
+    http.read_timeout = IMAGE_DOWNLOAD_READ_TIMEOUT
+    request = Net::HTTP::Get.new(uri.request_uri)
+    response = http.request(request)
+    unless response.is_a?(Net::HTTPSuccess)
+      Rails.logger.warn("[ChatwootBridge] image download HTTP #{response.code} url=#{url}")
+      return nil
+    end
+
+    image_bytes = response.body
+    media_type = response['content-type'].to_s.split(';').first&.strip
+    media_type = 'image/jpeg' if media_type.blank? || !media_type.start_with?('image/')
+
+    filename = fb_image_upload_filename(media_type)
+    [image_bytes, media_type, filename]
+  rescue StandardError => e
+    Rails.logger.warn("[ChatwootBridge] image download failed #{e.class}: #{e.message}")
+    nil
+  end
+
+  def fb_image_upload_filename(media_type)
+    ts = @timestamp.presence || (Time.now.to_f * 1000).to_i
+    ext = case media_type.to_s.downcase
+          when /\Aimage\/png/ then 'png'
+          when /\Aimage\/gif/ then 'gif'
+          when /\Aimage\/webp/ then 'webp'
+          else 'jpg'
+          end
+    "fb_screenshot_#{ts}.#{ext}"
+  end
+
+  def build_multipart_body(boundary, fields, file_field_name, file_bytes, filename, media_type)
+    crlf = "\r\n"
+    chunks = []
+    fields.each do |name, value|
+      chunks << "--#{boundary}#{crlf}"
+      chunks << %(Content-Disposition: form-data; name="#{name}") << crlf
+      chunks << crlf
+      chunks << value.to_s
+      chunks << crlf
+    end
+    safe_filename = filename.to_s.delete('"')
+    chunks << "--#{boundary}#{crlf}"
+    chunks << %(Content-Disposition: form-data; name="#{file_field_name}"; filename="#{safe_filename}") << crlf
+    chunks << "Content-Type: #{media_type}" << crlf
+    chunks << crlf
+    closing = "#{crlf}--#{boundary}--#{crlf}"
+    chunks.join.b + file_bytes.b + closing.b
+  end
+
+  def http_post_multipart(path, body, content_type)
+    uri = URI(url_for(path))
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = (uri.scheme == 'https')
+    http.open_timeout = HTTP_TIMEOUT
+    http.read_timeout = HTTP_TIMEOUT
+    req = Net::HTTP::Post.new(uri.request_uri)
+    auth_headers.each { |k, v| req[k] = v }
+    req['Accept'] = 'application/json'
+    req['Content-Type'] = content_type
+    req.body = body
+    http.request(req)
+  end
+
+  def net_response_success?(response)
+    response.is_a?(Net::HTTPSuccess)
   end
 
   def url_for(path)
