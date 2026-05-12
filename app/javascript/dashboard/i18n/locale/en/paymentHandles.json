@@ -39,7 +39,7 @@
     "MODAL": {
       "ADD_TITLE": "Add payment handle",
       "EDIT_TITLE": "Edit payment handle",
-      "ADD_DESC": "Create a handle for a platform. Handles are normalized (leading $ or @ removed, lowercased).",
+      "ADD_DESC": "Create a handle for a platform. Handles are normalized by stripping a leading dollar sign or at-symbol from the handle, then lowercased.",
       "EDIT_DESC": "Update this handle. Leave the email password blank to keep the current password."
     },
     "FORM": {
