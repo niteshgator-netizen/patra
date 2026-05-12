@@ -1693,7 +1693,24 @@ class Ai::ReplyService
       /\bdeclined\b/, /\brejected\b/, /\bbounced\b/, /\bblocked\b/, /\bcanceled\b/, /\bcancelled\b/,
       /\bcouldn'?t\s+send\b/, /\bcan'?t\s+send\b/, /\bunable\s+to\s+send\b/,
       /\bnot\s+going\s+through\b/, /\bdidn'?t\s+go\s+through\b/, /\bwon'?t\s+go\s+through\b/,
-      /\bno\s+luck\b/, /\bstill\s+no\s+luck\b/
+      /\bno\s+luck\b/, /\bstill\s+no\s+luck\b/,
+      /\balready\s+said\b/, /\bi\s+said\b/, /\bi\s+told\s+you\b/,
+      /\balready\s+told\s+you\b/, /\bjust\s+told\s+you\b/, /\bi\s+just\s+said\b/,
+      /\byeah\s+failed\b/, /\bya\s+failed\b/, /\byep\s+failed\b/, /\byup\s+failed\b/,
+      /\bnope\s+failed\b/, /\bno\s+failed\b/,
+      /\bdidn'?t\s+work\s+either\b/, /\bdidn'?t\s+work\s+again\b/, /\bdidn'?t\s+work\s+too\b/,
+      /\bdidn'?t\s+either\b/,
+      /\bthat\s+one\s+(failed|didn'?t|too)\b/, /\bthis\s+one\s+(failed|didn'?t|too)\b/,
+      /\bthat\s+one\s+also\b/, /\bthat\s+too\s+failed\b/, /\bthat\s+too\s+didn'?t\b/,
+      /\bno\s+it\s+didn'?t\b/, /\bno\s+it\s+won'?t\b/, /\bnah\s+failed\b/,
+      /\bmoney\s+didn'?t\b/, /\bcash\s+didn'?t\b/, /\bpayment\s+(didn'?t|stuck|hung)\b/,
+      /\bgot\s+(rejected|declined|denied|cancelled|canceled)\b/,
+      /\bthey\s+(rejected|declined|denied|cancelled|canceled)\b/,
+      /\bcard\s+(declined|rejected|denied|failed)\b/,
+      /\btried\s+again\b/, /\bsame\s+(issue|problem|thing|error)\b/,
+      /\bnot\s+going\s+(in|through|out)\b/, /\bcan'?t\s+pay\b/,
+      /\bsend\s+me\s+another\b/, /\bgive\s+me\s+another\b/, /\bneed\s+another\s+(one|tag|handle)\b/,
+      /\banother\s+(tag|handle|one|cashapp)\b/, /\bdifferent\s+(tag|handle|one|cashapp)\b/
     ]
 
     weak_signals = [/\berror\b/, /\bwrong\b/, /\bissue\b/, /\bproblem\b/]
