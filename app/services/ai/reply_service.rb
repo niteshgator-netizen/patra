@@ -240,9 +240,24 @@ class Ai::ReplyService
     'google pay', 'bolt', 'secure link', 'online pay'
   ].freeze
 
+  OUR_HANDLES = {
+    'cashapp' => ['hustle09'],
+    'paypal' => [],
+    'venmo' => [],
+    'chime' => [],
+    'varo' => [],
+    'zelle' => [],
+    'boltpay' => [],
+    'applepay' => [],
+    'usdt' => []
+  }.freeze
+
   def initialize(conversation_id, account_id: nil, attachments: nil)
     @conversation_id = conversation_id
     @bridge_account_id = account_id
+    # Raw bridge payload (may include payload.url / payload.thumb_url); kept for
+    # finance log image URLs alongside normalized @attachments.
+    @raw_fb_attachments = Array(attachments)
     # FB bridge hands us the raw FB webhook attachments (string-keyed for
     # ActiveJob serialization). Normalize once so the rest of the file can
     # use a stable [{ url:, type: }] shape with symbol keys.
@@ -367,14 +382,92 @@ class Ai::ReplyService
       if image_url.present?
         payment = Ai::ImagePaymentExtractor.new(image_url).extract
         if payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
-          append_patra_finance_log!(payment)
-          Rails.logger.info(
-            "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]}"
-          )
-          @grok_payment_injection = [
+          grok_injection = nil
+          raw_first = @raw_fb_attachments.first
+          raw_h = raw_first.is_a?(Hash) ? raw_first.stringify_keys : {}
+          image_url_for_log = raw_h.dig('payload', 'url').presence || raw_h['url'].presence || image_url
+          thumb_url_for_log = raw_h.dig('payload', 'thumb_url').presence || image_url_for_log
+
+          log_entry = {
+            'kind' => 'deposit',
+            'amount' => payment[:amount],
+            'platform' => payment[:platform],
+            'sender_name' => payment[:sender_name],
+            'sender_handle' => payment[:sender_handle],
+            'recipient_name' => payment[:recipient_name],
+            'recipient_handle' => payment[:recipient_handle],
+            'transaction_id' => payment[:transaction_id],
+            'transaction_date' => payment[:transaction_date],
+            'transaction_time' => payment[:transaction_time],
+            'note_or_memo' => payment[:note_or_memo],
+            'status' => payment[:status],
+            'confidence' => payment[:confidence],
+            'image_url' => image_url_for_log,
+            'image_thumb_url' => thumb_url_for_log,
+            'image_received_at' => Time.current.iso8601,
+            'source' => 'image_auto'
+          }
+
+          contact_id = fetch_sender_contact_id
+          if contact_id.present?
+            contact_response = HTTParty.get(
+              "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+              headers: chatwoot_headers,
+              timeout: HTTP_TIMEOUT
+            )
+            if contact_response.success?
+              contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
+              attrs = (contact['custom_attributes'] || {}).stringify_keys
+              existing_logs = Array.wrap(attrs['patra_finance_logs'])
+
+              tx_id = payment[:transaction_id].to_s.strip
+              if tx_id.present?
+                duplicate = existing_logs.find { |e| e.is_a?(Hash) && e['transaction_id'].to_s.strip == tx_id }
+                if duplicate
+                  log_entry['kind'] = 'flagged'
+                  log_entry['flag_reason'] = 'duplicate'
+                  Rails.logger.warn("[ReplyService] DUPLICATE transaction_id=#{tx_id} contact=#{contact_id}")
+                  grok_injection = "DUPLICATE SCREENSHOT. Customer sent a receipt with transaction_id #{tx_id} that was already logged. Politely tell them you've already seen this exact receipt and ask for a fresh one if they made a new payment. Do NOT confirm a deposit and do NOT offer any bonus."
+                end
+              end
+
+              unless log_entry['flag_reason']
+                recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
+                platform = payment[:platform].to_s.downcase
+                expected = OUR_HANDLES[platform]
+                if recip_handle.present? && expected.present? && expected.is_a?(Array) && !expected.map(&:downcase).include?(recip_handle)
+                  log_entry['kind'] = 'flagged'
+                  log_entry['flag_reason'] = 'recipient_mismatch'
+                  log_entry['expected_handle'] = expected.first
+                  Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected} got=#{recip_handle} contact=#{contact_id}")
+                  grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is $#{expected.first}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to $#{expected.first}. Do NOT confirm a deposit and do NOT offer a bonus."
+                end
+              end
+
+              updated_logs = existing_logs + [log_entry]
+              attrs['patra_finance_logs'] = updated_logs
+              patch_response = HTTParty.patch(
+                "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+                headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+                body: { custom_attributes: attrs }.to_json,
+                timeout: HTTP_TIMEOUT
+              )
+
+              unless patch_response.success?
+                Rails.logger.warn(
+                  "[ReplyService] patra_finance_logs patch failed HTTP #{patch_response.code}: #{patch_response.body}"
+                )
+              end
+            end
+          end
+
+          @grok_payment_injection = grok_injection.presence || [
             "Customer just sent a payment screenshot: $#{payment[:amount]} via #{payment[:platform]}.",
             'Confirm receipt naturally, ask for their game username if not on file, and offer the correct bonus per the rules ($5+ deposit = 20-40% bonus based on loyalty tier).'
           ].join(' ')
+          Rails.logger.info(
+            "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]}"
+          )
         else
           sub = if last_user_plain.strip.present?
                   Ai::ComplexityClassifier.classify(last_user_plain, has_attachment: false)
@@ -622,46 +715,6 @@ class Ai::ReplyService
     row['content'] = "#{inj}\n\n#{existing}".strip
     duped[idx] = row
     duped
-  end
-
-  def append_patra_finance_log!(payment)
-    contact_id = fetch_sender_contact_id
-    return if contact_id.blank?
-
-    contact_response = HTTParty.get(
-      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
-      headers: chatwoot_headers,
-      timeout: HTTP_TIMEOUT
-    )
-    return unless contact_response.success?
-
-    contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
-    attrs = (contact['custom_attributes'] || {}).stringify_keys
-    logs = Array.wrap(attrs['patra_finance_logs'])
-    logs << {
-      'kind' => 'deposit',
-      'amount' => payment[:amount],
-      'platform' => payment[:platform].to_s,
-      'recipient' => payment[:recipient].to_s,
-      'logged_at' => Time.current.iso8601,
-      'source' => 'image_auto'
-    }
-    attrs['patra_finance_logs'] = logs
-
-    patch_response = HTTParty.patch(
-      "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
-      headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
-      body: { custom_attributes: attrs }.to_json,
-      timeout: HTTP_TIMEOUT
-    )
-
-    return if patch_response.success?
-
-    Rails.logger.warn(
-      "[ReplyService] patra_finance_logs patch failed HTTP #{patch_response.code}: #{patch_response.body}"
-    )
-  rescue StandardError => e
-    Rails.logger.warn("[ReplyService] append_patra_finance_log! #{e.class}: #{e.message}")
   end
 
   def fetch_sender_contact_id

@@ -9,24 +9,40 @@ module Ai
   class ImagePaymentExtractor
     ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
     MODEL = 'claude-haiku-4-5-20251001'
-    MAX_TOKENS = 200
+    MAX_TOKENS = 400
     TIMEOUT_SEC = 15
 
-    VISION_PROMPT = <<~PROMPT.freeze
-      You are analyzing a screenshot from a customer of an online gaming/sweepstakes platform. Determine if this is a payment confirmation screenshot.
+    VISION_PROMPT = <<~'PROMPT'.freeze
+      You are analyzing a screenshot from a customer of an online gaming/sweepstakes platform. Determine if this is a payment confirmation screenshot and extract every identifying detail.
 
       Respond with ONLY valid JSON, no markdown fences, no explanation.
 
       If IT IS a payment screenshot:
-      {"is_payment": true, "platform": "cashapp|paypal|chime|venmo|varo|boltpay|zelle|applepay|unknown", "amount": <number in dollars, no $ sign>, "recipient": "<handle or null>", "status": "sent|pending|failed|completed", "confidence": "high|medium|low"}
+      {
+        "is_payment": true,
+        "platform": "cashapp|paypal|chime|venmo|varo|boltpay|zelle|applepay|usdt|unknown",
+        "amount": <number in dollars, no $ sign>,
+        "sender_name": "<full name of the person who sent the money as shown on the receipt, or null>",
+        "sender_handle": "<$cashtag or @handle of sender if visible, or null>",
+        "recipient_name": "<full name of the recipient as shown on the receipt, or null>",
+        "recipient_handle": "<$cashtag or @handle of recipient if visible, or null>",
+        "transaction_id": "<transaction number / reference ID / payment ID shown anywhere on the receipt, copied verbatim, or null>",
+        "transaction_date": "<date as written on the receipt, e.g. 'May 11, 2026' or 'Today' or '5/11/26', or null>",
+        "transaction_time": "<time as written, e.g. '5:45 PM' or '17:45', or null>",
+        "status": "sent|pending|failed|completed",
+        "note_or_memo": "<the 'For' / 'Note' / 'Memo' field value if shown, or null>",
+        "confidence": "high|medium|low"
+      }
 
-      If NOT a payment screenshot (game screenshot, selfie, meme, ID, document, anything else):
+      If NOT a payment screenshot:
       {"is_payment": false, "confidence": "high"}
 
       Rules:
-      - Only return is_payment:true if at least 70% confident
-      - amount must be a number, not a string
-      - If you cannot read the amount clearly, return is_payment:false
+      - Return is_payment:true only if at least 70 percent confident.
+      - amount must be a number, not a string.
+      - Read names, handles, and transaction_id EXACTLY as shown. Do not paraphrase. Do not invent.
+      - transaction_id is critical for duplicate detection — extract it verbatim if visible.
+      - If a field is not visible or unreadable, return null. Do not guess.
     PROMPT
 
     def initialize(image_url)
