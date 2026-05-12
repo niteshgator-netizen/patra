@@ -5,49 +5,60 @@ class PaymentHandle < ApplicationRecord
 
   encrypts :verification_email_password
 
-  PLATFORMS = %w[cashapp chime venmo paypal varo zelle boltpay applepay usdt].freeze
-  STATUSES = %w[active limited frozen cooldown disabled].freeze
-  MAX_PRIORITY = {
-    'cashapp' => 3, 'chime' => 3, 'paypal' => 3,
-    'venmo' => 2,
-    'varo' => 1, 'zelle' => 1, 'boltpay' => 1, 'applepay' => 1, 'usdt' => 1
+  PLATFORMS = %w[cashapp chime paypal venmo zelle].freeze
+  MAX_HANDLES_PER_PLATFORM = {
+    'cashapp' => 3,
+    'chime' => 3,
+    'paypal' => 3,
+    'venmo' => 2
   }.freeze
+  STATUSES = %w[active failed disabled].freeze
+
+  scope :active_for, ->(platform) { where(platform: platform, status: 'active').order(:priority) }
+  scope :for_platform, ->(platform) { where(platform: platform).order(:priority) }
 
   validates :platform, presence: true, inclusion: { in: PLATFORMS }
   validates :handle, presence: true
   validates :priority, presence: true, numericality: { only_integer: true, greater_than: 0 }
   validates :status, inclusion: { in: STATUSES }
-  validate :priority_within_max
+  validate :cannot_exceed_max_handles
 
-  scope :active_for, lambda { |platform|
-    where(platform: platform, status: 'active')
-      .where('cooldown_until IS NULL OR cooldown_until < ?', Time.current)
-      .order(:priority)
-  }
-
-  def usable?
-    status == 'active' && (cooldown_until.nil? || cooldown_until < Time.current)
-  end
-
-  def display_handle
-    return handle if handle.start_with?('$', '@')
-
-    case platform
-    when 'cashapp' then "$#{handle}"
-    else "@#{handle}"
-    end
-  end
+  before_validation :normalize_handle_value
 
   def normalized_handle
     handle.to_s.gsub(/^[\$@]/, '').strip.downcase
   end
 
+  def display_handle
+    display_name.presence || handle
+  end
+
+  def active?
+    status == 'active'
+  end
+
+  def in_cooldown?
+    cooldown_until.present? && cooldown_until > Time.current
+  end
+
+  def available?
+    active? && !in_cooldown?
+  end
+
   private
 
-  def priority_within_max
-    max = MAX_PRIORITY[platform]
-    return unless max && priority && priority > max
+  def normalize_handle_value
+    self.handle = normalized_handle if handle.present?
+  end
 
-    errors.add(:priority, "exceeds max for #{platform} (#{max})")
+  def cannot_exceed_max_handles
+    return if account.blank? || platform.blank?
+
+    max = MAX_HANDLES_PER_PLATFORM[platform] || 1
+    scope = account.payment_handles.where(platform: platform)
+    scope = scope.where.not(id: id) if persisted?
+    return if scope.count < max
+
+    errors.add(:base, "cannot exceed #{max} handles for this platform")
   end
 end
