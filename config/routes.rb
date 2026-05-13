@@ -402,6 +402,9 @@ Rails.application.routes.draw do
           resources :agent_games do
             member do
               post :test_connection
+              post :load_player
+              post :cashout_player
+              post :check_player
             end
             collection do
               get :available_games

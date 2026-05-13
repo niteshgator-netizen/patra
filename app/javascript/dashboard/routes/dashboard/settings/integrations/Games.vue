@@ -42,6 +42,7 @@
         :agent-game="game.agentGame"
         @configure="openConfigModal(game)"
         @toggle="toggleGameStatus(game)"
+        @manage-players="openPlayerActions(game)"
       />
     </div>
 
@@ -53,6 +54,13 @@
       @saved="onAgentGameSaved"
       @disconnected="onAgentGameDisconnected"
     />
+
+    <GamePlayerActionsModal
+      v-if="selectedPlayerActionsGame"
+      :game="selectedPlayerActionsGame"
+      :agent-game="selectedPlayerActionsGame.agentGame"
+      @close="closePlayerActions"
+    />
   </div>
 </template>
 
@@ -60,17 +68,19 @@
 import GamesAPI from '../../../../api/games';
 import GameCard from '../../../../components/widgets/GameCard.vue';
 import GameConfigModal from '../../../../components/widgets/GameConfigModal.vue';
+import GamePlayerActionsModal from '../../../../components/widgets/GamePlayerActionsModal.vue';
 import { useAlert } from 'dashboard/composables';
 
 export default {
   name: 'GamesSettings',
-  components: { GameCard, GameConfigModal },
+  components: { GameCard, GameConfigModal, GamePlayerActionsModal },
   data() {
     return {
       availableGames: [],
       agentGames: [],
       isLoading: true,
       selectedGame: null,
+      selectedPlayerActionsGame: null,
     };
   },
   computed: {
@@ -116,6 +126,12 @@ export default {
     },
     closeConfigModal() {
       this.selectedGame = null;
+    },
+    openPlayerActions(game) {
+      this.selectedPlayerActionsGame = game;
+    },
+    closePlayerActions() {
+      this.selectedPlayerActionsGame = null;
     },
     async toggleGameStatus(game) {
       try {

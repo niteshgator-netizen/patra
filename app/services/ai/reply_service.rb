@@ -378,6 +378,35 @@ class Ai::ReplyService
     )
     Rails.logger.info("[ReplyService] complexity=#{complexity} msg_len=#{last_user_plain.length}")
 
+    # Game flow orchestrator — handles load/cashout intents before normal Bella flow.
+    # Wrapped in defined?() + rescue so a failure here never breaks the reply path.
+    if defined?(Games::ConversationOrchestrator) && @bridge_account_id.present?
+      begin
+        orchestrator_account = Account.find_by(id: @bridge_account_id)
+        if orchestrator_account
+          orchestrator_contact_id = fetch_sender_contact_id
+          orchestrator_contact = orchestrator_contact_id ? orchestrator_account.contacts.find_by(id: orchestrator_contact_id) : nil
+          if orchestrator_contact
+            orchestrator_conversation = orchestrator_account.conversations.find_by(display_id: @conversation_id)
+            orchestrator_messages = messages.map { |m| { role: m['role'], content: m['content'] } }
+            orchestrator_result = Games::ConversationOrchestrator.new(
+              account: orchestrator_account,
+              contact: orchestrator_contact,
+              conversation: orchestrator_conversation,
+              messages: orchestrator_messages
+            ).handle
+            if orchestrator_result.is_a?(Hash) && orchestrator_result[:reply].to_s.strip.present?
+              add_conversation_labels!(Array(orchestrator_result[:labels]))
+              Rails.logger.info("[ReplyService] routed=game_orchestrator labels=#{Array(orchestrator_result[:labels]).join(',')}")
+              return orchestrator_result[:reply].to_s
+            end
+          end
+        end
+      rescue StandardError => e
+        Rails.logger.error("[ReplyService] Orchestrator error: #{e.class}: #{e.message}")
+      end
+    end
+
     case complexity
     when :has_image
       if image_url.present?

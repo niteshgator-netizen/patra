@@ -26,6 +26,24 @@
       "TEST_CONNECTION": "Test connection",
       "DISCONNECT": "Disconnect"
     },
+    "ACTIONS_MODAL": {
+      "TITLE": "Manage Players · {gameName}",
+      "USERNAME_LABEL": "Game username",
+      "USERNAME_PLACEHOLDER": "e.g. gator99",
+      "AMOUNT_LABEL": "Amount (USD)",
+      "PAYMENT_METHOD_LABEL": "Payment method (for tracking)",
+      "PAYMENT_METHOD_PLACEHOLDER": "cashapp / chime / paypal / venmo / zelle",
+      "CHECK_BALANCE_BTN": "Check Balance",
+      "LOAD_BTN": "Load",
+      "CASHOUT_BTN": "Cashout",
+      "BALANCE_RESULT": "Player balance: ${balance}",
+      "LOAD_SUCCESS": "✓ Loaded ${amount} to {username}",
+      "CASHOUT_SUCCESS": "✓ Cashed out ${amount} from {username}",
+      "ERROR_PREFIX": "Error: "
+    },
+    "CARD_ACTIONS": {
+      "MANAGE_PLAYERS": "Manage Players"
+    },
     "MODAL": {
       "TITLE": "Configure {gameName}",
       "CREDENTIALS_TAB": "API Credentials",

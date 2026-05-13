@@ -24,16 +24,19 @@
     </div>
 
     <div class="game-card__foot">
-      <button class="btn" type="button" @click="$emit('configure')">
-        {{ $t('GAMES.ACTIONS.CONFIGURE') }}
-      </button>
-      <button
-        type="button"
-        class="toggle-switch"
-        :class="{ on: isActive }"
-        :aria-pressed="isActive"
-        @click.stop="$emit('toggle')"
-      />
+      <div class="game-card__foot-left">
+        <button class="btn" @click="$emit('configure')">
+          {{ $t('GAMES.ACTIONS.CONFIGURE') }}
+        </button>
+        <button
+          v-if="isActive && agentGame && agentGame.api_configured"
+          class="btn btn--accent"
+          @click.stop="$emit('manage-players')"
+        >
+          {{ $t('GAMES.CARD_ACTIONS.MANAGE_PLAYERS') }}
+        </button>
+      </div>
+      <div class="toggle-switch" :class="{ on: isActive }" @click.stop="$emit('toggle')"></div>
     </div>
   </div>
 </template>
@@ -45,7 +48,7 @@ export default {
     game: { type: Object, required: true },
     agentGame: { type: Object, default: null },
   },
-  emits: ['configure', 'toggle'],
+  emits: ['configure', 'toggle', 'manage-players'],
   computed: {
     isActive() {
       return this.agentGame?.status === 'active';
@@ -225,6 +228,22 @@ export default {
   &.on::after {
     left: 17px;
     background: #0b0817;
+  }
+}
+
+.game-card__foot-left {
+  display: flex;
+  gap: 6px;
+}
+
+.btn--accent {
+  background: rgba(212, 175, 55, 0.12) !important;
+  color: #d4af37 !important;
+  border-color: rgba(212, 175, 55, 0.3) !important;
+
+  &:hover {
+    background: rgba(212, 175, 55, 0.18) !important;
+    border-color: #d4af37 !important;
   }
 }
 </style>
