@@ -24,7 +24,8 @@ module Games
     ].freeze
 
     USERNAME_PATTERNS = [
-      /(?:username|user|account|on\s+game\s*vault|on\s+gv|as)\s*:?\s*([a-z0-9_]{3,30})/i,
+      /(?:username|user)\s*:?\s*([a-z0-9_]{3,30})/i,
+      /(?:on\s+game\s*vault|on\s+gv)\s*:?\s*([a-z0-9_]{3,30})/i,
       /my\s+(?:username|name|user|account)\s+is\s+([a-z0-9_]{3,30})/i,
       /i'?m\s+([a-z0-9_]{3,30})\s+on/i
     ].freeze
@@ -182,6 +183,8 @@ module Games
           load loaded cashout redeem deposit yes no please thanks thx help me you my the and but with from for now today
           game games vault gv orion juwa kirin fire milky way panda sweep vegas cash dragon lightning noble joker room cashier bella patra
           new old username user account password email phone number name
+          ans send setup create need want first after that will check lyk did it hey can you
+          fast slow good bad quick just also
         ]
         reserved.include?(word.downcase)
       end
