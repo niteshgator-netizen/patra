@@ -153,12 +153,15 @@ module Games
           token: token
         )
 
+        # Stringify keys AND values — Net::HTTP#set_form requires string keys + values
+        form_data = request_params.map { |k, v| [k.to_s, v.to_s] }
+
         Rails.logger.info("[GameVault] POST #{path} (agent_id=#{agent_id}, ts=#{timestamp})")
 
         response = Net::HTTP.start(url.host, url.port, use_ssl: url.scheme == 'https',
                                    read_timeout: REQUEST_TIMEOUT, open_timeout: REQUEST_TIMEOUT) do |http|
           req = Net::HTTP::Post.new(url.path)
-          req.set_form(request_params.to_a, 'multipart/form-data')
+          req.set_form(form_data, 'multipart/form-data')
           http.request(req)
         end
 
