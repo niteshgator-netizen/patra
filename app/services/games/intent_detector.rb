@@ -59,14 +59,16 @@ module Games
     ].freeze
 
     CREATE_ACCOUNT_PATTERNS = [
-      /create\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account|profile|login)/i,
+      /create\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:username|user|account|profile|login|it)/i,
       /make\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account)/i,
-      /(?:i\s+)?need\s+(?:a\s+)?(?:new\s+)?(?:username|user|account)/i,
+      /(?:i\s+)?need\s+(?:an?\s+)?(?:new\s+)?(?:username|user|account)/i,
       /(?:can\s+you\s+)?sign\s+me\s+up/i,
       /set\s+(?:me\s+)?up\s+(?:a\s+)?(?:new\s+)?(?:account|username)/i,
       /never\s+played\s+(?:before|here)/i,
       /first\s+time\s+(?:playing|here)/i,
-      /(?:i\s+)?don'?t\s+have\s+(?:a\s+)?(?:username|account)/i
+      /(?:i\s+)?don'?t\s+have\s+(?:a\s+)?(?:username|account)/i,
+      /(?:set\s+it\s+up|set\s+me\s+up)/i,
+      /(?:i\s+)?(?:want|wanna|need)\s+(?:to\s+)?(?:join|start|play|get\s+(?:in|started))/i
     ].freeze
 
     class << self
