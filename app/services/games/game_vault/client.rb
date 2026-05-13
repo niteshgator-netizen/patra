@@ -68,6 +68,10 @@ module Games
         post('/api/external/getUserID', { account_name: account_name.to_s })
       end
 
+      def add_user(account:, password:)
+        add_player(account: account, login_pwd: password)
+      end
+
       def low_deposit_users(query_date:, page: 1, page_size: 20)
         post('/api/external/external/getLowDepositUsers', {
           query_date: query_date.to_s,

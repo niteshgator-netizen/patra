@@ -9,7 +9,9 @@ module Games
       /add\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /recharge\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /top\s*up\s+\$?(\d+(?:\.\d{1,2})?)/i,
-      /deposit\s+\$?(\d+(?:\.\d{1,2})?)/i
+      /deposit\s+\$?(\d+(?:\.\d{1,2})?)/i,
+      /load\s+(\d+(?:\.\d{1,2})?)\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
+      /(\d+(?:\.\d{1,2})?)\s*\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i
     ].freeze
 
     CASHOUT_PATTERNS = [
@@ -66,11 +68,14 @@ module Games
             reload_amount: extract_reload(text)
           }
         elsif (m = match_any(text, LOAD_PATTERNS))
+          amount = m[1].to_f
+          # Some patterns capture username in group 2
+          captured_username = m[2] if m.size > 2 && m[2].present?
           {
             intent: :load,
-            amount: m[1].to_f,
-            game_username: extract_username(text),
-            game_slug: detect_game(text)
+            amount: amount,
+            game_username: captured_username || extract_username(text),
+            game_slug: detect_game(text) || (captured_username ? 'game_vault' : nil)
           }
         elsif (username = extract_username(text)) && username.length >= 3
           { intent: :username_provided, game_username: username, game_slug: detect_game(text) }

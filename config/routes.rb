@@ -405,6 +405,7 @@ Rails.application.routes.draw do
               post :load_player
               post :cashout_player
               post :check_player
+              post :diagnose
             end
             collection do
               get :available_games

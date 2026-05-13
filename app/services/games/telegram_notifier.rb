@@ -88,10 +88,16 @@ module Games
       private
 
       def notify(account:, event:, text:, ignore_filters: false)
+        Rails.logger.info("[TelegramNotifier] event=#{event} account_id=#{account&.id} text_chars=#{text.to_s.length}")
         channel = resolve_channel(account, event, ignore_filters: ignore_filters)
-        return { ok: false, reason: 'no channel configured' } unless channel
+        unless channel
+          Rails.logger.warn("[TelegramNotifier] no channel resolved for event=#{event} account=#{account&.id}")
+          return { ok: false, reason: 'no channel configured' }
+        end
 
+        Rails.logger.info("[TelegramNotifier] sending via #{channel[:record] ? 'per-account' : 'global-env'} chat_id=#{channel[:chat_id]}")
         result = send_message(channel[:bot_token], channel[:chat_id], text)
+        Rails.logger.info("[TelegramNotifier] result=#{result.inspect}")
         record_outcome(channel[:record], result)
         result
       rescue StandardError => e
@@ -101,6 +107,7 @@ module Games
 
       # Returns hash with :bot_token, :chat_id, :record (or nil if global ENV)
       def resolve_channel(account, event, ignore_filters: false)
+        Rails.logger.info("[TelegramNotifier] resolving channel for event=#{event} account=#{account&.id} ignore_filters=#{ignore_filters}")
         # 1. Try per-account NotificationChannel
         if account && defined?(NotificationChannel)
           nc = account.notification_channels.active.find_by(channel_type: 'telegram')
