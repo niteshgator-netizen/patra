@@ -1,0 +1,47 @@
+{
+  "GAMES": {
+    "HEADER": "Game integrations",
+    "DESCRIPTION": "Connect the sweepstakes platforms you operate. Bella will reference active games when customers ask, and route load/redeem actions through your stored API credentials.",
+    "TIP_BANNER": "Your API keys are encrypted and isolated to your workspace — Patra never sees other operators' data.",
+    "LOADING": "Loading games…",
+    "STATS": {
+      "AVAILABLE": "Available",
+      "ACTIVATED": "Activated",
+      "API_CONNECTED": "API connected",
+      "PENDING_SETUP": "Pending setup"
+    },
+    "STATUS": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "API_CONNECTED": "API connected",
+      "API_PENDING": "API pending"
+    },
+    "ACTIONS": {
+      "CONFIGURE": "Configure",
+      "ACTIVATE": "Activate",
+      "DEACTIVATE": "Deactivate",
+      "SAVE": "Save changes",
+      "CANCEL": "Cancel",
+      "TEST_CONNECTION": "Test connection",
+      "DISCONNECT": "Disconnect"
+    },
+    "MODAL": {
+      "TITLE": "Configure {gameName}",
+      "CREDENTIALS_TAB": "API Credentials",
+      "CONNECTION_TAB": "Connection",
+      "ADVANCED_TAB": "Advanced",
+      "IP_WHITELIST_LABEL": "I have added Patra's IP to my {gameName} whitelist",
+      "IP_WHITELIST_HELP": "Required for API connection. Find this in your {gameName} agent panel.",
+      "DISPLAY_NAME_LABEL": "Display name (optional)",
+      "DISPLAY_NAME_HELP": "How Bella will refer to this game",
+      "NOTES_LABEL": "Notes (private)",
+      "DELETE_CONFIRM": "Are you sure you want to disconnect {gameName}? Your credentials will be deleted."
+    },
+    "TOAST": {
+      "ACTIVATED": "Game activated",
+      "UPDATED": "Game settings updated",
+      "DEACTIVATED": "Game deactivated",
+      "ERROR": "Something went wrong. Try again."
+    }
+  }
+}

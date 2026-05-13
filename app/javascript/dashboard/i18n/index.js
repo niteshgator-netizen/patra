@@ -6,6 +6,7 @@ import da from './locale/da';
 import de from './locale/de';
 import el from './locale/el';
 import en from './locale/en';
+import games from './locale/en/games.json';
 import es from './locale/es';
 import fa from './locale/fa';
 import fi from './locale/fi';
@@ -47,7 +48,10 @@ export default {
   da,
   de,
   el,
-  en,
+  en: {
+    ...en,
+    ...games,
+  },
   es,
   fa,
   fi,
