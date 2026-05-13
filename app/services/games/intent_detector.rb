@@ -67,35 +67,43 @@ module Games
         return nil if message_text.blank?
 
         text = message_text.to_s
+        Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
 
-        if match_any(text, CREATE_ACCOUNT_PATTERNS)
-          {
-            intent: :request_account_creation,
-            game_slug: detect_game(text) || 'game_vault'
-          }
-        elsif (m = match_any(text, CASHOUT_PATTERNS))
-          {
-            intent: :cashout,
-            amount: m[1] ? m[1].to_f : nil,
-            game_username: extract_username(text),
-            game_slug: detect_game(text),
-            total_points: extract_points(text),
-            tip_amount: extract_tip(text),
-            reload_amount: extract_reload(text)
-          }
-        elsif (m = match_any(text, LOAD_PATTERNS))
-          amount = m[1].to_f
-          # Some patterns capture username in group 2
-          captured_username = m[2] if m.size > 2 && m[2].present?
-          {
-            intent: :load,
-            amount: amount,
-            game_username: captured_username || extract_username(text),
-            game_slug: detect_game(text) || (captured_username ? 'game_vault' : nil)
-          }
-        elsif (username = extract_username(text)) && username.length >= 3
-          { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
-        end
+        result = (if match_any(text, CREATE_ACCOUNT_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched create_account')
+                    {
+                      intent: :request_account_creation,
+                      game_slug: detect_game(text) || 'game_vault'
+                    }
+                  elsif (m = match_any(text, CASHOUT_PATTERNS))
+                    Rails.logger.info("[IntentDetector] matched cashout amount=#{m[1]}")
+                    {
+                      intent: :cashout,
+                      amount: m[1] ? m[1].to_f : nil,
+                      game_username: extract_username(text),
+                      game_slug: detect_game(text),
+                      total_points: extract_points(text),
+                      tip_amount: extract_tip(text),
+                      reload_amount: extract_reload(text)
+                    }
+                  elsif (m = match_any(text, LOAD_PATTERNS))
+                    amount = m[1].to_f
+                    # Some patterns capture username in group 2
+                    captured_username = m[2] if m.size > 2 && m[2].present?
+                    Rails.logger.info("[IntentDetector] matched load amount=#{m[1]}")
+                    {
+                      intent: :load,
+                      amount: amount,
+                      game_username: captured_username || extract_username(text),
+                      game_slug: detect_game(text) || (captured_username ? 'game_vault' : nil)
+                    }
+                  elsif (username = extract_username(text)) && username.length >= 3
+                    Rails.logger.info("[IntentDetector] matched username #{username}")
+                    { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
+                  end)
+
+        Rails.logger.info("[IntentDetector] result=#{result.inspect}")
+        result
       end
 
       private
@@ -140,7 +148,12 @@ module Games
       end
 
       def common_word?(word)
-        %w[load loaded cashout redeem deposit yes no please thanks thx help me you my the and but with from for now today].include?(word.downcase)
+        reserved = %w[
+          load loaded cashout redeem deposit yes no please thanks thx help me you my the and but with from for now today
+          game games vault gv orion juwa kirin fire milky way panda sweep vegas cash dragon lightning noble joker room cashier bella patra
+          new old username user account password email phone number name
+        ]
+        reserved.include?(word.downcase)
       end
     end
   end

@@ -18,9 +18,15 @@ module Games
       return nil unless account && contact
 
       latest_text = latest_customer_text
-      return nil if latest_text.blank?
+      combined_text = recent_customer_text
+      probe_text = combined_text.presence || latest_text
 
-      intent = Games::IntentDetector.detect(latest_text)
+      Rails.logger.info("[Orchestrator] handle starting account=#{account&.id} contact=#{contact&.id} latest=#{latest_text.to_s[0..100]} combined=#{combined_text.to_s[0..200]}")
+
+      return nil if probe_text.blank?
+
+      intent = Games::IntentDetector.detect(probe_text)
+      Rails.logger.info("[Orchestrator] intent_detector returned: #{intent.inspect}")
       return nil if intent.nil?
 
       case intent[:intent]
@@ -81,7 +87,7 @@ module Games
         game_username: username,
         amount: requested_amount,
         payment_method: payment[:method],
-        metadata: { source: 'bella_auto', payment_id: payment[:id], message: latest_customer_text.to_s[0..200] }
+        metadata: { source: 'bella_auto', payment_id: payment[:id], message: recent_customer_text.to_s[0..200] }
       )
 
       # Code 8 = user not found → auto-create + retry
@@ -188,7 +194,7 @@ module Games
         deposit_payment_method: stored_payment_method,
         cashout_payment_method: nil,
         applied_rules: calc.applied_rules,
-        customer_message: latest_customer_text.to_s[0..500],
+        customer_message: recent_customer_text.to_s[0..500],
         status: 'pending'
       )
 
@@ -416,6 +422,34 @@ module Games
       else
         last.content.to_s
       end
+    end
+
+    def recent_customer_text
+      # Returns concatenated content of the last 3 customer messages
+      # to handle split intent like "Load me 20$ on" + "Game vault"
+      return nil unless messages.is_a?(Array)
+
+      customer_messages = messages.select do |m|
+        if m.is_a?(Hash)
+          role = m[:role] || m['role']
+          role.to_s == 'user'
+        else
+          m.respond_to?(:incoming?) && m.incoming?
+        end
+      end
+
+      return nil if customer_messages.empty?
+
+      recent = customer_messages.last(3)
+      texts = recent.map do |m|
+        if m.is_a?(Hash)
+          (m[:content] || m['content']).to_s
+        else
+          m.content.to_s
+        end
+      end
+
+      texts.reject(&:blank?).join(' ').strip.presence
     end
 
     def stored_game_username(game_slug)
