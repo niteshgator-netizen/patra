@@ -60,6 +60,7 @@ class Account < ApplicationRecord
   has_many :agent_games, dependent: :destroy
   has_many :game_actions, dependent: :destroy
   has_many :cashout_requests, dependent: :destroy
+  has_many :notification_channels, dependent: :destroy
   has_many :api_channels, dependent: :destroy_async, class_name: '::Channel::Api'
   has_many :articles, dependent: :destroy_async, class_name: '::Article'
   has_many :assignment_policies, dependent: :destroy_async

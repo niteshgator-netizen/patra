@@ -107,6 +107,14 @@ export default {
           },
         },
         {
+          path: 'notifications',
+          name: 'settings_integrations_notifications',
+          component: () => import('./Notifications.vue'),
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
           path: ':integration_id',
           name: 'settings_applications_integration',
           component: IntegrationHooks,

@@ -7,6 +7,7 @@ import de from './locale/de';
 import el from './locale/el';
 import en from './locale/en';
 import games from './locale/en/games.json';
+import notificationsEn from './locale/en/notifications.json';
 import es from './locale/es';
 import fa from './locale/fa';
 import fi from './locale/fi';
@@ -51,6 +52,7 @@ export default {
   en: {
     ...en,
     ...games,
+    ...notificationsEn,
   },
   es,
   fa,
