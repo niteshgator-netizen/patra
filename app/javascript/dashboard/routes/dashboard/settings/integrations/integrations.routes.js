@@ -10,6 +10,7 @@ import Linear from './Linear.vue';
 import Notion from './Notion.vue';
 import Shopify from './Shopify.vue';
 import PaymentHandles from './PaymentHandles.vue';
+import Games from './Games.vue';
 
 export default {
   routes: [
@@ -93,6 +94,14 @@ export default {
           path: 'payment_handles',
           name: 'settings_integrations_payment_handles',
           component: PaymentHandles,
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'games',
+          name: 'settings_integrations_games',
+          component: Games,
           meta: {
             permissions: ['administrator'],
           },
