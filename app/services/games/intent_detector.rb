@@ -51,13 +51,29 @@ module Games
       /(?:and\s+)?keep\s+\$?(\d+(?:\.\d{1,2})?)\s+in/i
     ].freeze
 
+    CREATE_ACCOUNT_PATTERNS = [
+      /create\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account|profile|login)/i,
+      /make\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account)/i,
+      /(?:i\s+)?need\s+(?:a\s+)?(?:new\s+)?(?:username|user|account)/i,
+      /(?:can\s+you\s+)?sign\s+me\s+up/i,
+      /set\s+(?:me\s+)?up\s+(?:a\s+)?(?:new\s+)?(?:account|username)/i,
+      /never\s+played\s+(?:before|here)/i,
+      /first\s+time\s+(?:playing|here)/i,
+      /(?:i\s+)?don'?t\s+have\s+(?:a\s+)?(?:username|account)/i
+    ].freeze
+
     class << self
       def detect(message_text)
         return nil if message_text.blank?
 
         text = message_text.to_s
 
-        if (m = match_any(text, CASHOUT_PATTERNS))
+        if match_any(text, CREATE_ACCOUNT_PATTERNS)
+          {
+            intent: :request_account_creation,
+            game_slug: detect_game(text) || 'game_vault'
+          }
+        elsif (m = match_any(text, CASHOUT_PATTERNS))
           {
             intent: :cashout,
             amount: m[1] ? m[1].to_f : nil,
