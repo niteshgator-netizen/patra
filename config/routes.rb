@@ -400,6 +400,9 @@ Rails.application.routes.draw do
           resources :upload, only: [:create]
           resources :payment_handles, only: [:index, :create, :update, :destroy]
           resources :agent_games do
+            member do
+              post :test_connection
+            end
             collection do
               get :available_games
             end
