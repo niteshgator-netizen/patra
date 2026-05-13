@@ -574,7 +574,7 @@ module Games
 
     def active_payment_handle_for_account
       if defined?(PaymentHandle)
-        handle = PaymentHandle.where(account_id: account.id, status: 'active').order(:position).first
+        handle = PaymentHandle.where(account_id: account.id, status: 'active').order(:id).first
         return "#{handle.platform} #{handle.handle}" if handle
       end
       'the payment handle in our last message'
