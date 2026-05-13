@@ -323,11 +323,38 @@ module Games
       recent_payment = find_unloaded_confirmed_payment
 
       unless recent_payment
-        # No payment yet — ask for payment first
+        # No payment yet — create account first, then ask for payment
+        auto_username = generate_auto_username
+        executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+        add_result = executor.add_player(game_username: auto_username)
+
+        unless add_result[:ok]
+          auto_username = generate_auto_username
+          add_result = executor.add_player(game_username: auto_username)
+        end
+
+        unless add_result[:ok]
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: "Failed to auto-create username on #{ag.game.name}: #{add_result[:error]}",
+              conversation: conversation
+            )
+          end
+          return {
+            reply: "hit a snag creating your account — flagged a teammate, they'll get you set up in a couple minutes.",
+            labels: ['account-creation-failed', 'needs-human']
+          }
+        end
+
+        generated_password = add_result[:password]
+        store_game_username(ag.game.slug, auto_username)
+        store_game_password(ag.game.slug, generated_password)
         handle_text = active_payment_handle_for_account
+
         return {
-          reply: "happy to set up your #{ag.game.name} account! first send your deposit to #{handle_text} and drop the screenshot here — once it confirms, i'll create your account and load you up.",
-          labels: ['awaiting-payment', 'account-creation-requested']
+          reply: "all set! your username: #{auto_username}, password: #{generated_password} (save this!) — now send your deposit to #{handle_text} and drop the screenshot here, i'll load you up right away 🎰",
+          labels: ['account-created', 'awaiting-payment']
         }
       end
 
