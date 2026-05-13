@@ -45,6 +45,28 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
     head :no_content
   end
 
+  def test_connection
+    @agent_game = Current.account.agent_games.find(params[:id])
+
+    unless @agent_game.game.slug == 'game_vault'
+      return render json: { ok: false, message: "Test connection not supported for #{@agent_game.game.name} yet" }, status: :ok
+    end
+
+    client = Games::GameVault::Client.new(@agent_game)
+    result = client.test_connection
+
+    if result[:ok]
+      @agent_game.reset_failures! if @agent_game.failure_count > 0
+      @agent_game.mark_used!
+    else
+      @agent_game.record_failure!
+    end
+
+    render json: result
+  rescue ArgumentError => e
+    render json: { ok: false, message: e.message }, status: :unprocessable_entity
+  end
+
   private
 
   def fetch_agent_game

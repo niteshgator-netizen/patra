@@ -28,6 +28,10 @@ class GamesAPI extends ApiClient {
   remove(id) {
     return axios.delete(`${this.url}/${id}`);
   }
+
+  testConnection(id) {
+    return axios.post(`${this.url}/${id}/test_connection`);
+  }
 }
 
 export default new GamesAPI();

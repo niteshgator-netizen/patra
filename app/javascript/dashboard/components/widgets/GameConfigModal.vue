@@ -15,6 +15,10 @@
       </header>
 
       <div class="modal__body">
+        <div v-if="testResult" class="test-result" :class="testResult.ok ? 'test-result--ok' : 'test-result--error'">
+          <span v-if="testResult.ok">✓ {{ testResult.message }}<span v-if="testResult.balance"> · Balance: ${{ testResult.balance }}</span></span>
+          <span v-else>✗ {{ testResult.message }}</span>
+        </div>
         <div v-if="errorMessage" class="error-banner">{{ errorMessage }}</div>
 
         <div v-if="game.has_api" class="section">
@@ -57,6 +61,15 @@
           {{ $t('GAMES.ACTIONS.DISCONNECT') }}
         </button>
         <div class="modal__foot-right">
+          <button
+            v-if="agentGame && agentGame.game && agentGame.game.has_api"
+            type="button"
+            class="btn btn--ghost"
+            :disabled="isTesting"
+            @click="testConnection"
+          >
+            {{ isTesting ? 'Testing…' : 'Test Connection' }}
+          </button>
           <button type="button" class="btn" @click="$emit('close')">
             {{ $t('GAMES.ACTIONS.CANCEL') }}
           </button>
@@ -88,6 +101,8 @@ export default {
       ipWhitelistConfirmed: false,
       isSaving: false,
       errorMessage: '',
+      isTesting: false,
+      testResult: null,
     };
   },
   computed: {
@@ -146,6 +161,19 @@ export default {
         this.$emit('disconnected');
       } catch {
         useAlert(this.$t('GAMES.TOAST.ERROR'));
+      }
+    },
+    async testConnection() {
+      if (!this.agentGame) return;
+      this.isTesting = true;
+      this.testResult = null;
+      try {
+        const response = await GamesAPI.testConnection(this.agentGame.id);
+        this.testResult = response.data;
+      } catch (err) {
+        this.testResult = { ok: false, message: err.response?.data?.message || 'Test failed' };
+      } finally {
+        this.isTesting = false;
       }
     },
   },
@@ -405,6 +433,37 @@ export default {
     &:hover {
       background: rgba(248, 113, 113, 0.12) !important;
     }
+  }
+}
+
+.test-result {
+  padding: 10px 14px !important;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  font-family: 'JetBrains Mono', monospace;
+
+  &--ok {
+    background: rgba(74, 222, 128, 0.12) !important;
+    border: 1px solid rgba(74, 222, 128, 0.3) !important;
+    color: #4ADE80 !important;
+  }
+
+  &--error {
+    background: rgba(248, 113, 113, 0.12) !important;
+    border: 1px solid rgba(248, 113, 113, 0.3) !important;
+    color: #F87171 !important;
+  }
+}
+
+.btn--ghost {
+  background: transparent !important;
+  border: 1px solid #2D2356 !important;
+  color: #A89FCC !important;
+
+  &:hover {
+    color: #F4F1FF !important;
+    border-color: #4A3A8A !important;
   }
 }
 </style>
