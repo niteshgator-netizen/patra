@@ -161,13 +161,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   padding: 20px;
 }
 
 .modal {
-  background: #16102b;
-  border: 1px solid #2d2356;
+  background: #16102B !important;
+  border: 1px solid #2D2356 !important;
   border-radius: 16px;
   width: 100%;
   max-width: 540px;
@@ -175,12 +175,12 @@ export default {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  color: #f4f1ff;
+  color: #F4F1FF !important;
   font-family: 'Inter', sans-serif;
 
   &__head {
     padding: 20px 24px;
-    border-bottom: 1px solid #2d2356;
+    border-bottom: 1px solid #2D2356;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -197,28 +197,33 @@ export default {
     font-size: 18px;
     font-weight: 700;
     margin: 0;
+    color: #F4F1FF !important;
   }
 
   &__subtitle {
     font-size: 12px;
-    color: #6f6692;
+    color: #6F6692 !important;
     font-family: 'JetBrains Mono', monospace;
     margin-top: 2px;
   }
 
   &__close {
-    background: transparent;
-    border: 1px solid #2d2356;
-    color: #a89fcc;
+    background: transparent !important;
+    border: 1px solid #2D2356 !important;
+    color: #A89FCC !important;
     width: 32px;
     height: 32px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
 
     &:hover {
-      color: #f4f1ff;
-      border-color: #4a3a8a;
+      color: #F4F1FF !important;
+      border-color: #4A3A8A !important;
     }
   }
 
@@ -229,7 +234,7 @@ export default {
 
   &__foot {
     padding: 16px 24px;
-    border-top: 1px solid #2d2356;
+    border-top: 1px solid #2D2356;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -250,8 +255,8 @@ export default {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  background: #1f1740;
-  border: 1px solid #2d2356;
+  background: #1F1740 !important;
+  border: 1px solid #2D2356 !important;
 }
 
 .section {
@@ -262,7 +267,7 @@ export default {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #6f6692;
+    color: #6F6692 !important;
     margin-bottom: 12px;
     font-weight: 600;
   }
@@ -274,35 +279,45 @@ export default {
   &__label {
     display: block;
     font-size: 12px;
-    color: #a89fcc;
+    color: #A89FCC !important;
     margin-bottom: 6px;
     font-weight: 500;
   }
 
   &__input {
     width: 100%;
-    background: #1f1740;
-    border: 1px solid #2d2356;
-    border-radius: 8px;
-    padding: 9px 12px;
-    color: #f4f1ff;
-    font-size: 13px;
-    font-family: 'JetBrains Mono', monospace;
+    background: #1F1740 !important;
+    border: 1px solid #2D2356 !important;
+    border-radius: 8px !important;
+    padding: 9px 12px !important;
+    color: #F4F1FF !important;
+    font-size: 13px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    height: auto !important;
+
+    &::placeholder {
+      color: #6F6692 !important;
+    }
 
     &:focus {
-      outline: 2px solid #d4af37;
-      border-color: transparent;
+      outline: 2px solid #D4AF37 !important;
+      border-color: transparent !important;
+      background: #1F1740 !important;
+      box-shadow: none !important;
     }
   }
 
   &__textarea {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', sans-serif !important;
     resize: vertical;
+    min-height: 70px;
   }
 
   &__hint {
     font-size: 11px;
-    color: #6f6692;
+    color: #6F6692 !important;
     margin-top: 4px;
   }
 }
@@ -311,24 +326,36 @@ export default {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  background: #1f1740;
+  padding: 12px 14px;
+  background: #1F1740 !important;
+  border: 1px solid #2D2356 !important;
   border-radius: 8px;
   font-size: 13px;
+  color: #F4F1FF !important;
+  margin-bottom: 8px;
 
-  input[type='checkbox'] {
+  input[type="checkbox"] {
     cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: #D4AF37;
+    margin: 0 !important;
+    flex-shrink: 0;
   }
 
   label {
     cursor: pointer;
+    color: #F4F1FF !important;
+    margin: 0 !important;
+    font-weight: 400;
+    line-height: 1.4;
   }
 }
 
 .error-banner {
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  color: #f87171;
+  background: rgba(248, 113, 113, 0.12) !important;
+  border: 1px solid rgba(248, 113, 113, 0.3) !important;
+  color: #F87171 !important;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
@@ -336,44 +363,47 @@ export default {
 }
 
 .btn {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 9px 16px;
-  border-radius: 8px;
-  border: 1px solid #2d2356;
-  background: #1f1740;
-  color: #f4f1ff;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 9px 16px !important;
+  border-radius: 8px !important;
+  border: 1px solid #2D2356 !important;
+  background: #1F1740 !important;
+  color: #F4F1FF !important;
   cursor: pointer;
   transition: all 0.15s;
+  margin: 0 !important;
+  height: auto !important;
 
   &:hover {
-    border-color: #4a3a8a;
-    background: #2d2356;
+    border-color: #4A3A8A !important;
+    background: #2D2356 !important;
   }
 
   &--primary {
-    background: #d4af37;
-    color: #0b0817;
-    border-color: #d4af37;
+    background: #D4AF37 !important;
+    color: #0B0817 !important;
+    border-color: #D4AF37 !important;
 
     &:hover {
-      background: #b8961f;
-      border-color: #b8961f;
+      background: #B8961F !important;
+      border-color: #B8961F !important;
     }
 
     &:disabled {
-      opacity: 0.6;
+      opacity: 0.6 !important;
       cursor: not-allowed;
     }
   }
 
   &--danger {
-    color: #f87171;
-    border-color: rgba(248, 113, 113, 0.3);
+    color: #F87171 !important;
+    border-color: rgba(248, 113, 113, 0.3) !important;
+    background: transparent !important;
 
     &:hover {
-      background: rgba(248, 113, 113, 0.12);
+      background: rgba(248, 113, 113, 0.12) !important;
     }
   }
 }
