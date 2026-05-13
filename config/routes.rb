@@ -399,6 +399,11 @@ Rails.application.routes.draw do
 
           resources :upload, only: [:create]
           resources :payment_handles, only: [:index, :create, :update, :destroy]
+          resources :agent_games do
+            collection do
+              get :available_games
+            end
+          end
           resource :owner_stats, only: [:show]
         end
       end
@@ -689,6 +694,7 @@ Rails.application.routes.draw do
       resources :agent_bots, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         delete :avatar, on: :member, action: :destroy_avatar
       end
+      resources :games
       resources :platform_apps, only: [:index, :new, :create, :show, :edit, :update, :destroy]
       resources :platform_banners
       resource :instance_status, only: [:show]
