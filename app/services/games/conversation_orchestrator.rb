@@ -30,6 +30,8 @@ module Games
         handle_cashout_intent(intent)
       when :username_provided
         handle_username_provided(intent)
+      when :request_account_creation
+        handle_account_creation_request(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -310,6 +312,88 @@ module Games
       end
     end
 
+    def handle_account_creation_request(intent)
+      ag = pick_agent_game(intent[:game_slug] || 'game_vault')
+      return nil unless ag
+
+      # Check if customer has a confirmed payment waiting
+      recent_payment = find_unloaded_confirmed_payment
+
+      unless recent_payment
+        # No payment yet — ask for payment first
+        handle_text = active_payment_handle_for_account
+        return {
+          reply: "happy to set up your #{ag.game.name} account! first send your deposit to #{handle_text} and drop the screenshot here — once it confirms, i'll create your account and load you up.",
+          labels: ['awaiting-payment', 'account-creation-requested']
+        }
+      end
+
+      # Customer has confirmed payment — create account with auto-generated username
+      auto_username = generate_auto_username
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      add_result = executor.add_player(game_username: auto_username)
+
+      unless add_result[:ok]
+        # Maybe collision — try one more time with different name
+        auto_username = generate_auto_username
+        add_result = executor.add_player(game_username: auto_username)
+      end
+
+      unless add_result[:ok]
+        safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Failed to auto-create username on Game Vault: #{add_result[:error]}",
+            conversation: conversation
+          )
+        end
+        return {
+          reply: "hit a snag creating your account — flagged a teammate, they'll get you set up in a couple minutes.",
+          labels: ['account-creation-failed', 'needs-human']
+        }
+      end
+
+      generated_password = add_result[:password]
+      store_game_username(ag.game.slug, auto_username)
+      store_game_password(ag.game.slug, generated_password)
+
+      # Load the payment
+      result = executor.load_player(
+        game_username: auto_username,
+        amount: recent_payment[:amount],
+        payment_method: recent_payment[:method],
+        metadata: { source: 'bella_account_created', payment_id: recent_payment[:id] }
+      )
+
+      if result[:ok]
+        mark_payment_loaded(recent_payment[:id])
+        safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
+        {
+          reply: "all set! username: #{auto_username}, password: #{generated_password} (save this!) — loaded $#{recent_payment[:amount]} 🎰 good luck!",
+          labels: ['auto-load', 'new-account-created']
+        }
+      else
+        safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Created account #{auto_username} but load failed: #{result[:error]}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: "created your account! username: #{auto_username}, password: #{generated_password} (save this!) — but hit a snag loading your $#{recent_payment[:amount]}. a teammate will load it in a couple minutes.",
+          labels: ['account-created', 'load-failed', 'needs-human']
+        }
+      end
+    end
+
+    def generate_auto_username
+      # Generates a random username like "player8x3kf2"
+      "player#{SecureRandom.alphanumeric(6).downcase}"
+    end
+
     def pick_agent_game(game_slug)
       account.agent_games.joins(:game).where(games: { slug: game_slug }, status: 'active').first
     end
@@ -359,24 +443,33 @@ module Games
 
       logs.reverse.each do |log|
         next unless log.is_a?(Hash)
-        next unless %w[Confirmed completed verified].include?(log['status'].to_s)
+
+        # Status must be confirmed/completed/verified (case-insensitive)
+        status = log['status'].to_s.downcase
+        next unless %w[confirmed completed verified].include?(status)
+
+        # CRITICAL: Reject flagged duplicates and anything with a flag_reason
+        next if log['flag_reason'].to_s.strip.length > 0
+        next if log['raw_status'].to_s.downcase == 'pending'
 
         amount = parse_amount(log['amount'])
         next if amount.nil? || amount <= 0
 
-        time_str = log['recorded_at'] || log['transaction_time']
+        time_str = log['recorded_at'] || log['image_received_at'] || log['transaction_time']
         recorded = parse_time(time_str)
-        next if recorded && recorded < 6.hours.ago
+        # TIGHTER WINDOW: 30 minutes, not 6 hours
+        next if recorded && recorded < 30.minutes.ago
 
-        # Skip already-loaded payments
-        log_id = log['id'] || "#{log['amount']}_#{log['recorded_at']}"
+        log_id = log['id'] || log['transaction_id'] || "#{log['amount']}_#{log['recorded_at']}"
         next if payment_already_loaded?(log_id, amount, recorded)
 
-        # Match on amount (within 1 cent tolerance)
         if (amount - requested_amount).abs < 0.01
+          Rails.logger.info("[Orchestrator] matched payment id=#{log_id} amount=#{amount} for requested=#{requested_amount}")
           return { id: log_id, amount: amount, method: log['platform'], recorded_at: recorded }
         end
       end
+
+      Rails.logger.info("[Orchestrator] no matching confirmed payment for requested=#{requested_amount}, log_count=#{logs.size}")
       nil
     end
 
@@ -386,18 +479,26 @@ module Games
 
       logs.reverse.each do |log|
         next unless log.is_a?(Hash)
-        next unless %w[Confirmed completed verified].include?(log['status'].to_s)
+
+        status = log['status'].to_s.downcase
+        next unless %w[confirmed completed verified].include?(status)
+
+        # Reject flagged duplicates
+        next if log['flag_reason'].to_s.strip.length > 0
+        next if log['raw_status'].to_s.downcase == 'pending'
 
         amount = parse_amount(log['amount'])
         next if amount.nil? || amount <= 0
 
-        time_str = log['recorded_at'] || log['transaction_time']
+        time_str = log['recorded_at'] || log['image_received_at'] || log['transaction_time']
         recorded = parse_time(time_str)
-        next if recorded && recorded < 6.hours.ago
+        # TIGHTER WINDOW: 30 minutes, not 6 hours
+        next if recorded && recorded < 30.minutes.ago
 
-        log_id = log['id'] || "#{log['amount']}_#{log['recorded_at']}"
+        log_id = log['id'] || log['transaction_id'] || "#{log['amount']}_#{log['recorded_at']}"
         next if payment_already_loaded?(log_id, amount, recorded)
 
+        Rails.logger.info("[Orchestrator] found unloaded payment id=#{log_id} amount=#{amount}")
         return { id: log_id, amount: amount, method: log['platform'], recorded_at: recorded }
       end
       nil
@@ -503,17 +604,6 @@ module Games
       return nil if already_loaded
 
       { amount: amount, method: last['platform'] }
-    end
-
-    def friendly_error(result)
-      code = result[:code]
-      case code
-      when 5 then 'our access from Patra was blocked (IP whitelist) — a teammate needs to fix it'
-      when 8 then "couldn't find that player on the game"
-      when 6 then 'our agent wallet balance is too low for that load — a teammate needs to top it up'
-      else
-        result[:error] || 'something went wrong'
-      end
     end
   end
 end
