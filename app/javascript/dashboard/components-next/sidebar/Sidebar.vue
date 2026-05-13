@@ -596,6 +596,13 @@ const menuItems = computed(() => {
           activeOn: ['settings_integrations_payment_handles'],
         },
         {
+          name: 'Settings Games',
+          label: t('GAMES.NAV_LABEL'),
+          icon: 'i-lucide-gamepad-2',
+          to: accountScopedRoute('settings_integrations_games'),
+          activeOn: ['settings_integrations_games'],
+        },
+        {
           name: 'Settings Audit Logs',
           label: t('SIDEBAR.AUDIT_LOGS'),
           icon: 'i-lucide-briefcase',
