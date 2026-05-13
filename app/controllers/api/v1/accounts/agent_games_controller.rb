@@ -67,6 +67,79 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
     render json: { ok: false, message: e.message }, status: :unprocessable_entity
   end
 
+  def load_player
+    @agent_game = Current.account.agent_games.find(params[:id])
+    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+
+    username = params[:game_username].to_s.strip
+    amount = params[:amount].to_f
+    return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
+    return render json: { ok: false, message: 'Amount must be greater than zero' }, status: :unprocessable_entity if amount <= 0
+
+    executor = Games::ActionExecutor.new(agent_game: @agent_game)
+    result = executor.load_player(
+      game_username: username,
+      amount: amount,
+      payment_method: params[:payment_method],
+      payment_handle: params[:payment_handle],
+      metadata: { source: 'manual_ui', operator_user_id: Current.user&.id }
+    )
+
+    Games::SlackNotifier.load_alert(result[:action]) if result[:ok]
+
+    render json: serialize_action_result(result)
+  rescue Games::ActionExecutor::IdempotencyError => e
+    render json: { ok: false, message: e.message }, status: :conflict
+  rescue StandardError => e
+    Rails.logger.error("[load_player] #{e.class}: #{e.message}")
+    render json: { ok: false, message: e.message }, status: :internal_server_error
+  end
+
+  def cashout_player
+    @agent_game = Current.account.agent_games.find(params[:id])
+    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+
+    username = params[:game_username].to_s.strip
+    amount = params[:amount].to_f
+    return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
+    return render json: { ok: false, message: 'Amount must be greater than zero' }, status: :unprocessable_entity if amount <= 0
+
+    executor = Games::ActionExecutor.new(agent_game: @agent_game)
+    result = executor.cashout_player(
+      game_username: username,
+      amount: amount,
+      payment_method: params[:payment_method],
+      metadata: { source: 'manual_ui', operator_user_id: Current.user&.id }
+    )
+
+    render json: serialize_action_result(result)
+  rescue Games::ActionExecutor::IdempotencyError => e
+    render json: { ok: false, message: e.message }, status: :conflict
+  rescue StandardError => e
+    Rails.logger.error("[cashout_player] #{e.class}: #{e.message}")
+    render json: { ok: false, message: e.message }, status: :internal_server_error
+  end
+
+  def check_player
+    @agent_game = Current.account.agent_games.find(params[:id])
+    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+
+    username = params[:game_username].to_s.strip
+    return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
+
+    executor = Games::ActionExecutor.new(agent_game: @agent_game)
+    balance = executor.check_player_balance(game_username: username)
+
+    if balance.nil?
+      render json: { ok: false, message: "Player '#{username}' not found on Game Vault" }
+    else
+      render json: { ok: true, username: username, balance: balance }
+    end
+  rescue StandardError => e
+    Rails.logger.error("[check_player] #{e.class}: #{e.message}")
+    render json: { ok: false, message: e.message }, status: :internal_server_error
+  end
+
   private
 
   def fetch_agent_game
@@ -79,6 +152,30 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
       permitted[:credentials] = @agent_game.credentials.merge(permitted[:credentials])
     end
     permitted
+  end
+
+  def render_not_supported
+    render json: { ok: false, message: "Action not supported for #{@agent_game.game.name} yet" }, status: :ok
+  end
+
+  def serialize_action_result(result)
+    if result[:ok]
+      {
+        ok: true,
+        action_id: result[:action]&.id,
+        order_id: result[:action]&.order_id,
+        amount: result[:action]&.amount,
+        game_username: result[:action]&.game_username,
+        api_response: result[:response]
+      }
+    else
+      {
+        ok: false,
+        action_id: result[:action]&.id,
+        code: result[:code],
+        message: result[:error]
+      }
+    end
   end
 
   def serialize_collection(agent_games)
