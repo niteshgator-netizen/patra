@@ -8,58 +8,69 @@
       </span>
     </div>
 
-    <div v-if="!isConfigured" class="setup-card">
-      <h3>{{ $t('NOTIFICATIONS.SETUP_STEPS.TITLE') }}</h3>
-      <ol>
-        <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_1') }}</li>
-        <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_2') }}</li>
-        <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_3') }}</li>
-        <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_4') }}</li>
-      </ol>
+    <div v-if="loading" class="state-card state-loading">
+      Loading your notification settings…
     </div>
 
-    <div class="form-card">
-      <label>
-        <span class="lbl">{{ $t('NOTIFICATIONS.FORM.BOT_TOKEN_LABEL') }}</span>
-        <input
-          v-model="botToken"
-          type="text"
-          :placeholder="$t('NOTIFICATIONS.FORM.BOT_TOKEN_PLACEHOLDER')"
-        />
-      </label>
-      <label>
-        <span class="lbl">{{ $t('NOTIFICATIONS.FORM.CHAT_ID_LABEL') }}</span>
-        <input
-          v-model="chatId"
-          type="text"
-          :placeholder="$t('NOTIFICATIONS.FORM.CHAT_ID_PLACEHOLDER')"
-        />
-      </label>
-
-      <div class="filters">
-        <span class="lbl">{{ $t('NOTIFICATIONS.FORM.EVENT_FILTERS_LABEL') }}</span>
-        <label class="check"><input type="checkbox" v-model="filters.load_success" /> {{ $t('NOTIFICATIONS.FORM.EVENT_LOAD_SUCCESS') }}</label>
-        <label class="check"><input type="checkbox" v-model="filters.load_failed" /> {{ $t('NOTIFICATIONS.FORM.EVENT_LOAD_FAILED') }}</label>
-        <label class="check"><input type="checkbox" v-model="filters.cashout_request" /> {{ $t('NOTIFICATIONS.FORM.EVENT_CASHOUT_REQUEST') }}</label>
-        <label class="check"><input type="checkbox" v-model="filters.cashout_failed" /> {{ $t('NOTIFICATIONS.FORM.EVENT_CASHOUT_FAILED') }}</label>
-        <label class="check"><input type="checkbox" v-model="filters.human_escalation" /> {{ $t('NOTIFICATIONS.FORM.EVENT_HUMAN_ESCALATION') }}</label>
-        <label class="check"><input type="checkbox" v-model="filters.api_error" /> {{ $t('NOTIFICATIONS.FORM.EVENT_API_ERROR') }}</label>
-      </div>
-
-      <div v-if="result" :class="['result', resultOk ? 'ok' : 'err']">{{ result }}</div>
-
-      <div class="actions">
-        <button class="btn btn--primary" :disabled="saving" @click="save">
-          {{ saving ? '...' : $t('NOTIFICATIONS.FORM.SAVE_BTN') }}
-        </button>
-        <button class="btn btn--secondary" :disabled="testing || !channel?.id" @click="test">
-          {{ testing ? '...' : $t('NOTIFICATIONS.FORM.TEST_BTN') }}
-        </button>
-        <button v-if="channel?.id" class="btn btn--danger" @click="remove">
-          {{ $t('NOTIFICATIONS.FORM.DELETE_BTN') }}
-        </button>
-      </div>
+    <div v-else-if="errorLoading" class="state-card state-error">
+      ⚠️ {{ errorLoading }}
+      <button class="btn btn--secondary" @click="loadChannel" style="margin-top: 8px;">Retry</button>
     </div>
+
+    <template v-if="!loading && !errorLoading">
+      <div v-if="!isConfigured" class="setup-card">
+        <h3>{{ $t('NOTIFICATIONS.SETUP_STEPS.TITLE') }}</h3>
+        <ol>
+          <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_1') }}</li>
+          <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_2') }}</li>
+          <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_3') }}</li>
+          <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_4') }}</li>
+        </ol>
+      </div>
+
+      <div class="form-card">
+        <label>
+          <span class="lbl">{{ $t('NOTIFICATIONS.FORM.BOT_TOKEN_LABEL') }}</span>
+          <input
+            v-model="botToken"
+            type="text"
+            :placeholder="$t('NOTIFICATIONS.FORM.BOT_TOKEN_PLACEHOLDER')"
+          />
+        </label>
+        <label>
+          <span class="lbl">{{ $t('NOTIFICATIONS.FORM.CHAT_ID_LABEL') }}</span>
+          <input
+            v-model="chatId"
+            type="text"
+            :placeholder="$t('NOTIFICATIONS.FORM.CHAT_ID_PLACEHOLDER')"
+          />
+        </label>
+
+        <div class="filters">
+          <span class="lbl">{{ $t('NOTIFICATIONS.FORM.EVENT_FILTERS_LABEL') }}</span>
+          <label class="check"><input type="checkbox" v-model="filters.load_success" /> {{ $t('NOTIFICATIONS.FORM.EVENT_LOAD_SUCCESS') }}</label>
+          <label class="check"><input type="checkbox" v-model="filters.load_failed" /> {{ $t('NOTIFICATIONS.FORM.EVENT_LOAD_FAILED') }}</label>
+          <label class="check"><input type="checkbox" v-model="filters.cashout_request" /> {{ $t('NOTIFICATIONS.FORM.EVENT_CASHOUT_REQUEST') }}</label>
+          <label class="check"><input type="checkbox" v-model="filters.cashout_failed" /> {{ $t('NOTIFICATIONS.FORM.EVENT_CASHOUT_FAILED') }}</label>
+          <label class="check"><input type="checkbox" v-model="filters.human_escalation" /> {{ $t('NOTIFICATIONS.FORM.EVENT_HUMAN_ESCALATION') }}</label>
+          <label class="check"><input type="checkbox" v-model="filters.api_error" /> {{ $t('NOTIFICATIONS.FORM.EVENT_API_ERROR') }}</label>
+        </div>
+
+        <div v-if="result" :class="['result', resultOk ? 'ok' : 'err']">{{ result }}</div>
+
+        <div class="actions">
+          <button class="btn btn--primary" :disabled="saving" @click="save">
+            {{ saving ? '...' : $t('NOTIFICATIONS.FORM.SAVE_BTN') }}
+          </button>
+          <button class="btn btn--secondary" :disabled="testing || !channel?.id" @click="test">
+            {{ testing ? '...' : $t('NOTIFICATIONS.FORM.TEST_BTN') }}
+          </button>
+          <button v-if="channel?.id" class="btn btn--danger" @click="remove">
+            {{ $t('NOTIFICATIONS.FORM.DELETE_BTN') }}
+          </button>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -83,7 +94,9 @@ export default {
       saving: false,
       testing: false,
       result: '',
-      resultOk: false
+      resultOk: false,
+      loading: true,
+      errorLoading: ''
     };
   },
   computed: {
@@ -96,18 +109,22 @@ export default {
   },
   methods: {
     async loadChannel() {
+      this.loading = true;
+      this.errorLoading = '';
       try {
         const { data } = await NotificationChannelsAPI.get();
         const list = data?.data || [];
         const tg = list.find((c) => c.channel_type === 'telegram');
         if (tg) {
           this.channel = tg;
-          // Don't pre-fill bot_token (it's masked from server); only chat_id which isn't sensitive
           this.chatId = tg.credentials?.chat_id || '';
           this.filters = { ...this.filters, ...(tg.event_filters || {}) };
         }
       } catch (e) {
-        // No channel yet — that's fine
+        this.errorLoading = e.response?.data?.error || e.message || 'Failed to load notification settings';
+        console.error('[Notifications] load failed', e);
+      } finally {
+        this.loading = false;
       }
     },
     async save() {
@@ -208,6 +225,23 @@ export default {
 .status-pill.not-connected {
   background: rgba(160, 160, 171, 0.15) !important;
   color: #A0A0AB !important;
+}
+.state-card {
+  margin: 20px 0;
+  padding: 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+.state-loading {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: #A0A0AB !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.state-error {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #F87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.2) !important;
 }
 .setup-card {
   margin-top: 16px;

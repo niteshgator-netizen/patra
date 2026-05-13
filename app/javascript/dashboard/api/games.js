@@ -33,6 +33,10 @@ class GamesAPI extends ApiClient {
     return axios.post(`${this.url}/${id}/test_connection`);
   }
 
+  diagnose(id) {
+    return axios.post(`${this.url}/${id}/diagnose`);
+  }
+
   loadPlayer(id, payload) {
     return axios.post(`${this.url}/${id}/load_player`, payload);
   }

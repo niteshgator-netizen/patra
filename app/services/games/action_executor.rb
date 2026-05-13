@@ -13,6 +13,36 @@ module Games
       @conversation = conversation
     end
 
+    def add_player(game_username:, password: nil, metadata: {}, order_id: nil)
+      order_id ||= GameAction.generate_order_id(prefix: 'addusr')
+      password ||= SecureRandom.alphanumeric(8).downcase
+
+      existing = GameAction.find_by(account_id: agent_game.account_id, order_id: order_id)
+      raise IdempotencyError, "Order #{order_id} already exists" if existing
+
+      action = GameAction.create!(
+        account: agent_game.account,
+        agent_game: agent_game,
+        contact: contact,
+        conversation: conversation,
+        action_type: 'add_player',
+        order_id: order_id,
+        game_username: game_username,
+        amount: 0,
+        metadata: metadata.merge(password: password),
+        status: 'pending'
+      )
+
+      execute_in_audit(action) do
+        client = client_for(agent_game)
+        result = client.add_user(account: game_username, password: password)
+        action.update!(metadata: action.metadata.merge(password: password))
+        result
+      end.tap do |result|
+        result[:password] = password if result[:ok]
+      end
+    end
+
     def load_player(game_username:, amount:, payment_method: nil, payment_handle: nil, metadata: {}, order_id: nil)
       order_id ||= GameAction.generate_order_id(prefix: 'load')
 

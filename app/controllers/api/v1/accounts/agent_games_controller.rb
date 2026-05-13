@@ -140,6 +140,32 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
     render json: { ok: false, message: e.message }, status: :internal_server_error
   end
 
+  def diagnose
+    @agent_game = Current.account.agent_games.find(params[:id])
+    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+
+    ag = @agent_game
+    diag = {
+      patra_egress_ip: fetch_egress_ip,
+      agent_id: ag.credentials['agent_id'],
+      ip_whitelist_confirmed: ag.ip_whitelist_confirmed,
+      last_used_at: ag.last_used_at,
+      failure_count: ag.failure_count
+    }
+
+    begin
+      client = Games::GameVault::Client.new(ag)
+      bal = client.agent_balance
+      diag[:balance_call] = { ok: true, code: bal['code'], message: bal['msg'], balance: bal.dig('data', 'agent_balance') }
+    rescue Games::GameVault::Client::GameVaultError => e
+      diag[:balance_call] = { ok: false, code: e.code, message: e.message }
+    rescue StandardError => e
+      diag[:balance_call] = { ok: false, error: e.message }
+    end
+
+    render json: diag
+  end
+
   private
 
   def fetch_agent_game
@@ -199,6 +225,16 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
       created_at: ag.created_at,
       updated_at: ag.updated_at
     }
+  end
+
+  def fetch_egress_ip
+    require 'net/http'
+    uri = URI('https://ifconfig.me/ip')
+    Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 3, read_timeout: 3) do |http|
+      http.get(uri.path).body.strip
+    end
+  rescue StandardError => e
+    "error: #{e.message}"
   end
 
   def serialize_game(game)

@@ -47,42 +47,94 @@ module Games
       ag = pick_agent_game(intent[:game_slug] || 'game_vault')
       return nil unless ag
 
+      requested_amount = intent[:amount].to_f
+
+      # PAYMENT GATE: must have confirmed payment matching this amount
+      payment = find_matching_confirmed_payment(requested_amount)
+
+      unless payment
+        # No payment yet — ask for it
+        handle_text = active_payment_handle_for_account
+        return {
+          reply: payment_request_reply(requested_amount, handle_text, ag.game.name),
+          labels: ['awaiting-payment']
+        }
+      end
+
+      # Payment confirmed — now check username
       username = intent[:game_username] || stored_game_username(ag.game.slug)
 
       if username.blank?
+        # Need to ask + offer auto-create
         return {
-          reply: "got it — what's your username on #{ag.game.name}? if you don't have one, sign up here: #{ag.game.player_signup_url}",
+          reply: "got your $#{requested_amount} payment ✅ what username would you like on #{ag.game.name}? if you've never played, just pick one (3-20 letters/numbers) and i'll set up your account.",
           labels: ['needs-username']
         }
       end
 
-      # Auto-execute load (per requirement: loads auto-execute)
+      # Try to load. If username doesn't exist on Game Vault, auto-create it.
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+
       result = executor.load_player(
         game_username: username,
-        amount: intent[:amount],
-        payment_method: nil,
-        metadata: { source: 'bella_auto', message: latest_customer_text.to_s[0..200] }
+        amount: requested_amount,
+        payment_method: payment[:method],
+        metadata: { source: 'bella_auto', payment_id: payment[:id], message: latest_customer_text.to_s[0..200] }
       )
 
+      # Code 8 = user not found → auto-create + retry
+      if !result[:ok] && result[:code] == 8
+        Rails.logger.info("[Orchestrator] User #{username} not found, auto-creating")
+        add_result = executor.add_player(game_username: username)
+
+        if add_result[:ok]
+          generated_password = add_result[:password]
+          store_game_username(ag.game.slug, username)
+          store_game_password(ag.game.slug, generated_password)
+
+          # Retry the load now that user exists
+          result = executor.load_player(
+            game_username: username,
+            amount: requested_amount,
+            payment_method: payment[:method],
+            metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] }
+          )
+
+          if result[:ok]
+            mark_payment_loaded(payment[:id])
+            safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
+            return {
+              reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
+              labels: ['auto-load', 'new-account-created']
+            }
+          end
+        else
+          safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
+        end
+      end
+
+      # First-try result handling
       store_game_username(ag.game.slug, username)
 
       if result[:ok]
-        begin
-          Games::TelegramNotifier.load_alert(result[:action])
-        rescue StandardError
-        end
+        mark_payment_loaded(payment[:id])
+        safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
         {
-          reply: "loaded $#{intent[:amount]} to #{username} on #{ag.game.name} — good luck 🎰",
+          reply: "loaded $#{requested_amount} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
         }
       else
-        begin
-          Games::TelegramNotifier.load_failed(result[:action]) if result[:action]
-        rescue StandardError
+        safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account,
+            contact: contact,
+            reason: "Load failed: #{result[:error]} (code #{result[:code]}) for #{username} $#{requested_amount}",
+            conversation: conversation
+          )
         end
         {
-          reply: "couldn't load $#{intent[:amount]} on #{ag.game.name} — #{friendly_error(result)}. a manager will jump in.",
+          reply: honest_failure_reply(result, requested_amount, ag.game.name),
           labels: ['load-failed', 'needs-human']
         }
       end
@@ -174,42 +226,88 @@ module Games
     end
 
     def handle_username_provided(intent)
-      return nil unless intent[:game_slug]
-
-      ag = pick_agent_game(intent[:game_slug])
+      ag = pick_agent_game(intent[:game_slug] || 'game_vault')
       return nil unless ag
 
-      recent_deposit = recent_unloaded_deposit
-      if recent_deposit
-        store_game_username(ag.game.slug, intent[:game_username])
+      username = intent[:game_username]
 
-        executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
-        result = executor.load_player(
-          game_username: intent[:game_username],
-          amount: recent_deposit[:amount],
-          payment_method: recent_deposit[:method],
-          metadata: { source: 'bella_auto_after_username', message: latest_customer_text.to_s[0..200] }
-        )
+      # Check if there's a confirmed payment waiting to be loaded
+      recent_payment = find_unloaded_confirmed_payment
+      return nil unless recent_payment # No pending action — let normal Bella handle
 
-        if result[:ok]
-          begin
-            Games::TelegramNotifier.load_alert(result[:action])
-          rescue StandardError
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+
+      # First try to load — if user doesn't exist, auto-create
+      result = executor.load_player(
+        game_username: username,
+        amount: recent_payment[:amount],
+        payment_method: recent_payment[:method],
+        metadata: { source: 'bella_username_provided', payment_id: recent_payment[:id] }
+      )
+
+      if !result[:ok] && result[:code] == 8
+        # User not found — create them
+        add_result = executor.add_player(game_username: username)
+
+        if add_result[:ok]
+          password = add_result[:password]
+          store_game_username(ag.game.slug, username)
+          store_game_password(ag.game.slug, password)
+
+          result = executor.load_player(
+            game_username: username,
+            amount: recent_payment[:amount],
+            payment_method: recent_payment[:method],
+            metadata: { source: 'bella_username_after_create', payment_id: recent_payment[:id] }
+          )
+
+          if result[:ok]
+            mark_payment_loaded(recent_payment[:id])
+            safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
+            return {
+              reply: "created your account! username: #{username}, password: #{password} (save this!) — loaded $#{recent_payment[:amount]} 🎰",
+              labels: ['auto-load', 'new-account-created']
+            }
+          end
+        else
+          safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: "Failed to create user #{username}: #{add_result[:error]}",
+              conversation: conversation
+            )
           end
           return {
-            reply: "got it — loaded $#{recent_deposit[:amount]} to #{intent[:game_username]} on #{ag.game.name}. good luck 🎰",
-            labels: ['auto-load']
-          }
-        else
-          return {
-            reply: "got your username — but couldn't load $#{recent_deposit[:amount]}: #{friendly_error(result)}. a manager will jump in.",
-            labels: ['load-failed', 'needs-human']
+            reply: "hit a snag setting up your account — flagged a teammate, they'll get you sorted in a couple minutes.",
+            labels: ['account-creation-failed', 'needs-human']
           }
         end
       end
 
-      store_game_username(ag.game.slug, intent[:game_username])
-      { reply: "got it, saved your #{ag.game.name} username as #{intent[:game_username]}.", labels: ['username-saved'] }
+      store_game_username(ag.game.slug, username)
+
+      if result[:ok]
+        mark_payment_loaded(recent_payment[:id])
+        safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
+        {
+          reply: "loaded $#{recent_payment[:amount]} to #{username} on #{ag.game.name} 🎰 good luck!",
+          labels: ['auto-load']
+        }
+      else
+        safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Load failed for #{username} $#{recent_payment[:amount]}: #{result[:error]}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: honest_failure_reply(result, recent_payment[:amount], ag.game.name),
+          labels: ['load-failed', 'needs-human']
+        }
+      end
     end
 
     def pick_agent_game(game_slug)
@@ -255,6 +353,125 @@ module Games
       (contact.custom_attributes || {})['last_deposit_method']
     end
 
+    def find_matching_confirmed_payment(requested_amount)
+      logs = (contact.custom_attributes || {})['patra_finance_logs']
+      return nil unless logs.is_a?(Array)
+
+      logs.reverse.each do |log|
+        next unless log.is_a?(Hash)
+        next unless %w[Confirmed completed verified].include?(log['status'].to_s)
+
+        amount = parse_amount(log['amount'])
+        next if amount.nil? || amount <= 0
+
+        time_str = log['recorded_at'] || log['transaction_time']
+        recorded = parse_time(time_str)
+        next if recorded && recorded < 6.hours.ago
+
+        # Skip already-loaded payments
+        log_id = log['id'] || "#{log['amount']}_#{log['recorded_at']}"
+        next if payment_already_loaded?(log_id, amount, recorded)
+
+        # Match on amount (within 1 cent tolerance)
+        if (amount - requested_amount).abs < 0.01
+          return { id: log_id, amount: amount, method: log['platform'], recorded_at: recorded }
+        end
+      end
+      nil
+    end
+
+    def find_unloaded_confirmed_payment
+      logs = (contact.custom_attributes || {})['patra_finance_logs']
+      return nil unless logs.is_a?(Array)
+
+      logs.reverse.each do |log|
+        next unless log.is_a?(Hash)
+        next unless %w[Confirmed completed verified].include?(log['status'].to_s)
+
+        amount = parse_amount(log['amount'])
+        next if amount.nil? || amount <= 0
+
+        time_str = log['recorded_at'] || log['transaction_time']
+        recorded = parse_time(time_str)
+        next if recorded && recorded < 6.hours.ago
+
+        log_id = log['id'] || "#{log['amount']}_#{log['recorded_at']}"
+        next if payment_already_loaded?(log_id, amount, recorded)
+
+        return { id: log_id, amount: amount, method: log['platform'], recorded_at: recorded }
+      end
+      nil
+    end
+
+    def payment_already_loaded?(payment_id, amount, recorded_time)
+      return true if GameAction
+        .where(account_id: account.id, contact_id: contact.id, action_type: 'load', status: 'success')
+        .where("metadata::text LIKE ?", "%#{payment_id}%")
+        .exists?
+      # Fallback: any successful load for this amount in the same window
+      if recorded_time
+        return GameAction
+          .where(account_id: account.id, contact_id: contact.id, action_type: 'load', status: 'success', amount: amount)
+          .where('created_at >= ?', recorded_time)
+          .exists?
+      end
+      false
+    end
+
+    def mark_payment_loaded(payment_id)
+      # Already tracked in metadata of game_actions, no contact mutation needed
+      Rails.logger.info("[Orchestrator] payment #{payment_id} marked loaded")
+    end
+
+    def parse_amount(val)
+      return nil if val.nil?
+      val.to_s.gsub(/[^\d.]/, '').to_f.then { |f| f > 0 ? f : nil }
+    end
+
+    def parse_time(str)
+      return nil if str.blank?
+      Time.parse(str.to_s)
+    rescue ArgumentError
+      nil
+    end
+
+    def active_payment_handle_for_account
+      if defined?(PaymentHandle)
+        handle = PaymentHandle.where(account_id: account.id, status: 'active').order(:position).first
+        return "#{handle.platform} #{handle.handle}" if handle
+      end
+      'the payment handle in our last message'
+    end
+
+    def payment_request_reply(amount, handle_text, game_name)
+      "got it! send $#{amount} to #{handle_text}, then drop the screenshot here 📸 — i'll load it on #{game_name} as soon as it confirms."
+    end
+
+    def honest_failure_reply(result, amount, game_name)
+      case result[:code]
+      when 8
+        "hmm — that username doesn't exist on #{game_name} yet. want me to create it? just confirm and i'll set you up."
+      when 6
+        "hit a temporary issue on our end — flagged a teammate, they'll load your $#{amount} in a couple minutes. you'll get a notification when it's done."
+      when 5
+        "couldn't reach #{game_name} just now — flagged a teammate to look at it, they'll have your $#{amount} loaded in a few minutes."
+      else
+        "ran into a snag loading your $#{amount} — flagged a teammate to handle it manually. they'll have you loaded in a couple minutes."
+      end
+    end
+
+    def store_game_password(slug, password)
+      key = "game_password_#{slug}"
+      attrs = (contact.custom_attributes || {}).merge(key => password)
+      contact.update(custom_attributes: attrs)
+    end
+
+    def safe_telegram
+      yield
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] Telegram call failed: #{e.class}: #{e.message}")
+    end
+
     # Looks at the most recent patra_finance_logs entry. If it's a confirmed deposit
     # less than 30 min old and has no matching load action yet, return its details.
     def recent_unloaded_deposit
@@ -291,9 +508,9 @@ module Games
     def friendly_error(result)
       code = result[:code]
       case code
-      when 5 then "our access got blocked, fixing now"
+      when 5 then 'our access from Patra was blocked (IP whitelist) — a teammate needs to fix it'
       when 8 then "couldn't find that player on the game"
-      when 6 then "our agent balance is low, fixing now"
+      when 6 then 'our agent wallet balance is too low for that load — a teammate needs to top it up'
       else
         result[:error] || 'something went wrong'
       end

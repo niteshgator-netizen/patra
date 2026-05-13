@@ -35,9 +35,16 @@
           >
             {{ isChecking ? '…' : $t('GAMES.ACTIONS_MODAL.CHECK_BALANCE_BTN') }}
           </button>
+          <button type="button" class="btn btn--secondary" :disabled="diagnosing" @click="runDiagnose">
+            {{ diagnosing ? '...' : 'Diagnose' }}
+          </button>
           <span v-if="balance !== null" class="balance-result">
             {{ $t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: balance }) }}
           </span>
+        </div>
+
+        <div v-if="result" class="result-banner" :class="resultOk ? 'result-banner--ok' : 'result-banner--error'">
+          <pre class="diagnose-pre">{{ result }}</pre>
         </div>
 
         <div class="field">
@@ -95,6 +102,9 @@ export default {
       isSubmitting: false,
       submitType: null,
       resultBanner: null,
+      diagnosing: false,
+      result: '',
+      resultOk: false,
     };
   },
   computed: {
@@ -108,6 +118,7 @@ export default {
       this.isChecking = true;
       this.balance = null;
       this.resultBanner = null;
+      this.result = '';
       try {
         const response = await GamesAPI.checkPlayer(this.agentGame.id, this.username);
         if (response.data.ok) {
@@ -121,11 +132,33 @@ export default {
         this.isChecking = false;
       }
     },
+    async runDiagnose() {
+      this.diagnosing = true;
+      this.result = '';
+      try {
+        const { data } = await GamesAPI.diagnose(this.agentGame.id);
+        const lines = [
+          `Egress IP: ${data.patra_egress_ip}`,
+          `Agent ID: ${data.agent_id}`,
+          `IP whitelist confirmed: ${data.ip_whitelist_confirmed}`,
+          `Balance call: ${data.balance_call?.ok ? '✅' : '❌'} ${data.balance_call?.message || data.balance_call?.error || ''}`,
+          data.balance_call?.balance ? `Balance: $${data.balance_call.balance}` : ''
+        ].filter(Boolean).join('\n');
+        this.result = lines;
+        this.resultOk = !!data.balance_call?.ok;
+      } catch (e) {
+        this.result = 'Diagnose failed: ' + (e.response?.data?.error || e.message);
+        this.resultOk = false;
+      } finally {
+        this.diagnosing = false;
+      }
+    },
     async onLoad() {
       if (!this.canSubmit) return;
       this.isSubmitting = true;
       this.submitType = 'load';
       this.resultBanner = null;
+      this.result = '';
       try {
         const response = await GamesAPI.loadPlayer(this.agentGame.id, {
           game_username: this.username,
@@ -152,6 +185,7 @@ export default {
       this.isSubmitting = true;
       this.submitType = 'cashout';
       this.resultBanner = null;
+      this.result = '';
       try {
         const response = await GamesAPI.cashoutPlayer(this.agentGame.id, {
           game_username: this.username,
@@ -300,6 +334,13 @@ export default {
   }
 }
 
+.diagnose-pre {
+  white-space: pre-wrap;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+
 .btn {
   font-family: 'Inter', sans-serif !important;
   font-size: 13px !important; font-weight: 600 !important;
@@ -336,6 +377,16 @@ export default {
     &:hover {
       background: rgba(248, 113, 113, 0.18) !important;
       border-color: #F87171 !important;
+    }
+  }
+
+  &--secondary {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #A89FCC !important;
+    border: 1px solid #2D2356 !important;
+    &:hover:not(:disabled) {
+      color: #F4F1FF !important;
+      border-color: #4A3A8A !important;
     }
   }
 }
