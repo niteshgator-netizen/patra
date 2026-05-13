@@ -51,6 +51,12 @@ module Games
       /(?:and\s+)?keep\s+\$?(\d+(?:\.\d{1,2})?)\s+in/i
     ].freeze
 
+    CASHOUT_METHOD_PATTERNS = [
+      /(?:(?:via|to|on|using)\s+)?(?:my\s+)?(?:cashapp|cash\s*app)\s*(?:is\s+|tag\s+|handle\s+|:\s*)?([\$\@]?[a-zA-Z0-9_]{3,30})/i,
+      /(?:(?:via|to|on|using)\s+)?(?:my\s+)?(?:chime|venmo|paypal|zelle)\s*(?:is\s+|tag\s+|handle\s+|:\s*)?([\$\@]?[a-zA-Z0-9_.@+]{3,50})/i,
+      /send\s+(?:it\s+)?to\s+([\$\@][a-zA-Z0-9_]{3,30})/i
+    ].freeze
+
     CREATE_ACCOUNT_PATTERNS = [
       /create\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account|profile|login)/i,
       /make\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account)/i,
@@ -82,6 +88,7 @@ module Games
                       amount: m[1] ? m[1].to_f : nil,
                       game_username: extract_username(text),
                       game_slug: detect_game(text),
+                      cashout_method: extract_cashout_method(text),
                       total_points: extract_points(text),
                       tip_amount: extract_tip(text),
                       reload_amount: extract_reload(text)
@@ -137,6 +144,29 @@ module Games
       def extract_reload(text)
         m = match_any(text, RELOAD_PATTERNS)
         m && m[1] ? m[1].to_f : nil
+      end
+
+      def extract_cashout_method(text)
+        CASHOUT_METHOD_PATTERNS.each do |pattern|
+          m = text.match(pattern)
+          next unless m && m[1].present?
+          handle = m[1].to_s.strip
+          platform = if text.downcase.include?('cashapp') || text.downcase.include?('cash app')
+                       'cashapp'
+                     elsif text.downcase.include?('chime')
+                       'chime'
+                     elsif text.downcase.include?('venmo')
+                       'venmo'
+                     elsif text.downcase.include?('paypal')
+                       'paypal'
+                     elsif text.downcase.include?('zelle')
+                       'zelle'
+                     else
+                       'unknown'
+                     end
+          return { platform: platform, handle: handle }
+        end
+        nil
       end
 
       def detect_game(text)

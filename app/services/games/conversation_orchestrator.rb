@@ -110,7 +110,6 @@ module Games
 
           if result[:ok]
             mark_payment_loaded(payment[:id])
-            safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
             return {
               reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
               labels: ['auto-load', 'new-account-created']
@@ -126,7 +125,6 @@ module Games
 
       if result[:ok]
         mark_payment_loaded(payment[:id])
-        safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
         {
           reply: "loaded $#{requested_amount} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
@@ -192,7 +190,8 @@ module Games
         reload_amount: intent[:reload_amount] || 0,
         original_deposit: deposit_amount,
         deposit_payment_method: stored_payment_method,
-        cashout_payment_method: nil,
+        cashout_payment_method: intent[:cashout_method]&.dig(:platform),
+        cashout_destination_handle: intent[:cashout_method]&.dig(:handle),
         applied_rules: calc.applied_rules,
         customer_message: recent_customer_text.to_s[0..500],
         status: 'pending'
@@ -271,7 +270,6 @@ module Games
 
           if result[:ok]
             mark_payment_loaded(recent_payment[:id])
-            safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
             return {
               reply: "created your account! username: #{username}, password: #{password} (save this!) — loaded $#{recent_payment[:amount]} 🎰",
               labels: ['auto-load', 'new-account-created']
@@ -297,7 +295,6 @@ module Games
 
       if result[:ok]
         mark_payment_loaded(recent_payment[:id])
-        safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
         {
           reply: "loaded $#{recent_payment[:amount]} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
@@ -374,7 +371,6 @@ module Games
 
       if result[:ok]
         mark_payment_loaded(recent_payment[:id])
-        safe_telegram { Games::TelegramNotifier.load_alert(result[:action]) }
         {
           reply: "all set! username: #{auto_username}, password: #{generated_password} (save this!) — loaded $#{recent_payment[:amount]} 🎰 good luck!",
           labels: ['auto-load', 'new-account-created']
@@ -401,7 +397,13 @@ module Games
     end
 
     def pick_agent_game(game_slug)
-      account.agent_games.joins(:game).where(games: { slug: game_slug }, status: 'active').first
+      ag = account.agent_games.joins(:game).where(games: { slug: game_slug }, status: 'active').first
+      unless ag
+        any_ag = account.agent_games.joins(:game).where(games: { slug: game_slug }).first
+        Rails.logger.warn("[Orchestrator] pick_agent_game: no active agent_game for slug=#{game_slug} account=#{account.id} fallback_id=#{any_ag&.id.inspect} fallback_status=#{any_ag&.status.inspect}")
+        ag = any_ag
+      end
+      ag
     end
 
     def latest_customer_text
