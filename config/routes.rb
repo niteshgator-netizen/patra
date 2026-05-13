@@ -410,6 +410,11 @@ Rails.application.routes.draw do
               get :available_games
             end
           end
+          resources :notification_channels, only: [:index, :show, :create, :update, :destroy] do
+            member do
+              post :test_connection
+            end
+          end
           resource :owner_stats, only: [:show]
         end
       end

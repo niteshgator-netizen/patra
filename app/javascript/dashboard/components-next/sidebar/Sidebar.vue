@@ -603,6 +603,13 @@ const menuItems = computed(() => {
           activeOn: ['settings_integrations_games'],
         },
         {
+          name: 'Settings Notifications',
+          label: t('NOTIFICATIONS.NAV_LABEL'),
+          icon: 'i-lucide-bell',
+          to: accountScopedRoute('settings_integrations_notifications'),
+          activeOn: ['settings_integrations_notifications'],
+        },
+        {
           name: 'Settings Audit Logs',
           label: t('SIDEBAR.AUDIT_LOGS'),
           icon: 'i-lucide-briefcase',

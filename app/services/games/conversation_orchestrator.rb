@@ -33,6 +33,11 @@ module Games
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
+      begin
+        Games::TelegramNotifier.api_error(account: account, message: "Orchestrator crashed", details: "#{e.class}: #{e.message}") if account
+      rescue StandardError
+        # never let notification failure crash anything
+      end
       nil
     end
 
@@ -63,12 +68,19 @@ module Games
       store_game_username(ag.game.slug, username)
 
       if result[:ok]
-        Games::SlackNotifier.load_alert(result[:action])
+        begin
+          Games::TelegramNotifier.load_alert(result[:action])
+        rescue StandardError
+        end
         {
           reply: "loaded $#{intent[:amount]} to #{username} on #{ag.game.name} — good luck 🎰",
           labels: ['auto-load']
         }
       else
+        begin
+          Games::TelegramNotifier.load_failed(result[:action]) if result[:action]
+        rescue StandardError
+        end
         {
           reply: "couldn't load $#{intent[:amount]} on #{ag.game.name} — #{friendly_error(result)}. a manager will jump in.",
           labels: ['load-failed', 'needs-human']
@@ -126,7 +138,10 @@ module Games
         status: 'pending'
       )
 
-      Games::SlackNotifier.cashout_alert(cr)
+      begin
+        Games::TelegramNotifier.cashout_alert(cr)
+      rescue StandardError
+      end
 
       # Auto-execute withdraw from game (the money still needs cashier approval to actually pay out)
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
@@ -137,6 +152,11 @@ module Games
       )
 
       cr.update(withdraw_action_id: withdraw_result[:action]&.id) if withdraw_result[:action]
+
+      begin
+        Games::TelegramNotifier.cashout_failed(withdraw_result[:action], cr) if withdraw_result[:action] && !withdraw_result[:ok]
+      rescue StandardError
+      end
 
       if (intent[:reload_amount] || 0) > 0
         reload_result = executor.load_player(
@@ -172,7 +192,10 @@ module Games
         )
 
         if result[:ok]
-          Games::SlackNotifier.load_alert(result[:action])
+          begin
+            Games::TelegramNotifier.load_alert(result[:action])
+          rescue StandardError
+          end
           return {
             reply: "got it — loaded $#{recent_deposit[:amount]} to #{intent[:game_username]} on #{ag.game.name}. good luck 🎰",
             labels: ['auto-load']

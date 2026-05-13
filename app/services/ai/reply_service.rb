@@ -738,6 +738,30 @@ class Ai::ReplyService
     end
 
     Rails.logger.info("[AiReply] drafted conversation=#{@conversation_id} chars=#{reply.length}")
+
+    # Fire Telegram alert if Bella response indicates human escalation needed
+    if defined?(Games::TelegramNotifier) && @bridge_account_id.present? && reply.is_a?(String)
+      begin
+        escalation_keywords = ['manager will jump in', 'a human will', 'cashier will', 'someone will help', 'needs-human', 'looping in']
+        if escalation_keywords.any? { |kw| reply.to_s.downcase.include?(kw.downcase) }
+          esc_account = Account.find_by(id: @bridge_account_id)
+          if esc_account
+            esc_contact_id = fetch_sender_contact_id rescue nil
+            esc_contact = esc_contact_id ? esc_account.contacts.find_by(id: esc_contact_id) : nil
+            esc_conv = @conversation_id ? esc_account.conversations.find_by(display_id: @conversation_id) : nil
+            Games::TelegramNotifier.human_escalation(
+              account: esc_account,
+              contact: esc_contact,
+              reason: reply.to_s[0..200],
+              conversation: esc_conv
+            )
+          end
+        end
+      rescue StandardError => e
+        Rails.logger.error("[ReplyService] Telegram escalation hook error: #{e.class}: #{e.message}")
+      end
+    end
+
     reply
   rescue StandardError => e
     Rails.logger.error("[AiReply] failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
