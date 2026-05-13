@@ -11,9 +11,20 @@ class Ai::ReplyJob < ApplicationJob
 
   HTTP_TIMEOUT = 10
   AI_SOURCE_ID = 'ai_auto'.freeze
+  REPLY_LOCK_KEY = 'patra:reply_lock:conv:%<conv_id>s'.freeze
+  REPLY_LOCK_TTL = 30
 
   def perform(conversation_id, bridge_account_id = nil, fb_attachments = nil)
     @bridge_account_id = bridge_account_id
+
+    lock_key = format(REPLY_LOCK_KEY, conv_id: conversation_id)
+    already_replied = Redis::Alfred.get(lock_key)
+    if already_replied
+      Rails.logger.info("[AiReply] skipping duplicate reply conv=#{conversation_id} lock_ttl=#{Redis::Alfred.ttl(lock_key)}s")
+      return
+    end
+    Redis::Alfred.set(lock_key, '1', ex: REPLY_LOCK_TTL)
+
     reply_text = Ai::ReplyService.new(
       conversation_id,
       account_id: bridge_account_id,
