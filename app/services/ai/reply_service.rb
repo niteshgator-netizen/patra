@@ -20,7 +20,10 @@ class Ai::ReplyService
   MODEL = ENV.fetch('XAI_MODEL', 'grok-4.3').freeze
   MAX_TOKENS = 80
   HISTORY_LIMIT = 5
-  HTTP_TIMEOUT = 30
+  # Chatwoot bridge (internal REST) — keep snappy; unrelated to LLM latency.
+  HTTP_TIMEOUT = 10
+  # xAI Grok can be slow on complex prompts
+  GROK_HTTP_TIMEOUT = 90
   SKIP_LABEL = 'ai-off'.freeze
   # If the freshest message in the conversation is older than this, the
   # customer has likely moved on — a delayed AI reply would feel weird, so
@@ -1040,6 +1043,22 @@ class Ai::ReplyService
     if h['preferred_bonus_percentage'].present?
       rows << "Preferred bonus % (last mentioned): #{h['preferred_bonus_percentage']}%"
     end
+
+    raw_logs = Array(h['patra_finance_logs'])
+    recent_logs = raw_logs.last(5) # only most recent 5 entries — keeps prompt under Grok's comfort zone
+    if recent_logs.any?
+      Rails.logger.info(
+        "[ReplyService] patra_finance_logs llm_context sent=#{recent_logs.size} stored=#{raw_logs.size} conv=#{@conversation_id}"
+      )
+      rows << 'Recent finance log entries (last 5; image URLs omitted from prompt):'
+      recent_logs.each_with_index do |log, idx|
+        next unless log.is_a?(Hash)
+
+        line = finance_log_summary_for_llm(log.stringify_keys, idx + 1)
+        rows << line if line.present?
+      end
+    end
+
     return [] if rows.empty?
 
     ['Player profile vault (structured):', *rows]
@@ -1521,6 +1540,8 @@ class Ai::ReplyService
   # ---------- Anthropic ----------
 
   def invoke_anthropic(messages, system_prompt)
+    Rails.logger.info("[ReplyService] GROK_HTTP_TIMEOUT=#{GROK_HTTP_TIMEOUT}s xAI conv=#{@conversation_id}")
+
     response = HTTParty.post(
       XAI_URL,
       headers: {
@@ -1534,7 +1555,7 @@ class Ai::ReplyService
         # message instead of a top-level `system` field.
         messages: [{ role: 'system', content: system_prompt }, *messages]
       }.to_json,
-      timeout: HTTP_TIMEOUT
+      timeout: GROK_HTTP_TIMEOUT
     )
 
     unless response.success?
@@ -1691,6 +1712,21 @@ class Ai::ReplyService
     when :failed then 'Failed'
     else 'Unknown'
     end
+  end
+
+  # Compact one-line per finance log row for Grok system prompt (no image URLs).
+  def finance_log_summary_for_llm(e, index)
+    parts = [
+      e['kind'].presence,
+      e['amount'].present? ? "$#{e['amount']}" : nil,
+      e['platform'].presence,
+      (e['status'].presence || e['raw_status'].presence),
+      e['transaction_id'].present? ? "tx=#{e['transaction_id']}" : nil,
+      e['flag_reason'].presence ? "flag=#{e['flag_reason']}" : nil
+    ].compact
+    return nil if parts.empty?
+
+    "  #{index}. #{parts.join(' | ')}"
   end
 
   # Composite key for duplicate screenshot detection when `transaction_id` is blank (e.g. Cash App pending).
