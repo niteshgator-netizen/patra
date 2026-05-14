@@ -375,7 +375,9 @@ module Games
           add_result = executor.add_player(game_username: auto_username, password: auto_password)
         end
 
+        # CRITICAL: if add_player still failed after retry, DO NOT lie and say "all set"
         unless add_result[:ok]
+          Rails.logger.error("[Orchestrator] add_player failed for #{ag.game.name} after 2 retries: #{add_result[:error]}")
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
               account: account, contact: contact,
@@ -384,7 +386,7 @@ module Games
             )
           end
           return {
-            reply: "hit a snag creating your account — flagged a teammate, they'll get you set up in a couple minutes.",
+            reply: "hit a snag setting up your #{ag.game.name} account — flagged a teammate, they'll get you sorted in a couple minutes.",
             labels: ['account-creation-failed', 'needs-human']
           }
         end

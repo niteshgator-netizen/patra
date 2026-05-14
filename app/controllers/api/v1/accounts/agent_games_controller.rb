@@ -131,7 +131,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
     balance = executor.check_player_balance(game_username: username)
 
     if balance.nil?
-      render json: { ok: false, message: "Player '#{username}' not found on Game Vault" }
+      render json: { ok: false, message: "Player '#{username}' not found on #{@agent_game.game.name}" }
     else
       render json: { ok: true, username: username, balance: balance }
     end
