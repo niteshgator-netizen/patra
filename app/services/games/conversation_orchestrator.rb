@@ -326,17 +326,30 @@ module Games
       ag = pick_agent_game(intent[:game_slug] || 'game_vault')
       return nil unless ag
 
+      # NO DUPLICATE ACCOUNTS — if we already created one for this customer/game, return existing creds
+      existing_username = stored_game_username(ag.game.slug)
+      existing_password = stored_game_password(ag.game.slug)
+      if existing_username.present?
+        handle_text = active_payment_handle_for_account
+        reply = if existing_password.present?
+          "you already have a #{ag.game.name} account! username: #{existing_username}, password: #{existing_password} 🎰 send your deposit to #{handle_text} and drop the screenshot here to load up."
+        else
+          "you already have a #{ag.game.name} account: #{existing_username}. send your deposit to #{handle_text} and drop the screenshot here to load up."
+        end
+        return { reply: reply, labels: ['account-exists', 'awaiting-payment'] }
+      end
+
       # Check if customer has a confirmed payment waiting
       recent_payment = find_unloaded_confirmed_payment
 
       unless recent_payment
         # No payment yet — create account first, then ask for payment
-        auto_username = generate_auto_username
+        auto_username = generate_auto_username(ag.game.slug)
         executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
         add_result = executor.add_player(game_username: auto_username)
 
         unless add_result[:ok]
-          auto_username = generate_auto_username
+          auto_username = generate_auto_username(ag.game.slug)
           add_result = executor.add_player(game_username: auto_username)
         end
 
@@ -366,13 +379,13 @@ module Games
       end
 
       # Customer has confirmed payment — create account with auto-generated username
-      auto_username = generate_auto_username
+      auto_username = generate_auto_username(ag.game.slug)
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
       add_result = executor.add_player(game_username: auto_username)
 
       unless add_result[:ok]
         # Maybe collision — try one more time with different name
-        auto_username = generate_auto_username
+        auto_username = generate_auto_username(ag.game.slug)
         add_result = executor.add_player(game_username: auto_username)
       end
 
@@ -425,9 +438,45 @@ module Games
       end
     end
 
-    def generate_auto_username
-      # Generates a random username like "player8x3kf2"
-      "player#{SecureRandom.alphanumeric(6).downcase}"
+    GAME_SUFFIX_MAP = {
+      'game_vault'      => 'gv',
+      'juwa'            => 'jw',
+      'juwa_2'          => 'jw2',
+      'orion_stars'     => 'os',
+      'fire_kirin'      => 'fk',
+      'milky_way'       => 'mw',
+      'vegas_sweeps'    => 'vs',
+      'ultra_panda'     => 'up',
+      'cash_frenzy'     => 'cf',
+      'panda_master'    => 'pm',
+      'river_sweeps'    => 'rs',
+      'blue_dragon'     => 'bd',
+      'golden_dragon'   => 'gd',
+      'vegas_x'         => 'vx',
+      'magic_city'      => 'mc',
+      'lightning_link'  => 'll',
+      'noble_sweeps'    => 'ns',
+      'joker_mania'     => 'jm',
+      'game_room'       => 'gr',
+      'vblink'          => 'vb',
+      'golden_treasure' => 'gt',
+      'mr_all_in_one'   => 'ma',
+      'bit_play'        => 'bp',
+      'sirenis'         => 'si',
+      'egame'           => 'eg',
+      'cash_machine'    => 'cm',
+      'spin_city'       => 'sc',
+      'mafia'           => 'mf',
+      'billion_balls'   => 'bb',
+      'yolo'            => 'yo',
+      'vegas_roll'      => 'vr'
+    }.freeze
+
+    def generate_auto_username(game_slug = nil)
+      suffix = GAME_SUFFIX_MAP[game_slug.to_s] || game_slug.to_s.gsub('_', '')[0..1]
+      base = (contact&.name.to_s.downcase.gsub(/[^a-z]/, '')[0..6])
+      base = "player" if base.blank? || base.length < 3
+      "#{base}#{SecureRandom.random_number(900) + 100}-#{suffix}"
     end
 
     def pick_agent_game(game_slug)
@@ -490,6 +539,11 @@ module Games
 
     def stored_game_username(game_slug)
       key = "game_username_#{game_slug}"
+      (contact.custom_attributes || {})[key]
+    end
+
+    def stored_game_password(game_slug)
+      key = "game_password_#{game_slug}"
       (contact.custom_attributes || {})[key]
     end
 
