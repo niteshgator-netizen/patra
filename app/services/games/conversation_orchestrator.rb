@@ -100,7 +100,7 @@ module Games
       # Code 8 = user not found → auto-create + retry
       if !result[:ok] && result[:code] == 8
         Rails.logger.info("[Orchestrator] User #{username} not found, auto-creating")
-        add_result = executor.add_player(game_username: username)
+        add_result = executor.add_player(game_username: username, password: password_from_username(username))
 
         if add_result[:ok]
           generated_password = add_result[:password]
@@ -261,7 +261,7 @@ module Games
 
       if !result[:ok] && result[:code] == 8
         # User not found — create them
-        add_result = executor.add_player(game_username: username)
+        add_result = executor.add_player(game_username: username, password: password_from_username(username))
 
         if add_result[:ok]
           password = add_result[:password]
@@ -355,12 +355,14 @@ module Games
       unless recent_payment
         # No payment yet — create account first, then ask for payment
         auto_username = generate_auto_username(ag.game.slug)
+        auto_password = password_from_username(auto_username)
         executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
-        add_result = executor.add_player(game_username: auto_username)
+        add_result = executor.add_player(game_username: auto_username, password: auto_password)
 
         unless add_result[:ok]
           auto_username = generate_auto_username(ag.game.slug)
-          add_result = executor.add_player(game_username: auto_username)
+          auto_password = password_from_username(auto_username)
+          add_result = executor.add_player(game_username: auto_username, password: auto_password)
         end
 
         unless add_result[:ok]
@@ -390,13 +392,15 @@ module Games
 
       # Customer has confirmed payment — create account with auto-generated username
       auto_username = generate_auto_username(ag.game.slug)
+      auto_password = password_from_username(auto_username)
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
-      add_result = executor.add_player(game_username: auto_username)
+      add_result = executor.add_player(game_username: auto_username, password: auto_password)
 
       unless add_result[:ok]
         # Maybe collision — try one more time with different name
         auto_username = generate_auto_username(ag.game.slug)
-        add_result = executor.add_player(game_username: auto_username)
+        auto_password = password_from_username(auto_username)
+        add_result = executor.add_player(game_username: auto_username, password: auto_password)
       end
 
       unless add_result[:ok]
@@ -487,6 +491,12 @@ module Games
       base = (contact&.name.to_s.downcase.gsub(/[^a-z]/, '')[0..6])
       base = "player" if base.blank? || base.length < 3
       "#{base}#{SecureRandom.random_number(900) + 100}_#{suffix}"
+    end
+
+    # Extracts the password from a generated username (everything before the _suffix)
+    # e.g. 'mausam963_jw' -> 'mausam963'
+    def password_from_username(username)
+      username.to_s.split('_').first || username.to_s
     end
 
     def pick_agent_game(game_slug)
