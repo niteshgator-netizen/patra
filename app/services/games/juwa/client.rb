@@ -72,10 +72,37 @@ module Games
 
       # Add a new player account.
       def add_user(account:, password:)
-        raw_post('addUser', {
+        result = raw_post('addUser', {
           account:   account,
           login_pwd: password
         })
+
+        # Verify Juwa actually created the user. Their addUser endpoint sometimes
+        # returns code=0 without creating an account. Confirm via getUserID before
+        # treating this as a real success.
+        begin
+          verify = raw_post('getUserID', { account_name: account })
+          user_id = verify.is_a?(Hash) ? verify.dig('data', 'user_id') : nil
+          if user_id.nil? || user_id.to_s.strip.empty?
+            Rails.logger.error("[Juwa] addUser reported success but getUserID found no user for '#{account}'. add_response=#{result.inspect} verify_response=#{verify.inspect}")
+            raise JuwaError.new(
+              "Juwa reported success but user '#{account}' not found after creation",
+              code: -1,
+              payload: { add_response: result, verify_response: verify }
+            )
+          end
+        rescue JuwaError
+          raise
+        rescue StandardError => e
+          Rails.logger.error("[Juwa] Verification step failed for '#{account}': #{e.class}: #{e.message}")
+          raise JuwaError.new(
+            "Juwa addUser succeeded but verification step crashed: #{e.message}",
+            code: -1,
+            payload: { add_response: result, verify_error: e.message }
+          )
+        end
+
+        result
       end
 
       # Returns raw hash { 'data' => { 'user_id' => '...' } } so ActionExecutor
