@@ -29,6 +29,13 @@ module Games
       Rails.logger.info("[Orchestrator] intent_detector returned: #{intent.inspect}")
       return nil if intent.nil?
 
+      # Override game_slug with whatever is in the LATEST message — customer may have switched games
+      latest_game = Games::IntentDetector.detect_game(latest_text)
+      if latest_game && intent.is_a?(Hash)
+        intent[:game_slug] = latest_game
+        Rails.logger.info("[Orchestrator] overrode game_slug from latest message: #{latest_game}")
+      end
+
       case intent[:intent]
       when :load
         handle_load_intent(intent)
