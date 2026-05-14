@@ -68,7 +68,10 @@ module Games
       /first\s+time\s+(?:playing|here)/i,
       /(?:i\s+)?don'?t\s+have\s+(?:a\s+)?(?:username|account)/i,
       /(?:set\s+it\s+up|set\s+me\s+up)/i,
-      /(?:i\s+)?(?:want|wanna|need)\s+(?:to\s+)?(?:join|start|play|get\s+(?:in|started))/i
+      /(?:i\s+)?(?:want|wanna|need)\s+(?:to\s+)?(?:join|start|play|get\s+(?:in|started))/i,
+      /(?:can\s+i\s+)?get\s+(?:me\s+)?(?:a\s+|an\s+)?(?:new\s+)?\w*\s*(?:username|user|account|profile|login)/i,
+      /make\s+(?:me\s+)?(?:a\s+)?(?:brand\s+)?(?:new\s+)?\w*\s*account/i,
+      /(?:hook|set)\s+me\s+up/i
     ].freeze
 
     class << self
