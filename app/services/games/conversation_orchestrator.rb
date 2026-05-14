@@ -55,6 +55,8 @@ module Games
         handle_username_provided(intent)
       when :request_account_creation
         handle_account_creation_request(intent)
+      when :payment_method_chosen
+        handle_payment_method_chosen(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -344,11 +346,11 @@ module Games
       existing_username = stored_game_username(ag.game.slug)
       existing_password = stored_game_password(ag.game.slug)
       if existing_username.present? && !wants_replace
-        handle_text = active_payment_handle_for_account
+        methods_q = payment_methods_question
         reply = if existing_password.present?
-          "you already have a #{ag.game.name} account! username: #{existing_username}, password: #{existing_password} 🎰 send your deposit to #{handle_text} and drop the screenshot here to load up."
+          "you already have a #{ag.game.name} account! username: #{existing_username}, password: #{existing_password} 🎰 #{methods_q}"
         else
-          "you already have a #{ag.game.name} account: #{existing_username}. send your deposit to #{handle_text} and drop the screenshot here to load up."
+          "you already have a #{ag.game.name} account: #{existing_username}. #{methods_q}"
         end
         return { reply: reply, labels: ['account-exists', 'awaiting-payment'] }
       end
@@ -394,10 +396,9 @@ module Games
         generated_password = add_result[:password]
         store_game_username(ag.game.slug, auto_username)
         store_game_password(ag.game.slug, generated_password)
-        handle_text = active_payment_handle_for_account
 
         return {
-          reply: "all set! your username: #{auto_username}, password: #{generated_password} (save this!) — now send your deposit to #{handle_text} and drop the screenshot here, i'll load you up right away 🎰",
+          reply: "all set! your username: #{auto_username}, password: #{generated_password} (save this!) — #{payment_methods_question}",
           labels: ['account-created', 'awaiting-payment']
         }
       end
@@ -698,6 +699,78 @@ module Games
         return "#{handle.platform} #{handle.handle}" if handle
       end
       'the payment handle in our last message'
+    end
+
+    # Returns array of unique active platforms for this account, e.g. ["cashapp", "paypal", "venmo", "chime"]
+    def active_payment_platforms
+      return [] unless defined?(PaymentHandle)
+      PaymentHandle.where(account_id: account.id, status: 'active')
+                   .pluck(:platform).uniq
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] active_payment_platforms failed: #{e.class}: #{e.message}")
+      []
+    end
+
+    # Returns the top-priority active display_name (e.g. "$sofiamann8") for the given platform.
+    # Returns nil if no active handle exists for that platform.
+    def top_handle_for_platform(platform)
+      return nil unless defined?(PaymentHandle)
+      ph = PaymentHandle.where(account_id: account.id, platform: platform.to_s, status: 'active')
+                        .order(:priority).first
+      return nil unless ph
+      ph.respond_to?(:display_handle) ? ph.display_handle : (ph.try(:display_name).presence || ph.try(:handle))
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] top_handle_for_platform(#{platform}) failed: #{e.class}: #{e.message}")
+      nil
+    end
+
+    # Returns the "which method?" question, dynamically built from active platforms.
+    # Falls back to the single-handle string if no platforms are configured.
+    def payment_methods_question
+      platforms = active_payment_platforms
+      return "send your deposit to #{active_payment_handle_for_account} and drop the screenshot here" if platforms.empty?
+
+      pretty = platforms.map do |p|
+        case p.to_s.downcase
+        when 'cashapp' then 'cashapp'
+        when 'chime'   then 'chime'
+        when 'venmo'   then 'venmo'
+        when 'paypal'  then 'paypal'
+        when 'zelle'   then 'zelle'
+        else p.to_s
+        end
+      end
+
+      list = if pretty.size == 1
+               pretty.first
+             elsif pretty.size == 2
+               pretty.join(' or ')
+             else
+               "#{pretty[0..-2].join(', ')}, or #{pretty.last}"
+             end
+
+      "we got #{list} 🙌 which one you wanna use?"
+    end
+
+    # Handler for when the customer picks a payment method ("paypal", "i'll use cashapp", etc.)
+    # Looks up the top-priority active handle for that platform and replies with it.
+    def handle_payment_method_chosen(intent)
+      platform = intent[:platform].to_s.downcase.strip
+      handle_text = top_handle_for_platform(platform)
+
+      unless handle_text
+        Rails.logger.warn("[Orchestrator] payment_method_chosen no active handle for platform=#{platform}")
+        return {
+          reply: payment_methods_question,
+          labels: ['payment-method-unavailable']
+        }
+      end
+
+      Rails.logger.info("[Orchestrator] payment_method_chosen platform=#{platform} handle=#{handle_text}")
+      {
+        reply: "easy! send to #{handle_text} on #{platform} and drop the screenshot here 📸",
+        labels: ['payment-method-chosen', "payment-#{platform}"]
+      }
     end
 
     def payment_request_reply(amount, handle_text, game_name)

@@ -74,6 +74,15 @@ module Games
       /(?:hook|set)\s+me\s+up/i
     ].freeze
 
+    # Customer picks a payment method ("paypal", "i'll use venmo", "do you have chime", etc.)
+    # Captures the platform name in group 1.
+    PAYMENT_METHOD_PICK_PATTERNS = [
+      /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*[!.\?]*\s*\z/i,
+      /(?:i'?ll\s+|i\s+wanna\s+|i\s+want\s+to\s+|use\s+|let'?s\s+(?:do\s+)?|try\s+|gimme\s+|with\s+|do\s+)(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
+      /(?:do\s+(?:you\s+have\s+|you\s+got\s+)?|got\s+|have\s+|got\s+any\s+)(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
+      /(?:send\s+(?:via\s+|using\s+|on\s+)|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
+    ].freeze
+
     class << self
       def detect(message_text)
         return nil if message_text.blank?
@@ -86,6 +95,14 @@ module Games
                     {
                       intent: :request_account_creation,
                       game_slug: detect_game(text) || 'game_vault'
+                    }
+                  elsif (m = match_any(text, PAYMENT_METHOD_PICK_PATTERNS))
+                    raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
+                    normalized = raw_platform == 'cashapp' ? 'cashapp' : raw_platform
+                    Rails.logger.info("[IntentDetector] matched payment_method_chosen platform=#{normalized}")
+                    {
+                      intent: :payment_method_chosen,
+                      platform: normalized
                     }
                   elsif (m = match_any(text, CASHOUT_PATTERNS))
                     Rails.logger.info("[IntentDetector] matched cashout amount=#{m[1]}")
