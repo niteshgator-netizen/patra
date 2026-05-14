@@ -37,137 +37,100 @@ module Games
         400 => :parameter_error
       }.freeze
 
+      class JuwaError < StandardError
+        attr_reader :code, :payload
+        def initialize(message, code: nil, payload: nil)
+          super(message)
+          @code    = code
+          @payload = payload
+        end
+      end
+
       def initialize(agent_id:, secret_key:)
         @agent_id   = agent_id.to_s
         @secret_key = secret_key.to_s
       end
 
       # Add a new player account.
-      # Returns { ok:, user_id:, account_name:, code:, message: }
-      def add_user(username:, password:)
-        resp = post('addUser', {
-          account:   username,
+      def add_user(account:, password:)
+        raw_post('addUser', {
+          account:   account,
           login_pwd: password
         })
-        if resp[:ok]
-          { ok: true, user_id: resp.dig(:data, 'user_id'), account_name: resp.dig(:data, 'account_name'), code: 0, message: 'Success' }
-        else
-          { ok: false, user_id: nil, account_name: nil, code: resp[:code], message: resp[:message] }
-        end
       end
 
-      # Resolve username → user_id via getUserID endpoint.
-      # Returns user_id string or nil.
-      def get_user_id(username:)
-        resp = post('getUserID', { account_name: username })
-        return nil unless resp[:ok]
-        resp.dig(:data, 'user_id')
+      # Returns raw hash { 'data' => { 'user_id' => '...' } } so ActionExecutor
+      # can call .dig('data', 'user_id') — matching Game Vault interface.
+      def get_user_id(account_name:)
+        raw_post('getUserID', { account_name: account_name })
       end
 
-      # Recharge (load) credits for a player.
-      # Resolves username to user_id first.
-      # Returns { ok:, amount:, agent_balance:, user_balance:, transaction_id:, code:, message: }
-      def recharge(username:, amount:, order_id:)
-        user_id = get_user_id(username: username)
-        unless user_id
-          return { ok: false, amount: amount, code: 8, message: 'Could not resolve user_id for username' }
-        end
-        resp = post('recharge', {
-          user_id:  user_id,
+      # ActionExecutor passes user_id directly after resolving it via get_user_id.
+      def recharge(user_id:, amount:, order_id:)
+        raw_post('recharge', {
+          user_id:  user_id.to_s,
           amount:   amount.to_s,
           order_id: order_id.to_s
         })
-        if resp[:ok]
-          {
-            ok:            true,
-            amount:        resp.dig(:data, 'amount'),
-            agent_balance: resp.dig(:data, 'agent_balance'),
-            user_balance:  resp.dig(:data, 'user_balance'),
-            transaction_id: resp.dig(:data, 'transaction_id'),
-            code:          0,
-            message:       'Success'
-          }
-        else
-          { ok: false, amount: amount, code: resp[:code], message: resp[:message] }
-        end
       end
 
-      # Withdraw (cashout) credits for a player.
-      # Returns { ok:, amount:, agent_balance:, user_balance:, transaction_id:, code:, message: }
-      def withdraw(username:, amount:, order_id:)
-        user_id = get_user_id(username: username)
-        unless user_id
-          return { ok: false, amount: amount, code: 8, message: 'Could not resolve user_id for username' }
-        end
-        resp = post('withdraw', {
-          user_id:  user_id,
+      # ActionExecutor passes user_id directly after resolving it via get_user_id.
+      def withdraw(user_id:, amount:, order_id:)
+        raw_post('withdraw', {
+          user_id:  user_id.to_s,
           amount:   amount.to_s,
           order_id: order_id.to_s
         })
-        if resp[:ok]
-          {
-            ok:            true,
-            amount:        resp.dig(:data, 'amount'),
-            agent_balance: resp.dig(:data, 'agent_balance'),
-            user_balance:  resp.dig(:data, 'user_balance'),
-            transaction_id: resp.dig(:data, 'transaction_id'),
-            code:          0,
-            message:       'Success'
-          }
-        else
-          { ok: false, amount: amount, code: resp[:code], message: resp[:message] }
-        end
       end
 
-      # Get player balance by username.
-      # Returns { ok:, user_balance:, code:, message: }
-      def user_balance(username:)
-        user_id = get_user_id(username: username)
-        unless user_id
-          return { ok: false, user_balance: nil, code: 8, message: 'Could not resolve user_id for username' }
-        end
-        resp = post('userBalance', { user_id: user_id })
-        if resp[:ok]
-          { ok: true, user_balance: resp.dig(:data, 'user_balance'), code: 0, message: 'Success' }
-        else
-          { ok: false, user_balance: nil, code: resp[:code], message: resp[:message] }
-        end
+      def user_balance(user_id:)
+        raw_post('userBalance', { user_id: user_id.to_s })
       end
 
       # Get agent balance.
       # Returns { ok:, agent_balance:, code:, message: }
       def agent_balance
-        resp = post('agentBalance', {})
-        if resp[:ok]
-          { ok: true, agent_balance: resp.dig(:data, 'agent_balance'), code: 0, message: 'Success' }
-        else
+        resp = raw_post('agentBalance', {})
+        if resp[:ok] == false
           { ok: false, agent_balance: nil, code: resp[:code], message: resp[:message] }
+        else
+          { ok: true, agent_balance: resp.dig('data', 'agent_balance'), code: 0, message: 'Success' }
         end
       end
 
       # Reset player password by username.
       def reset_password(username:, new_password:)
-        user_id = get_user_id(username: username)
+        user_lookup = get_user_id(account_name: username)
+        user_id = user_lookup.dig('data', 'user_id')
         unless user_id
           return { ok: false, code: 8, message: 'Could not resolve user_id for username' }
         end
-        resp = post('resetPassword', { user_id: user_id, login_pwd: new_password })
-        { ok: resp[:ok], code: resp[:code], message: resp[:message] }
+        resp = raw_post('resetPassword', { user_id: user_id, login_pwd: new_password })
+        if resp[:ok] == false
+          { ok: false, code: resp[:code], message: resp[:message] }
+        else
+          { ok: true, code: resp['code'].to_i, message: resp['msg'].to_s }
+        end
       end
 
       # Force player offline by username.
       def player_offline(username:)
-        user_id = get_user_id(username: username)
+        user_lookup = get_user_id(account_name: username)
+        user_id = user_lookup.dig('data', 'user_id')
         unless user_id
           return { ok: false, code: 8, message: 'Could not resolve user_id for username' }
         end
-        resp = post('playerOffline', { user_id: user_id })
-        { ok: resp[:ok], code: resp[:code], message: resp[:message] }
+        resp = raw_post('playerOffline', { user_id: user_id })
+        if resp[:ok] == false
+          { ok: false, code: resp[:code], message: resp[:message] }
+        else
+          { ok: true, code: resp['code'].to_i, message: resp['msg'].to_s }
+        end
       end
 
       private
 
-      def post(endpoint, params)
+      def raw_post(endpoint, params)
         ts    = Time.now.to_i.to_s
         token = Digest::MD5.hexdigest("#{@agent_id}:#{ts}:#{@secret_key}")
 
@@ -199,9 +162,12 @@ module Games
         unless ok
           sym = RESPONSE_CODES[code] || :unknown_error
           Rails.logger.warn("[Juwa] API error #{code} (#{sym}) endpoint=#{endpoint} msg=#{body['msg']}")
+          raise JuwaError.new("Game Juwa API error #{code}: #{body['msg']}", code: code, payload: body)
         end
 
-        { ok: ok, code: code, message: body['msg'].to_s, data: body['data'] }
+        body
+      rescue JuwaError
+        raise
       rescue JSON::ParserError => e
         Rails.logger.error("[Juwa] JSON parse error endpoint=#{endpoint}: #{e.message}")
         { ok: false, code: nil, message: 'JSON parse error', data: nil }
