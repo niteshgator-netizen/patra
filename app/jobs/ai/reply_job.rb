@@ -20,7 +20,7 @@ class Ai::ReplyJob < ApplicationJob
     lock_key = format(REPLY_LOCK_KEY, conv_id: conversation_id)
     already_replied = Redis::Alfred.get(lock_key)
     if already_replied
-      Rails.logger.info("[AiReply] skipping duplicate reply conv=#{conversation_id} lock_ttl=#{Redis::Alfred.ttl(lock_key)}s")
+      Rails.logger.info("[AiReply] skipping duplicate reply conv=#{conversation_id}")
       return
     end
     Redis::Alfred.set(lock_key, '1', ex: REPLY_LOCK_TTL)
