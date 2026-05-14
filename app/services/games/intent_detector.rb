@@ -116,6 +116,15 @@ module Games
         result
       end
 
+      def detect_game(text)
+        return nil if text.blank?
+        lower = text.to_s.downcase
+        GAME_KEYWORDS.each do |slug, keywords|
+          return slug if keywords.any? { |kw| lower.include?(kw) }
+        end
+        nil
+      end
+
       private
 
       def match_any(text, patterns)
@@ -168,14 +177,6 @@ module Games
                        'unknown'
                      end
           return { platform: platform, handle: handle }
-        end
-        nil
-      end
-
-      def detect_game(text)
-        lower = text.downcase
-        GAME_KEYWORDS.each do |slug, keywords|
-          return slug if keywords.any? { |kw| lower.include?(kw) }
         end
         nil
       end
