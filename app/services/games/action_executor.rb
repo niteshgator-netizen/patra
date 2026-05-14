@@ -127,6 +127,11 @@ module Games
       case ag.game.slug
       when 'game_vault'
         Games::GameVault::Client.new(ag)
+      when 'juwa'
+        creds = ag.safe_credentials || {}
+        agent_id  = creds['agent_id'].presence  || ENV.fetch('JUWA_AGENT_ID',  '101346')
+        secret_key = creds['secret_key'].presence || ENV.fetch('JUWA_SECRET_KEY', 'd965d3ad04f830edcd663fabf5b777c7')
+        Games::Juwa::Client.new(agent_id: agent_id, secret_key: secret_key)
       else
         raise "Game #{ag.game.slug} not yet integrated"
       end
@@ -144,7 +149,7 @@ module Games
       agent_game.mark_used!
       agent_game.reset_failures! if agent_game.failure_count > 0
       { ok: true, action: action, response: result }
-    rescue Games::GameVault::Client::GameVaultError => e
+    rescue Games::GameVault::Client::GameVaultError, Games::Juwa::Client::JuwaError => e
       action.update!(
         status: 'failed',
         api_response_code: e.code,
