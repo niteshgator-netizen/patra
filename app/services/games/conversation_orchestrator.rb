@@ -25,8 +25,18 @@ module Games
 
       return nil if probe_text.blank?
 
-      intent = Games::IntentDetector.detect(probe_text)
-      Rails.logger.info("[Orchestrator] intent_detector returned: #{intent.inspect}")
+      # First check latest message alone — this is what the customer just asked NOW
+      latest_intent = Games::IntentDetector.detect(latest_text)
+
+      # Combined fallback ONLY for amount/cashout (split intent like "load 20$" + "on juwa")
+      combined_intent = nil
+      if latest_intent.nil? || (latest_intent.is_a?(Hash) && latest_intent[:intent] == :load && latest_intent[:amount].to_f <= 0)
+        combined_intent = Games::IntentDetector.detect(combined_text)
+      end
+
+      # Choose: prefer latest_intent, fall back to combined only if latest was empty
+      intent = latest_intent || combined_intent
+      Rails.logger.info("[Orchestrator] intent latest=#{latest_intent.inspect} combined=#{combined_intent.inspect} chosen=#{intent.inspect}")
       return nil if intent.nil?
 
       # Override game_slug with whatever is in the LATEST message — customer may have switched games
