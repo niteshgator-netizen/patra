@@ -326,10 +326,14 @@ module Games
       ag = pick_agent_game(intent[:game_slug] || 'game_vault')
       return nil unless ag
 
-      # NO DUPLICATE ACCOUNTS — if we already created one for this customer/game, return existing creds
+      # Check if customer wants to create a DIFFERENT account (replace existing)
+      wants_replace = recent_customer_text.to_s.downcase.match?(/\b(diff(erent)?|another|new|change)\b.*\b(one|account|username)\b/) ||
+                      recent_customer_text.to_s.downcase.match?(/\b(no|nah|nope|dont|don't)\b.*\b(use|like|want|that)\b/)
+
+      # NO DUPLICATE ACCOUNTS — unless customer asked for a different one
       existing_username = stored_game_username(ag.game.slug)
       existing_password = stored_game_password(ag.game.slug)
-      if existing_username.present?
+      if existing_username.present? && !wants_replace
         handle_text = active_payment_handle_for_account
         reply = if existing_password.present?
           "you already have a #{ag.game.name} account! username: #{existing_username}, password: #{existing_password} 🎰 send your deposit to #{handle_text} and drop the screenshot here to load up."
@@ -337,6 +341,12 @@ module Games
           "you already have a #{ag.game.name} account: #{existing_username}. send your deposit to #{handle_text} and drop the screenshot here to load up."
         end
         return { reply: reply, labels: ['account-exists', 'awaiting-payment'] }
+      end
+
+      # If replace requested, clear stored credentials so we generate fresh ones
+      if existing_username.present? && wants_replace
+        Rails.logger.info("[Orchestrator] customer requested replacement for #{ag.game.slug} — clearing old credentials from vault")
+        clear_game_credentials(ag.game.slug)
       end
 
       # Check if customer has a confirmed payment waiting
@@ -476,7 +486,7 @@ module Games
       suffix = GAME_SUFFIX_MAP[game_slug.to_s] || game_slug.to_s.gsub('_', '')[0..1]
       base = (contact&.name.to_s.downcase.gsub(/[^a-z]/, '')[0..6])
       base = "player" if base.blank? || base.length < 3
-      "#{base}#{SecureRandom.random_number(900) + 100}-#{suffix}"
+      "#{base}#{SecureRandom.random_number(900) + 100}_#{suffix}"
     end
 
     def pick_agent_game(game_slug)
@@ -688,6 +698,13 @@ module Games
     def store_game_password(slug, password)
       key = "game_password_#{slug}"
       attrs = (contact.custom_attributes || {}).merge(key => password)
+      contact.update(custom_attributes: attrs)
+    end
+
+    def clear_game_credentials(slug)
+      attrs = (contact.custom_attributes || {}).dup
+      attrs.delete("game_username_#{slug}")
+      attrs.delete("game_password_#{slug}")
       contact.update(custom_attributes: attrs)
     end
 
