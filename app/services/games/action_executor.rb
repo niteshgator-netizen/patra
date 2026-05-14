@@ -124,17 +124,9 @@ module Games
     private
 
     def client_for(ag)
-      case ag.game.slug
-      when 'game_vault'
-        Games::GameVault::Client.new(ag)
-      when 'juwa'
-        creds = ag.safe_credentials || {}
-        agent_id  = creds['agent_id'].presence  || ENV.fetch('JUWA_AGENT_ID',  '101346')
-        secret_key = creds['secret_key'].presence || ENV.fetch('JUWA_SECRET_KEY', 'd965d3ad04f830edcd663fabf5b777c7')
-        Games::Juwa::Client.new(agent_id: agent_id, secret_key: secret_key)
-      else
-        raise "Game #{ag.game.slug} not yet integrated"
-      end
+      client = Games::ClientRegistry.client_for(ag)
+      raise "Game #{ag.game.slug} not yet integrated" unless client
+      client
     end
 
     def execute_in_audit(action)

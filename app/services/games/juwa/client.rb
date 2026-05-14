@@ -5,7 +5,6 @@
 module Games
   module Juwa
     class Client
-      BASE_URL    = 'https://ht.juwa777.com'.freeze
       API_PREFIX  = '/api/external'.freeze
       HTTP_TIMEOUT = 15
 
@@ -46,9 +45,29 @@ module Games
         end
       end
 
-      def initialize(agent_id:, secret_key:)
-        @agent_id   = agent_id.to_s
-        @secret_key = secret_key.to_s
+      attr_reader :agent_game, :base_url
+
+      DEFAULT_BASE_URL = 'https://ht.juwa777.com'.freeze
+
+      def initialize(agent_game)
+        @agent_game = agent_game
+        @base_url   = (agent_game.game&.api_base_url.presence || DEFAULT_BASE_URL).chomp('/')
+        creds = agent_game.credentials || {}
+        @agent_id   = creds['agent_id'].presence  || ENV.fetch('JUWA_AGENT_ID',  '101346')
+        @secret_key = creds['secret_key'].presence || ENV.fetch('JUWA_SECRET_KEY', 'd965d3ad04f830edcd663fabf5b777c7')
+        raise ArgumentError, 'Missing Juwa agent_id'   if @agent_id.blank?
+        raise ArgumentError, 'Missing Juwa secret_key' if @secret_key.blank?
+      end
+
+      # Health check — used by Test Connection button. Universal interface.
+      def test_connection
+        result = agent_balance
+        bal = result.is_a?(Hash) ? result.dig('data', 'agent_balance') : nil
+        { ok: true, balance: bal, message: 'Connected successfully' }
+      rescue JuwaError => e
+        { ok: false, code: e.code, message: e.message }
+      rescue StandardError => e
+        { ok: false, code: -1, message: "Connection failed: #{e.message}" }
       end
 
       # Add a new player account.
@@ -140,7 +159,7 @@ module Games
           token:     token
         }.merge(params)
 
-        uri  = URI("#{BASE_URL}#{API_PREFIX}/#{endpoint}")
+        uri  = URI("#{base_url}#{API_PREFIX}/#{endpoint}")
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl    = uri.scheme == 'https'
         http.open_timeout = HTTP_TIMEOUT

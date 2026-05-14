@@ -48,11 +48,11 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
   def test_connection
     @agent_game = Current.account.agent_games.find(params[:id])
 
-    unless @agent_game.game.slug == 'game_vault'
+    unless Games::ClientRegistry.supported?(@agent_game.game.slug)
       return render json: { ok: false, message: "Test connection not supported for #{@agent_game.game.name} yet" }, status: :ok
     end
 
-    client = Games::GameVault::Client.new(@agent_game)
+    client = Games::ClientRegistry.client_for(@agent_game)
     result = client.test_connection
 
     if result[:ok]
@@ -69,7 +69,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def load_player
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
 
     username = params[:game_username].to_s.strip
     amount = params[:amount].to_f
@@ -97,7 +97,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def cashout_player
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
 
     username = params[:game_username].to_s.strip
     amount = params[:amount].to_f
@@ -122,7 +122,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def check_player
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
 
     username = params[:game_username].to_s.strip
     return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
@@ -142,7 +142,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def diagnose
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless @agent_game.game.slug == 'game_vault'
+    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
 
     ag = @agent_game
     diag = {
@@ -154,11 +154,9 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
     }
 
     begin
-      client = Games::GameVault::Client.new(ag)
+      client = Games::ClientRegistry.client_for(ag)
       bal = client.agent_balance
       diag[:balance_call] = { ok: true, code: bal['code'], message: bal['msg'], balance: bal.dig('data', 'agent_balance') }
-    rescue Games::GameVault::Client::GameVaultError => e
-      diag[:balance_call] = { ok: false, code: e.code, message: e.message }
     rescue StandardError => e
       diag[:balance_call] = { ok: false, error: e.message }
     end
