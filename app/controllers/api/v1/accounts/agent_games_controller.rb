@@ -48,11 +48,11 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
   def test_connection
     @agent_game = Current.account.agent_games.find(params[:id])
 
-    unless Games::ClientRegistry.supported?(@agent_game.game.slug)
+    client = Games::ClientRegistry.client_for(@agent_game)
+    unless client
       return render json: { ok: false, message: "Test connection not supported for #{@agent_game.game.name} yet" }, status: :ok
     end
 
-    client = Games::ClientRegistry.client_for(@agent_game)
     result = client.test_connection
 
     if result[:ok]
@@ -69,7 +69,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def load_player
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
+    return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
 
     username = params[:game_username].to_s.strip
     amount = params[:amount].to_f
@@ -97,7 +97,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def cashout_player
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
+    return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
 
     username = params[:game_username].to_s.strip
     amount = params[:amount].to_f
@@ -122,7 +122,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def check_player
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
+    return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
 
     username = params[:game_username].to_s.strip
     return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
@@ -142,7 +142,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
   def diagnose
     @agent_game = Current.account.agent_games.find(params[:id])
-    return render_not_supported unless Games::ClientRegistry.supported?(@agent_game.game.slug)
+    return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
 
     ag = @agent_game
     diag = {
@@ -247,6 +247,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
       agent_login_url: game.agent_login_url,
       api_base_url: game.api_base_url,
       has_api: game.has_api,
+      has_registry_client: Games::ClientRegistry.supported?(game.slug),
       api_docs_url: game.api_docs_url,
       auth_method: game.auth_method,
       required_fields: game.required_fields,

@@ -24,6 +24,10 @@ export const CREDENTIAL_FIELD_HELP = {
   'juwa_2:agent_id': 'From your Juwa 2.0 agent portal.',
   'juwa_2:secret_key': 'API secret from the Juwa 2.0 agent portal.',
   'juwa_2:api_base_url': 'Usually https://apiinterface.juwa2.xin — change only if your operator uses a different API host.',
+
+  'juwa2:agent_id': 'From your Juwa 2.0 agent portal.',
+  'juwa2:secret_key': 'API secret from the Juwa 2.0 agent portal.',
+  'juwa2:api_base_url': 'Usually https://apiinterface.juwa2.xin — change only if your operator uses a different API host.',
 };
 
 /** Optional display tweaks for game cards / modal header (merged over API payload). */
@@ -33,6 +37,10 @@ export const GAME_UI_BY_SLUG = {
     logo_emoji: '🎲',
   },
   juwa_2: {
+    name: 'Juwa 2',
+    logo_emoji: '🐉',
+  },
+  juwa2: {
     name: 'Juwa 2',
     logo_emoji: '🐉',
   },

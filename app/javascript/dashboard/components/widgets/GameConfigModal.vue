@@ -62,7 +62,7 @@
         </button>
         <div class="modal__foot-right">
           <button
-            v-if="agentGame && agentGame.game && agentGame.game.has_api"
+            v-if="supportsTestConnection"
             type="button"
             class="btn btn--ghost"
             :disabled="isTesting"
@@ -109,6 +109,13 @@ export default {
   computed: {
     normalizedCredentialFields() {
       return normalizeGameCredentialFields(this.game);
+    },
+    /** Prefer API `has_registry_client` (Games::ClientRegistry); fall back to has_api-only for older payloads. */
+    supportsTestConnection() {
+      const g = this.agentGame?.game || this.game;
+      if (!this.agentGame || !g?.has_api) return false;
+      if (g.has_registry_client === false) return false;
+      return true;
     },
   },
   watch: {
