@@ -16,9 +16,10 @@ module Games
     REGISTRY = {
       'game_vault'   => 'Games::GameVault::Client',
       'juwa'         => 'Games::Juwa::Client',
-      'juwa_2'       => 'Games::Juwa2::Client',
-      # Alias if catalog / payloads use `juwa2` without underscore
       'juwa2'        => 'Games::Juwa2::Client',
+      'juwa_2'       => 'Games::Juwa2::Client',
+      'ultra_panda'  => 'Games::UltraPanda::Client',
+      'vblink'       => 'Games::VBLink::Client',
       'vegas_sweeps' => 'Games::VegasSweeps::Client'
     }.freeze
 
