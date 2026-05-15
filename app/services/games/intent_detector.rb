@@ -127,6 +127,8 @@ module Games
                       game_username: captured_username || extract_username(text),
                       game_slug: detect_game(text) || (captured_username ? 'game_vault' : nil)
                     }
+                  elsif (new_acct = detect_new_account_request_with_game(text))
+                    new_acct
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
@@ -146,6 +148,75 @@ module Games
       end
 
       private
+
+      # "i need a juwa account" and similar — requires a known game from GAME_KEYWORDS; skips if a
+      # probable username token is present so :username_provided can win on combined/latest text.
+      def detect_new_account_request_with_game(text)
+        begin
+          return nil if text.blank?
+
+          slug = detect_game(text)
+          return nil if slug.blank?
+          return nil if contains_probable_username_token?(text)
+          return nil unless new_account_for_game_phrase?(text)
+
+          Rails.logger.info("[IntentDetector] matched new_account_request_for_game slug=#{slug}")
+          { intent: :request_account_creation, game_slug: slug }
+        rescue StandardError => e
+          Rails.logger.warn("[IntentDetector] detect_new_account_request_with_game failed: #{e.class}: #{e.message}")
+          nil
+        end
+      end
+
+      def game_name_regex_fragment
+        @game_name_regex_fragment ||= begin
+          keywords = GAME_KEYWORDS.values.flatten.compact.uniq.sort_by { |k| -k.length }
+          keywords.map do |k|
+            k.split(/\s+/).map { |part| Regexp.escape(part) }.join('\s+')
+          end.join('|')
+        end
+      end
+
+      def new_account_for_game_phrase?(text)
+        norm = text.to_s.downcase.gsub(/\s+/, ' ').strip
+        g = game_name_regex_fragment
+        patterns = [
+          /\bi\s+need\s+a\s+(?:#{g})\s+account\b/,
+          /\bi\s+need\s+(?:#{g})\s+account\b/,
+          /\bneed\s+a\s+(?:#{g})\s+account\b/,
+          /\bneed\s+(?:#{g})\s+account\b/,
+          /\bcan\s+i\s+get\s+a\s+(?:#{g})\s+account\b/,
+          /\bcan\s+i\s+get\s+(?:#{g})\s+account\b/,
+          /\bgive\s+me\s+a\s+(?:#{g})\s+account\b/,
+          /\bgive\s+me\s+(?:#{g})\s+account\b/,
+          /\bi\s+want\s+a\s+(?:#{g})\s+account\b/,
+          /\bi\s+want\s+(?:#{g})\s+account\b/,
+          /\bsign\s+me\s+up\s+for\s+(?:#{g})\b/,
+          /\bset\s+me\s+up\s+on\s+(?:#{g})\b/,
+          /\bcreate\s+a\s+(?:#{g})\s+account\b/,
+          /\bmake\s+me\s+a\s+(?:#{g})\s+account\b/,
+          /\bnew\s+(?:#{g})\s+account\b/
+        ]
+        patterns.any? { |p| norm.match?(p) }
+      end
+
+      def game_related_token?(tok)
+        GAME_KEYWORDS.values.flatten.any? do |kw|
+          kw == tok || kw.split(/\s+/).include?(tok)
+        end
+      end
+
+      def contains_probable_username_token?(text)
+        return true if extract_username(text).present?
+
+        lower = text.to_s.downcase
+        lower.scan(/\b[a-z0-9_]{4,}\b/).any? do |tok|
+          next false if common_word?(tok)
+          next false if game_related_token?(tok)
+
+          tok.match?(/\d/)
+        end
+      end
 
       def match_any(text, patterns)
         patterns.each do |pattern|
