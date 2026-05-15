@@ -19,7 +19,7 @@ module Games
       'juwa2'        => 'Games::Juwa2::Client',
       'juwa_2'       => 'Games::Juwa2::Client',
       'ultra_panda'  => 'Games::UltraPanda::Client',
-      'vblink'       => 'Games::VBLink::Client',
+      'vblink'       => 'Games::Vblink::Client',
       'vegas_sweeps' => 'Games::VegasSweeps::Client'
     }.freeze
 

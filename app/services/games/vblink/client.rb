@@ -1,5 +1,5 @@
 module Games
-  module VBLink
+  module Vblink
     class Client < Games::FastApi::Client
       DEFAULT_BASE_URL = 'https://gm.vblink777.club'.freeze
 
