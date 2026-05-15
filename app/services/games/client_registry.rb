@@ -16,6 +16,7 @@ module Games
     REGISTRY = {
       'game_vault'   => 'Games::GameVault::Client',
       'juwa'         => 'Games::Juwa::Client',
+      'juwa2'        => 'Games::Juwa2::Client',
       'vegas_sweeps' => 'Games::VegasSweeps::Client'
     }.freeze
 
