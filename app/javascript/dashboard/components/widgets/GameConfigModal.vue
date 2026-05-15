@@ -154,9 +154,15 @@ export default {
       this.isSaving = true;
       this.errorMessage = '';
       try {
+        const trimmedCredentials = Object.fromEntries(
+          Object.entries(this.credentials).map(([key, value]) => [
+            key,
+            typeof value === 'string' ? value.trim() : value,
+          ])
+        );
         if (this.agentGame) {
           await GamesAPI.updateAgentGame(this.agentGame.id, {
-            credentials: this.credentials,
+            credentials: trimmedCredentials,
             display_name: this.displayName,
             notes: this.notes,
             ip_whitelist_confirmed: this.ipWhitelistConfirmed,
@@ -165,7 +171,7 @@ export default {
         } else {
           await GamesAPI.activate({
             gameId: this.game.id,
-            credentials: this.credentials,
+            credentials: trimmedCredentials,
             displayName: this.displayName,
             notes: this.notes,
             ipWhitelistConfirmed: this.ipWhitelistConfirmed,
