@@ -7,7 +7,7 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
   end
 
   def available_games
-    @games = Game.active.ordered
+    @games = Game.active.with_api.ordered
     render json: @games.map { |g| serialize_game(g) }
   end
 

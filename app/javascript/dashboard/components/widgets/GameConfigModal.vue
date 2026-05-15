@@ -23,7 +23,7 @@
 
         <div v-if="game.has_api" class="section">
           <h4 class="section__title">{{ $t('GAMES.MODAL.CREDENTIALS_TAB') }}</h4>
-          <div v-for="field in requiredFields" :key="field.name" class="field">
+          <div v-for="field in normalizedCredentialFields" :key="field.name" class="field">
             <label class="field__label">{{ field.label }}</label>
             <input
               v-model="credentials[field.name]"
@@ -68,7 +68,7 @@
             :disabled="isTesting"
             @click="testConnection"
           >
-            {{ isTesting ? 'Testing…' : 'Test Connection' }}
+            {{ isTesting ? $t('GAMES.MODAL.TESTING') : $t('GAMES.ACTIONS.TEST_CONNECTION') }}
           </button>
           <button type="button" class="btn" @click="$emit('close')">
             {{ $t('GAMES.ACTIONS.CANCEL') }}
@@ -85,6 +85,7 @@
 <script>
 import GamesAPI from '../../api/games';
 import { useAlert } from 'dashboard/composables';
+import { normalizeGameCredentialFields } from 'dashboard/helper/gameCredentialUi';
 
 export default {
   name: 'GameConfigModal',
@@ -106,19 +107,42 @@ export default {
     };
   },
   computed: {
-    requiredFields() {
-      return Array.isArray(this.game.required_fields) ? this.game.required_fields : [];
+    normalizedCredentialFields() {
+      return normalizeGameCredentialFields(this.game);
+    },
+  },
+  watch: {
+    'game.id'() {
+      this.bootstrapForm();
     },
   },
   mounted() {
-    if (this.agentGame) {
-      this.credentials = { ...(this.agentGame.credentials || {}) };
-      this.displayName = this.agentGame.display_name || '';
-      this.notes = this.agentGame.notes || '';
-      this.ipWhitelistConfirmed = this.agentGame.ip_whitelist_confirmed || false;
-    }
+    this.bootstrapForm();
   },
   methods: {
+    bootstrapForm() {
+      this.errorMessage = '';
+      this.testResult = null;
+      const defs = this.normalizedCredentialFields;
+      const fromAgent =
+        this.agentGame?.credentials && typeof this.agentGame.credentials === 'object'
+          ? { ...this.agentGame.credentials }
+          : {};
+      const creds = { ...fromAgent };
+      defs.forEach(({ name }) => {
+        if (creds[name] == null || creds[name] === '') {
+          if (name === 'api_base_url' && this.game.api_base_url) {
+            creds[name] = this.game.api_base_url;
+          } else {
+            creds[name] = creds[name] || '';
+          }
+        }
+      });
+      this.credentials = creds;
+      this.displayName = this.agentGame?.display_name || '';
+      this.notes = this.agentGame?.notes || '';
+      this.ipWhitelistConfirmed = this.agentGame?.ip_whitelist_confirmed || false;
+    },
     async save() {
       this.isSaving = true;
       this.errorMessage = '';

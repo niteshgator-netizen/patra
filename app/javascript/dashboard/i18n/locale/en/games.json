@@ -50,6 +50,7 @@
       "CONNECTION_TAB": "Connection",
       "ADVANCED_TAB": "Advanced",
       "IP_WHITELIST_LABEL": "I have added Patra's IP to my {gameName} whitelist",
+      "TESTING": "Testing…",
       "IP_WHITELIST_HELP": "Required for API connection. Find this in your {gameName} agent panel.",
       "DISPLAY_NAME_LABEL": "Display name (optional)",
       "DISPLAY_NAME_HELP": "How Bella will refer to this game",

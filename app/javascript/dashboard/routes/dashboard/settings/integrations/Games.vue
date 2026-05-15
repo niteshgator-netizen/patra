@@ -69,6 +69,7 @@ import GamesAPI from '../../../../api/games';
 import GameCard from '../../../../components/widgets/GameCard.vue';
 import GameConfigModal from '../../../../components/widgets/GameConfigModal.vue';
 import GamePlayerActionsModal from '../../../../components/widgets/GamePlayerActionsModal.vue';
+import { mergeGameUiMetadata } from '../../../../helper/gameCredentialUi';
 import { useAlert } from 'dashboard/composables';
 
 export default {
@@ -113,7 +114,9 @@ export default {
         ]);
         const availablePayload = availableRes.data;
         const activatedPayload = activatedRes.data;
-        this.availableGames = Array.isArray(availablePayload) ? availablePayload : [];
+        this.availableGames = (Array.isArray(availablePayload) ? availablePayload : [])
+          .filter(g => g && g.has_api)
+          .map(mergeGameUiMetadata);
         this.agentGames = Array.isArray(activatedPayload) ? activatedPayload : [];
       } catch {
         useAlert(this.$t('GAMES.TOAST.ERROR'));

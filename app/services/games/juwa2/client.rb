@@ -3,12 +3,11 @@ module Games
     class Client < Games::GameVault::Client
       DEFAULT_BASE_URL = 'https://apiinterface.juwa2.xin'.freeze
 
-      def initialize(agent_game)
-        super
-        @base_url = (agent_game.game&.api_base_url.presence || DEFAULT_BASE_URL).chomp('/')
-      end
-
       private
+
+      def base_url_default
+        DEFAULT_BASE_URL
+      end
 
       def env_agent_id
         ENV.fetch('JUWA2_AGENT_ID', '1009')
