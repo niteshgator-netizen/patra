@@ -1,4 +1,4 @@
-# FastAPI spec base client. Used by VBLink, Ultra Panda, and any other game
+# FastAPI spec base client. Used by Vblink, Ultra Panda, and any other game
 # that follows the appid+timestamp+sign auth pattern from the FastAPI docs.
 # Subclasses override env_app_id, env_app_secret, env_agent_account, env_agent_password.
 require 'net/http'
