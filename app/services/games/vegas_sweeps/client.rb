@@ -7,14 +7,11 @@ module Games
     class Client < Games::GameVault::Client
       DEFAULT_BASE_URL = 'https://apius.lasvegassweeps.com'.freeze
 
-      def initialize(agent_game)
-        super
-        # Override the base_url that the parent constructor set.
-        # Use the agent_game's configured URL first, fall back to our default.
-        @base_url = (agent_game.game&.api_base_url.presence || DEFAULT_BASE_URL).chomp('/')
-      end
-
       private
+
+      def base_url_default
+        DEFAULT_BASE_URL
+      end
 
       # Override credential env var fallbacks so Vegas Sweeps reads its own
       # Railway env vars, not Game Vault's.

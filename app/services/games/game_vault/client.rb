@@ -50,7 +50,7 @@ module Games
 
       def initialize(agent_game)
         @agent_game = agent_game
-        @base_url = (agent_game.game&.api_base_url.presence || DEFAULT_BASE_URL).chomp('/')
+        @base_url = resolve_base_url
         validate_credentials!
       end
 
@@ -150,6 +150,19 @@ module Games
       end
 
       private
+
+      def resolve_base_url
+        creds = agent_game.credentials.is_a?(Hash) ? agent_game.credentials : {}
+        (
+          creds['api_base_url'].presence ||
+          agent_game.game&.api_base_url.presence ||
+          base_url_default
+        ).to_s.chomp('/')
+      end
+
+      def base_url_default
+        DEFAULT_BASE_URL
+      end
 
       def validate_credentials!
         raise ArgumentError, 'Missing agent_id' if agent_id.blank?
