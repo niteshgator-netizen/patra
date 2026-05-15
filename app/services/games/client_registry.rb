@@ -14,8 +14,9 @@
 module Games
   module ClientRegistry
     REGISTRY = {
-      'game_vault' => 'Games::GameVault::Client',
-      'juwa'       => 'Games::Juwa::Client'
+      'game_vault'   => 'Games::GameVault::Client',
+      'juwa'         => 'Games::Juwa::Client',
+      'vegas_sweeps' => 'Games::VegasSweeps::Client'
     }.freeze
 
     def self.client_for(agent_game)

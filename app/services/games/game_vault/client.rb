@@ -69,7 +69,29 @@ module Games
       end
 
       def add_user(account:, password:)
-        add_player(account: account, login_pwd: password)
+        result = add_player(account: account, login_pwd: password)
+
+        # Verify the provider actually created the user. addUser can return code=0
+        # without creating an account. Confirm via getUserID before treating as success.
+        begin
+          verify = get_user_id(account_name: account)
+          user_id = verify.is_a?(Hash) ? verify.dig('data', 'user_id') : nil
+          if user_id.nil? || user_id.to_s.strip.empty?
+            Rails.logger.error("[GameVault] addUser reported success but getUserID found no user for '#{account}'. add_response=#{result.inspect} verify_response=#{verify.inspect}")
+            raise GameVaultError.new(
+              -1,
+              "Game Vault reported success but user '#{account}' not found after creation",
+              { add_response: result, verify_response: verify }
+            )
+          end
+        rescue GameVaultError
+          raise
+        rescue StandardError => e
+          Rails.logger.warn("[GameVault] Verification step failed for '#{account}': #{e.class}: #{e.message}")
+          return result
+        end
+
+        result
       end
 
       def low_deposit_users(query_date:, page: 1, page_size: 20)
@@ -135,11 +157,19 @@ module Games
       end
 
       def agent_id
-        agent_game.credentials['agent_id']
+        agent_game.credentials['agent_id'].presence || env_agent_id
       end
 
       def secret_key
-        agent_game.credentials['secret_key']
+        agent_game.credentials['secret_key'].presence || env_secret_key
+      end
+
+      def env_agent_id
+        ENV.fetch('GAME_VAULT_AGENT_ID', '')
+      end
+
+      def env_secret_key
+        ENV.fetch('GAME_VAULT_SECRET_KEY', '')
       end
 
       def generate_token(timestamp)
