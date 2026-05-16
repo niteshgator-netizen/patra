@@ -104,3 +104,27 @@ If a change might break something, FLAG IT before making it.
 If a "fix" requires a workaround that introduces tech debt, NAME THE DEBT.
 
 The goal is shipping working code that the owner understands, not impressing anyone.
+# === ZERO-BUG RULES (mandatory) ===
+
+## Before editing any file
+- Read the WHOLE file first, not just the section being changed
+- Search the codebase for who else uses this method/variable
+- If unclear, STOP and ask user before editing
+
+## Hot files — extra slow
+For these files (reply_service.rb, conversation_orchestrator.rb, intent_detector.rb, chatwoot_bridge_service.rb):
+- Make ONLY the requested change, never refactor
+- After editing, count: every `def` has matching `end`, every `if/case/do/begin` has matching `end`
+- If you touched 2+ hot files in one edit, STOP and split into separate commits
+
+## Never deploy with broken syntax
+After every edit, mentally check: "does this Ruby parse?" If unsure, add a comment: `# CLAUDE: please verify syntax before deploy`
+
+## Tests before deploy
+For every change, provide a PowerShell one-liner the user can run BEFORE deploying.
+Example: bundle exec rubocop app/services/games/juwa/client.rb
+If the test fails, do not deploy.
+
+## Rollback safety
+For every change, also provide the rollback command (usually: git revert HEAD; git push).
+User should rollback first, debug later — never debug in broken production.
