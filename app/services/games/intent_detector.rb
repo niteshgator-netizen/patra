@@ -30,6 +30,25 @@ module Games
       /i'?m\s+([a-z0-9_]{3,30})\s+on/i
     ].freeze
 
+    GAME_NAME_ALIASES = {
+      'juwa' => 'juwa',
+      'juwa 2' => 'juwa2',
+      'juwa2' => 'juwa2',
+      'juwa 2.0' => 'juwa2',
+      'game vault' => 'game_vault',
+      'gamevault' => 'game_vault',
+      'game_vault' => 'game_vault',
+      'vegas sweeps' => 'vegas_sweeps',
+      'vegas' => 'vegas_sweeps',
+      'vegassweeps' => 'vegas_sweeps',
+      'vegas_sweeps' => 'vegas_sweeps',
+      'vblink' => 'vblink',
+      'vb link' => 'vblink',
+      'ultra panda' => 'ultra_panda',
+      'ultrapanda' => 'ultra_panda',
+      'ultra_panda' => 'ultra_panda'
+    }.freeze
+
     GAME_KEYWORDS = {
       'game_vault' => %w[gamevault game vault gv],
       'orion_stars' => %w[orion orionstars],
@@ -59,18 +78,20 @@ module Games
     ].freeze
 
     CREATE_ACCOUNT_PATTERNS = [
-      /create\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:username|user|account|profile|login|it)/i,
-      /make\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:username|user|account)/i,
-      /(?:i\s+)?need\s+(?:an?\s+)?(?:new\s+)?(?:username|user|account)/i,
+      /create\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account|profile|login|it)/i,
+      /make\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account)/i,
+      /(?:i\s+)?need\s+(?:an?\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account)/i,
       /(?:can\s+you\s+)?sign\s+me\s+up/i,
-      /set\s+(?:me\s+)?up\s+(?:a\s+)?(?:new\s+)?(?:account|username)/i,
+      /set\s+(?:me\s+)?up\s+(?:a\s+)?(?:new\s+)?(?:.+\s+)?(?:account|username)/i,
       /never\s+played\s+(?:before|here)/i,
       /first\s+time\s+(?:playing|here)/i,
       /(?:i\s+)?don'?t\s+have\s+(?:a\s+)?(?:username|account)/i,
       /(?:set\s+it\s+up|set\s+me\s+up)/i,
+      /give\s+me\s+(?:an?\s+)?(?:new\s+)?(?:.+\s+)?account/i,
+      /(?:i\s+)?want\s+(?:an?\s+)?(?:new\s+)?(?:.+\s+)?account/i,
       /(?:i\s+)?(?:want|wanna|need)\s+(?:to\s+)?(?:join|start|play|get\s+(?:in|started))/i,
-      /(?:can\s+i\s+)?get\s+(?:me\s+)?(?:a\s+|an\s+)?(?:new\s+)?\w*\s*(?:username|user|account|profile|login)/i,
-      /make\s+(?:me\s+)?(?:a\s+)?(?:brand\s+)?(?:new\s+)?\w*\s*account/i,
+      /(?:can\s+i\s+)?get\s+(?:me\s+)?(?:a\s+|an\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account|profile|login)/i,
+      /make\s+(?:me\s+)?(?:a\s+)?(?:brand\s+)?(?:new\s+)?(?:.+\s+)?account/i,
       /(?:hook|set)\s+me\s+up/i
     ].freeze
 
@@ -90,12 +111,8 @@ module Games
         text = message_text.to_s
         Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
 
-        result = (if match_any(text, CREATE_ACCOUNT_PATTERNS)
-                    Rails.logger.info('[IntentDetector] matched create_account')
-                    {
-                      intent: :request_account_creation,
-                      game_slug: detect_game(text) || 'game_vault'
-                    }
+        result = (if (create_account = detect_account_creation_request(text))
+                    create_account
                   elsif (m = match_any(text, PAYMENT_METHOD_PICK_PATTERNS))
                     raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
                     normalized = raw_platform == 'cashapp' ? 'cashapp' : raw_platform
@@ -140,6 +157,9 @@ module Games
 
       def detect_game(text)
         return nil if text.blank?
+        resolved_slug = resolve_game_slug(text)
+        return resolved_slug if resolved_slug.present?
+
         lower = text.to_s.downcase
         GAME_KEYWORDS.each do |slug, keywords|
           return slug if keywords.any? { |kw| lower.include?(kw) }
@@ -147,7 +167,31 @@ module Games
         nil
       end
 
+      def resolve_game_slug(text)
+        return nil if text.nil? || text.to_s.strip.empty?
+
+        normalized = text.to_s.downcase.strip
+        GAME_NAME_ALIASES.keys.sort_by { |k| -k.length }.each do |alias_name|
+          return GAME_NAME_ALIASES[alias_name] if normalized.include?(alias_name)
+        end
+        nil
+      end
+
       private
+
+      def detect_account_creation_request(text)
+        begin
+          return nil if text.blank?
+          return nil unless match_any(text, CREATE_ACCOUNT_PATTERNS)
+
+          slug = resolve_game_slug(text)
+          Rails.logger.info("[IntentDetector] matched request_account_creation slug=#{slug.inspect}")
+          { intent: :request_account_creation, game_slug: slug }
+        rescue StandardError => e
+          Rails.logger.warn("[IntentDetector] detect_account_creation_request failed: #{e.class}: #{e.message}")
+          nil
+        end
+      end
 
       # "i need a juwa account" and similar — requires a known game from GAME_KEYWORDS; skips if a
       # probable username token is present so :username_provided can win on combined/latest text.
@@ -155,8 +199,7 @@ module Games
         begin
           return nil if text.blank?
 
-          slug = detect_game(text)
-          return nil if slug.blank?
+          slug = resolve_game_slug(text)
           return nil if contains_probable_username_token?(text)
           return nil unless new_account_for_game_phrase?(text)
 
@@ -170,7 +213,7 @@ module Games
 
       def game_name_regex_fragment
         @game_name_regex_fragment ||= begin
-          keywords = GAME_KEYWORDS.values.flatten.compact.uniq.sort_by { |k| -k.length }
+          keywords = GAME_NAME_ALIASES.keys.sort_by { |k| -k.length }
           keywords.map do |k|
             k.split(/\s+/).map { |part| Regexp.escape(part) }.join('\s+')
           end.join('|')
