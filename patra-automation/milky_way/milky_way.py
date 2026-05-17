@@ -69,6 +69,18 @@ def fail(action: str, code: str, message: str, screenshot: str | None = None) ->
     sys.exit(1)
 
 
+class ActionFailed(Exception):
+    """Raised when a game-panel action fails with a clean, classifiable error code.
+
+    The .code attribute is surfaced as error_code in the CLI JSON output,
+    so callers (Bella, cashier) can detect ACCOUNT_EXISTS / VALIDATION_REJECTED
+    deterministically instead of string-matching error_message.
+    """
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
 def log(msg: str) -> None:
     """Diagnostic — goes to stderr so it doesn't pollute the JSON on stdout."""
     print(f"[milky_way] {msg}", file=sys.stderr, flush=True)
@@ -640,12 +652,12 @@ def create_player(page: Page, account: str, password: str) -> dict:
     result = search_player(page, account)
     popup_lower = popup_text.lower()
     if "exists" in popup_lower or "already" in popup_lower:
-        raise RuntimeError(f"ACCOUNT_EXISTS: {popup_text}")
+        raise ActionFailed("ACCOUNT_EXISTS", popup_text or f"Account {account!r} already exists")
     if result is not None:
         return {"created": True, "account": account}
     if popup_text:
-        raise RuntimeError(f"VALIDATION_REJECTED: {popup_text}")
-    raise RuntimeError(f"Create submit completed but player {account!r} not found via search")
+        raise ActionFailed("VALIDATION_REJECTED", popup_text)
+    raise ActionFailed("CREATE_FAILED", f"Create submit completed but player {account!r} not found via search")
 
 
 def reset_password(page: Page, account: str, new_password: str) -> dict:
@@ -796,6 +808,9 @@ def main() -> None:
     except PlaywrightTimeout as e:
         screenshot = _save_screenshot(page, args.cmd)
         fail(args.cmd, "PAGE_TIMEOUT", str(e), screenshot)
+    except ActionFailed as e:
+        screenshot = _save_screenshot(page, args.cmd)
+        fail(args.cmd, e.code, str(e), screenshot)
     except RuntimeError as e:
         screenshot = _save_screenshot(page, args.cmd)
         msg = str(e)
