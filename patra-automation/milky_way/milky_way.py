@@ -621,24 +621,31 @@ def create_player(page: Page, account: str, password: str) -> dict:
         raise RuntimeError("Could not find Create Player submit button")
 
     page.wait_for_timeout(1000)
+    popup_text = ""
     try:
         text, ctx = wait_for_success_popup(page, timeout_ms=5000)
-        if "exists" in text.lower() or "already" in text.lower():
-            # Real error popup — surface it
-            raise RuntimeError(f"Unexpected popup text: {text!r}")
-        # Popup appeared and isn't an error — treat as success
-        dismiss_popup(ctx)
+        popup_text = text
+        # Don't trust the popup — dismiss it, then verify via search.
+        try:
+            dismiss_popup(ctx)
+        except Exception:
+            pass
+    except (TimeoutError, PlaywrightTimeout):
+        pass  # No popup appeared; search-verify below is the only authority
+
+    # SEARCH-VERIFY: the only reliable confirmation. Server-side validation popups
+    # don't match "exists/already" but also don't persist the player — search catches them.
+    page.wait_for_timeout(2000)
+    force_clear_overlays(page)
+    result = search_player(page, account)
+    popup_lower = popup_text.lower()
+    if "exists" in popup_lower or "already" in popup_lower:
+        raise RuntimeError(f"ACCOUNT_EXISTS: {popup_text}")
+    if result is not None:
         return {"created": True, "account": account}
-    except (TimeoutError, PlaywrightTimeout) as e:
-        # No popup appeared within timeout — verify by searching for the player
-        log(f"No success popup detected — verifying create by search: {e}")
-        page.wait_for_timeout(2000)
-        force_clear_overlays(page)
-        result = search_player(page, account)
-        if result is not None:
-            log(f"Player {account!r} found after create — treating as success")
-            return {"created": True, "account": account}
-        raise RuntimeError(f"Create submit completed but player {account!r} not found via search")
+    if popup_text:
+        raise RuntimeError(f"VALIDATION_REJECTED: {popup_text}")
+    raise RuntimeError(f"Create submit completed but player {account!r} not found via search")
 
 
 def reset_password(page: Page, account: str, new_password: str) -> dict:
