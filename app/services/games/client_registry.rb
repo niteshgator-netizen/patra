@@ -14,11 +14,18 @@
 module Games
   module ClientRegistry
     REGISTRY = {
+      'cash_machine' => 'Games::CashMachine::Client',
+      'fire_kirin'   => 'Games::FireKirin::Client',
+      'gameroom'     => 'Games::Gameroom::Client',
       'game_vault'   => 'Games::GameVault::Client',
       'juwa'         => 'Games::Juwa::Client',
       'juwa2'        => 'Games::Juwa2::Client',
       'juwa_2'       => 'Games::Juwa2::Client',
+      'mafia'        => 'Games::Mafia::Client',
       'milky_way'    => 'Games::MilkyWay::Client',
+      'mrallinone'   => 'Games::Mrallinone::Client',
+      'orion_stars'  => 'Games::OrionStars::Client',
+      'panda_master' => 'Games::PandaMaster::Client',
       'ultra_panda'  => 'Games::UltraPanda::Client',
       'vblink'       => 'Games::Vblink::Client',
       'vegas_sweeps' => 'Games::VegasSweeps::Client'
