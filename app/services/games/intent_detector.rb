@@ -46,7 +46,19 @@ module Games
       'vb link' => 'vblink',
       'ultra panda' => 'ultra_panda',
       'ultrapanda' => 'ultra_panda',
-      'ultra_panda' => 'ultra_panda'
+      'ultra_panda' => 'ultra_panda',
+      'panda master' => 'panda_master',
+      'pandamaster' => 'panda_master',
+      'panda_master' => 'panda_master',
+      'gameroom' => 'gameroom',
+      'game room' => 'gameroom',
+      'cash machine' => 'cash_machine',
+      'cashmachine' => 'cash_machine',
+      'cash_machine' => 'cash_machine',
+      'mafia' => 'mafia',
+      'mr all in one' => 'mrallinone',
+      'mrallinone' => 'mrallinone',
+      'mr_all_in_one' => 'mrallinone',
     }.freeze
 
     GAME_KEYWORDS = {
@@ -54,7 +66,12 @@ module Games
       'orion_stars' => %w[orion orionstars],
       'juwa' => %w[juwa],
       'fire_kirin' => %w[firekirin fire kirin],
-      'milky_way' => %w[milkyway milky way]
+      'milky_way' => %w[milkyway milky way],
+      'panda_master' => %w[pandamaster panda_master],
+      'gameroom' => %w[gameroom game_room],
+      'cash_machine' => %w[cashmachine cash_machine],
+      'mafia' => %w[mafia],
+      'mrallinone' => %w[mrallinone mr_all_in_one]
     }.freeze
 
     POINTS_PATTERNS = [
