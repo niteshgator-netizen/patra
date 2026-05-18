@@ -1,0 +1,1 @@
+Fire Kirin automation. Cloned from ../milky_way/ on 2026-05-16. See ../milky_way/BUGS_FIXED.md for the bug log — same fixes apply. Run: py -3.12 fire_kirin.py login. AdsPower profile: k1cl8i5k (Fire_Kirin_Pilot, separate from Milky Way's k1cl3kvv to keep fingerprints isolated).
