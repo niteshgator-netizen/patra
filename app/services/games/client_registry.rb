@@ -18,6 +18,7 @@ module Games
       'juwa'         => 'Games::Juwa::Client',
       'juwa2'        => 'Games::Juwa2::Client',
       'juwa_2'       => 'Games::Juwa2::Client',
+      'milky_way'    => 'Games::MilkyWay::Client',
       'ultra_panda'  => 'Games::UltraPanda::Client',
       'vblink'       => 'Games::Vblink::Client',
       'vegas_sweeps' => 'Games::VegasSweeps::Client'

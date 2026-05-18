@@ -142,7 +142,7 @@ module Games
       agent_game.reset_failures! if agent_game.failure_count > 0
       { ok: true, action: action, response: result }
     rescue Games::GameVault::Client::GameVaultError, Games::Juwa::Client::JuwaError,
-           Games::FastApi::Client::FastApiError => e
+           Games::FastApi::Client::FastApiError, Games::MilkyWay::Client::MilkyWayError => e
       action.update!(
         status: 'failed',
         api_response_code: e.code,

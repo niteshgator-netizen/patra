@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+error_*.png
+captcha_*.png
+.venv/
+create_log.txt
+*.log
