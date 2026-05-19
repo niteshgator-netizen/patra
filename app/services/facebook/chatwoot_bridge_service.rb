@@ -192,6 +192,13 @@ class Facebook::ChatwootBridgeService
     path = "/api/v1/accounts/#{account_id}/conversations/#{conversation_id}/messages"
     image_tuple = download_first_fb_image_if_any
 
+    raw_first = Array(@messaging.dig('message', 'attachments')).first
+    raw_first_type = raw_first.is_a?(Hash) ? raw_first['type'] : raw_first.class.to_s
+    Rails.logger.info(
+      "[ChatwootBridge::Bug8Diag] create_message branch=#{image_tuple ? 'image' : 'text'} " \
+      "raw_first_type=#{raw_first_type} mid=#{@mid} conv=#{conversation_id}"
+    )
+
     response =
       if image_tuple
         image_bytes, media_type, filename = image_tuple
@@ -217,6 +224,11 @@ class Facebook::ChatwootBridgeService
       end
 
     if image_tuple
+      Rails.logger.info(
+        "[ChatwootBridge::Bug8Diag] multipart upload response HTTP=#{response.code} " \
+        "body_preview=#{response.body.to_s[0..200].gsub(/\s+/, ' ')} mid=#{@mid}"
+      )
+
       unless net_response_success?(response)
         raise BridgeError, "message create failed HTTP #{response.code}: #{response.body}"
       end
@@ -271,6 +283,10 @@ class Facebook::ChatwootBridgeService
   # Returns [image_bytes, media_type, filename] or nil if URL missing / download fails.
   def download_first_fb_image_if_any
     url = first_fb_image_attachment_url
+    Rails.logger.info(
+      "[ChatwootBridge::Bug8Diag] first_fb_image_attachment_url url=#{url.to_s[0..120]} " \
+      "blank=#{url.blank?} mid=#{@mid}"
+    )
     return nil if url.blank?
 
     uri = URI.parse(url)
@@ -280,6 +296,10 @@ class Facebook::ChatwootBridgeService
     http.read_timeout = IMAGE_DOWNLOAD_READ_TIMEOUT
     request = Net::HTTP::Get.new(uri.request_uri)
     response = http.request(request)
+    Rails.logger.info(
+      "[ChatwootBridge::Bug8Diag] image download HTTP=#{response.code} " \
+      "bytes=#{response.body&.bytesize.to_i} content_type=#{response['content-type']} mid=#{@mid}"
+    )
     unless response.is_a?(Net::HTTPSuccess)
       Rails.logger.warn("[ChatwootBridge] image download HTTP #{response.code} url=#{url}")
       return nil
