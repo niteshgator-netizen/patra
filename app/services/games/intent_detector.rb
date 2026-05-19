@@ -120,6 +120,20 @@ module Games
       /(?:hook|set)\s+me\s+up/i
     ].freeze
 
+    # Customer asks to reset their game password. Multiple natural phrasings.
+    # These patterns intentionally do NOT capture the new password — orchestrator auto-generates
+    # one that complies with per-panel rules (Cluster 2 needs upper+lower+special, etc).
+    RESET_PASSWORD_PATTERNS = [
+      /reset\s+(?:my\s+)?(?:pw|password|pass)/i,
+      /change\s+(?:my\s+)?(?:pw|password|pass)/i,
+      /(?:new|fresh)\s+(?:pw|password|pass)/i,
+      /forgot\s+(?:my\s+)?(?:pw|password|pass)/i,
+      /(?:i\s+)?(?:can'?t|cant|cannot)\s+(?:log\s*in|login|sign\s*in)/i,
+      /(?:my\s+)?(?:pw|password|pass)\s+(?:isn'?t|isnt|not)\s+working/i,
+      /(?:my\s+)?(?:pw|password|pass)\s+(?:doesn'?t|doesnt|don'?t|dont)\s+work/i,
+      /need\s+(?:a\s+)?(?:new\s+)?(?:pw|password|pass)/i
+    ].freeze
+
     # Customer picks a payment method ("paypal", "i'll use venmo", "do you have chime", etc.)
     # Captures the platform name in group 1.
     PAYMENT_METHOD_PICK_PATTERNS = [
@@ -145,6 +159,13 @@ module Games
                     {
                       intent: :payment_method_chosen,
                       platform: normalized
+                    }
+                  elsif match_any(text, RESET_PASSWORD_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched reset_password')
+                    {
+                      intent: :reset_password,
+                      game_slug: detect_game(text),
+                      game_username: extract_username(text)
                     }
                   elsif (m = match_any(text, CASHOUT_PATTERNS))
                     Rails.logger.info("[IntentDetector] matched cashout amount=#{m[1]}")
