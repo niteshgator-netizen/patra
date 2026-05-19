@@ -57,6 +57,8 @@ module Games
         handle_account_creation_request(intent)
       when :payment_method_chosen
         handle_payment_method_chosen(intent)
+      when :reset_password
+        handle_reset_password_intent(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -499,6 +501,11 @@ module Games
       'vegas_roll'      => 'vr'
     }.freeze
 
+    # Slugs whose panels require strong passwords on RESET only (upper+lower+special, 6-12 chars).
+    # Verified May 19 2026 against live Mafia panel error message; same Laravel/layui codebase
+    # for all 4 Cluster 2 panels, so they share this rule.
+    CLUSTER_2_RESET_STRONG_PW = %w[mafia game_room cash_machine mr_all_in_one].freeze
+
     def generate_auto_username(game_slug = nil)
       suffix = GAME_SUFFIX_MAP[game_slug.to_s] || game_slug.to_s.gsub('_', '')[0..1]
       base = (contact&.name.to_s.downcase.gsub(/[^a-z]/, '')[0..6])
@@ -510,6 +517,28 @@ module Games
     # e.g. 'mausam963_jw' -> 'mausam963'
     def password_from_username(username)
       username.to_s.split('_').first || username.to_s
+    end
+
+    # Generate a compliant new password for a password reset on the given game.
+    # Format mirrors the create-time pattern (firstname + 3-digit number) but adapts
+    # to per-game rules:
+    #   - Cluster 2 panels (Mafia/Gameroom/Cashmachine/MrAllInOne): require upper+lower+special, max 12 chars
+    #     -> "Mausa!412" pattern (capitalize first letter, insert "!", ~9 chars)
+    #   - Everything else: alphanumeric 6+ chars
+    #     -> "mausam412" pattern (same as create)
+    def generate_reset_password(game_slug)
+      base = contact&.name.to_s.downcase.gsub(/[^a-z]/, '')[0..5]
+      base = 'player' if base.blank? || base.length < 3
+      num  = SecureRandom.random_number(900) + 100
+
+      if CLUSTER_2_RESET_STRONG_PW.include?(game_slug.to_s)
+        # Capitalize first char, trim to 5 chars to leave room for "!" + 3 digits = 9 total (under 12 limit)
+        short_base = base[0..4]
+        "#{short_base.capitalize}!#{num}"
+      else
+        # Alphanumeric format, identical to create-time password
+        "#{base}#{num}"
+      end
     end
 
     # Returns the best game slug for this turn:
@@ -810,6 +839,65 @@ module Games
         reply: "easy! send to #{handle_text} on #{platform} and drop the screenshot here 📸",
         labels: ['payment-method-chosen', "payment-#{platform}"]
       }
+    end
+
+    # Customer asked to reset their password on a game.
+    # Required intent fields: :game_slug (string slug like 'mafia')
+    # Optional intent fields: :game_username (string), :new_password (string, customer-supplied)
+    # Falls back to stored username and auto-generated password if not provided.
+    def handle_reset_password_intent(intent)
+      game_slug = intent[:game_slug]
+      ag = pick_agent_game(game_slug) if game_slug.present?
+      ag ||= account.agent_games.joins(:game).where(status: 'active').first
+
+      unless ag
+        return {
+          reply: "which game do you want me to reset? (juwa, milky way, mafia, etc.)",
+          labels: ['reset-needs-game']
+        }
+      end
+
+      # Resolve the username: explicit > stored. Don't auto-create here — reset on a
+      # nonexistent account is wrong, the customer should request account creation instead.
+      username = intent[:game_username].presence || stored_game_username(ag.game.slug)
+
+      if username.blank?
+        return {
+          reply: "what's your #{ag.game.name} username? need it to reset your password.",
+          labels: ['reset-needs-username']
+        }
+      end
+
+      # Generate or accept the new password. Customer-supplied passwords are not honored yet
+      # (panels have strict rules and customers tend to pick noncompliant ones). Always auto-generate.
+      new_password = generate_reset_password(ag.game.slug)
+
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      result = executor.reset_player_password(
+        game_username: username,
+        new_password: new_password,
+        metadata: { source: 'bella_auto_reset', conversation_id: conversation&.id }
+      )
+
+      if result[:ok]
+        store_game_password(ag.game.slug, new_password)
+        {
+          reply: "your new #{ag.game.name} password is #{new_password} — save this! 🎰",
+          labels: ['password-reset']
+        }
+      else
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Password reset failed on #{ag.game.name} for #{username}: #{result[:error]}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: "hit a snag resetting your #{ag.game.name} password — flagged a teammate, they'll handle it shortly.",
+          labels: ['reset-failed', 'needs-human']
+        }
+      end
     end
 
     def payment_request_reply(amount, handle_text, game_name)
