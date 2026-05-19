@@ -134,14 +134,38 @@ module Games
       /need\s+(?:a\s+)?(?:new\s+)?(?:pw|password|pass)/i
     ].freeze
 
-    # Customer picks a payment method ("paypal", "i'll use venmo", "do you have chime", etc.)
-    # Captures the platform name in group 1.
+    # Bug 2/3/4 fix — May 19 2026:
+    #   - Old regex #1 allowed "?" as trailing punctuation. Removed.
+    #     Question-form is handled by QUESTION_GUARD below.
+    #   - Old regex #2 had a bare `use\s+...` group that matched "I don't
+    #     want to use cashapp". The `use ` literal is removed; negation form
+    #     is handled by NEGATION_GUARD below. "I'll use cashapp" still
+    #     matches via the `i'?ll\s+` prefix.
+    #   - Old regex #3 ("do you have / got / have X") removed entirely —
+    #     it's nearly always a question, not a pick. Edge case "got
+    #     cashapp" alone is rare and customers rephrase.
+    #   - New regex #3 catches "send me your X tag / X handle / X info" —
+    #     a request FOR the handle, which is a clear pick.
     PAYMENT_METHOD_PICK_PATTERNS = [
-      /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*[!.\?]*\s*\z/i,
-      /(?:i'?ll\s+|i\s+wanna\s+|i\s+want\s+to\s+|use\s+|let'?s\s+(?:do\s+)?|try\s+|gimme\s+|with\s+|do\s+)(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
-      /(?:do\s+(?:you\s+have\s+|you\s+got\s+)?|got\s+|have\s+|got\s+any\s+)(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
-      /(?:send\s+(?:via\s+|using\s+|on\s+)|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
+      /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*[!.]*\s*\z/i,
+      /(?:i'?ll\s+|i\s+wanna\s+|i\s+want\s+to\s+|let'?s\s+(?:do\s+)?|try\s+|gimme\s+|with\s+|do\s+|i\s+got\s+)(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
+      /(?:send\s+(?:me\s+)?(?:your\s+|the\s+|a\s+|me\s+)?|gimme\s+(?:your\s+)?|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*(?:tag|handle|info|link|address|id)?/i
     ].freeze
+
+    # Bug 2 fix: if the customer's message ends with "?", treat it as a
+    # question and DO NOT match payment_method_chosen. "you have only cash
+    # app?" no longer fires the intent.
+    PAYMENT_METHOD_QUESTION_GUARD = /\?\s*\z/
+
+    # Bug 4 fix: if the customer's message contains a negation BEFORE a
+    # platform name (within the same sentence, no '.', '!', or '?' between),
+    # treat it as a rejection — NOT a pick. "I don't want to use cashapp"
+    # no longer fires the intent.
+    PAYMENT_METHOD_NEGATION_GUARD = /
+      \b(?:don'?t|dont|do\s*not|won'?t|wont|will\s*not|never|no\s+thanks|nope|nah|not)\b
+      [^.!?]*?
+      (?:cashapp|cash\s*app|chime|venmo|paypal|zelle)
+    /ix
 
     class << self
       def detect(message_text)
@@ -152,7 +176,7 @@ module Games
 
         result = (if (create_account = detect_account_creation_request(text))
                     create_account
-                  elsif (m = match_any(text, PAYMENT_METHOD_PICK_PATTERNS))
+                  elsif (m = match_payment_method_pick(text))
                     raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
                     normalized = raw_platform == 'cashapp' ? 'cashapp' : raw_platform
                     Rails.logger.info("[IntentDetector] matched payment_method_chosen platform=#{normalized}")
@@ -305,6 +329,16 @@ module Games
 
           tok.match?(/\d/)
         end
+      end
+
+      # Bug 2/3/4 fix: applies QUESTION and NEGATION guards before running
+      # the pick patterns. A question or a negation about a platform is
+      # NEVER a pick.
+      def match_payment_method_pick(text)
+        return nil if text =~ PAYMENT_METHOD_QUESTION_GUARD
+        return nil if text =~ PAYMENT_METHOD_NEGATION_GUARD
+
+        match_any(text, PAYMENT_METHOD_PICK_PATTERNS)
       end
 
       def match_any(text, patterns)
