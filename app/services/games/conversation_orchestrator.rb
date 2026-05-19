@@ -396,13 +396,13 @@ module Games
       unless recent_payment
         # No payment yet — create account first, then ask for payment
         auto_username = generate_auto_username(ag.game.slug)
-        auto_password = password_from_username(auto_username)
+        auto_password = password_from_username(auto_username, ag.game.slug)
         executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
         add_result = executor.add_player(game_username: auto_username, password: auto_password)
 
         unless add_result[:ok]
           auto_username = generate_auto_username(ag.game.slug)
-          auto_password = password_from_username(auto_username)
+          auto_password = password_from_username(auto_username, ag.game.slug)
           add_result = executor.add_player(game_username: auto_username, password: auto_password)
         end
 
@@ -434,14 +434,14 @@ module Games
 
       # Customer has confirmed payment — create account with auto-generated username
       auto_username = generate_auto_username(ag.game.slug)
-      auto_password = password_from_username(auto_username)
+      auto_password = password_from_username(auto_username, ag.game.slug)
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
       add_result = executor.add_player(game_username: auto_username, password: auto_password)
 
       unless add_result[:ok]
         # Maybe collision — try one more time with different name
         auto_username = generate_auto_username(ag.game.slug)
-        auto_password = password_from_username(auto_username)
+        auto_password = password_from_username(auto_username, ag.game.slug)
         add_result = executor.add_player(game_username: auto_username, password: auto_password)
       end
 
@@ -533,17 +533,46 @@ module Games
     # for all 4 Cluster 2 panels, so they share this rule.
     CLUSTER_2_RESET_STRONG_PW = %w[mafia game_room cash_machine mr_all_in_one].freeze
 
+    # Bug fix May 19 2026: Cluster 2 Laravel panels reject usernames with
+    # underscores ("letters and numbers only, 5-20 chars"). We use this set
+    # to choose the username format in generate_auto_username and to know
+    # how to extract the password back out via password_from_username.
+    # Same 4 slugs as CLUSTER_2_RESET_STRONG_PW — kept as a separate
+    # constant for clarity in case username rules diverge from reset rules.
+    CLUSTER_2_SLUGS = %w[mafia game_room cash_machine mr_all_in_one].freeze
+
+    # Bug fix May 19 2026: format diverges by cluster.
+    #   Cluster 1 (game_vault, juwa, milky_way, fire_kirin, panda_master, orion_stars):
+    #     "mausam397_jw" — underscore separator allowed, easy to extract password from.
+    #   Cluster 2 (mafia, game_room, cash_machine, mr_all_in_one):
+    #     "mausam397gr"  — NO underscore, panel rejects it (letters+numbers only).
+    # password_from_username has matching logic to extract the password back out.
     def generate_auto_username(game_slug = nil)
       suffix = GAME_SUFFIX_MAP[game_slug.to_s] || game_slug.to_s.gsub('_', '')[0..1]
       base = (contact&.name.to_s.downcase.gsub(/[^a-z]/, '')[0..6])
       base = "player" if base.blank? || base.length < 3
-      "#{base}#{SecureRandom.random_number(900) + 100}_#{suffix}"
+      number = SecureRandom.random_number(900) + 100
+
+      if CLUSTER_2_SLUGS.include?(game_slug.to_s)
+        "#{base}#{number}#{suffix}"
+      else
+        "#{base}#{number}_#{suffix}"
+      end
     end
 
-    # Extracts the password from a generated username (everything before the _suffix)
-    # e.g. 'mausam963_jw' -> 'mausam963'
-    def password_from_username(username)
-      username.to_s.split('_').first || username.to_s
+    # Extracts the password (base + number) from an auto-generated username.
+    # Mirrors generate_auto_username's two formats:
+    #   Cluster 1 etc:  "mausam963_jw" -> "mausam963" (split on underscore)
+    #   Cluster 2:      "mausam963gr"  -> "mausam963" (strip trailing 2-3 alpha chars)
+    # game_slug is optional but REQUIRED for correct Cluster 2 extraction; without
+    # it we fall back to the legacy underscore-split which is correct for everything
+    # except Cluster 2 (where the username has no underscore at all).
+    def password_from_username(username, game_slug = nil)
+      if game_slug.present? && CLUSTER_2_SLUGS.include?(game_slug.to_s)
+        username.to_s.sub(/[a-z]{2,3}\z/i, '')
+      else
+        username.to_s.split('_').first || username.to_s
+      end
     end
 
     # Generate a compliant new password for a password reset on the given game.
