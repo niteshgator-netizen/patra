@@ -71,7 +71,7 @@ module Games
     private
 
     def handle_load_intent(intent)
-      ag = pick_agent_game(intent[:game_slug] || 'game_vault')
+      ag = pick_agent_game(chosen_game_slug(intent))
       return nil unless ag
 
       requested_amount = intent[:amount].to_f
@@ -166,7 +166,7 @@ module Games
     end
 
     def handle_cashout_intent(intent)
-      ag = pick_agent_game(intent[:game_slug] || 'game_vault')
+      ag = pick_agent_game(chosen_game_slug(intent))
       return nil unless ag
 
       username = intent[:game_username] || stored_game_username(ag.game.slug)
@@ -252,7 +252,7 @@ module Games
     end
 
     def handle_username_provided(intent)
-      ag = pick_agent_game(intent[:game_slug] || 'game_vault')
+      ag = pick_agent_game(chosen_game_slug(intent))
       return nil unless ag
 
       username = intent[:game_username]
@@ -335,7 +335,7 @@ module Games
     end
 
     def handle_account_creation_request(intent)
-      ag = pick_agent_game(intent[:game_slug] || 'game_vault')
+      ag = pick_agent_game(chosen_game_slug(intent))
       return nil unless ag
 
       # Check if customer wants to create a DIFFERENT account (replace existing)
@@ -510,6 +510,45 @@ module Games
     # e.g. 'mausam963_jw' -> 'mausam963'
     def password_from_username(username)
       username.to_s.split('_').first || username.to_s
+    end
+
+    # Returns the best game slug for this turn:
+    # 1. intent[:game_slug] if the intent detector found one in the current message
+    # 2. contact.custom_attributes['preferred_platform'] (mapped to a valid slug)
+    # 3. 'game_vault' as final fallback
+    def chosen_game_slug(intent)
+      from_intent = intent.is_a?(Hash) ? intent[:game_slug] : nil
+      return from_intent if from_intent.present?
+
+      pref = (contact&.custom_attributes || {})['preferred_platform'].to_s.strip.downcase
+      mapped = preferred_platform_to_slug(pref)
+      return mapped if mapped.present?
+
+      'game_vault'
+    end
+
+    # ProfileService stores preferred_platform using slightly different
+    # spellings than the AgentGame slug. Map them so the agent_game lookup
+    # actually finds a row.
+    def preferred_platform_to_slug(pref)
+      return nil if pref.blank?
+
+      case pref
+      when 'milkyway', 'milky_way', 'milky way' then 'milky_way'
+      when 'firekirin', 'fire_kirin', 'fire kirin' then 'fire_kirin'
+      when 'orionstar', 'orion_stars', 'orion stars', 'orion' then 'orion_stars'
+      when 'pandamaster', 'panda_master', 'panda master' then 'panda_master'
+      when 'gamevault', 'game_vault', 'game vault' then 'game_vault'
+      when 'vegas_sweeps', 'vegassweeps', 'vegas sweeps' then 'vegas_sweeps'
+      when 'vblink' then 'vblink'
+      when 'ultra_panda', 'ultrapanda', 'ultra panda' then 'ultra_panda'
+      when 'gameroom' then 'gameroom'
+      when 'cash_machine', 'cashmachine', 'cash machine' then 'cash_machine'
+      when 'mafia' then 'mafia'
+      when 'mrallinone', 'mr_all_in_one', 'mr all in one' then 'mrallinone'
+      when 'juwa' then 'juwa'
+      else nil
+      end
     end
 
     def pick_agent_game(game_slug)
