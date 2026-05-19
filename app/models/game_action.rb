@@ -1,5 +1,5 @@
 class GameAction < ApplicationRecord
-  ACTION_TYPES = %w[load cashout add_player balance_check player_balance_check].freeze
+  ACTION_TYPES = %w[load cashout add_player reset_password balance_check player_balance_check].freeze
   STATUSES = %w[pending success failed].freeze
 
   belongs_to :account

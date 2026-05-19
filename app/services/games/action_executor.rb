@@ -111,6 +111,45 @@ module Games
       end
     end
 
+    # Reset a player's password on the game panel.
+    # Mirrors the load_player/cashout_player pattern: resolve user_id from username,
+    # call the universal client interface (client.reset_player_password),
+    # audit in GameAction, surface failures via record_failure! + Telegram.
+    #
+    # Used by ConversationOrchestrator when customer asks to reset their password.
+    # The new_password is supplied by the caller (orchestrator generates it).
+    def reset_player_password(game_username:, new_password:, metadata: {}, order_id: nil)
+      order_id ||= GameAction.generate_order_id(prefix: 'reset')
+
+      existing = GameAction.find_by(account_id: agent_game.account_id, order_id: order_id)
+      raise IdempotencyError, "Order #{order_id} already exists with status #{existing.status}" if existing
+
+      action = GameAction.create!(
+        account: agent_game.account,
+        agent_game: agent_game,
+        contact: contact,
+        conversation: conversation,
+        action_type: 'reset_password',
+        order_id: order_id,
+        game_username: game_username,
+        metadata: metadata,
+        status: 'pending'
+      )
+
+      execute_in_audit(action) do
+        client = client_for(agent_game)
+        user_lookup = client.get_user_id(account_name: game_username)
+        user_id = user_lookup.dig('data', 'user_id')
+        raise "Could not find player ID for username #{game_username}" if user_id.blank?
+
+        action.update!(game_user_id: user_id.to_s)
+
+        # Universal client interface — all clients implement reset_player_password(user_id:, login_pwd:).
+        # Verified working on Mafia/Cluster 2 via Rails smoke test May 19 2026.
+        client.reset_player_password(user_id: user_id, login_pwd: new_password)
+      end
+    end
+
     def check_player_balance(game_username:)
       client = client_for(agent_game)
       user_lookup = client.get_user_id(account_name: game_username)
