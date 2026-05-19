@@ -117,13 +117,21 @@ module Games
 
       def recharge(user_id:, amount:, order_id:)
         agent_bal = agent_balance.dig('data', 'agent_balance')
-        body = "id=#{CGI.escape(user_id.to_s)}&available_balance=#{CGI.escape(agent_bal.to_s)}&opera_type=0&bonus=0&balance=#{CGI.escape(amount.to_s)}&remark=#{CGI.escape("order:#{order_id}")}"
+        # Mafia/Gameroom/Cashmachine/MrAllInOne validate `remark` server-side:
+        # letters+numbers only, max 50 chars. No colons, underscores, or dashes.
+        safe_remark = order_id.to_s.gsub(/[^a-zA-Z0-9]/, '')[0, 50]
+        body = "id=#{CGI.escape(user_id.to_s)}&available_balance=#{CGI.escape(agent_bal.to_s)}" \
+               "&opera_type=0&bonus=0&balance=#{CGI.escape(amount.to_s)}" \
+               "&remark=#{CGI.escape(safe_remark)}"
         post_action('agentRecharge', body, action_label: 'recharge', order_id: order_id)
       end
 
       def withdraw(user_id:, amount:, order_id:)
         customer_balance = user_balance(user_id: user_id).dig('data', 'user_balance')
-        body = "id=#{CGI.escape(user_id.to_s)}&customer_balance=#{CGI.escape(customer_balance.to_s)}&opera_type=1&balance=#{CGI.escape(amount.to_s)}&remark=#{CGI.escape("order:#{order_id}")}"
+        safe_remark = order_id.to_s.gsub(/[^a-zA-Z0-9]/, '')[0, 50]
+        body = "id=#{CGI.escape(user_id.to_s)}&customer_balance=#{CGI.escape(customer_balance.to_s)}" \
+               "&opera_type=1&balance=#{CGI.escape(amount.to_s)}" \
+               "&remark=#{CGI.escape(safe_remark)}"
         post_action('agentWithdraw', body, action_label: 'withdraw', order_id: order_id)
       end
 
