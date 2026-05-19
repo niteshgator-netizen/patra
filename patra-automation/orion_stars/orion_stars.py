@@ -31,6 +31,25 @@ from playwright.sync_api import (
     TimeoutError as PlaywrightTimeout,
 )
 
+_PANEL_NAME_RE = re.compile(r"[^A-Za-z0-9_]")
+PANEL_MAX_ACCOUNT_LEN = 13
+
+
+def sanitize_panel_name(name: str) -> str:
+    """Panel rule (from Create Player dialog UI):
+    ≤13 chars, letters/digits/underscore only. Panel silently
+    truncates and strips disallowed chars on submit, so do the
+    same locally BEFORE submit + search-verify."""
+    cleaned = _PANEL_NAME_RE.sub("", name or "")
+    return cleaned[:PANEL_MAX_ACCOUNT_LEN]
+
+
+def sanitize_panel_password(pw: str) -> str:
+    """Panel password rule: letters/digits/underscore only.
+    Length not capped by the label — leave length alone."""
+    return _PANEL_NAME_RE.sub("", pw or "")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────────────────────────────────────
@@ -645,6 +664,16 @@ def redeem_player(page: Page, account: str, amount: float) -> dict:
 
 
 def create_player(page: Page, account: str, password: str) -> dict:
+    requested_account = account
+    account = sanitize_panel_name(account)
+    password = sanitize_panel_password(password)
+    if account != requested_account:
+        log(f"Account name sanitized: {requested_account!r} -> {account!r}")
+    if not account:
+        raise ValueError(
+            f"Account name became empty after sanitizing: {requested_account!r}"
+        )
+
     dismiss_announcement_popup(page)
     force_clear_overlays(page)
     main = main_frame(page)
@@ -680,7 +709,11 @@ def create_player(page: Page, account: str, password: str) -> dict:
     if "exists" in popup_lower or "already" in popup_lower:
         raise ActionFailed("ACCOUNT_EXISTS", popup_text or f"Account {account!r} already exists")
     if result is not None:
-        return {"created": True, "account": account}
+        return {
+            "status": "created",
+            "account": account,
+            "requested_account": requested_account,
+        }
     if popup_text:
         raise ActionFailed("VALIDATION_REJECTED", popup_text)
     raise ActionFailed("CREATE_FAILED", f"Create submit completed but player {account!r} not found via search")
@@ -787,7 +820,16 @@ def main() -> None:
         with sync_playwright() as pw:
             browser = pw.chromium.connect_over_cdp(ws_url)
             context = browser.contexts[0] if browser.contexts else browser.new_context()
-            page = context.pages[0] if context.pages else context.new_page()
+            # Pick the actual game tab, not chrome:// internal pages (Omnibox Popup, etc.)
+            # AdsPower opens helper tabs at index 0; the real game tab can be anywhere.
+            page = None
+            for _p in context.pages:
+                _url = (_p.url or "").lower()
+                if "orionstars" in _url:
+                    page = _p
+                    break
+            if page is None:
+                page = context.new_page()
 
             if not login_orion_stars(page):
                 screenshot = _save_screenshot(page, "login_failed")
@@ -810,8 +852,8 @@ def main() -> None:
                 return
 
             if args.cmd == "create":
-                r = create_player(page, args.account, args.password)
-                emit({"status": "success", "action": "create", **r})
+                result = create_player(page, args.account, args.password)
+                print(json.dumps(result, indent=2))
                 return
 
             if args.cmd == "reset":
