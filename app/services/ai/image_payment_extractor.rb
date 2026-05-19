@@ -37,7 +37,24 @@ module Ai
       If NOT a payment screenshot:
       {"is_payment": false, "confidence": "high"}
 
-      Rules:
+      PLATFORM IDENTIFICATION (apply in order — pick the FIRST that matches):
+
+      1. PayPal — strong markers: the literal word "PayPal" anywhere on the receipt; the PayPal wordmark (dark blue "Pay" + light blue "Pal"); recipient or sender shown as an email address (containing "@" and a domain like gmail.com / hotmail.com / etc); the words "Completed", "Sent", or "Payment sent" in PayPal's typography; blue color scheme (#003087 / #009cde). PayPal often shows full names like "Dev Patel" together with an email address. If you see "PayPal" written anywhere on the receipt, the platform is paypal — do not pick cashapp.
+
+      2. Cash App — strong markers: the literal phrase "Cash App" or "Cashapp"; the white "$" inside a green square logo; bright green background or green accents (#00d632); recipient handle ALWAYS prefixed with "$" (a "cashtag") never "@"; status text "Payment Sent" or "Completed". Cash App receipts do NOT show email addresses for the recipient — only $cashtags. If the recipient field is an email address, this is NOT cashapp.
+
+      3. Venmo — strong markers: the literal word "Venmo"; light blue background or accents (#3D95CE); recipient as @username (not $ and not email); a prominent memo / note field (often with an emoji); "Charged" or "Paid" status; transaction history feed layout.
+
+      4. Chime — strong markers: the word "Chime"; teal / mint green branding (#1EC677); "Pay Anyone" or "Chime Pay" feature; $ChimeSign handle.
+
+      5. Zelle — strong markers: the word "Zelle"; purple wordmark (#6D1ED4); recipient by phone number or email; bank app chrome around it (Bank of America, Chase, Wells Fargo, Citi); "Sent" status.
+
+      DISAMBIGUATION RULES:
+      - If the receipt visibly says "PayPal" but the customer's message text says "cashapp", TRUST THE SCREENSHOT. Output platform=paypal. The customer may have sent the wrong screenshot.
+      - If two platforms could match, prefer the one with the strongest evidence: branded wordmark > color scheme > handle format > sender's claim.
+      - If you cannot find ANY of the strong markers for any platform, output platform="unknown" and confidence="low" rather than guessing.
+
+      OTHER RULES:
       - Return is_payment:true only if at least 70 percent confident.
       - amount must be a number, not a string.
       - Read names, handles, and transaction_id EXACTLY as shown. Do not paraphrase. Do not invent.

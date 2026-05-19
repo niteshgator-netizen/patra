@@ -6,6 +6,26 @@ module Games
   class ConversationOrchestrator
     attr_reader :account, :contact, :conversation, :messages
 
+    # Bug 1 fix: maps preferred_platform values from
+    # players/profile_service.rb's PLATFORM_ALIASES to ClientRegistry game
+    # slugs. preferred_platform stores 'milkyway' (no underscore) but
+    # agent_games uses 'milky_way' (underscored). This bridges them.
+    PREFERRED_PLATFORM_TO_SLUG = {
+      'gamevault' => 'game_vault',
+      'firekirin' => 'fire_kirin',
+      'milkyway' => 'milky_way',
+      'pandamaster' => 'panda_master',
+      'orionstar' => 'orion_stars',
+      'juwa' => 'juwa',
+      'gameroom' => 'game_room',
+      'cash_machine' => 'cash_machine',
+      'mr_all_in_one' => 'mr_all_in_one',
+      'ultra_panda' => 'ultra_panda',
+      'vblink' => 'vblink',
+      'vegas_sweeps' => 'vegas_sweeps',
+      'mafia' => 'mafia'
+    }.freeze
+
     def initialize(account:, contact:, conversation:, messages:)
       @account = account
       @contact = contact
@@ -82,10 +102,17 @@ module Games
       payment = find_matching_confirmed_payment(requested_amount)
 
       unless payment
-        # No payment yet — ask for it
+        # No payment yet — ask for it. Bug 7 fix: pass the default active
+        # platform so the reply format matches handle_payment_method_chosen.
         handle_text = active_payment_handle_for_account
+        default_platform =
+          begin
+            active_payment_platforms.first.to_s
+          rescue StandardError
+            ''
+          end
         return {
-          reply: payment_request_reply(requested_amount, handle_text, ag.game.name),
+          reply: payment_request_reply(requested_amount, handle_text, default_platform, ag.game.name),
           labels: ['awaiting-payment']
         }
       end
@@ -541,43 +568,20 @@ module Games
       end
     end
 
-    # Returns the best game slug for this turn:
-    # 1. intent[:game_slug] if the intent detector found one in the current message
-    # 2. contact.custom_attributes['preferred_platform'] (mapped to a valid slug)
-    # 3. 'game_vault' as final fallback
+    # Bug 1 fix: picks the game slug in priority order:
+    #   1. intent[:game_slug] from latest message detection
+    #   2. contact.custom_attributes['preferred_platform'] (auto-detected
+    #      from history by Players::ProfileService)
+    #   3. 'game_vault' (legacy default — last resort)
     def chosen_game_slug(intent)
-      from_intent = intent.is_a?(Hash) ? intent[:game_slug] : nil
-      return from_intent if from_intent.present?
+      explicit = intent.is_a?(Hash) ? intent[:game_slug] : nil
+      return explicit if explicit.present?
 
-      pref = (contact&.custom_attributes || {})['preferred_platform'].to_s.strip.downcase
-      mapped = preferred_platform_to_slug(pref)
+      preferred = (contact&.custom_attributes || {})['preferred_platform'].to_s.downcase.strip
+      mapped = PREFERRED_PLATFORM_TO_SLUG[preferred]
       return mapped if mapped.present?
 
       'game_vault'
-    end
-
-    # ProfileService stores preferred_platform using slightly different
-    # spellings than the AgentGame slug. Map them so the agent_game lookup
-    # actually finds a row.
-    def preferred_platform_to_slug(pref)
-      return nil if pref.blank?
-
-      case pref
-      when 'milkyway', 'milky_way', 'milky way' then 'milky_way'
-      when 'firekirin', 'fire_kirin', 'fire kirin' then 'fire_kirin'
-      when 'orionstar', 'orion_stars', 'orion stars', 'orion' then 'orion_stars'
-      when 'pandamaster', 'panda_master', 'panda master' then 'panda_master'
-      when 'gamevault', 'game_vault', 'game vault' then 'game_vault'
-      when 'vegas_sweeps', 'vegassweeps', 'vegas sweeps' then 'vegas_sweeps'
-      when 'vblink' then 'vblink'
-      when 'ultra_panda', 'ultrapanda', 'ultra panda' then 'ultra_panda'
-      when 'gameroom' then 'gameroom'
-      when 'cash_machine', 'cashmachine', 'cash machine' then 'cash_machine'
-      when 'mafia' then 'mafia'
-      when 'mrallinone', 'mr_all_in_one', 'mr all in one' then 'mrallinone'
-      when 'juwa' then 'juwa'
-      else nil
-      end
     end
 
     def pick_agent_game(game_slug)
@@ -900,8 +904,19 @@ module Games
       end
     end
 
-    def payment_request_reply(amount, handle_text, game_name)
-      "got it! send $#{amount} to #{handle_text}, then drop the screenshot here 📸 — i'll load it on #{game_name} as soon as it confirms."
+    # Bug 7 fix: payment_request_reply now mirrors handle_payment_method_chosen
+    # by including the platform ("send $5 to X on cashapp"). If platform is
+    # blank or handle_text already contains the platform name (legacy single-
+    # handle format like "cashapp sofia mann"), we skip the suffix to avoid
+    # duplicates ("send $5 to cashapp sofia mann on cashapp" would be ugly).
+    def payment_request_reply(amount, handle_text, platform, game_name)
+      handle_str = handle_text.to_s.strip
+      platform_str = platform.to_s.strip.downcase
+      already_has_platform = platform_str.present? && handle_str.downcase.include?(platform_str)
+
+      suffix = (platform_str.present? && !already_has_platform) ? " on #{platform_str}" : ''
+
+      "got it! send $#{amount} to #{handle_str}#{suffix}, then drop the screenshot here 📸 — i'll load it on #{game_name} as soon as it confirms."
     end
 
     def honest_failure_reply(result, amount, game_name)
