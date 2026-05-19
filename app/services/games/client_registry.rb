@@ -14,21 +14,23 @@
 module Games
   module ClientRegistry
     REGISTRY = {
-      'cash_machine' => 'Games::CashMachine::Client',
-      'fire_kirin'   => 'Games::FireKirin::Client',
-      'gameroom'     => 'Games::Gameroom::Client',
-      'game_vault'   => 'Games::GameVault::Client',
-      'juwa'         => 'Games::Juwa::Client',
-      'juwa2'        => 'Games::Juwa2::Client',
-      'juwa_2'       => 'Games::Juwa2::Client',
-      'mafia'        => 'Games::Mafia::Client',
-      'milky_way'    => 'Games::MilkyWay::Client',
-      'mrallinone'   => 'Games::Mrallinone::Client',
-      'orion_stars'  => 'Games::OrionStars::Client',
-      'panda_master' => 'Games::PandaMaster::Client',
-      'ultra_panda'  => 'Games::UltraPanda::Client',
-      'vblink'       => 'Games::Vblink::Client',
-      'vegas_sweeps' => 'Games::VegasSweeps::Client'
+      'game_vault'    => 'Games::GameVault::Client',
+      'juwa'          => 'Games::Juwa::Client',
+      'juwa2'         => 'Games::Juwa2::Client',
+      'juwa_2'        => 'Games::Juwa2::Client',
+      # Cluster 1 — ASP.NET panels (auth: ASP.NET_SessionId cookie)
+      'milky_way'     => 'Games::MilkyWay::Client',
+      'fire_kirin'    => 'Games::FireKirin::Client',
+      'panda_master'  => 'Games::PandaMaster::Client',
+      'orion_stars'   => 'Games::OrionStars::Client',
+      # Cluster 2 — Laravel panels (auth: JWT Bearer + session cookie)
+      'mafia'         => 'Games::Mafia::Client',
+      'game_room'     => 'Games::GameRoom::Client',
+      'cash_machine'  => 'Games::CashMachine::Client',
+      'mr_all_in_one' => 'Games::MrAllInOne::Client',
+      'ultra_panda'   => 'Games::UltraPanda::Client',
+      'vblink'        => 'Games::Vblink::Client',
+      'vegas_sweeps'  => 'Games::VegasSweeps::Client'
     }.freeze
 
     def self.client_for(agent_game)
