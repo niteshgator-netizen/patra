@@ -23,7 +23,7 @@
 #
 class Game < ApplicationRecord
   STATUSES = %w[active deprecated].freeze
-  AUTH_METHODS = %w[md5_token bearer api_key none].freeze
+  AUTH_METHODS = %w[md5_token bearer api_key none session_cookie bearer_jwt].freeze
 
   has_many :agent_games, dependent: :destroy
 
