@@ -231,10 +231,26 @@ module Games
         nil
       end
 
-      def http_request(method, url_str, body: nil, headers: {})
+      # Reactive auto-refresh of Cluster 2 sessions (added Ship 2, May 20 2026).
+      #
+      # When the Cluster 2 panel signals an expired bearer JWT — either by
+      # HTTP 401 Unauthorized OR by a 200-OK body containing
+      # {"status_code":410,"message":"Please login again"} — we automatically:
+      #   1. Call Games::LaravelPanel::SessionRefresher to get a fresh bearer
+      #      + cookies, written into agent_game.credentials.
+      #   2. Reload agent_game from DB and refresh our local ivars.
+      #   3. Overwrite Authorization + Cookie headers with the new values.
+      #   4. Retry the original request ONCE (guarded by _retried flag so we
+      #      can never recurse infinitely).
+      #
+      # Safety: session-expiry responses are returned BEFORE the server processes
+      # the business logic of the request (recharge/withdraw/etc), so retrying
+      # is safe — the action did not happen the first time. Verified by reading
+      # the upstream Laravel JWT middleware behavior.
+      def http_request(method, url_str, body: nil, headers: {}, _retried: false)
         uri = URI(url_str)
-        Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
-                        open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
+                                   open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
           req = case method
                 when :get
                   Net::HTTP::Get.new(uri.request_uri)
@@ -246,15 +262,36 @@ module Games
                   raise ArgumentError, "Unsupported HTTP method: #{method}"
                 end
           headers.each { |k, v| req[k] = v }
-          response = http.request(req)
-          if response.is_a?(Net::HTTPUnauthorized)
-            raise Games::ClientError.new('Bearer JWT expired — re-capture from browser', code: 401)
-          end
-          unless response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
-            raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response.body.to_s[0..300] })
-          end
-          response
+          http.request(req)
         end
+
+        if !_retried && session_expired?(response)
+          Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}) — refreshing and retrying")
+          refresh_result = Games::LaravelPanel::SessionRefresher.new(@agent_game).refresh!
+          if refresh_result[:ok]
+            @agent_game.reload
+            creds = @agent_game.credentials || {}
+            @bearer = creds['bearer'].to_s.strip
+            @session_cookie = creds['session_cookie'].to_s.strip
+            @server_name_session = creds['server_name_session'].to_s.strip
+            retry_headers = headers.merge(
+              'Authorization' => "Bearer #{@bearer}",
+              'Cookie' => cookie_header
+            )
+            return http_request(method, url_str, body: body, headers: retry_headers, _retried: true)
+          else
+            Rails.logger.warn("[LaravelPanel][#{self.class::PANEL_KEY}] auto-refresh FAILED: #{refresh_result[:error]} — raising original error")
+            # Fall through and raise the original error path below
+          end
+        end
+
+        if response.is_a?(Net::HTTPUnauthorized)
+          raise Games::ClientError.new('Bearer JWT expired — refresh failed', code: 401)
+        end
+        unless response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
+          raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response.body.to_s[0..300] })
+        end
+        response
       rescue Games::ClientError
         raise
       rescue JSON::ParserError => e
@@ -263,6 +300,16 @@ module Games
         raise Games::ClientError.new("Timeout: #{e.message}", code: -1)
       rescue StandardError => e
         raise Games::ClientError.new("Network error: #{e.class}: #{e.message}", code: -1)
+      end
+
+      # Detects the two known Cluster 2 session-expiry response signatures.
+      # Only peeks at the first ~200 bytes of the body to avoid scanning large
+      # JSON responses on every request. The exact-string match is intentional
+      # to keep false positives at zero.
+      def session_expired?(response)
+        return true if response.is_a?(Net::HTTPUnauthorized)
+        body_head = response.body.to_s[0..200]
+        body_head.include?('"status_code":410,"message":"Please login again"')
       end
     end
   end
