@@ -77,7 +77,7 @@ module Games
             tokens = extract_form_tokens(page_html)
             captcha_url = extract_captcha_url(page_html)
             captcha_bytes = fetch_captcha_image(captcha_url)
-            captcha_text = @capsolver.solve_image_to_text(captcha_bytes, module_name: 'number')
+            captcha_text = @capsolver.solve_image_to_text(captcha_bytes, module_name: 'common')
             log("CapSolver returned #{captcha_text.inspect}")
 
             new_sid = attempt_login(tokens, captcha_text)
