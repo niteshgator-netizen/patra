@@ -541,6 +541,13 @@ module Games
     # constant for clarity in case username rules diverge from reset rules.
     CLUSTER_2_SLUGS = %w[mafia game_room cash_machine mr_all_in_one].freeze
 
+    # Bug fix May 20 2026: FastApi panels (VBLink, Ultra Panda) also reject
+    # underscores in usernames — provider returns code 7 "Username can only be
+    # alphanumeric". Diagnosed via direct API test in Rails console.
+    # USERNAME_NO_UNDERSCORE_SLUGS is the full set of panels requiring the
+    # no-underscore username format; supersedes CLUSTER_2_SLUGS for that purpose.
+    USERNAME_NO_UNDERSCORE_SLUGS = (CLUSTER_2_SLUGS + %w[vblink ultra_panda]).freeze
+
     # Bug fix May 19 2026: format diverges by cluster.
     #   Cluster 1 (game_vault, juwa, milky_way, fire_kirin, panda_master, orion_stars):
     #     "mausam397_jw" — underscore separator allowed, easy to extract password from.
@@ -553,7 +560,7 @@ module Games
       base = "player" if base.blank? || base.length < 3
       number = SecureRandom.random_number(900) + 100
 
-      if CLUSTER_2_SLUGS.include?(game_slug.to_s)
+      if USERNAME_NO_UNDERSCORE_SLUGS.include?(game_slug.to_s)
         "#{base}#{number}#{suffix}"
       else
         "#{base}#{number}_#{suffix}"
@@ -568,7 +575,7 @@ module Games
     # it we fall back to the legacy underscore-split which is correct for everything
     # except Cluster 2 (where the username has no underscore at all).
     def password_from_username(username, game_slug = nil)
-      if game_slug.present? && CLUSTER_2_SLUGS.include?(game_slug.to_s)
+      if game_slug.present? && USERNAME_NO_UNDERSCORE_SLUGS.include?(game_slug.to_s)
         username.to_s.sub(/[a-z]{2,3}\z/i, '')
       else
         username.to_s.split('_').first || username.to_s
