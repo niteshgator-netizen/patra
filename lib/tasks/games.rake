@@ -133,7 +133,7 @@ namespace :games do
     puts "  - the submit button event target"
   end
 
-  desc 'Refresh agent session for a Cluster 1 ASP.NET panel (e.g. milky_way)'
+  desc 'Refresh agent session (Cluster 1 ASP.NET or Cluster 2 Laravel panels)'
   task :refresh_session, [:slug] => :environment do |_t, args|
     slug = args[:slug].to_s.strip
     if slug.blank?
@@ -141,8 +141,11 @@ namespace :games do
       exit 1
     end
 
-    unless Games::AspNetPanel::SessionRefresher::BASE_URLS.key?(slug)
-      puts "ERROR: slug '#{slug}' not supported. Supported: #{Games::AspNetPanel::SessionRefresher::BASE_URLS.keys.join(', ')}"
+    laravel = Games::LaravelPanel::SessionRefresher::PANELS
+    asp = Games::AspNetPanel::SessionRefresher::BASE_URLS
+    unless laravel.key?(slug) || asp.key?(slug)
+      supported = (laravel.keys + asp.keys).uniq.sort.join(', ')
+      puts "ERROR: slug '#{slug}' not supported. Supported: #{supported}"
       exit 1
     end
 
@@ -153,10 +156,18 @@ namespace :games do
     end
 
     puts "[refresh_session] starting for slug=#{slug} agent_username=#{ag.credentials['agent_username']}"
-    puts "[refresh_session] current asp_session_id length=#{ag.credentials['asp_session_id'].to_s.length}"
+    if laravel.key?(slug)
+      puts "[refresh_session] current bearer length=#{ag.credentials['bearer'].to_s.length}"
+    else
+      puts "[refresh_session] current asp_session_id length=#{ag.credentials['asp_session_id'].to_s.length}"
+    end
     puts ''
 
-    refresher = Games::AspNetPanel::SessionRefresher.new(ag)
+    refresher = if laravel.key?(slug)
+                  Games::LaravelPanel::SessionRefresher.new(ag)
+                else
+                  Games::AspNetPanel::SessionRefresher.new(ag)
+                end
     result = refresher.refresh!
 
     puts ''
@@ -165,7 +176,11 @@ namespace :games do
 
     if result[:ok]
       puts ''
-      puts "✅ SUCCESS. New asp_session_id stored (length=#{result[:new_session_id].length}). Attempts=#{result[:attempts]}. Fallback=#{result[:fallback] || false}"
+      if laravel.key?(slug)
+        puts "✅ SUCCESS. New bearer stored (length=#{result[:bearer_len]}). expires_time=#{result[:expires_time]}."
+      else
+        puts "✅ SUCCESS. New asp_session_id stored (length=#{result[:new_session_id].length}). Attempts=#{result[:attempts]}. Fallback=#{result[:fallback] || false}"
+      end
       exit 0
     else
       puts ''
