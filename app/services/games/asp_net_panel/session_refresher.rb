@@ -115,12 +115,16 @@ module Games
 
       def extract_form_tokens(body)
         tokens = {}
+        # __VIEWSTATE and __EVENTVALIDATION are required by ASP.NET.
+        # __VIEWSTATEGENERATOR is OPTIONAL — some panels (e.g. panda_master)
+        # don't emit it in the login form, and ASP.NET still validates the
+        # POST as long as __VIEWSTATE and __EVENTVALIDATION are present.
         %w[__EVENTTARGET __EVENTARGUMENT __LASTFOCUS __VIEWSTATE __VIEWSTATEGENERATOR __EVENTVALIDATION].each do |name|
           m = body.match(/id="#{Regexp.escape(name)}"\s+value="([^"]*)"/)
           tokens[name] = m ? m[1] : ''
         end
-        if tokens['__VIEWSTATE'].empty? || tokens['__VIEWSTATEGENERATOR'].empty?
-          raise RefreshError, '__VIEWSTATE or __VIEWSTATEGENERATOR missing from login page'
+        if tokens['__VIEWSTATE'].empty?
+          raise RefreshError, '__VIEWSTATE missing from login page'
         end
         tokens
       end
@@ -145,18 +149,23 @@ module Games
       # Attempts a login POST with the given CAPTCHA text. Returns new session
       # id on success, nil on bad-creds/bad-captcha failure. Raises on unexpected.
       def attempt_login(tokens, captcha_text)
-        body = URI.encode_www_form(
+        form_params = {
           '__EVENTTARGET' => tokens['__EVENTTARGET'],
           '__EVENTARGUMENT' => tokens['__EVENTARGUMENT'],
           '__LASTFOCUS' => tokens['__LASTFOCUS'],
           '__VIEWSTATE' => tokens['__VIEWSTATE'],
-          '__VIEWSTATEGENERATOR' => tokens['__VIEWSTATEGENERATOR'],
           '__EVENTVALIDATION' => tokens['__EVENTVALIDATION'],
           'txtLoginName' => @username,
           'txtLoginPass' => @password,
           'txtVerifyCode' => captcha_text,
           'btnLogin' => 'Login in'
-        )
+        }
+        # Only include __VIEWSTATEGENERATOR if the page actually emitted it.
+        # Sending an empty VSG can cause ASP.NET to reject the POST.
+        unless tokens['__VIEWSTATEGENERATOR'].to_s.empty?
+          form_params['__VIEWSTATEGENERATOR'] = tokens['__VIEWSTATEGENERATOR']
+        end
+        body = URI.encode_www_form(form_params)
 
         uri = URI("#{@base_url}/")
         response = http_post(uri, body, headers: page_headers(referer: @base_url).merge(
