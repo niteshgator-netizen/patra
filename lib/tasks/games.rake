@@ -132,4 +132,45 @@ namespace :games do
     puts "  - the CAPTCHA image src URL"
     puts "  - the submit button event target"
   end
+
+  desc 'Refresh agent session for a Cluster 1 ASP.NET panel (e.g. milky_way)'
+  task :refresh_session, [:slug] => :environment do |_t, args|
+    slug = args[:slug].to_s.strip
+    if slug.blank?
+      puts 'ERROR: usage: rake "games:refresh_session[milky_way]"'
+      exit 1
+    end
+
+    unless Games::AspNetPanel::SessionRefresher::BASE_URLS.key?(slug)
+      puts "ERROR: slug '#{slug}' not supported. Supported: #{Games::AspNetPanel::SessionRefresher::BASE_URLS.keys.join(', ')}"
+      exit 1
+    end
+
+    ag = AgentGame.joins(:game).where(games: { slug: slug }).first
+    if ag.nil?
+      puts "ERROR: AgentGame for slug '#{slug}' not found in DB"
+      exit 1
+    end
+
+    puts "[refresh_session] starting for slug=#{slug} agent_username=#{ag.credentials['agent_username']}"
+    puts "[refresh_session] current asp_session_id length=#{ag.credentials['asp_session_id'].to_s.length}"
+    puts ''
+
+    refresher = Games::AspNetPanel::SessionRefresher.new(ag)
+    result = refresher.refresh!
+
+    puts ''
+    puts "=== RESULT ==="
+    puts result.inspect
+
+    if result[:ok]
+      puts ''
+      puts "✅ SUCCESS. New asp_session_id stored (length=#{result[:new_session_id].length}). Attempts=#{result[:attempts]}. Fallback=#{result[:fallback] || false}"
+      exit 0
+    else
+      puts ''
+      puts "❌ FAILED. #{result[:error]}"
+      exit 1
+    end
+  end
 end
