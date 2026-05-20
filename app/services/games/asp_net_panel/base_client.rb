@@ -176,13 +176,21 @@ module Games
         http_request(:get, search_url, headers: nav_headers(referer: search_url))
       end
 
+      # Bug fix May 20 2026: __VIEWSTATEGENERATOR is OPTIONAL.
+      # Panda Master's CreateAccount.aspx (and possibly other pages) returns
+      # HTML with __VIEWSTATE and __EVENTVALIDATION but NOT __VIEWSTATEGENERATOR.
+      # Verified live: page is a real create form, not a login redirect.
+      # ASP.NET tolerates POST with empty __VIEWSTATEGENERATOR=. Mirror of
+      # the same fix shipped in asp_net_panel/session_refresher.rb yesterday.
+      # Only __VIEWSTATE is genuinely required; if it's missing we're either
+      # on a login page or hit a server error, so we still raise in that case.
       def scrape_viewstate(body)
         vs = body.to_s.match(/id="__VIEWSTATE" value="([^"]+)"/)&.[](1)
         vsg = body.to_s.match(/id="__VIEWSTATEGENERATOR" value="([^"]+)"/)&.[](1)
-        if vs.blank? || vsg.blank?
-          raise Games::ClientError.new('Could not scrape __VIEWSTATE/__VIEWSTATEGENERATOR — session likely dead', code: -1)
+        if vs.blank?
+          raise Games::ClientError.new('Could not scrape __VIEWSTATE — session likely dead or page is login redirect', code: -1)
         end
-        [vs, vsg]
+        [vs, vsg.to_s]
       end
 
       def scrape_event_validation(body)

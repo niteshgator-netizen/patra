@@ -602,6 +602,14 @@ module Games
     #   2. contact.custom_attributes['preferred_platform'] (auto-detected
     #      from history by Players::ProfileService)
     #   3. 'game_vault' (legacy default — last resort)
+    # Bug fix May 20 2026: return nil instead of falling back to 'game_vault'
+    # when the slug genuinely can't be resolved. The old hardcoded 'game_vault'
+    # default caused every typo or unknown game name (e.g. "firekirrin" with
+    # two Rs) to silently route to Game Vault. Since Game Vault is currently
+    # broken (token invalid waiting on provider), customers got a confusing
+    # "hit a snag setting up your Game Vault account" reply when they actually
+    # asked for Fire Kirin. Returning nil lets Bella handle it naturally
+    # instead of confidently wrong-routing.
     def chosen_game_slug(intent)
       explicit = intent.is_a?(Hash) ? intent[:game_slug] : nil
       return explicit if explicit.present?
@@ -610,7 +618,7 @@ module Games
       mapped = PREFERRED_PLATFORM_TO_SLUG[preferred]
       return mapped if mapped.present?
 
-      'game_vault'
+      nil
     end
 
     def pick_agent_game(game_slug)
