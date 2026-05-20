@@ -148,7 +148,21 @@ module Games
         end
       end
 
-      # Reset player password by username.
+      # Universal client interface method — called by ActionExecutor after
+      # resolving user_id via get_user_id. Returns the raw provider response
+      # hash so callers can inspect 'code' and 'msg' fields directly.
+      # Bug fix May 20 2026: was missing entirely. ActionExecutor calls this
+      # by name across all clients; Juwa was crashing with NoMethodError.
+      def reset_player_password(user_id:, login_pwd:)
+        raw_post('resetPassword', {
+          user_id:  user_id.to_s,
+          login_pwd: login_pwd.to_s
+        })
+      end
+
+      # Legacy method — accepts username and resolves user_id internally.
+      # Kept for backward compatibility with any caller that doesn't
+      # pre-resolve user_id. New code should call reset_player_password instead.
       def reset_password(username:, new_password:)
         user_lookup = get_user_id(account_name: username)
         user_id = user_lookup.dig('data', 'user_id')
