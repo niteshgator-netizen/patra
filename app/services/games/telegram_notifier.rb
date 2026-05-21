@@ -24,6 +24,7 @@ module Games
     EVENT_CASHOUT_REQUEST = 'cashout_request'.freeze
     EVENT_CASHOUT_FAILED = 'cashout_failed'.freeze
     EVENT_HUMAN_ESCALATION = 'human_escalation'.freeze
+    EVENT_SECRET_PHRASE = 'secret_phrase'.freeze
     EVENT_API_ERROR = 'api_error'.freeze
 
     class << self
@@ -64,6 +65,14 @@ module Games
           account: account,
           event: EVENT_HUMAN_ESCALATION,
           text: build_escalation_text(contact, reason, conversation)
+        )
+      end
+
+      def secret_phrase_triggered(account:, conversation:, phrase_record:)
+        notify(
+          account: account,
+          event: EVENT_SECRET_PHRASE,
+          text: build_secret_phrase_text(conversation, phrase_record)
         )
       end
 
@@ -207,6 +216,24 @@ module Games
         lines << "⚠️ *Needs human action* — withdraw manually before paying\\."
         lines << ""
         lines << "_Patra · Action ID: #{action.id}_"
+        lines.join("\n")
+      end
+
+      def build_secret_phrase_text(conversation, phrase_record)
+        contact_name = conversation.contact&.name.to_s.presence || 'Unknown contact'
+        action_label = if phrase_record.action == 'pause_ai_and_notify'
+                         'AI PAUSED for this conversation'
+                       else
+                         'AI continues normally'
+                       end
+
+        lines = []
+        lines << '🔐 *Secret phrase triggered*'
+        lines << ''
+        lines << "*Contact:* #{esc(contact_name)}"
+        lines << "*Conversation:* \\##{esc(conversation.display_id.to_s)}"
+        lines << "*Action:* #{esc(action_label)}"
+        lines << "*Total triggers:* #{phrase_record.trigger_count}"
         lines.join("\n")
       end
 

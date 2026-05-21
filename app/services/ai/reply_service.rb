@@ -316,6 +316,26 @@ class Ai::ReplyService
     # messages payload) can run before any other AI work.
     messages = build_messages
 
+    # Phase 6.6 — secret phrase check before RAG / LLM (uses latest incoming text from build_messages)
+    sp_account = Account.find_by(id: account_id)
+    sp_conversation = sp_account&.conversations&.find_by(display_id: @conversation_id)
+    incoming_content = @routing_last_incoming_raw_content.to_s
+    if incoming_content.blank?
+      last_msg = messages.last
+      incoming_content = last_msg['content'].to_s if last_msg&.dig('role') == 'user'
+    end
+    if sp_account && sp_conversation && incoming_content.present?
+      triggered = Bella::SecretPhraseChecker.new(
+        account: sp_account,
+        conversation: sp_conversation,
+        message_content: incoming_content
+      ).check_and_trigger!
+      if triggered.triggered && triggered.phrase_record&.action == 'pause_ai_and_notify'
+        Rails.logger.info("[AiReply] secret phrase pause conv=#{@conversation_id} phrase_id=#{triggered.phrase_record.id}")
+        return nil
+      end
+    end
+
     latest_unix = message_created_at_unix(@latest_timestamp)
     if latest_unix >= FRESHNESS_UNIX_MIN && (Time.current - Time.at(latest_unix)) > MESSAGE_FRESHNESS_WINDOW
       Rails.logger.info("[AiReply] skipping old message conv=#{@conversation_id}")
