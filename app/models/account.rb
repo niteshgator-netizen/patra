@@ -70,6 +70,7 @@ class Account < ApplicationRecord
   has_many :canned_responses, dependent: :destroy_async
   has_many :bella_rag_uploads, dependent: :destroy_async
   has_many :bella_rag_pairs, dependent: :nullify
+  has_many :bella_takeover_candidates, dependent: :destroy_async
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async
   has_many :conversations, dependent: :destroy_async
