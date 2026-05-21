@@ -26,6 +26,16 @@ module Games
       'mafia' => 'mafia'
     }.freeze
 
+    # Phase 6.5 (May 21 2026): intents AI must never auto-fulfill via game APIs without
+    # human review. Full set documented here; only OWNER_ONLY_AUTO_INTENTS are blocked
+    # at routing today (IntentDetector does not emit them yet).
+    #
+    # :cashout (IntentDetector maps redeem/withdraw text → :cashout) is NOT blocked here —
+    # production flow uses handle_cashout_intent: Games::TelegramNotifier.cashout_alert for
+    # external payout (cashier manual) plus ActionExecutor#cashout_player for in-game redeem.
+    FORBIDDEN_AUTO_INTENTS = %w[cashout redeem withdraw refund comp_credit credit_back topup_agent].freeze
+    OWNER_ONLY_AUTO_INTENTS = %w[refund comp_credit credit_back topup_agent].freeze
+
     def initialize(account:, contact:, conversation:, messages:)
       @account = account
       @contact = contact
@@ -66,6 +76,24 @@ module Games
       if latest_game && intent.is_a?(Hash)
         intent[:game_slug] = latest_game
         Rails.logger.info("[Orchestrator] overrode game_slug from latest message: #{latest_game}")
+      end
+
+      intent_key = intent[:intent].to_s
+      if OWNER_ONLY_AUTO_INTENTS.include?(intent_key)
+        Rails.logger.info("[Orchestrator] forbidden auto-intent #{intent_key} — escalating to cashier")
+        begin
+          Games::TelegramNotifier.human_escalation(
+            account: account,
+            contact: contact,
+            reason: "Customer requested #{intent_key} — requires owner/cashier approval",
+            conversation: conversation
+          )
+        rescue StandardError
+        end
+        return {
+          reply: 'got it — let me get a cashier on that for you, one sec',
+          labels: %w[needs-human cashier-action-needed]
+        }
       end
 
       case intent[:intent]
@@ -197,6 +225,9 @@ module Games
     end
 
     def handle_cashout_intent(intent)
+      # Verified May 21 2026: cashout/redeem/withdraw customer intents route here (not
+      # FORBIDDEN_AUTO_INTENTS guard). External payout = cashier manual via cashout_alert;
+      # in-game balance redeem = ActionExecutor#cashout_player (auto). Tested in production.
       # Clear any leftover label from a PRIOR completed cashout flow.
       # Prevents stale state across turns. Wrapped safe — never blocks the flow.
       clear_stale_cashout_label_safely
