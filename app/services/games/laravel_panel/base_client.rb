@@ -116,6 +116,11 @@ module Games
       end
 
       def recharge(user_id:, amount:, order_id:)
+        amount_f = amount.to_f
+        if amount_f != amount_f.to_i || amount_f <= 0
+          raise Games::ClientError.new("recharge requires whole-dollar amount (got #{amount})", code: -1)
+        end
+
         agent_bal = agent_balance.dig('data', 'agent_balance')
         # Mafia/Gameroom/Cashmachine/MrAllInOne validate `remark` server-side:
         # letters+numbers only, max 50 chars. No colons, underscores, or dashes.
@@ -127,6 +132,11 @@ module Games
       end
 
       def withdraw(user_id:, amount:, order_id:)
+        amount_f = amount.to_f
+        if amount_f != amount_f.to_i || amount_f <= 0
+          raise Games::ClientError.new("withdraw requires whole-dollar amount (got #{amount})", code: -1)
+        end
+
         customer_balance = user_balance(user_id: user_id).dig('data', 'user_balance')
         safe_remark = order_id.to_s.gsub(/[^a-zA-Z0-9]/, '')[0, 50]
         body = "id=#{CGI.escape(user_id.to_s)}&customer_balance=#{CGI.escape(customer_balance.to_s)}" \
