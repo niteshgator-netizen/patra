@@ -8,6 +8,21 @@ class BellaRagPair < ApplicationRecord
   scope :for_industry, ->(ind) { where(industry: ind) }
   scope :for_persona,  ->(per) { where(persona: per) }
 
+  # Convenience: chitchat-only rows (action_type IS NULL)
+  scope :chitchat, -> { where(action_type: nil) }
+
+  # Returns Array of {pair: BellaRagPair, distance: Float} sorted by distance ASC.
+  # Distance is cosine distance from the neighbor gem (lower = more similar).
+  # Caller MUST pass query_vec to avoid re-embedding when the embed is cached.
+  def self.search_similar_with_distance(query_vec:, limit: 5, industry: 'sweepstakes', persona: 'bella')
+    return [] if query_vec.blank?
+
+    rows = for_industry(industry).for_persona(persona)
+             .nearest_neighbors(:embedding, query_vec, distance: 'cosine')
+             .limit(limit)
+    rows.map { |r| { pair: r, distance: r.neighbor_distance } }
+  end
+
   # Find the K most-similar historical exchanges to a query string.
   # `query_text` is the live customer message (optionally with prior turns).
   # Returns ActiveRecord::Relation of BellaRagPair rows, ordered by similarity.

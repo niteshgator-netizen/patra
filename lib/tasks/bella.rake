@@ -115,4 +115,46 @@ namespace :bella do
     parts << "[customer]: #{pair['customer']}"
     parts.join("\n")
   end
+
+  desc 'Classify existing bella_rag_pairs.action_type via cashier_text regex heuristic'
+  task backfill_action_type: :environment do
+    load_re    = /\b(loaded|credited|topped up|recharged?|added \$|jw2? loaded|fk loaded|fp loaded|gp loaded)\b/i
+    cashout_re = /\b(cashout (approved|of)|cashed out|cashing out|paid \W*\$|remaining in game)\b/i
+    account_re = /\b(account created|your username is|username:\s*\S|password:\s*\S|created!? user)\b/i
+    reset_re   = /\b(reset.*password|new password|password reset to)\b/i
+
+    total = BellaRagPair.count
+    puts "Scanning #{total} rows..."
+
+    counts = Hash.new(0)
+    started = Time.now
+
+    BellaRagPair.find_each(batch_size: 500).with_index do |pair, i|
+      text = pair.cashier_text.to_s
+      type =
+        if text.match?(load_re)    then 'load'
+        elsif text.match?(cashout_re) then 'cashout'
+        elsif text.match?(account_re) then 'account'
+        elsif text.match?(reset_re)   then 'reset'
+        else nil
+        end
+
+      if pair.action_type != type
+        pair.update_column(:action_type, type)
+        counts[type || 'chitchat'] += 1
+      end
+
+      if (i + 1) % 2000 == 0
+        puts "  scanned #{i + 1}/#{total} (#{(Time.now - started).to_i}s elapsed)"
+      end
+    end
+
+    puts ""
+    puts "=" * 50
+    puts "DONE in #{(Time.now - started).to_i}s"
+    counts.each { |k, v| puts "  #{k}: #{v}" }
+    puts "  Total chitchat in DB now: #{BellaRagPair.where(action_type: nil).count}"
+    puts "  Total actions  in DB now: #{BellaRagPair.where.not(action_type: nil).count}"
+    puts "=" * 50
+  end
 end
