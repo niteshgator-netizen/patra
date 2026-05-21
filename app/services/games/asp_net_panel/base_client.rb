@@ -39,7 +39,6 @@ module Games
         @agent_username = creds['agent_username'].to_s.strip
         @session_id = creds['asp_session_id'].to_s.strip
         raise ArgumentError, 'Missing agent_username in credentials' if @agent_username.blank?
-        raise ArgumentError, 'Missing asp_session_id in credentials' if @session_id.blank?
         raise ArgumentError, "BASE_URL not set on #{self.class.name}" if self.class::BASE_URL.blank?
       end
 
@@ -346,6 +345,20 @@ module Games
       end
 
       def http_request(method, url_str, body: nil, headers: {}, _retried: false)
+        # First-call refresh: if session_id was never captured (new customer
+        # just entered username/password), run the refresher before sending
+        # any request. Only fires on the FIRST call per process; future calls
+        # use the cached @session_id and rely on reactive refresh for expiry.
+        if @session_id.blank? && !_retried
+          slug = @agent_game.game.slug.to_s
+          Rails.logger.info("[AspNetPanel][#{slug}] session_id blank — triggering first-call refresh")
+          refresh_session_locked!
+          @session_id = @agent_game.reload.credentials['asp_session_id'].to_s.strip
+          if @session_id.blank?
+            raise Games::ClientError.new('Could not establish session — check panel credentials', code: -1)
+          end
+        end
+
         uri = URI(url_str)
         response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
                                     open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|

@@ -45,8 +45,6 @@ module Games
         @bearer = creds['bearer'].to_s.strip
         @session_cookie = creds['session_cookie'].to_s.strip
         @server_name_session = creds['server_name_session'].to_s.strip
-        raise ArgumentError, 'Missing bearer in credentials' if @bearer.blank?
-        raise ArgumentError, 'Missing session_cookie in credentials' if @session_cookie.blank?
         raise ArgumentError, "BASE_URL not set on #{self.class.name}" if self.class::BASE_URL.blank?
         raise ArgumentError, "PANEL_KEY not set on #{self.class.name}" if self.class::PANEL_KEY.blank?
       end
@@ -258,6 +256,20 @@ module Games
       # is safe — the action did not happen the first time. Verified by reading
       # the upstream Laravel JWT middleware behavior.
       def http_request(method, url_str, body: nil, headers: {}, _retried: false)
+        # First-call refresh: if bearer/session_cookie were never captured
+        # (new customer just entered username/password), run refresher before
+        # sending any request.
+        if (@bearer.blank? || @session_cookie.blank?) && !_retried
+          Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] session creds blank — triggering first-call refresh")
+          refresh_session_locked!
+          creds = @agent_game.reload.credentials
+          @bearer = creds['bearer'].to_s.strip
+          @session_cookie = creds['session_cookie'].to_s.strip
+          if @bearer.blank? || @session_cookie.blank?
+            raise Games::ClientError.new('Could not establish session — check panel credentials', code: -1)
+          end
+        end
+
         uri = URI(url_str)
         response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
                                    open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
@@ -277,33 +289,7 @@ module Games
 
         if !_retried && session_expired?(response)
           Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}) — attempting locked refresh")
-          prior_bearer = @bearer.to_s
-          refresh_ok = false
-          @agent_game.with_lock do
-            @agent_game.reload
-            creds = @agent_game.credentials.to_h
-            current_bearer = creds['bearer'].to_s
-            if current_bearer.present? && current_bearer != prior_bearer
-              Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] another worker already refreshed bearer — picking up new value")
-              @bearer = creds['bearer'].to_s.strip
-              @session_cookie = creds['session_cookie'].to_s.strip
-              @server_name_session = creds['server_name_session'].to_s.strip
-              refresh_ok = true
-            else
-              refresh_result = Games::LaravelPanel::SessionRefresher.new(@agent_game).refresh!
-              if refresh_result.is_a?(Hash) && refresh_result[:ok]
-                @agent_game.reload
-                new_creds = @agent_game.credentials || {}
-                @bearer = new_creds['bearer'].to_s.strip
-                @session_cookie = new_creds['session_cookie'].to_s.strip
-                @server_name_session = new_creds['server_name_session'].to_s.strip
-                refresh_ok = true
-              else
-                Rails.logger.warn("[LaravelPanel][#{self.class::PANEL_KEY}] auto-refresh FAILED: #{refresh_result.is_a?(Hash) ? refresh_result[:error] : refresh_result.inspect} — raising original error")
-              end
-            end
-          end
-          if refresh_ok
+          if refresh_session_locked!
             retry_headers = headers.merge(
               'Authorization' => "Bearer #{@bearer}",
               'Cookie' => cookie_header
@@ -337,6 +323,44 @@ module Games
         return true if response.is_a?(Net::HTTPUnauthorized)
         body_head = response.body.to_s[0..200]
         body_head.include?('"status_code":410,"message":"Please login again"')
+      end
+
+      def refresh_session_locked!
+        prior_bearer = @bearer.to_s
+        result_ok = false
+        panel_key = self.class::PANEL_KEY
+        @agent_game.with_lock do
+          @agent_game.reload
+          creds = @agent_game.credentials.to_h
+          current_bearer = creds['bearer'].to_s
+          if current_bearer.present? && current_bearer != prior_bearer
+            Rails.logger.info("[LaravelPanel][#{panel_key}] another worker already refreshed bearer — picking up new value")
+            @bearer = creds['bearer'].to_s.strip
+            @session_cookie = creds['session_cookie'].to_s.strip
+            @server_name_session = creds['server_name_session'].to_s.strip
+            result_ok = @bearer.present? && @session_cookie.present?
+          elsif creds['agent_password'].to_s.strip.empty?
+            Rails.logger.warn("[LaravelPanel][#{panel_key}] cannot refresh: agent_password missing from credentials")
+            result_ok = false
+          else
+            refresh_result = Games::LaravelPanel::SessionRefresher.new(@agent_game).refresh!
+            if refresh_result.is_a?(Hash) && refresh_result[:ok]
+              @agent_game.reload
+              new_creds = @agent_game.credentials || {}
+              @bearer = new_creds['bearer'].to_s.strip
+              @session_cookie = new_creds['session_cookie'].to_s.strip
+              @server_name_session = new_creds['server_name_session'].to_s.strip
+              result_ok = @bearer.present? && @session_cookie.present?
+            else
+              Rails.logger.warn("[LaravelPanel][#{panel_key}] refresh failed: #{refresh_result.is_a?(Hash) ? refresh_result[:error] : refresh_result.inspect}")
+              result_ok = false
+            end
+          end
+        end
+        result_ok
+      rescue StandardError => e
+        Rails.logger.warn("[LaravelPanel][#{self.class::PANEL_KEY}] refresh_session_locked! raised #{e.class}: #{e.message}")
+        false
       end
     end
   end
