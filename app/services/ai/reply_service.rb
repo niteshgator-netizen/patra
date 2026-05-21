@@ -347,6 +347,69 @@ class Ai::ReplyService
                           .select { |m| m['role'] == 'assistant' }
                           .any? { |m| m['content'].to_s.match?(ANY_EMOJI_PATTERN) }
 
+    # ─────────────────────────────────────────────────────────
+    # Phase 5g — Corpus-first shortcut.
+    # Search bella_rag_pairs FIRST for every message (before greeting fallback).
+    # Top-5 neighborhood check: if ANY of the top-5 matches is tagged as an
+    # action (load/cashout/account/reset/etc.), fall through to orchestrator
+    # so real game APIs run and no fake "Loaded ✅" / "Paid ✅" is sent.
+    # If all 5 are chitchat AND top-1 distance is within threshold,
+    # rephrase top-1's cashier reply via Grok and return.
+    # Otherwise fall through to greeting shortcut → orchestrator → Haiku/Grok.
+    # Feature-flagged. Fails CLOSED — never blocks a reply.
+    # ─────────────────────────────────────────────────────────
+    last_user_for_shortcut = messages.last&.dig('content').to_s
+    if ENV['BELLA_RAG_SHORTCUT_ENABLED'].to_s == 'true' && last_user_for_shortcut.strip.length >= 1
+      begin
+        threshold = (ENV['BELLA_RAG_SHORTCUT_DISTANCE'] || '0.30').to_f
+        neighbor_count = (ENV['BELLA_RAG_SHORTCUT_NEIGHBORS'] || '5').to_i
+        @rag_cached_query_vec = Bella::VoyageEmbedder.embed_one(last_user_for_shortcut, input_type: 'query')
+        if @rag_cached_query_vec.present?
+          results = BellaRagPair.search_similar_with_distance(
+            query_vec: @rag_cached_query_vec, limit: neighbor_count
+          )
+          if results.any?
+            top = results.first
+            # Check action density: if ANY of the top-N has action_type set, fall through
+            action_neighbors = results.count { |r| r[:pair].action_type.present? }
+            if action_neighbors > 0
+              action_types_found = results.select { |r| r[:pair].action_type.present? }.map { |r| r[:pair].action_type }.uniq.join(',')
+              Rails.logger.info(
+                "[AiReply][RAGShortcut] action neighborhood conv=#{@conversation_id} top_dist=#{top[:distance].round(3)} action_count=#{action_neighbors}/#{results.size} types=#{action_types_found} — falling through to orchestrator"
+              )
+            elsif top[:distance] <= threshold
+              # All neighbors are chitchat AND top-1 is close enough — safe to shortcut
+              Rails.logger.info(
+                "[AiReply][RAGShortcut] hit chitchat conv=#{@conversation_id} dist=#{top[:distance].round(3)} neighbors_checked=#{results.size}"
+              )
+              rephrased = Bella::QuickRephrase.call(
+                customer_text: last_user_for_shortcut,
+                hint_reply: top[:pair].cashier_text,
+                conversation_id: @conversation_id
+              )
+              if rephrased.present?
+                # Defensive: if the conversation has already used emojis, strip new ones (preserve emoji policy)
+                if emoji_already_used
+                  rephrased = rephrased.gsub(ANY_EMOJI_PATTERN, '').strip
+                end
+                return rephrased
+              else
+                Rails.logger.info("[AiReply][RAGShortcut] rephrase returned nil, falling through")
+              end
+            else
+              Rails.logger.info(
+                "[AiReply][RAGShortcut] no close match conv=#{@conversation_id} top_dist=#{top[:distance].round(3)} threshold=#{threshold}"
+              )
+            end
+          else
+            Rails.logger.info("[AiReply][RAGShortcut] empty results conv=#{@conversation_id}")
+          end
+        end
+      rescue StandardError => e
+        Rails.logger.warn("[AiReply][RAGShortcut] failed conv=#{@conversation_id} err=#{e.class}: #{e.message[0, 200]}")
+      end
+    end
+
     # Cheap-path canned hello — bypasses LLM APIs entirely for pure
     # greetings.
     last_message = messages.last&.dig('content').to_s.downcase.strip
@@ -380,57 +443,6 @@ class Ai::ReplyService
       has_attachment: routing_has_image
     )
     Rails.logger.info("[ReplyService] complexity=#{complexity} msg_len=#{last_user_plain.length}")
-
-    # ─────────────────────────────────────────────────────────
-    # Phase 5 — RAG shortcut.
-    # Search bella_rag_pairs for the most similar past customer message.
-    # If matched past reply is CHITCHAT (action_type IS NULL) and distance
-    # is within the threshold, rephrase that past reply via Grok and return.
-    # If matched is an ACTION → DO NOT shortcut — let orchestrator run real APIs.
-    # Cache the query vector so Phase 3c can reuse without re-embedding.
-    # Feature-flagged. Fails CLOSED — never blocks a reply.
-    # ─────────────────────────────────────────────────────────
-    if ENV['BELLA_RAG_SHORTCUT_ENABLED'].to_s == 'true' && last_user_plain.present?
-      begin
-        threshold = (ENV['BELLA_RAG_SHORTCUT_DISTANCE'] || '0.30').to_f
-        @rag_cached_query_vec = Bella::VoyageEmbedder.embed_one(last_user_plain, input_type: 'query')
-        if @rag_cached_query_vec.present?
-          results = BellaRagPair.search_similar_with_distance(
-            query_vec: @rag_cached_query_vec, limit: 1
-          )
-          top = results.first
-          if top && top[:distance] <= threshold
-            pair = top[:pair]
-            if pair.action_type.nil?
-              Rails.logger.info(
-                "[AiReply][RAGShortcut] hit chitchat conv=#{@conversation_id} dist=#{top[:distance].round(3)}"
-              )
-              rephrased = Bella::QuickRephrase.call(
-                customer_text: last_user_plain,
-                hint_reply: pair.cashier_text,
-                conversation_id: @conversation_id
-              )
-              if rephrased.present?
-                rephrased = rephrased.gsub(ANY_EMOJI_PATTERN, '').strip if emoji_already_used
-                return rephrased
-              else
-                Rails.logger.info("[AiReply][RAGShortcut] rephrase returned nil, falling through")
-              end
-            else
-              Rails.logger.info(
-                "[AiReply][RAGShortcut] hit action=#{pair.action_type} conv=#{@conversation_id} dist=#{top[:distance].round(3)} — falling through to orchestrator"
-              )
-            end
-          else
-            Rails.logger.info(
-              "[AiReply][RAGShortcut] no close match conv=#{@conversation_id} top_dist=#{top ? top[:distance].round(3) : 'nil'}"
-            )
-          end
-        end
-      rescue StandardError => e
-        Rails.logger.warn("[AiReply][RAGShortcut] failed conv=#{@conversation_id} err=#{e.class}: #{e.message[0, 200]}")
-      end
-    end
 
     # Game flow orchestrator — handles load/cashout intents before normal Bella flow.
     # Wrapped in defined?() + rescue so a failure here never breaks the reply path.
