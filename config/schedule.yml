@@ -86,3 +86,10 @@ reengagement_dormant_player_job:
   cron: '0 10 * * *'
   class: 'Reengagement::DormantPlayerJob'
   queue: scheduled_jobs
+
+# Every 4 hours — refresh Cluster 1 ASP.NET + Cluster 2 Laravel panel sessions before expiry (Ship 4)
+games_proactive_session_refresh_job:
+  cron: '15 */4 * * *'
+  class: 'Games::ProactiveSessionRefreshJob'
+  queue: low
+  description: 'Refresh Cluster 1 ASP.NET + Cluster 2 Laravel panel sessions before they expire (Ship 4)'
