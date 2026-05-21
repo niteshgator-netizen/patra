@@ -154,21 +154,24 @@ namespace :bella do
       )
     /ix.freeze
 
-    # Load signals — cashier loaded money to game (existing pattern, slightly broadened).
-    # Excludes: "you loaded" (customer-side), "loaded gun/song" (false positives — none expected in this domain)
+    # Load signals — cashier loaded money to game. Broadened patterns.
+    # Catches: "Loaded ✅", "Loaded 20 dear", "Loaded $25", "Loaded 10 to bethany1jw",
+    #          "Loading fp ✅", "fp ✅loaded", "added 20 to jw", "credited 50", "topped up"
+    # Excludes: "you loaded" (customer-side, no following game-suffix), "haven't loaded yet" (negation context)
     load_re = /
       \b(?:
-        loaded\s*[✅️]|                # "Loaded ✅"
-        \bloaded\s+(?:for|to|on|in|fp|gp|jw|fk|mw|os|gv|cm|up|mk1|ma|pm)\b|
-        fp\s*loaded|
-        gp\s*loaded|
-        jw2?\s*loaded|
-        fk\s*loaded|
-        mw\s*loaded|
-        just\s+loaded|
-        credited\s+\$?\d|
-        topped?\s+up|
-        recharged?\s+\$?\d
+        load(?:ed|ing)\s*\$?\d+ |                                                                    # "Loaded 20", "Loaded $25"
+        load(?:ed|ing)\s*[✅️] |                                                                       # "Loaded ✅"
+        [✅️]\s*load(?:ed|ing) |                                                                       # "✅loaded"
+        load(?:ed|ing)\s+(?:to|for|on|in|him|her|them|dear|love|hun|bro) |                            # "Loaded 10 to ..."
+        load(?:ed|ing)\s+\w+(?:_)?(?:jw2?|fk|mw|os|gv|cm|up|mk1|ma|pm|gr|fp|gp|mf)\b |                # "loaded bethany1jw"
+        (?:fp|gp|jw2?|fk|mw|os|gv|cm|up|mk1|ma|pm)\s*[✅️]?\s*load(?:ed|ing) |                          # "fp loaded", "fp ✅loaded"
+        just\s+load(?:ed|ing) |                                                                       # "just loaded"
+        credited\s+\$?\d |                                                                            # "credited 50"
+        topped?\s+up(?:\s*\$?\d+)? |                                                                  # "topped up", "topped up 20"
+        recharged?\s+\$?\d |                                                                          # "recharged 20"
+        added\s+\$?\d+\s+(?:to|in|on)\b |                                                             # "added 20 to jw"
+        put\s+\$?\d+\s+(?:in|on|to)\b                                                                 # "put 20 in fp"
       )
     /ix.freeze
 
