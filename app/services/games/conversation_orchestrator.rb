@@ -48,13 +48,15 @@ module Games
       # First check latest message alone — this is what the customer just asked NOW
       latest_intent = Games::IntentDetector.detect(latest_text)
 
-      # Combined fallback ONLY for amount/cashout (split intent like "load 20$" + "on juwa")
+      # Combined fallback ONLY for split-intent loads ("load 20$" + "on juwa") where
+      # the latest turn detected as :load but missed the amount/game. Do NOT fall back
+      # when latest_intent is nil — that's how greetings get misclassified as cashouts
+      # from stale window text. Bug fixed May 21 2026: conv 9 / action 122 case.
       combined_intent = nil
-      if latest_intent.nil? || (latest_intent.is_a?(Hash) && latest_intent[:intent] == :load && latest_intent[:amount].to_f <= 0)
+      if latest_intent.is_a?(Hash) && latest_intent[:intent] == :load && latest_intent[:amount].to_f <= 0
         combined_intent = Games::IntentDetector.detect(combined_text)
       end
 
-      # Choose: prefer latest_intent, fall back to combined only if latest was empty
       intent = latest_intent || combined_intent
       Rails.logger.info("[Orchestrator] intent latest=#{latest_intent.inspect} combined=#{combined_intent.inspect} chosen=#{intent.inspect}")
       return nil if intent.nil?
@@ -195,6 +197,10 @@ module Games
     end
 
     def handle_cashout_intent(intent)
+      # Clear any leftover label from a PRIOR completed cashout flow.
+      # Prevents stale state across turns. Wrapped safe — never blocks the flow.
+      clear_stale_cashout_label_safely
+
       ag = pick_agent_game(chosen_game_slug(intent))
       return nil unless ag
 
@@ -263,6 +269,18 @@ module Games
       begin
         Games::TelegramNotifier.cashout_failed(withdraw_result[:action], cr) if withdraw_result[:action] && !withdraw_result[:ok]
       rescue StandardError
+      end
+
+      # If the game API actually FAILED, never tell the customer "approved".
+      # Send a human-tone holding message + flag for cashier escalation.
+      # Bug fixed May 21 2026: conv 9 / action 122 case — customer was told
+      # "Cashout of $25 approved" 7 sec AFTER backend returned VIEWSTATE failure.
+      if withdraw_result.is_a?(Hash) && withdraw_result[:action].present? && !withdraw_result[:ok]
+        Rails.logger.warn(
+          "[Orchestrator][CashoutGuard] withdraw failed conv=#{conversation&.id} action=#{withdraw_result[:action].id} code=#{withdraw_result[:code]} — sending holding reply instead of approved"
+        )
+        holding_reply = "let me double-check that cashout for you, one sec — i'll be right back"
+        return { reply: holding_reply, labels: ['cashout-failed', 'cashier-action-needed', 'needs-human'] }
       end
 
       if (intent[:reload_amount] || 0) > 0
@@ -1026,6 +1044,21 @@ module Games
       return nil if already_loaded
 
       { amount: amount, method: last['platform'] }
+    end
+
+    # Removes 'cashout-requested' label if present. Used at the START of
+    # every new cashout intent handling so a prior cashout's label can't
+    # pollute the next turn's logic. Never raises — pure cleanup.
+    def clear_stale_cashout_label_safely
+      return unless conversation&.respond_to?(:label_list)
+
+      current = Array(conversation.label_list)
+      return unless current.include?('cashout-requested')
+
+      conversation.label_list.remove('cashout-requested')
+      conversation.save!
+    rescue StandardError => e
+      Rails.logger.warn("[Orchestrator][CashoutGuard] label cleanup failed: #{e.class}: #{e.message}")
     end
   end
 end
