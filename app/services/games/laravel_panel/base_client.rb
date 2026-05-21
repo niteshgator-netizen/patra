@@ -266,22 +266,39 @@ module Games
         end
 
         if !_retried && session_expired?(response)
-          Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}) — refreshing and retrying")
-          refresh_result = Games::LaravelPanel::SessionRefresher.new(@agent_game).refresh!
-          if refresh_result[:ok]
+          Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}) — attempting locked refresh")
+          prior_bearer = @bearer.to_s
+          refresh_ok = false
+          @agent_game.with_lock do
             @agent_game.reload
-            creds = @agent_game.credentials || {}
-            @bearer = creds['bearer'].to_s.strip
-            @session_cookie = creds['session_cookie'].to_s.strip
-            @server_name_session = creds['server_name_session'].to_s.strip
+            creds = @agent_game.credentials.to_h
+            current_bearer = creds['bearer'].to_s
+            if current_bearer.present? && current_bearer != prior_bearer
+              Rails.logger.info("[LaravelPanel][#{self.class::PANEL_KEY}] another worker already refreshed bearer — picking up new value")
+              @bearer = creds['bearer'].to_s.strip
+              @session_cookie = creds['session_cookie'].to_s.strip
+              @server_name_session = creds['server_name_session'].to_s.strip
+              refresh_ok = true
+            else
+              refresh_result = Games::LaravelPanel::SessionRefresher.new(@agent_game).refresh!
+              if refresh_result.is_a?(Hash) && refresh_result[:ok]
+                @agent_game.reload
+                new_creds = @agent_game.credentials || {}
+                @bearer = new_creds['bearer'].to_s.strip
+                @session_cookie = new_creds['session_cookie'].to_s.strip
+                @server_name_session = new_creds['server_name_session'].to_s.strip
+                refresh_ok = true
+              else
+                Rails.logger.warn("[LaravelPanel][#{self.class::PANEL_KEY}] auto-refresh FAILED: #{refresh_result.is_a?(Hash) ? refresh_result[:error] : refresh_result.inspect} — raising original error")
+              end
+            end
+          end
+          if refresh_ok
             retry_headers = headers.merge(
               'Authorization' => "Bearer #{@bearer}",
               'Cookie' => cookie_header
             )
             return http_request(method, url_str, body: body, headers: retry_headers, _retried: true)
-          else
-            Rails.logger.warn("[LaravelPanel][#{self.class::PANEL_KEY}] auto-refresh FAILED: #{refresh_result[:error]} — raising original error")
-            # Fall through and raise the original error path below
           end
         end
 

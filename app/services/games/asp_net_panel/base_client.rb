@@ -345,10 +345,10 @@ module Games
         nil
       end
 
-      def http_request(method, url_str, body: nil, headers: {})
+      def http_request(method, url_str, body: nil, headers: {}, _retried: false)
         uri = URI(url_str)
-        Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
-                        open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == 'https',
+                                    open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT) do |http|
           req = case method
                 when :get
                   Net::HTTP::Get.new(uri.request_uri)
@@ -360,18 +360,87 @@ module Games
                   raise ArgumentError, "Unsupported HTTP method: #{method}"
                 end
           headers.each { |k, v| req[k] = v }
-          response = http.request(req)
-          unless response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
-            raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response.body.to_s[0..300] })
-          end
-          response
+          http.request(req)
         end
+
+        # Reactive auto-refresh (Ship 3, May 21 2026).
+        # ASP.NET dead sessions return HTTP 200 + login HTML page (not 401).
+        # Detect by short body + login URL marker or missing __VIEWSTATE.
+        # Lock-protected via refresh_session_locked! below.
+        if !_retried && session_expired?(response)
+          slug = @agent_game.game.slug.to_s
+          Rails.logger.info("[AspNetPanel][#{slug}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}, body_len=#{response.body.to_s.length}) — attempting locked refresh")
+          if refresh_session_locked!
+            new_cookie = "ASP.NET_SessionId=#{@session_id}"
+            retry_headers = headers.merge('Cookie' => new_cookie)
+            Rails.logger.info("[AspNetPanel][#{slug}] retrying original request after refresh")
+            return http_request(method, url_str, body: body, headers: retry_headers, _retried: true)
+          else
+            Rails.logger.warn("[AspNetPanel][#{slug}] reactive refresh failed — falling through to original error path")
+          end
+        end
+
+        unless response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
+          raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response.body.to_s[0..300] })
+        end
+        response
       rescue Games::ClientError
         raise
       rescue Net::OpenTimeout, Net::ReadTimeout => e
         raise Games::ClientError.new("Timeout: #{e.message}", code: -1)
       rescue StandardError => e
         raise Games::ClientError.new("Network error: #{e.class}: #{e.message}", code: -1)
+      end
+
+      # Ship 3 (May 21 2026): true if response appears to be a dead-session login redirect.
+      # ASP.NET pattern: HTTP 200 + short body + 'default.aspx' login URL OR no __VIEWSTATE.
+      # Also flags any 302 redirect (rare; some panel flows redirect-to-login on dead session).
+      def session_expired?(response)
+        return true if response.is_a?(Net::HTTPRedirection)
+        return false unless response.is_a?(Net::HTTPSuccess)
+        body = response.body.to_s
+        return false if body.length > 8000   # real authenticated pages are large
+        return true if body.include?('default.aspx') && body.length < 5000
+        return true if !body.include?('__VIEWSTATE') && body.length < 5000
+        false
+      end
+
+      # Ship 3 (May 21 2026): concurrency-safe session refresh.
+      # Uses PostgreSQL row-level lock on agent_game so only one worker refreshes per panel.
+      # If another worker already refreshed while we were waiting on the lock,
+      # we pick up the new session_id without triggering a redundant CapSolver call.
+      # Returns true if @session_id is now valid, false otherwise.
+      def refresh_session_locked!
+        prior_sid = @session_id.to_s
+        result_ok = false
+        slug = @agent_game.game.slug.to_s
+        @agent_game.with_lock do
+          @agent_game.reload
+          creds = @agent_game.credentials.to_h
+          current_sid = creds['asp_session_id'].to_s
+          if current_sid.present? && current_sid != prior_sid
+            Rails.logger.info("[AspNetPanel][#{slug}] another worker already refreshed (sid changed in DB) — picking up new value")
+            @session_id = current_sid
+            result_ok = true
+          elsif creds['agent_password'].to_s.strip.empty?
+            Rails.logger.warn("[AspNetPanel][#{slug}] cannot reactive-refresh: agent_password missing from credentials")
+            result_ok = false
+          else
+            result = Games::AspNetPanel::SessionRefresher.new(@agent_game).refresh!(interactive: false)
+            if result.is_a?(Hash) && result[:ok]
+              @agent_game.reload
+              @session_id = @agent_game.credentials.to_h['asp_session_id'].to_s
+              result_ok = @session_id.present?
+            else
+              Rails.logger.warn("[AspNetPanel][#{slug}] reactive refresh failed: #{result.is_a?(Hash) ? result[:error] : result.inspect}")
+              result_ok = false
+            end
+          end
+        end
+        result_ok
+      rescue StandardError => e
+        Rails.logger.warn("[AspNetPanel][#{@agent_game.game.slug}] refresh_session_locked! raised #{e.class}: #{e.message}")
+        false
       end
     end
   end

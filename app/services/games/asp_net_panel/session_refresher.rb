@@ -38,6 +38,7 @@ module Games
       OPEN_TIMEOUT = 10
       READ_TIMEOUT = 25
       AUTO_RETRY_LIMIT = 10
+      REACTIVE_AUTO_RETRY_LIMIT = 3
 
       # Map slug → BASE_URL (mirrors app/services/games/<slug>/client.rb)
       BASE_URLS = {
@@ -65,12 +66,13 @@ module Games
       end
 
       # Main entry point. Returns hash with :ok and either :new_session_id or :error/:command.
-      def refresh!
+      def refresh!(interactive: true)
         attempts = 0
+        retry_limit = interactive ? AUTO_RETRY_LIMIT : REACTIVE_AUTO_RETRY_LIMIT
 
-        AUTO_RETRY_LIMIT.times do |i|
+        retry_limit.times do |i|
           attempts = i + 1
-          log("auto attempt #{attempts}/#{AUTO_RETRY_LIMIT}")
+          log("auto attempt #{attempts}/#{retry_limit}")
 
           begin
             page_html = fetch_login_page
@@ -93,10 +95,15 @@ module Games
           end
         end
 
-        log("all #{AUTO_RETRY_LIMIT} auto attempts failed — escalating to Telegram queue")
-        human_result = run_telegram_fallback
-        return human_result.merge(attempts: attempts) if human_result
-        { ok: false, error: "All #{AUTO_RETRY_LIMIT} auto attempts failed and no human reply within timeout", attempts: attempts }
+        if interactive
+          log("all #{retry_limit} auto attempts failed — escalating to Telegram queue")
+          human_result = run_telegram_fallback
+          return human_result.merge(attempts: attempts) if human_result
+          { ok: false, error: "All #{retry_limit} auto attempts failed and no human reply within timeout", attempts: attempts }
+        else
+          log("auto refresh exhausted #{REACTIVE_AUTO_RETRY_LIMIT} attempts; Telegram fallback skipped (interactive: false)")
+          { ok: false, error: "CapSolver exhausted #{REACTIVE_AUTO_RETRY_LIMIT} attempts (reactive mode, Telegram skipped)", attempts: REACTIVE_AUTO_RETRY_LIMIT }
+        end
       end
 
       private
