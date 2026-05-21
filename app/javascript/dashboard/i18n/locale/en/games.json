@@ -2,7 +2,7 @@
   "GAMES": {
     "NAV_LABEL": "Games",
     "HEADER": "Game integrations",
-    "DESCRIPTION": "Connect the sweepstakes platforms you operate. Bella will reference active games when customers ask, and route load/redeem actions through your stored API credentials.",
+    "DESCRIPTION": "Connect the social games platforms you operate. Bella will reference active games when customers ask, and route load/redeem actions through your stored API credentials.",
     "TIP_BANNER": "Your API keys are encrypted and isolated to your workspace — Patra never sees other operators' data.",
     "LOADING": "Loading games…",
     "STATS": {

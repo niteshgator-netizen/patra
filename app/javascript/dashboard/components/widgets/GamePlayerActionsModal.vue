@@ -52,15 +52,6 @@
           <input v-model.number="amount" class="field__input" type="number" min="0" step="0.01" placeholder="0.00" />
         </div>
 
-        <div class="field">
-          <label class="field__label">{{ $t('GAMES.ACTIONS_MODAL.PAYMENT_METHOD_LABEL') }}</label>
-          <input
-            v-model="paymentMethod"
-            class="field__input"
-            :placeholder="$t('GAMES.ACTIONS_MODAL.PAYMENT_METHOD_PLACEHOLDER')"
-          />
-        </div>
-
         <div class="action-buttons">
           <button
             class="btn btn--primary"
@@ -96,7 +87,6 @@ export default {
     return {
       username: '',
       amount: null,
-      paymentMethod: '',
       balance: null,
       isChecking: false,
       isSubmitting: false,
@@ -163,7 +153,6 @@ export default {
         const response = await GamesAPI.loadPlayer(this.agentGame.id, {
           game_username: this.username,
           amount: this.amount,
-          payment_method: this.paymentMethod || null,
         });
         if (response.data.ok) {
           this.resultBanner = { ok: true, message: this.$t('GAMES.ACTIONS_MODAL.LOAD_SUCCESS', { amount: this.amount, username: this.username }) };
@@ -190,7 +179,6 @@ export default {
         const response = await GamesAPI.cashoutPlayer(this.agentGame.id, {
           game_username: this.username,
           amount: this.amount,
-          payment_method: this.paymentMethod || null,
         });
         if (response.data.ok) {
           this.resultBanner = { ok: true, message: this.$t('GAMES.ACTIONS_MODAL.CASHOUT_SUCCESS', { amount: this.amount, username: this.username }) };
