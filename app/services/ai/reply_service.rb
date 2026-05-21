@@ -410,6 +410,8 @@ class Ai::ReplyService
       end
     end
 
+    rag_examples_block = retrieve_rag_examples_block(last_user_plain)
+
     case complexity
     when :has_image
       if image_url.present?
@@ -673,7 +675,7 @@ class Ai::ReplyService
             reply = Ai::HaikuClient.new(
               system_prompt: bella_system_prompt_with_payment_handles,
               conversation_history: build_conversation_history
-            ).generate_reply
+            ).generate_reply(rag_examples_block: rag_examples_block)
             if reply.present?
               Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
               return reply
@@ -693,7 +695,7 @@ class Ai::ReplyService
       reply = Ai::HaikuClient.new(
         system_prompt: bella_system_prompt_with_payment_handles,
         conversation_history: build_conversation_history
-      ).generate_reply
+      ).generate_reply(rag_examples_block: rag_examples_block)
       if reply.blank?
         Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
       else
@@ -721,7 +723,8 @@ class Ai::ReplyService
       persona_info,
       player_profile,
       canned_responses_text,
-      payment_link_hint
+      payment_link_hint,
+      rag_examples_block: rag_examples_block
     )
     emoji_guard = if emoji_already_used
       "EMOJI GUARD: An emoji has already been used earlier in this conversation by Bella. Use ZERO emojis in your reply. Do not use any emoji at all."
@@ -1417,7 +1420,7 @@ class Ai::ReplyService
     ''
   end
 
-  def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '', canned_responses = '', needs_payment_link = false)
+  def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '', canned_responses = '', needs_payment_link = false, rag_examples_block: '')
     active_handle_hint = nil
     begin
       if defined?(Payments::HandleSelector) && @bridge_account_id.present?
@@ -1534,7 +1537,9 @@ class Ai::ReplyService
     end
 
     base_prompt = "#{prompt.strip}\n\n#{payment_handles_context_for_prompt}\n"
-    active_handle_hint.present? ? "#{active_handle_hint}\n\n#{base_prompt}" : base_prompt
+    result = active_handle_hint.present? ? "#{active_handle_hint}\n\n#{base_prompt}" : base_prompt
+    result = "#{result}\n\n#{rag_examples_block}" unless rag_examples_block.to_s.strip.empty?
+    result
   end
 
   # ---------- Anthropic ----------
@@ -1983,5 +1988,67 @@ class Ai::ReplyService
     end
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] record_payment_handle_success #{e.class}: #{e.message}")
+  end
+
+  # ─────────────────────────────────────────────────────────
+  # RAG: retrieve top-K similar past customer→cashier pairs
+  # from bella_rag_pairs (Phase 2 corpus, 73k real examples)
+  # and format as a system-prompt block. Returns "" if the
+  # feature flag is off, on any error, or if no matches found.
+  # Latency budget: ~250-400ms (Voyage embed + HNSW search).
+  # Always fails CLOSED — never blocks a reply.
+  # ─────────────────────────────────────────────────────────
+  def retrieve_rag_examples_block(latest_customer_text)
+    return '' unless ENV['BELLA_RAG_ENABLED'].to_s == 'true'
+    return '' if latest_customer_text.to_s.strip.empty?
+    return '' unless defined?(BellaRagPair)
+
+    # Build query mirroring how Phase 1 parser embedded documents:
+    # last 2 turns of context + the live customer message.
+    history = Array(@conversation_history_for_llm).last(2)
+    query_parts = history.map do |h|
+      role = h['role'] == 'user' ? 'customer' : 'cashier'
+      "[#{role}]: #{h['content'].to_s[0, 400]}"
+    end
+    query_parts << "[customer]: #{latest_customer_text.to_s[0, 800]}"
+    query_text = query_parts.join("\n")
+
+    started = Time.now
+    results = BellaRagPair.search_similar(
+      query_text,
+      limit: 5,
+      industry: 'sweepstakes',
+      persona: 'bella',
+    )
+    elapsed_ms = ((Time.now - started) * 1000).to_i
+
+    if results.blank?
+      Rails.logger.info(
+        "[AiReply][RAG] no matches conv=#{@conversation_id} elapsed=#{elapsed_ms}ms"
+      )
+      return ''
+    end
+
+    Rails.logger.info(
+      "[AiReply][RAG] retrieved=#{results.size} conv=#{@conversation_id} elapsed=#{elapsed_ms}ms"
+    )
+
+    lines = ['', '═══════════════════════════════════════════════════════════',
+             'SIMILAR PAST EXCHANGES — your real prior replies to similar messages.',
+             'Use as STYLE and STRATEGY reference. Do NOT copy verbatim.',
+             '']
+    results.each_with_index do |r, i|
+      lines << "EXAMPLE #{i + 1}:"
+      lines << "  Customer: #{r.customer_text.to_s[0, 300].gsub("\n", ' ')}"
+      lines << "  You replied: #{r.cashier_text.to_s[0, 400].gsub("\n", ' ')}"
+      lines << ''
+    end
+    lines << '═══════════════════════════════════════════════════════════'
+    lines.join("\n")
+  rescue StandardError => e
+    Rails.logger.warn(
+      "[AiReply][RAG] failed conv=#{@conversation_id} err=#{e.class}: #{e.message[0, 200]}"
+    )
+    ''
   end
 end

@@ -16,9 +16,12 @@ module Ai
       @conversation_history = Array(conversation_history)
     end
 
-    def generate_reply
+    def generate_reply(rag_examples_block: '')
       api_key = ENV['ANTHROPIC_API_KEY'].to_s
       return nil if api_key.blank?
+
+      system_prompt = @system_prompt
+      system_prompt = "#{system_prompt}\n\n#{rag_examples_block}" unless rag_examples_block.to_s.strip.empty?
 
       anthropic_messages = @conversation_history.map do |m|
         role = m['role'].to_s == 'assistant' ? 'assistant' : 'user'
@@ -28,7 +31,7 @@ module Ai
       body = {
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: @system_prompt,
+        system: system_prompt,
         messages: anthropic_messages
       }
 
