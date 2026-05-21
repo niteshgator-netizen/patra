@@ -41,19 +41,6 @@
             </label>
           </div>
         </div>
-
-        <div class="section">
-          <div class="field">
-            <label class="field__label">{{ $t('GAMES.MODAL.DISPLAY_NAME_LABEL') }}</label>
-            <input v-model="displayName" type="text" class="field__input" :placeholder="game.name" />
-            <div class="field__hint">{{ $t('GAMES.MODAL.DISPLAY_NAME_HELP') }}</div>
-          </div>
-
-          <div class="field">
-            <label class="field__label">{{ $t('GAMES.MODAL.NOTES_LABEL') }}</label>
-            <textarea v-model="notes" class="field__input field__textarea" rows="3" />
-          </div>
-        </div>
       </div>
 
       <footer class="modal__foot">
@@ -97,8 +84,6 @@ export default {
   data() {
     return {
       credentials: {},
-      displayName: '',
-      notes: '',
       ipWhitelistConfirmed: false,
       isSaving: false,
       errorMessage: '',
@@ -146,8 +131,6 @@ export default {
         }
       });
       this.credentials = creds;
-      this.displayName = this.agentGame?.display_name || '';
-      this.notes = this.agentGame?.notes || '';
       this.ipWhitelistConfirmed = this.agentGame?.ip_whitelist_confirmed || false;
     },
     async save() {
@@ -163,8 +146,6 @@ export default {
         if (this.agentGame) {
           await GamesAPI.updateAgentGame(this.agentGame.id, {
             credentials: trimmedCredentials,
-            display_name: this.displayName,
-            notes: this.notes,
             ip_whitelist_confirmed: this.ipWhitelistConfirmed,
             status: 'active',
           });
@@ -172,8 +153,6 @@ export default {
           await GamesAPI.activate({
             gameId: this.game.id,
             credentials: trimmedCredentials,
-            displayName: this.displayName,
-            notes: this.notes,
             ipWhitelistConfirmed: this.ipWhitelistConfirmed,
             status: 'active',
           });
