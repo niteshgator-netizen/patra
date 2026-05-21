@@ -365,8 +365,12 @@ class Ai::ReplyService
         neighbor_count = (ENV['BELLA_RAG_SHORTCUT_NEIGHBORS'] || '5').to_i
         @rag_cached_query_vec = Bella::VoyageEmbedder.embed_one(last_user_for_shortcut, input_type: 'query')
         if @rag_cached_query_vec.present?
+          rag_account = Account.find_by(id: account_id)
           results = BellaRagPair.search_similar_with_distance(
-            query_vec: @rag_cached_query_vec, limit: neighbor_count
+            query_vec: @rag_cached_query_vec,
+            limit: neighbor_count,
+            account_id: account_id,
+            industry_slug: rag_account&.industry_slug || 'sweepstakes'
           )
           if results.any?
             top = results.first
@@ -2077,12 +2081,16 @@ class Ai::ReplyService
     query_text = query_parts.join("\n")
 
     started = Time.now
+    rag_account = Account.find_by(id: account_id)
+    rag_industry_slug = rag_account&.industry_slug || 'sweepstakes'
     results = if @rag_cached_query_vec.present?
                 BellaRagPair.search_similar_with_distance(
                   query_vec: @rag_cached_query_vec,
                   limit: 5,
                   industry: 'sweepstakes',
                   persona: 'bella',
+                  account_id: account_id,
+                  industry_slug: rag_industry_slug
                 ).map { |h| h[:pair] }
               else
                 BellaRagPair.search_similar(
@@ -2090,6 +2098,8 @@ class Ai::ReplyService
                   limit: 5,
                   industry: 'sweepstakes',
                   persona: 'bella',
+                  account_id: account_id,
+                  industry_slug: rag_industry_slug
                 )
               end
     elapsed_ms = ((Time.now - started) * 1000).to_i
