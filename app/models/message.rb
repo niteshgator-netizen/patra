@@ -138,6 +138,7 @@ class Message < ApplicationRecord
 
   after_update_commit :dispatch_update_event
   after_commit :reindex_for_search, if: :should_index?, on: [:create, :update]
+  after_commit :capture_for_bella_training, on: :create
 
   def channel_token
     @token ||= inbox.channel.try(:page_access_token)
@@ -453,6 +454,15 @@ class Message < ApplicationRecord
 
   def reindex_for_search
     reindex(mode: :async)
+  end
+
+  def capture_for_bella_training
+    return unless outgoing? && sender_type == 'User'
+    return unless conversation&.account_id
+
+    Bella::TakeoverCapture.new(self).capture!
+  rescue StandardError => e
+    Rails.logger.warn("[Message#capture_for_bella_training] msg_id=#{id} #{e.class}: #{e.message[0, 200]}")
   end
 end
 
