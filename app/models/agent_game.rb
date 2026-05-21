@@ -19,6 +19,11 @@
 class AgentGame < ApplicationRecord
   STATUSES = %w[active inactive].freeze
 
+  # Auto-disable threshold: if failure_count >= this AND last_failure_at within window,
+  # status flips to 'inactive'. Bella will then skip this panel via pick_agent_game.
+  AUTO_DISABLE_FAILURE_THRESHOLD = 5
+  AUTO_DISABLE_WINDOW_HOURS = 1
+
   belongs_to :account
   belongs_to :game
 
@@ -50,7 +55,23 @@ class AgentGame < ApplicationRecord
   end
 
   def record_failure!
-    update!(failure_count: failure_count + 1, last_failure_at: Time.current)
+    new_count = failure_count + 1
+    now = Time.current
+
+    # If last failure was outside the window, reset counter (transient blip, not pattern)
+    if last_failure_at && last_failure_at < AUTO_DISABLE_WINDOW_HOURS.hours.ago
+      new_count = 1
+    end
+
+    attrs = { failure_count: new_count, last_failure_at: now }
+
+    # Auto-disable if threshold crossed
+    if new_count >= AUTO_DISABLE_FAILURE_THRESHOLD && status == 'active'
+      attrs[:status] = 'inactive'
+      Rails.logger.warn("[AgentGame] AUTO-DISABLED agent_game id=#{id} game=#{game&.slug} after #{new_count} failures in #{AUTO_DISABLE_WINDOW_HOURS}hr window")
+    end
+
+    update!(attrs)
   end
 
   def reset_failures!
