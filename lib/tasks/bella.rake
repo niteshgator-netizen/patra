@@ -118,10 +118,69 @@ namespace :bella do
 
   desc 'Classify existing bella_rag_pairs.action_type via cashier_text regex heuristic'
   task backfill_action_type: :environment do
-    load_re    = /\b(loaded|credited|topped up|recharged?|added \$|jw2? loaded|fk loaded|fp loaded|gp loaded)\b/i
-    cashout_re = /\b(cashout (approved|of)|cashed out|cashing out|paid \W*\$|remaining in game)\b/i
-    account_re = /\b(account created|your username is|username:\s*\S|password:\s*\S|created!? user)\b/i
-    reset_re   = /\b(reset.*password|new password|password reset to)\b/i
+    # Cashout signals — cashier marked customer as PAID.
+    # Matches: "Paid ✅", "Paid 50$✅", "paid✅", "Paid Don't forget", "we have paid"
+    # Also: classic templates: "cashout approved", "cashed out", "cashing out", "remaining in game"
+    # Excludes: customer-side reports like "you sent", "u sent", "haven't paid yet"
+    cashout_re = /
+      \b(?:
+        cashout\s+(?:approved|of|request)|
+        cash(?:ed|ing)\s+out|
+        remaining\s+in\s+game|
+        paid\s*\d+\s*\$?\s*[✅️]|     # "Paid 17✅️"
+        paid\s*[✅️]|                  # "Paid ✅"
+        \bpaid\b\s*$|                  # "Paid" at end of segment
+        we\s+(?:have\s+)?paid|
+        \bpaid\s+(?:half|don['']?t|please|refer)
+      )
+    /ix.freeze
+
+    # Account-handoff signals — cashier delivered credentials.
+    # Patterns:
+    #   "<username><gamesuffix> Same username and password"
+    #   "<username><gamesuffix> Same id pw"
+    #   "Account: foo Password: bar"
+    #   "Username: foo Password: bar"
+    #   "Creating <username>"
+    # Excludes: PayPal/email payment templates that mention "Paypal username"
+    account_re = /
+      (?:
+        \bsame\s+(?:user\s*name|username|id)\s+(?:and\s+)?(?:password|pw)\b|
+        ^\s*(?:account|username|user)\s*:\s*\S|
+        \npassword\s*:\s*\S|
+        \bcreating\s+\w{4,}\s|
+        \bcreated\s+(?:account|user)|
+        \byour\s+username\s+is\s+\S
+      )
+    /ix.freeze
+
+    # Load signals — cashier loaded money to game (existing pattern, slightly broadened).
+    # Excludes: "you loaded" (customer-side), "loaded gun/song" (false positives — none expected in this domain)
+    load_re = /
+      \b(?:
+        loaded\s*[✅️]|                # "Loaded ✅"
+        \bloaded\s+(?:for|to|on|in|fp|gp|jw|fk|mw|os|gv|cm|up|mk1|ma|pm)\b|
+        fp\s*loaded|
+        gp\s*loaded|
+        jw2?\s*loaded|
+        fk\s*loaded|
+        mw\s*loaded|
+        just\s+loaded|
+        credited\s+\$?\d|
+        topped?\s+up|
+        recharged?\s+\$?\d
+      )
+    /ix.freeze
+
+    # Password reset signals.
+    reset_re = /
+      \b(?:
+        reset(?:\s+(?:the\s+)?(?:pw|password))?|
+        new\s+(?:pw|password)\s+(?:is|:)|
+        password\s+reset\s+to|
+        just\s+reset\s+(?:the\s+)?(?:pw|password)
+      )\b
+    /ix.freeze
 
     total = BellaRagPair.count
     puts "Scanning #{total} rows..."
@@ -132,10 +191,10 @@ namespace :bella do
     BellaRagPair.find_each(batch_size: 500).with_index do |pair, i|
       text = pair.cashier_text.to_s
       type =
-        if text.match?(load_re)    then 'load'
-        elsif text.match?(cashout_re) then 'cashout'
+        if text.match?(cashout_re) then 'cashout'
         elsif text.match?(account_re) then 'account'
-        elsif text.match?(reset_re)   then 'reset'
+        elsif text.match?(load_re) then 'load'
+        elsif text.match?(reset_re) then 'reset'
         else nil
         end
 
