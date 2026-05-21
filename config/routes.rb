@@ -117,6 +117,7 @@ Rails.application.routes.draw do
             end
           end
           resources :canned_responses, only: [:index, :create, :update, :destroy]
+          resources :bella_rag_uploads, only: [:create, :index]
           resources :automation_rules, only: [:index, :create, :show, :update, :destroy] do
             post :clone
           end
