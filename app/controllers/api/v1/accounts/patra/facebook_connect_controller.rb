@@ -59,6 +59,14 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  def migrate_fb_to_api
+    inbox = Current.account.inboxes.find(params[:inbox_id])
+    result = ::Patra::FacebookMigrationService.new(inbox: inbox).migrate!
+    render json: result
+  rescue ::Patra::FacebookMigrationService::Error => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
   private
 
   def upsert_facebook_identity!(profile, long_lived_user_token)
