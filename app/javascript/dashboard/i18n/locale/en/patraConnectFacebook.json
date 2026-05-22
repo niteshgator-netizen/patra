@@ -10,6 +10,17 @@
     "SIDEBAR_LINK_ANOTHER": "+ Add another FB account",
     "ONBOARDING_ROW_TITLE": "Facebook Messenger",
     "SUCCESS": "Facebook pages connected. Your new inboxes are ready.",
+    "BYOC": {
+      "USING_OWN_APP": "You're using your own Meta app",
+      "APP_ID": "App ID: {id}",
+      "REDIRECT_URI_HELP": "Make sure your Meta app has this redirect URI saved under Facebook Login → Settings → Valid OAuth Redirect URIs:",
+      "CONNECT_BUTTON": "Connect Facebook pages via my Meta app",
+      "BM_NOTICE_TITLE": "Before connecting",
+      "BM_NOTICE_BODY": "If any of your Facebook pages are owned by a Business Manager, link your Meta app to that Business first — otherwise those pages won't appear during OAuth.",
+      "BM_NOTICE_APP_ID": "Your app ID: {id}",
+      "BM_NOTICE_LINK": "Open Business Settings →",
+      "BM_NOTICE_SKIP": "If your pages are personal (not in a Business), you can skip this and click Connect below."
+    },
     "ERRORS": {
       "MISSING_APP_ID": "Facebook is not configured on this server (missing app id).",
       "LOGIN_CANCELLED": "Facebook login was cancelled or did not complete.",

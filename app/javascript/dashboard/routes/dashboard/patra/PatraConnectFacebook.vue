@@ -37,6 +37,10 @@ const redirectUri = computed(() => {
   return `${base}/patra/oauth/callback`;
 });
 
+const businessManagerLink = computed(
+  () => 'https://business.facebook.com/settings/apps'
+);
+
 const apiBase = () => `/api/v1/accounts/${accountId.value}/patra`;
 
 const isPageConnected = pageId =>
@@ -249,22 +253,47 @@ onMounted(() => {
       class="flex flex-col gap-3 p-4 rounded-xl border border-n-weak bg-n-alpha-2"
     >
       <h3 class="text-base font-semibold text-n-slate-12">
-        You're using your own Meta app
+        {{ t('PATRA_CONNECT_FACEBOOK.BYOC.USING_OWN_APP') }}
       </h3>
       <p class="text-sm text-n-slate-11">
-        App ID: <span class="font-mono text-n-slate-12">{{ byocAppId }}</span>
+        {{ t('PATRA_CONNECT_FACEBOOK.BYOC.APP_ID', { id: byocAppId }) }}
       </p>
       <p class="text-sm text-n-slate-11">
-        Make sure your Meta app has this redirect URI saved under Facebook Login
-        → Settings → Valid OAuth Redirect URIs:
+        {{ t('PATRA_CONNECT_FACEBOOK.BYOC.REDIRECT_URI_HELP') }}
       </p>
       <code
         class="text-xs font-mono break-all text-n-slate-12 bg-n-solid-3 rounded-lg px-3 py-2"
       >
         {{ redirectUri }}
       </code>
+
+      <div
+        class="flex flex-col gap-2 p-4 rounded-lg border border-n-weak bg-n-solid-2"
+      >
+        <h4 class="text-sm font-semibold text-n-slate-12">
+          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_TITLE') }}
+        </h4>
+        <p class="text-sm text-n-slate-11">
+          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_BODY') }}
+        </p>
+        <p class="text-xs text-n-slate-11">
+          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_APP_ID', { id: byocAppId }) }}
+        </p>
+        <a
+          :href="businessManagerLink"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex self-start text-sm font-medium text-violet-600 hover:text-violet-700 underline-offset-2 hover:underline"
+        >
+          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_LINK') }}
+        </a>
+        <p class="text-xs text-n-slate-10">
+          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_SKIP') }}
+        </p>
+      </div>
+
       <Button
-        label="Connect Facebook pages via my Meta app"
+        :label="t('PATRA_CONNECT_FACEBOOK.BYOC.CONNECT_BUTTON')"
         class="!bg-violet-600 hover:!bg-violet-700 !text-white self-start min-h-11"
         :is-loading="isByocOAuthStarting"
         @click="startByocOAuth"
