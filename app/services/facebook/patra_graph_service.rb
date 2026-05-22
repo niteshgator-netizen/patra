@@ -8,18 +8,31 @@ class Facebook::PatraGraphService
   HTTP_TIMEOUT = 15
 
   class << self
-    def exchange_user_token(short_lived_user_token)
-      app_id = fb_app_id
-      secret = fb_app_secret
-      raise ArgumentError, 'FB_APP_ID is not configured' if app_id.blank?
-      raise ArgumentError, 'FB_APP_SECRET is not configured' if secret.blank?
+    def exchange_oauth_code(code:, redirect_uri:, app_id:, app_secret:)
+      resolved_id, resolved_secret = resolve_app_credentials(app_id, app_secret)
+
+      response = HTTParty.get(
+        "#{graph_base}/oauth/access_token",
+        query: {
+          client_id: resolved_id,
+          client_secret: resolved_secret,
+          redirect_uri: redirect_uri,
+          code: code
+        },
+        timeout: HTTP_TIMEOUT
+      )
+      parse_token_response!(response, 'oauth code exchange')
+    end
+
+    def exchange_user_token(short_lived_user_token, app_id: nil, app_secret: nil)
+      resolved_id, resolved_secret = resolve_app_credentials(app_id, app_secret)
 
       response = HTTParty.get(
         "#{graph_base}/oauth/access_token",
         query: {
           grant_type: 'fb_exchange_token',
-          client_id: app_id,
-          client_secret: secret,
+          client_id: resolved_id,
+          client_secret: resolved_secret,
           fb_exchange_token: short_lived_user_token
         },
         timeout: HTTP_TIMEOUT
@@ -71,7 +84,8 @@ class Facebook::PatraGraphService
       parse_token_response!(response, "page #{page_id} long-lived token")
     end
 
-    def subscribe_page_webhook(page_id, page_access_token)
+    def subscribe_page_webhook(page_id, page_access_token, app_id: nil, app_secret: nil)
+      _resolved_id, _resolved_secret = resolve_app_credentials(app_id, app_secret)
       response = HTTParty.post(
         "#{graph_base}/#{page_id}/subscribed_apps",
         query: {
@@ -136,6 +150,15 @@ class Facebook::PatraGraphService
 
     def graph_base
       "#{GRAPH_HOST}/#{GRAPH_VERSION}"
+    end
+
+    def resolve_app_credentials(app_id, app_secret)
+      resolved_id = app_id.presence || fb_app_id
+      resolved_secret = app_secret.presence || fb_app_secret
+      raise ArgumentError, 'FB_APP_ID is not configured' if resolved_id.blank?
+      raise ArgumentError, 'FB_APP_SECRET is not configured' if resolved_secret.blank?
+
+      [resolved_id, resolved_secret]
     end
 
     def fb_app_id

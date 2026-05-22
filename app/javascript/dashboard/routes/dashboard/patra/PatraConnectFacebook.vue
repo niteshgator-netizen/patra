@@ -28,6 +28,14 @@ const alreadyConnectedIds = ref([]);
 const alreadyConnectedPages = ref([]);
 const selectedIds = ref(new Set());
 const errorMessage = ref('');
+const byocReady = ref(false);
+const byocAppId = ref('');
+const isByocOAuthStarting = ref(false);
+
+const redirectUri = computed(() => {
+  const base = (config.hostURL || 'https://patrahq.com').replace(/\/$/, '');
+  return `${base}/patra/oauth/callback`;
+});
 
 const apiBase = () => `/api/v1/accounts/${accountId.value}/patra`;
 
@@ -183,8 +191,38 @@ const connectSelectedPages = async () => {
   }
 };
 
+const fetchByocStatus = async () => {
+  try {
+    const { data } = await window.axios.get(`${apiBase()}/meta_app`);
+    byocReady.value = !!data?.has_byoc_app;
+    byocAppId.value = data?.app_id || '';
+  } catch {
+    byocReady.value = false;
+    byocAppId.value = '';
+  }
+};
+
+const startByocOAuth = async () => {
+  errorMessage.value = '';
+  isByocOAuthStarting.value = true;
+  try {
+    const { data } = await window.axios.post(`${apiBase()}/byoc_oauth_url`);
+    if (data?.url) {
+      window.location.href = data.url;
+      return;
+    }
+    errorMessage.value = 'Could not start OAuth. Try again.';
+  } catch (e) {
+    const msg = e.response?.data?.error || e.message;
+    errorMessage.value = msg || 'Could not start OAuth.';
+  } finally {
+    isByocOAuthStarting.value = false;
+  }
+};
+
 onMounted(() => {
   store.dispatch('inboxes/get');
+  fetchByocStatus();
 });
 </script>
 
@@ -205,6 +243,33 @@ onMounted(() => {
     >
       {{ errorMessage }}
     </div>
+
+    <section
+      v-if="byocReady"
+      class="flex flex-col gap-3 p-4 rounded-xl border border-n-weak bg-n-alpha-2"
+    >
+      <h3 class="text-base font-semibold text-n-slate-12">
+        You're using your own Meta app
+      </h3>
+      <p class="text-sm text-n-slate-11">
+        App ID: <span class="font-mono text-n-slate-12">{{ byocAppId }}</span>
+      </p>
+      <p class="text-sm text-n-slate-11">
+        Make sure your Meta app has this redirect URI saved under Facebook Login
+        → Settings → Valid OAuth Redirect URIs:
+      </p>
+      <code
+        class="text-xs font-mono break-all text-n-slate-12 bg-n-solid-3 rounded-lg px-3 py-2"
+      >
+        {{ redirectUri }}
+      </code>
+      <Button
+        label="Connect Facebook pages via my Meta app"
+        class="!bg-violet-600 hover:!bg-violet-700 !text-white self-start min-h-11"
+        :is-loading="isByocOAuthStarting"
+        @click="startByocOAuth"
+      />
+    </section>
 
     <div v-if="pages.length === 0" class="flex flex-col items-start gap-4">
       <Button
