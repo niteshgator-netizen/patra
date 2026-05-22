@@ -150,7 +150,7 @@ class Facebook::PatraGraphService
       rows = fetch_paginated_graph_data(
         url: "#{graph_base}/#{page_id}/conversations",
         query: {
-          fields: 'id,updated_time,participants',
+          fields: 'id,updated_time,participants{id,name}',
           access_token: page_access_token,
           limit: 25
         },
@@ -164,7 +164,7 @@ class Facebook::PatraGraphService
       rows = fetch_paginated_graph_data(
         url: "#{graph_base}/#{conversation_id}/messages",
         query: {
-          fields: 'id,created_time,from,to,message',
+          fields: 'id,created_time,from{id,name},to,message',
           access_token: page_access_token,
           limit: 25
         },
@@ -267,6 +267,10 @@ class Facebook::PatraGraphService
       {
         id: row['id'].to_s,
         created_time: row['created_time'],
+        from: {
+          id: from['id'].to_s,
+          name: from['name'].to_s
+        },
         from_id: from['id'].to_s,
         from_name: from['name'].to_s,
         message: row['message'].to_s

@@ -52,7 +52,9 @@ module Patra
     end
 
     def process_conversation(fb_conversation)
-      customer_psid = customer_psid_for(fb_conversation)
+      customer = customer_for(fb_conversation)
+      customer_psid = customer[:id].to_s
+      customer_name_from_convo = customer[:name].to_s
       return if customer_psid.blank?
 
       messages = Facebook::PatraGraphService.fetch_conversation_messages(
@@ -62,24 +64,25 @@ module Patra
       )
       return if messages.blank?
 
-      contact = upsert_contact(customer_psid)
+      contact = upsert_contact(customer_psid, prefilled_name: customer_name_from_convo)
       conversation = upsert_conversation(fb_conversation, contact)
 
       messages.each do |fb_message|
         upsert_message(fb_message, conversation, contact)
+        enrich_contact_from_message(contact, fb_message) if contact_name_is_placeholder?(contact)
       end
 
       refresh_conversation_activity!(conversation, messages)
     end
 
-    def customer_psid_for(fb_conversation)
-      Array(fb_conversation[:participants]).find { |p| p[:id].to_s != @page_id }&.dig(:id)
+    def customer_for(fb_conversation)
+      Array(fb_conversation[:participants]).find { |p| p[:id].to_s != @page_id } || {}
     end
 
-    def upsert_contact(fb_user_id)
+    def upsert_contact(fb_user_id, prefilled_name: nil)
       fb_user_id = fb_user_id.to_s
       profile = cached_messenger_profile(fb_user_id)
-      name = profile[:name].presence || "Player #{fb_user_id.last(4)}"
+      name = prefilled_name.presence || profile[:name].presence || "Player #{fb_user_id.last(4)}"
       additional_attributes = {
         'fb_user_id' => fb_user_id,
         'fb_profile_pic' => profile[:profile_pic].to_s,
@@ -101,6 +104,8 @@ module Patra
       contact = contact_inbox.contact
       merged_attrs = (contact.additional_attributes || {}).stringify_keys.merge(additional_attributes)
       contact.update!(additional_attributes: merged_attrs) if contact.additional_attributes != merged_attrs
+
+      apply_contact_name!(contact, name)
 
       if @seen_contacts.add?(contact.id)
         @stats[:contacts_synced] += 1
@@ -174,6 +179,29 @@ module Patra
           page_access_token: @page_access_token
         ) || { id: fb_user_id, name: nil, profile_pic: nil }
       end
+    end
+
+    def contact_name_is_placeholder?(name_or_contact)
+      name = name_or_contact.is_a?(Contact) ? name_or_contact.name.to_s : name_or_contact.to_s
+      name.start_with?('Player ') && name.length <= 12
+    end
+
+    def apply_contact_name!(contact, candidate_name)
+      return if candidate_name.blank?
+      return unless contact_name_is_placeholder?(contact) && !contact_name_is_placeholder?(candidate_name)
+
+      contact.update!(name: candidate_name)
+    end
+
+    def enrich_contact_from_message(contact, fb_message)
+      from_name = fb_message.dig(:from, :name).to_s.presence || fb_message[:from_name].to_s
+      from_id = fb_message.dig(:from, :id).to_s.presence || fb_message[:from_id].to_s
+      return if from_name.blank?
+      return if from_id == @page_id
+      return if from_name == @inbox.name
+      return unless contact_name_is_placeholder?(contact)
+
+      contact.update!(name: from_name)
     end
 
     def parse_fb_time(raw)
