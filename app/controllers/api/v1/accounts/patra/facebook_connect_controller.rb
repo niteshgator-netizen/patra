@@ -67,6 +67,37 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  def get_meta_app
+    account = Current.account
+    render json: {
+      has_byoc_app: account.byoc_meta_app?,
+      app_id: account.meta_app_id,
+      app_validated_at: account.meta_app_validated_at
+    }
+  end
+
+  def save_meta_app
+    result = ::Patra::MetaAppValidator.new(
+      app_id: params.require(:app_id),
+      app_secret: params.require(:app_secret)
+    ).validate!
+
+    Current.account.update!(
+      meta_app_id: result[:app_id],
+      meta_app_secret_encrypted: params[:app_secret],
+      meta_app_validated_at: Time.current
+    )
+
+    render json: { success: true, app_id: result[:app_id], app_name: result[:app_name] }
+  rescue ::Patra::MetaAppValidator::Error => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  def delete_meta_app
+    Current.account.update!(meta_app_id: nil, meta_app_secret_encrypted: nil, meta_app_validated_at: nil)
+    render json: { success: true }
+  end
+
   private
 
   def upsert_facebook_identity!(profile, long_lived_user_token)
