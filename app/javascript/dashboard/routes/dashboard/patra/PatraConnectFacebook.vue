@@ -11,7 +11,6 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
-const alert = useAlert();
 
 const accountId = computed(() => Number(route.params.accountId));
 
@@ -25,13 +24,23 @@ const pages = ref([]);
 const userAccessToken = ref('');
 const facebookIdentityId = ref(null);
 const fbUserName = ref('');
+const alreadyConnectedIds = ref([]);
 const selectedIds = ref(new Set());
 const errorMessage = ref('');
 
 const apiBase = () => `/api/v1/accounts/${accountId.value}/patra`;
 
+const isPageConnected = pageId =>
+  alreadyConnectedIds.value.includes(String(pageId));
+
+const selectablePages = computed(() =>
+  pages.value.filter(p => !isPageConnected(p.id))
+);
+
 const allSelected = computed(
-  () => pages.value.length > 0 && selectedIds.value.size === pages.value.length
+  () =>
+    selectablePages.value.length > 0 &&
+    selectablePages.value.every(p => selectedIds.value.has(p.id))
 );
 
 const selectedCount = computed(() => selectedIds.value.size);
@@ -40,11 +49,12 @@ const toggleSelectAll = () => {
   if (allSelected.value) {
     selectedIds.value = new Set();
   } else {
-    selectedIds.value = new Set(pages.value.map(p => p.id));
+    selectedIds.value = new Set(selectablePages.value.map(p => p.id));
   }
 };
 
 const togglePage = id => {
+  if (isPageConnected(id)) return;
   const next = new Set(selectedIds.value);
   if (next.has(id)) {
     next.delete(id);
@@ -108,11 +118,16 @@ const connectFacebook = async () => {
     const { data } = await window.axios.post(`${apiBase()}/fb_connect`, {
       access_token: token,
     });
-    pages.value = data.pages || [];
+    pages.value = Array.isArray(data?.pages) ? data.pages : [];
     userAccessToken.value = data.user_access_token || '';
     facebookIdentityId.value = data.facebook_identity_id || null;
     fbUserName.value = data.fb_user_name || '';
-    selectedIds.value = new Set(pages.value.map(p => p.id));
+    alreadyConnectedIds.value = Array.isArray(data?.already_connected_fb_page_ids)
+      ? data.already_connected_fb_page_ids.map(String)
+      : [];
+    selectedIds.value = new Set(
+      selectablePages.value.map(p => p.id)
+    );
   } catch (e) {
     const msg = e.response?.data?.error || e.message;
     errorMessage.value = msg || t('PATRA_CONNECT_FACEBOOK.ERRORS.GENERIC');
@@ -123,14 +138,16 @@ const connectFacebook = async () => {
 
 const connectSelectedPages = async () => {
   errorMessage.value = '';
-  const selected = pages.value.filter(p => selectedIds.value.has(p.id));
+  const selected = pages.value.filter(
+    p => selectedIds.value.has(p.id) && !isPageConnected(p.id)
+  );
   if (selected.length === 0) {
-    alert(t('PATRA_CONNECT_FACEBOOK.ERRORS.SELECT_ONE'));
+    useAlert(t('PATRA_CONNECT_FACEBOOK.ERRORS.SELECT_ONE'));
     return;
   }
   isSubmittingPages.value = true;
   try {
-    await window.axios.post(`${apiBase()}/fb_connect_pages`, {
+    const { data } = await window.axios.post(`${apiBase()}/fb_connect_pages`, {
       user_access_token: userAccessToken.value,
       facebook_identity_id: facebookIdentityId.value,
       pages: selected.map(p => ({
@@ -139,8 +156,15 @@ const connectSelectedPages = async () => {
         access_token: p.access_token,
       })),
     });
+    const results = Array.isArray(data?.pages) ? data.pages : [];
+    const created = results.filter(r => r.action === 'created').length;
+    const updated = results.filter(r => r.action === 'updated').length;
     await store.dispatch('inboxes/get');
-    alert(t('PATRA_CONNECT_FACEBOOK.SUCCESS'));
+    const summary =
+      created > 0 || updated > 0
+        ? `Connected ${created} new page(s), refreshed ${updated} existing.`
+        : t('PATRA_CONNECT_FACEBOOK.SUCCESS');
+    useAlert(summary);
     router.push(frontendURL(`accounts/${accountId.value}/settings/inboxes/list`));
   } catch (e) {
     const msg = e.response?.data?.error || e.message;
@@ -196,6 +220,7 @@ onMounted(() => {
           type="checkbox"
           class="rounded border-n-weak text-violet-600 focus:ring-violet-500"
           :checked="allSelected"
+          :disabled="selectablePages.length === 0"
           @change="toggleSelectAll"
         />
         {{ t('PATRA_CONNECT_FACEBOOK.SELECT_ALL') }}
@@ -207,12 +232,18 @@ onMounted(() => {
         <label
           v-for="page in pages"
           :key="page.id"
-          class="flex gap-3 items-center p-3 rounded-xl border border-n-weak bg-n-alpha-2 cursor-pointer hover:bg-n-alpha-1"
+          class="flex gap-3 items-center p-3 rounded-xl border border-n-weak bg-n-alpha-2"
+          :class="
+            isPageConnected(page.id)
+              ? 'opacity-75 cursor-not-allowed'
+              : 'cursor-pointer hover:bg-n-alpha-1'
+          "
         >
           <input
             type="checkbox"
             class="rounded border-n-weak text-violet-600 focus:ring-violet-500 shrink-0"
             :checked="isPageSelected(page.id)"
+            :disabled="isPageConnected(page.id)"
             @change="togglePage(page.id)"
           />
           <img
@@ -222,8 +253,16 @@ onMounted(() => {
             class="size-12 rounded-full object-cover shrink-0 bg-n-slate-4"
           />
           <div class="min-w-0 flex-1">
-            <div class="text-sm font-medium text-n-slate-12 truncate">
-              {{ page.name }}
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="text-sm font-medium text-n-slate-12 truncate">
+                {{ page.name }}
+              </div>
+              <span
+                v-if="isPageConnected(page.id)"
+                class="shrink-0 text-xs font-medium text-n-teal-11 bg-n-teal-3/40 rounded-full px-2 py-0.5"
+              >
+                Already connected ✓
+              </span>
             </div>
             <div
               v-if="page.category"

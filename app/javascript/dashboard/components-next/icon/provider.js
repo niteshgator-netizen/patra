@@ -27,6 +27,14 @@ export function useChannelIcon(inbox) {
     const type = inboxDetails.channel_type;
     let icon = channelTypeIconMap[type];
 
+    if (type === 'Channel::Api') {
+      const attrs =
+        inboxDetails.additional_attributes || inboxDetails.additionalAttributes || {};
+      if (attrs.fb_page_id) {
+        icon = 'i-woot-messenger';
+      }
+    }
+
     if (type === 'Channel::Email' && inboxDetails.provider) {
       if (Object.keys(providerIconMap).includes(inboxDetails.provider)) {
         icon = providerIconMap[inboxDetails.provider];

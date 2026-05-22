@@ -19,30 +19,35 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
       pages: pages,
       user_access_token: long_lived,
       facebook_identity_id: identity&.id,
-      fb_user_name: profile&.dig(:fb_user_name)
+      fb_user_name: profile&.dig(:fb_user_name),
+      already_connected_fb_page_ids: already_connected_fb_page_ids
     }
   rescue ArgumentError, StandardError => e
     Rails.logger.error("[PatraFB] fb_connect failed: #{e.class}: #{e.message}")
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
+  # Response contract:
+  #   { pages: [{ fb_page_id, inbox_id, name, action: 'created'|'updated' }],
+  #     facebook_identity_id: Integer }
+  # Idempotent per fb_page_id: updates tokens on existing Channel::Api, creates inbox only when new.
   def fb_connect_pages
     user_token = params.require(:user_access_token).to_s
     pages_param = params.require(:pages)
     raise ActionController::ParameterMissing, 'pages' unless pages_param.is_a?(Array)
 
     identity_id = resolved_facebook_identity_id
-    created = []
+    results = []
     ActiveRecord::Base.transaction do
       pages_param.each do |raw|
         page = raw.permit(:id, :name, :access_token).to_h
         next if page['id'].blank? || page['access_token'].blank?
 
-        created << create_fb_api_inbox!(page, user_token, facebook_identity_id: identity_id)
+        results << upsert_fb_api_inbox!(page, user_token, facebook_identity_id: identity_id)
       end
     end
 
-    render json: { inboxes: created, facebook_identity_id: identity_id }
+    render json: { pages: results, facebook_identity_id: identity_id }
   rescue ActionController::ParameterMissing => e
     render json: { error: e.message }, status: :bad_request
   rescue ActiveRecord::RecordInvalid => e
@@ -74,18 +79,36 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     Current.account.facebook_identities.find_by(id: id)&.id
   end
 
+  def already_connected_fb_page_ids
+    Current.account.api_channels
+             .where("additional_attributes->>'fb_page_id' IS NOT NULL")
+             .pluck(Arel.sql("additional_attributes->>'fb_page_id'"))
+             .compact
+  end
+
+  def fb_bridge_channel_for_page(page_id)
+    Current.account.api_channels.find_by(
+      ["additional_attributes->>'fb_page_id' = ?", page_id.to_s]
+    )
+  end
+
   def validate_fb_connect_pages_limit!
     pages_param = params[:pages]
-    n = pages_param.is_a?(Array) ? pages_param.size : 0
-    return if n.zero?
+    return unless pages_param.is_a?(Array)
+
+    new_count = pages_param.count do |raw|
+      page_id = raw[:id] || raw['id']
+      page_id.present? && fb_bridge_channel_for_page(page_id).blank?
+    end
+    return if new_count.zero?
 
     limit = Current.account.usage_limits[:inboxes]
-    return if Current.account.inboxes.count + n <= limit
+    return if Current.account.inboxes.count + new_count <= limit
 
     render_payment_required('Account limit exceeded. Upgrade to a higher plan')
   end
 
-  def create_fb_api_inbox!(page, user_long_lived_token, facebook_identity_id: nil)
+  def upsert_fb_api_inbox!(page, user_long_lived_token, facebook_identity_id: nil)
     page_id = page['id'].to_s
     page_name = page['name'].presence || "Facebook #{page_id}"
 
@@ -93,17 +116,34 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     Facebook::PatraGraphService.subscribe_page_webhook(page_id, long_page_token)
 
     channel_attrs = fb_channel_attributes(page_id, long_page_token, user_long_lived_token)
-    channel = Current.account.api_channels.create!(
-      webhook_url: '',
-      hmac_mandatory: false,
-      facebook_identity_id: facebook_identity_id,
-      additional_attributes: channel_attrs
-    )
+    existing = fb_bridge_channel_for_page(page_id)
 
-    inbox = Current.account.inboxes.create!(name: page_name, channel: channel)
-    inbox.add_members([current_user.id]) unless inbox.members.exists?(current_user.id)
+    if existing
+      attrs = (existing.additional_attributes || {}).stringify_keys.merge(channel_attrs)
+      existing.update!(
+        additional_attributes: attrs,
+        facebook_identity_id: facebook_identity_id.presence || existing.facebook_identity_id
+      )
+      inbox = existing.inbox
+      action = 'updated'
+    else
+      channel = Current.account.api_channels.create!(
+        webhook_url: '',
+        hmac_mandatory: false,
+        facebook_identity_id: facebook_identity_id,
+        additional_attributes: channel_attrs
+      )
+      inbox = Current.account.inboxes.create!(name: page_name, channel: channel)
+      inbox.add_members([current_user.id]) unless inbox.members.exists?(current_user.id)
+      action = 'created'
+    end
 
-    { id: inbox.id, name: inbox.name, channel_id: channel.id, facebook_identity_id: facebook_identity_id }
+    {
+      fb_page_id: page_id,
+      inbox_id: inbox.id,
+      name: inbox.name,
+      action: action
+    }
   end
 
   def fb_channel_attributes(page_id, page_token, user_token)
