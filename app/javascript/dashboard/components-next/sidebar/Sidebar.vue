@@ -178,16 +178,19 @@ const sortedInboxes = computed(() =>
 );
 
 const currentRole = useMapGetter('getCurrentRole');
+const fbBridgeCount = computed(
+  () =>
+    inboxes.value.filter(
+      i =>
+        i.channel_type === 'Channel::Api' &&
+        i.additional_attributes?.fb_page_id
+    ).length
+);
+
 const showPatraFacebookConnect = computed(() => {
   if (currentRole.value !== 'administrator') return false;
   const cfg = typeof window !== 'undefined' ? window.chatwootConfig || {} : {};
-  if (!cfg.fbAppId) return false;
-  const fbBridgeCount = inboxes.value.filter(
-    i =>
-      i.channel_type === 'Channel::Api' &&
-      i.additional_attributes?.fb_page_id
-  ).length;
-  return fbBridgeCount === 0;
+  return !!cfg.fbAppId;
 });
 
 const patraFacebookConnectNav = computed(() =>
@@ -195,7 +198,10 @@ const patraFacebookConnectNav = computed(() =>
     ? [
         {
           name: 'PatraConnectFacebook',
-          label: t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK'),
+          label:
+            fbBridgeCount.value === 0
+              ? t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK')
+              : t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK_ANOTHER'),
           icon: 'i-lucide-facebook',
           to: accountScopedRoute('patra_connect_facebook'),
         },

@@ -92,6 +92,32 @@ class Facebook::PatraGraphService
       long_lived_page_access_token(page_id, user_long_lived_token)
     end
 
+    # Fetches authenticated FB user's profile (id, name, avatar).
+    # Called after exchange_user_token to identify which FB user just authorized.
+    def fetch_user_profile(user_access_token)
+      response = HTTParty.get(
+        "#{graph_base}/me",
+        query: {
+          fields: 'id,name,picture.type(large)',
+          access_token: user_access_token
+        },
+        timeout: HTTP_TIMEOUT
+      )
+      unless response.success?
+        raise StandardError, "FB Graph /me failed: #{response.code} #{response.body.to_s[0, 200]}"
+      end
+
+      data = response.parsed_response || {}
+      {
+        fb_user_id: data['id'].to_s,
+        fb_user_name: data['name'].to_s,
+        fb_user_avatar_url: data.dig('picture', 'data', 'url').to_s
+      }
+    rescue StandardError => e
+      Rails.logger.warn("[PatraGraphService#fetch_user_profile] #{e.class}: #{e.message.to_s[0, 200]}")
+      nil
+    end
+
     private
 
     def graph_base

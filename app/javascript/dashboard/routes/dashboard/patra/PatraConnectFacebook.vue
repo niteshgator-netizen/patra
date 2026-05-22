@@ -24,6 +24,8 @@ const isBusy = ref(false);
 const isSubmittingPages = ref(false);
 const pages = ref([]);
 const userAccessToken = ref('');
+const facebookIdentityId = ref(null);
+const fbUserName = ref('');
 const selectedIds = ref(new Set());
 const errorMessage = ref('');
 
@@ -109,6 +111,8 @@ const connectFacebook = async () => {
     });
     pages.value = data.pages || [];
     userAccessToken.value = data.user_access_token || '';
+    facebookIdentityId.value = data.facebook_identity_id || null;
+    fbUserName.value = data.fb_user_name || '';
     selectedIds.value = new Set(pages.value.map(p => p.id));
   } catch (e) {
     const msg = e.response?.data?.error || e.message;
@@ -129,6 +133,7 @@ const connectSelectedPages = async () => {
   try {
     await axios.post(`${apiBase()}/fb_connect_pages`, {
       user_access_token: userAccessToken.value,
+      facebook_identity_id: facebookIdentityId.value,
       pages: selected.map(p => ({
         id: p.id,
         name: p.name,
@@ -179,6 +184,12 @@ onMounted(() => {
     </div>
 
     <div v-else class="flex flex-col gap-4">
+      <p
+        v-if="fbUserName"
+        class="text-sm text-n-slate-11"
+      >
+        {{ t('PATRA_CONNECT_FACEBOOK.CONNECTED_AS', { name: fbUserName }) }}
+      </p>
       <label
         class="flex items-center gap-2 text-sm font-medium text-n-slate-12 cursor-pointer"
       >

@@ -3,9 +3,11 @@
     "TITLE": "Connect Facebook Pages",
     "SUBTITLE": "Authorize with Facebook, choose which Pages to connect, and we will create a separate inbox for each Page.",
     "CONNECT_BUTTON": "Connect Facebook",
+    "CONNECTED_AS": "Signed in as {name}. Select pages to add.",
     "SELECT_ALL": "Select all",
     "CONNECT_PAGES": "Connect {count} pages",
     "SIDEBAR_LINK": "+ Connect Facebook",
+    "SIDEBAR_LINK_ANOTHER": "+ Add another FB account",
     "ONBOARDING_ROW_TITLE": "Facebook Messenger",
     "SUCCESS": "Facebook pages connected. Your new inboxes are ready.",
     "ERRORS": {
