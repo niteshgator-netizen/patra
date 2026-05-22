@@ -595,6 +595,13 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_applications'),
         },
         {
+          name: 'Settings Meta App',
+          label: t('SIDEBAR.META_APP'),
+          icon: 'i-lucide-key-round',
+          activeOn: ['settings_meta_app'],
+          to: accountScopedRoute('settings_meta_app'),
+        },
+        {
           name: 'Settings Payment Handles',
           label: t('PAYMENT_HANDLES.NAV_LABEL'),
           icon: 'i-lucide-wallet',
