@@ -330,6 +330,7 @@ Rails.application.routes.draw do
           namespace :patra do
             post 'fb_connect', to: 'facebook_connect#fb_connect'
             post 'fb_connect_pages', to: 'facebook_connect#fb_connect_pages'
+            post 'inboxes/:inbox_id/migrate_fb_to_api', to: 'facebook_connect#migrate_fb_to_api'
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]

@@ -108,6 +108,8 @@ export default {
       widgetBubblePosition: 'right',
       widgetBubbleType: 'standard',
       widgetBubbleLauncherTitle: '',
+      migrateFbModalOpen: false,
+      migrateFbLoading: false,
     };
   },
   computed: {
@@ -339,6 +341,20 @@ export default {
     facebookUnauthorized() {
       return this.isAFacebookInbox && this.inbox.reauthorization_required;
     },
+    patraFbIdentityReady() {
+      const inboxes = this.$store.getters['inboxes/getInboxes'] || [];
+      return inboxes.some(inbox => {
+        const attrs = inbox.additional_attributes || {};
+        return inbox.channel_type === INBOX_TYPES.API && attrs.fb_page_id;
+      });
+    },
+    showMigrateFbToPatra() {
+      return (
+        this.isAFacebookInbox &&
+        !!window.chatwootConfig?.fbAppId &&
+        this.patraFbIdentityReady
+      );
+    },
     googleUnauthorized() {
       const isLegacyInbox = ['imap.gmail.com', 'imap.google.com'].includes(
         this.inbox.imap_address
@@ -406,6 +422,29 @@ export default {
     this.fetchSharedData();
   },
   methods: {
+    openMigrateFbModal() {
+      this.migrateFbModalOpen = true;
+    },
+    closeMigrateFbModal() {
+      this.migrateFbModalOpen = false;
+    },
+    async confirmMigrateFbToPatra() {
+      this.migrateFbLoading = true;
+      try {
+        await window.axios.post(
+          `/api/v1/accounts/${this.accountId}/patra/inboxes/${this.inbox.id}/migrate_fb_to_api`
+        );
+        useAlert('Migration complete.');
+        await this.$store.dispatch('inboxes/get');
+        this.closeMigrateFbModal();
+      } catch (error) {
+        const message =
+          error.response?.data?.error || error.message || 'Migration failed';
+        useAlert(message);
+      } finally {
+        this.migrateFbLoading = false;
+      }
+    },
     async copyWebhookSecret(value) {
       await copyTextToClipboard(value);
       useAlert(
@@ -688,6 +727,21 @@ export default {
           class="mb-4"
           :class="bannerMaxWidth"
         />
+        <div
+          v-if="showMigrateFbToPatra"
+          class="mx-6 mb-4 rounded-lg border border-n-weak bg-n-solid-2 p-4"
+          :class="bannerMaxWidth"
+        >
+          <p class="text-sm text-n-slate-11 mb-3">
+            This inbox uses legacy Facebook integration. Migrate to Patra OAuth
+            to restore inbound and outbound Messenger without losing
+            conversations.
+          </p>
+          <NextButton
+            label="Migrate to Patra OAuth"
+            @click="openMigrateFbModal"
+          />
+        </div>
         <GoogleReauthorize
           v-if="googleUnauthorized"
           :inbox="inbox"
@@ -1283,5 +1337,37 @@ export default {
         </div>
       </div>
     </section>
+
+    <div
+      v-if="migrateFbModalOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      @click.self="closeMigrateFbModal"
+    >
+      <div
+        class="w-full max-w-md rounded-lg border border-n-weak bg-n-solid-1 p-6 shadow-lg"
+      >
+        <h3 class="text-heading-3 text-n-slate-12 mb-2">
+          Migrate to Patra OAuth
+        </h3>
+        <p class="text-sm text-n-slate-11 mb-6">
+          This will migrate this inbox to Patra's new OAuth flow. All
+          conversations and messages will be preserved. Continue?
+        </p>
+        <div class="flex justify-end gap-2">
+          <NextButton
+            faded
+            slate
+            label="Cancel"
+            :disabled="migrateFbLoading"
+            @click="closeMigrateFbModal"
+          />
+          <NextButton
+            label="Continue"
+            :is-loading="migrateFbLoading"
+            @click="confirmMigrateFbToPatra"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>

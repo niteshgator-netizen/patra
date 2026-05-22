@@ -92,6 +92,20 @@ class Facebook::PatraGraphService
       long_lived_page_access_token(page_id, user_long_lived_token)
     end
 
+    # Resolves a page access token from /me/accounts, falling back to page-scoped Graph.
+    def fetch_page_access_token(user_access_token, page_id)
+      page_id = page_id.to_s
+      pages = fetch_managed_pages(user_access_token)
+      match = pages.find { |p| p[:id].to_s == page_id }
+      token = match&.dig(:access_token).presence
+      return token if token.present?
+
+      long_lived_page_access_token(page_id, user_access_token)
+    rescue StandardError => e
+      Rails.logger.warn("[PatraGraphService#fetch_page_access_token] #{e.class}: #{e.message}")
+      nil
+    end
+
     # Fetches authenticated FB user's profile (id, name, avatar).
     # Called after exchange_user_token to identify which FB user just authorized.
     def fetch_user_profile(user_access_token)
