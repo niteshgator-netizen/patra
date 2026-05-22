@@ -20,7 +20,8 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
       user_access_token: long_lived,
       facebook_identity_id: identity&.id,
       fb_user_name: profile&.dig(:fb_user_name),
-      already_connected_fb_page_ids: already_connected_fb_page_ids
+      already_connected_fb_page_ids: already_connected_fb_page_ids,
+      already_connected_pages: already_connected_pages_payload
     }
   rescue ArgumentError, StandardError => e
     Rails.logger.error("[PatraFB] fb_connect failed: #{e.class}: #{e.message}")
@@ -28,9 +29,9 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
   end
 
   # Response contract:
-  #   { pages: [{ fb_page_id, inbox_id, name, action: 'created'|'updated' }],
+  #   { pages: [{ fb_page_id, inbox_id, name, action: 'created'|'updated'|'already_connected_legacy' }],
   #     facebook_identity_id: Integer }
-  # Idempotent per fb_page_id: updates tokens on existing Channel::Api, creates inbox only when new.
+  # Idempotent: legacy Channel::FacebookPage → skip; Channel::Api with fb_page_id → update; else create.
   def fb_connect_pages
     user_token = params.require(:user_access_token).to_s
     pages_param = params.require(:pages)
@@ -43,7 +44,7 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
         page = raw.permit(:id, :name, :access_token).to_h
         next if page['id'].blank? || page['access_token'].blank?
 
-        results << upsert_fb_api_inbox!(page, user_token, facebook_identity_id: identity_id)
+        results << connect_page!(page, user_token, facebook_identity_id: identity_id)
       end
     end
 
@@ -79,11 +80,31 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     Current.account.facebook_identities.find_by(id: id)&.id
   end
 
-  def already_connected_fb_page_ids
+  def already_connected_pages_payload
+    entries = []
     Current.account.api_channels
              .where("additional_attributes->>'fb_page_id' IS NOT NULL")
-             .pluck(Arel.sql("additional_attributes->>'fb_page_id'"))
-             .compact
+             .find_each do |channel|
+      page_id = channel.additional_attributes['fb_page_id'].to_s
+      next if page_id.blank?
+
+      entries << { fb_page_id: page_id, legacy: false }
+    end
+    Current.account.facebook_pages.find_each do |channel|
+      page_id = channel.page_id.to_s
+      next if page_id.blank?
+
+      entries << { fb_page_id: page_id, legacy: true }
+    end
+    entries.uniq { |e| e[:fb_page_id] }
+  end
+
+  def already_connected_fb_page_ids
+    already_connected_pages_payload.map { |e| e[:fb_page_id] }
+  end
+
+  def legacy_fb_channel_for_page(page_id)
+    Current.account.facebook_pages.find_by(page_id: page_id.to_s)
   end
 
   def fb_bridge_channel_for_page(page_id)
@@ -97,8 +118,10 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     return unless pages_param.is_a?(Array)
 
     new_count = pages_param.count do |raw|
-      page_id = raw[:id] || raw['id']
-      page_id.present? && fb_bridge_channel_for_page(page_id).blank?
+      page_id = (raw[:id] || raw['id']).to_s
+      next false if page_id.blank?
+
+      legacy_fb_channel_for_page(page_id).blank? && fb_bridge_channel_for_page(page_id).blank?
     end
     return if new_count.zero?
 
@@ -106,6 +129,21 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     return if Current.account.inboxes.count + new_count <= limit
 
     render_payment_required('Account limit exceeded. Upgrade to a higher plan')
+  end
+
+  def connect_page!(page, user_long_lived_token, facebook_identity_id: nil)
+    page_id = page['id'].to_s
+    legacy_channel = legacy_fb_channel_for_page(page_id)
+    if legacy_channel&.inbox
+      return {
+        fb_page_id: page_id,
+        inbox_id: legacy_channel.inbox.id,
+        name: legacy_channel.inbox.name,
+        action: 'already_connected_legacy'
+      }
+    end
+
+    upsert_fb_api_inbox!(page, user_long_lived_token, facebook_identity_id: facebook_identity_id)
   end
 
   def upsert_fb_api_inbox!(page, user_long_lived_token, facebook_identity_id: nil)
