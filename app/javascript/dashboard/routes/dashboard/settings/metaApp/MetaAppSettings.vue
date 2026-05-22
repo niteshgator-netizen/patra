@@ -44,6 +44,10 @@ const appNameStorageKey = computed(
   () => `patra_meta_app_name_${accountId.value}`
 );
 
+const businessManagerLink = computed(
+  () => 'https://business.facebook.com/settings/apps'
+);
+
 const validatedAtDisplay = computed(() => {
   const v = validatedAt.value;
   if (!v) return '';
@@ -234,6 +238,25 @@ onMounted(() => {
               </dt>
             </div>
           </dl>
+
+          <div
+            class="flex flex-col gap-2 p-4 rounded-lg border border-n-weak bg-n-solid-2"
+          >
+            <h4 class="text-sm font-semibold text-n-slate-12">
+              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_TITLE') }}
+            </h4>
+            <p class="text-sm text-n-slate-11">
+              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_BODY') }}
+            </p>
+            <a
+              :href="businessManagerLink"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex self-start text-sm font-medium text-violet-600 hover:text-violet-700 underline-offset-2 hover:underline"
+            >
+              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_LINK') }}
+            </a>
+          </div>
 
           <div class="flex flex-wrap gap-3">
             <ConfirmButton

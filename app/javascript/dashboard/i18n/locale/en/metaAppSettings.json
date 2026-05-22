@@ -30,7 +30,10 @@
       "DISCONNECT_CONFIRM": "Confirm disconnect",
       "DISCONNECT_HINT": "Click again to confirm",
       "CONNECT_PAGES": "Connect Facebook pages",
-      "DISCONNECT_SUCCESS": "Meta app disconnected."
+      "DISCONNECT_SUCCESS": "Meta app disconnected.",
+      "BM_TIP_TITLE": "If you have pages in a Business Manager",
+      "BM_TIP_BODY": "You'll need to link this Meta app to your Business Manager so business-owned pages are visible to Patra during OAuth.",
+      "BM_TIP_LINK": "Open Business Settings (Apps) →"
     },
     "ERRORS": {
       "LOAD_FAILED": "Could not load Meta app settings.",
