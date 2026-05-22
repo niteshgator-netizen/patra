@@ -25,6 +25,7 @@ const userAccessToken = ref('');
 const facebookIdentityId = ref(null);
 const fbUserName = ref('');
 const alreadyConnectedIds = ref([]);
+const alreadyConnectedPages = ref([]);
 const selectedIds = ref(new Set());
 const errorMessage = ref('');
 
@@ -32,6 +33,11 @@ const apiBase = () => `/api/v1/accounts/${accountId.value}/patra`;
 
 const isPageConnected = pageId =>
   alreadyConnectedIds.value.includes(String(pageId));
+
+const isPageLegacyConnected = pageId =>
+  alreadyConnectedPages.value.some(
+    p => String(p.fb_page_id) === String(pageId) && p.legacy
+  );
 
 const selectablePages = computed(() =>
   pages.value.filter(p => !isPageConnected(p.id))
@@ -122,9 +128,12 @@ const connectFacebook = async () => {
     userAccessToken.value = data.user_access_token || '';
     facebookIdentityId.value = data.facebook_identity_id || null;
     fbUserName.value = data.fb_user_name || '';
+    alreadyConnectedPages.value = Array.isArray(data?.already_connected_pages)
+      ? data.already_connected_pages
+      : [];
     alreadyConnectedIds.value = Array.isArray(data?.already_connected_fb_page_ids)
       ? data.already_connected_fb_page_ids.map(String)
-      : [];
+      : alreadyConnectedPages.value.map(p => String(p.fb_page_id));
     selectedIds.value = new Set(
       selectablePages.value.map(p => p.id)
     );
@@ -258,7 +267,13 @@ onMounted(() => {
                 {{ page.name }}
               </div>
               <span
-                v-if="isPageConnected(page.id)"
+                v-if="isPageConnected(page.id) && isPageLegacyConnected(page.id)"
+                class="shrink-0 text-xs font-medium text-n-amber-11 bg-n-amber-3/50 rounded-full px-2 py-0.5"
+              >
+                Already connected (legacy) ⚠️
+              </span>
+              <span
+                v-else-if="isPageConnected(page.id)"
                 class="shrink-0 text-xs font-medium text-n-teal-11 bg-n-teal-3/40 rounded-full px-2 py-0.5"
               >
                 Already connected ✓

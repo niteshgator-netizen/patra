@@ -16,6 +16,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  additionalAttributes: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 const getters = useStoreGetters();
 const { t } = useI18n();
@@ -44,6 +48,11 @@ const twilioChannelName = () => {
 };
 
 const readableChannelName = computed(() => {
+  const attrs = props.additionalAttributes || {};
+  const fbPageId = attrs.fb_page_id || attrs.fbPageId;
+  if (props.channelType === 'Channel::Api' && fbPageId) {
+    return t('INBOX_MGMT.CHANNELS.MESSENGER');
+  }
   if (props.channelType === 'Channel::Api') {
     return globalConfig.value.apiChannelName || t('INBOX_MGMT.CHANNELS.API');
   }
