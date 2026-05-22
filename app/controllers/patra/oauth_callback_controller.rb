@@ -63,7 +63,6 @@ module Patra
       pages_html = result[:pages].map do |p|
         "<li style=\"margin: 4px 0;\">✓ #{ERB::Util.html_escape(p[:name])}</li>"
       end.join
-      app_id = ERB::Util.html_escape(account.meta_app_id)
 
       <<~HTML
         <html><head><style>#{oauth_page_styles}</style></head><body>
@@ -72,9 +71,11 @@ module Patra
           <ul>#{pages_html}</ul>
 
           <div class="info-box">
-            <h3>Expecting more pages?</h3>
-            <p>Pages owned by a Business Manager are hidden from Patra until you link your Meta app to that Business. Open Meta Business Settings and add app <span class="app-id-code">#{app_id}</span> to grant access.</p>
-            <a href="#{BM_APPS_URL}" target="_blank" rel="noopener noreferrer" class="btn">Open Business Settings →</a>
+            <h3>Only profile-owned pages can be connected</h3>
+            <p>Patra can only connect Facebook pages owned directly by your profile. Pages owned by a Business Manager (a business portfolio) won't appear in the OAuth flow — this is a Facebook platform restriction we can't bypass.</p>
+            <p>To check which of your pages are owned by a Business Manager, click below. Each business shows how many pages it contains — those pages are blocked.</p>
+            <a href="#{BM_APPS_URL}" target="_blank" rel="noopener noreferrer" class="btn">Audit my businesses</a>
+            <p style="margin-top: 12px; margin-bottom: 0; font-size: 12px; color: #777;">Pages owned directly by your profile work fine — no action needed for those.</p>
           </div>
 
           <script>setTimeout(() => { try { window.close(); } catch(e){} }, 30000);</script>

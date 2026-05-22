@@ -273,11 +273,8 @@ onMounted(() => {
         <h4 class="text-sm font-semibold text-n-slate-12">
           {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_TITLE') }}
         </h4>
-        <p class="text-sm text-n-slate-11">
+        <p class="text-sm text-n-slate-11 whitespace-pre-line">
           {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_BODY') }}
-        </p>
-        <p class="text-xs text-n-slate-11">
-          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_APP_ID', { id: byocAppId }) }}
         </p>
         <a
           :href="businessManagerLink"
@@ -288,7 +285,7 @@ onMounted(() => {
           {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_LINK') }}
         </a>
         <p class="text-xs text-n-slate-10">
-          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_SKIP') }}
+          {{ t('PATRA_CONNECT_FACEBOOK.BYOC.BM_NOTICE_FOOTNOTE') }}
         </p>
       </div>
 

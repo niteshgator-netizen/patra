@@ -333,6 +333,7 @@ Rails.application.routes.draw do
             post 'fb_connect_pages', to: 'facebook_connect#fb_connect_pages'
             post 'inboxes/:inbox_id/migrate_fb_to_api', to: 'facebook_connect#migrate_fb_to_api'
             get 'meta_app', to: 'facebook_connect#get_meta_app'
+            get 'meta_app/preview_disconnect', to: 'facebook_connect#preview_disconnect_meta_app'
             post 'meta_app', to: 'facebook_connect#save_meta_app'
             delete 'meta_app', to: 'facebook_connect#delete_meta_app'
             post 'byoc_oauth_url', to: 'facebook_connect#byoc_oauth_url'
