@@ -98,7 +98,35 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     render json: { success: true }
   end
 
+  def byoc_oauth_url
+    account = Current.account
+    unless account.byoc_meta_app?
+      return render(json: { error: 'No Meta app configured. Save credentials first.' }, status: :unprocessable_entity)
+    end
+
+    state = ::Patra::OauthState.generate(account_id: account.id)
+    scope = 'pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement'
+    redirect_uri = patra_oauth_redirect_uri
+    url = "https://www.facebook.com/#{facebook_dialog_version}/dialog/oauth?" + {
+      client_id: account.meta_app_id,
+      redirect_uri: redirect_uri,
+      state: state,
+      scope: scope,
+      response_type: 'code'
+    }.to_query
+
+    render json: { url: url, redirect_uri: redirect_uri }
+  end
+
   private
+
+  def patra_oauth_redirect_uri
+    "#{ENV.fetch('FRONTEND_URL', 'https://patrahq.com').to_s.chomp('/')}/patra/oauth/callback"
+  end
+
+  def facebook_dialog_version
+    (GlobalConfigService.load('FACEBOOK_API_VERSION', 'v18.0').presence || 'v18.0').to_s.delete_prefix('v')
+  end
 
   def upsert_facebook_identity!(profile, long_lived_user_token)
     identity = Current.account.facebook_identities.find_or_initialize_by(fb_user_id: profile[:fb_user_id])

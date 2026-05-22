@@ -14,6 +14,7 @@ Rails.application.routes.draw do
   # No authentication; LegalController extends ActionController::Base directly.
   get '/privacy', to: 'legal#privacy'
   get '/terms', to: 'legal#terms'
+  get 'patra/oauth/callback', to: 'patra/oauth_callback#handle', as: :patra_oauth_callback
 
   ## renders the frontend paths only if its not an api only server
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('CW_API_ONLY_SERVER', false))
@@ -334,6 +335,7 @@ Rails.application.routes.draw do
             get 'meta_app', to: 'facebook_connect#get_meta_app'
             post 'meta_app', to: 'facebook_connect#save_meta_app'
             delete 'meta_app', to: 'facebook_connect#delete_meta_app'
+            post 'byoc_oauth_url', to: 'facebook_connect#byoc_oauth_url'
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
