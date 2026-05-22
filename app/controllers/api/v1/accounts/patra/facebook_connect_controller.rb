@@ -125,7 +125,8 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
   end
 
   def facebook_dialog_version
-    (GlobalConfigService.load('FACEBOOK_API_VERSION', 'v18.0').presence || 'v18.0').to_s.delete_prefix('v')
+    version = (GlobalConfigService.load('FACEBOOK_API_VERSION', 'v18.0').presence || 'v18.0').to_s
+    version.start_with?('v') ? version : "v#{version}"
   end
 
   def upsert_facebook_identity!(profile, long_lived_user_token)
