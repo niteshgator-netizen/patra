@@ -146,6 +146,72 @@ class Facebook::PatraGraphService
       nil
     end
 
+    def fetch_page_conversations(page_id:, page_access_token:, limit: 50)
+      rows = fetch_paginated_graph_data(
+        url: "#{graph_base}/#{page_id}/conversations",
+        query: {
+          fields: 'id,updated_time,participants',
+          access_token: page_access_token,
+          limit: 25
+        },
+        limit: limit,
+        context: "page #{page_id} conversations"
+      )
+      rows.map { |row| normalize_conversation_row(row) }
+    end
+
+    def fetch_conversation_messages(conversation_id:, page_access_token:, limit: 25)
+      rows = fetch_paginated_graph_data(
+        url: "#{graph_base}/#{conversation_id}/messages",
+        query: {
+          fields: 'id,created_time,from,to,message',
+          access_token: page_access_token,
+          limit: 25
+        },
+        limit: limit,
+        context: "conversation #{conversation_id} messages"
+      )
+      rows.map { |row| normalize_message_row(row) }
+    end
+
+    # PSID profile for Messenger customers (distinct from OAuth /me fetch_user_profile).
+    def fetch_messenger_user_profile(user_id:, page_access_token:)
+      response = HTTParty.get(
+        "#{graph_base}/#{user_id}",
+        query: {
+          fields: 'id,name,profile_pic',
+          access_token: page_access_token
+        },
+        timeout: HTTP_TIMEOUT
+      )
+      return nil if response.code.to_i == 404
+
+      unless response.success?
+        Rails.logger.warn(
+          "[PatraGraphService#fetch_messenger_user_profile] user=#{user_id} http=#{response.code} body=#{response.body.to_s[0, 200]}"
+        )
+        return nil
+      end
+
+      data = response.parsed_response || {}
+      profile_pic = data['profile_pic']
+      profile_pic_url =
+        if profile_pic.is_a?(Hash)
+          profile_pic.dig('data', 'url') || profile_pic['url']
+        else
+          profile_pic
+        end
+
+      {
+        id: data['id'].to_s,
+        name: data['name'].to_s,
+        profile_pic: profile_pic_url.to_s
+      }
+    rescue StandardError => e
+      Rails.logger.warn("[PatraGraphService#fetch_messenger_user_profile] #{e.class}: #{e.message.to_s[0, 200]}")
+      nil
+    end
+
     private
 
     def graph_base
@@ -183,6 +249,58 @@ class Facebook::PatraGraphService
         category: row['category'].to_s,
         access_token: row['access_token'].to_s
       }
+    end
+
+    def normalize_conversation_row(row)
+      participants = Array(row.dig('participants', 'data')).map do |p|
+        { id: p['id'].to_s, name: p['name'].to_s }
+      end
+      {
+        id: row['id'].to_s,
+        updated_time: row['updated_time'],
+        participants: participants
+      }
+    end
+
+    def normalize_message_row(row)
+      from = row['from'].is_a?(Hash) ? row['from'] : {}
+      {
+        id: row['id'].to_s,
+        created_time: row['created_time'],
+        from_id: from['id'].to_s,
+        from_name: from['name'].to_s,
+        message: row['message'].to_s
+      }
+    end
+
+    def fetch_paginated_graph_data(url:, query:, limit:, context:)
+      items = []
+      use_query = true
+      next_url = url
+
+      loop do
+        response =
+          if use_query
+            HTTParty.get(next_url, query: query, timeout: HTTP_TIMEOUT)
+          else
+            HTTParty.get(next_url, timeout: HTTP_TIMEOUT)
+          end
+        raise_graph_error!(response, context) unless response.success?
+
+        body = response.parsed_response
+        Array(body['data']).each do |row|
+          items << row
+          return items if items.length >= limit
+        end
+
+        paging_next = body.dig('paging', 'next')
+        break if paging_next.blank?
+
+        next_url = paging_next
+        use_query = false
+      end
+
+      items
     end
 
     def parse_token_response!(response, context)

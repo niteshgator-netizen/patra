@@ -126,6 +126,7 @@ module Patra
           inbox = @account.inboxes.create!(name: page_name, channel: channel)
           add_inbox_members!(inbox)
           action = 'created'
+          ::Patra::FacebookBackfillJob.perform_later(inbox.id)
         end
 
         Rails.logger.info("[PatraBYOC-debug] upserted page id=#{page_id} -> inbox=#{inbox.id}")
