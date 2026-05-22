@@ -349,11 +349,20 @@ export default {
       });
     },
     showMigrateFbToPatra() {
-      return (
-        this.isAFacebookInbox &&
-        !!window.chatwootConfig?.fbAppId &&
-        this.patraFbIdentityReady
-      );
+      if (!window.chatwootConfig?.fbAppId || !this.patraFbIdentityReady) {
+        return false;
+      }
+      if (this.isAFacebookInbox) {
+        return true;
+      }
+      if (this.inbox.channel_type === INBOX_TYPES.API) {
+        const attrs = this.inbox.additional_attributes || {};
+        if (!attrs.fb_page_id) {
+          return false;
+        }
+        return !attrs.fb_page_access_token;
+      }
+      return false;
     },
     googleUnauthorized() {
       const isLegacyInbox = ['imap.gmail.com', 'imap.google.com'].includes(
@@ -733,9 +742,8 @@ export default {
           :class="bannerMaxWidth"
         >
           <p class="text-sm text-n-slate-11 mb-3">
-            This inbox uses legacy Facebook integration. Migrate to Patra OAuth
-            to restore inbound and outbound Messenger without losing
-            conversations.
+            This will connect this inbox to Patra OAuth. All conversations and
+            messages will be preserved.
           </p>
           <NextButton
             label="Migrate to Patra OAuth"
@@ -1350,8 +1358,8 @@ export default {
           Migrate to Patra OAuth
         </h3>
         <p class="text-sm text-n-slate-11 mb-6">
-          This will migrate this inbox to Patra's new OAuth flow. All
-          conversations and messages will be preserved. Continue?
+          This will connect this inbox to Patra OAuth. All conversations and
+          messages will be preserved. Continue?
         </p>
         <div class="flex justify-end gap-2">
           <NextButton
