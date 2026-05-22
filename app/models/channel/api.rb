@@ -22,6 +22,8 @@
 class Channel::Api < ApplicationRecord
   include Channelable
 
+  belongs_to :facebook_identity, optional: true
+
   self.table_name = 'channel_api'
   EDITABLE_ATTRS = [:webhook_url, :hmac_mandatory, { additional_attributes: {} }].freeze
 
@@ -33,6 +35,14 @@ class Channel::Api < ApplicationRecord
 
   def name
     'API'
+  end
+
+  def facebook_bridge?
+    additional_attributes.is_a?(Hash) && additional_attributes['fb_page_id'].present?
+  end
+
+  def fb_page_id
+    additional_attributes.is_a?(Hash) ? additional_attributes['fb_page_id'] : nil
   end
 
   private
