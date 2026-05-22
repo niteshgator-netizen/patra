@@ -1,0 +1,41 @@
+{
+  "META_APP_SETTINGS": {
+    "TITLE": "Meta App",
+    "DESCRIPTION": "Connect Patra to your own Meta developer app for unlimited Facebook page connections and full message privacy.",
+    "EMPTY": {
+      "HEADING": "Connect Patra to your Meta app",
+      "SUBHEADING": "Use your own Meta app for unlimited Facebook page connections + full message privacy.",
+      "SECTION_1_TITLE": "Create your Meta app",
+      "SECTION_1_HELP": "Pick \"Other\" → \"Business\". Name it anything (\"My Patra App\" works).",
+      "OPEN_CONSOLE": "Open Meta Developer Console",
+      "SECTION_2_TITLE": "Add Facebook Login for Business product",
+      "SECTION_2_HELP": "In your Meta app, left sidebar → Add Product → Facebook Login for Business. In its Settings, add this Valid OAuth Redirect URI:",
+      "OPEN_APPS": "Open your Meta apps",
+      "SECTION_3_TITLE": "Paste credentials",
+      "APP_ID_LABEL": "App ID",
+      "APP_ID_PLACEHOLDER": "1234567890123456",
+      "APP_SECRET_LABEL": "App Secret",
+      "APP_SECRET_PLACEHOLDER": "32-character string from Settings → Basic",
+      "TEST_SAVE": "Test & Save",
+      "COPY_URI": "Copy",
+      "COPY_URI_SUCCESS": "Redirect URI copied.",
+      "SAVE_SUCCESS": "Meta app validated and saved as {name}."
+    },
+    "CONFIGURED": {
+      "HEADING": "Your Meta app is connected",
+      "APP_NAME": "App name",
+      "APP_ID": "App ID",
+      "VALIDATED": "Validated: {date}",
+      "DISCONNECT": "Disconnect",
+      "DISCONNECT_CONFIRM": "Confirm disconnect",
+      "DISCONNECT_HINT": "Click again to confirm",
+      "CONNECT_PAGES": "Connect Facebook pages",
+      "DISCONNECT_SUCCESS": "Meta app disconnected."
+    },
+    "ERRORS": {
+      "LOAD_FAILED": "Could not load Meta app settings.",
+      "SAVE_FAILED": "Could not save Meta app credentials.",
+      "DISCONNECT_FAILED": "Could not disconnect Meta app."
+    }
+  }
+}
