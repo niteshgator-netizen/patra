@@ -10,7 +10,7 @@ import ChannelItem from 'dashboard/components/widgets/ChannelItem.vue';
 
 const { t } = useI18n();
 const router = useRouter();
-const { accountId, currentAccount } = useAccount();
+const { accountId, currentAccount, accountScopedRoute } = useAccount();
 
 const globalConfig = useMapGetter('globalConfig/get');
 
@@ -26,7 +26,8 @@ const channelList = computed(() => {
     {
       key: 'facebook',
       title: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.TITLE'),
-      description: t('INBOX_MGMT.ADD.AUTH.CHANNEL.FACEBOOK.DESCRIPTION'),
+      description:
+        'Connect via Patra OAuth — opens the same flow as sidebar “+ Connect Facebook”.',
       icon: 'i-woot-messenger',
     },
     {
@@ -91,6 +92,11 @@ const initializeEnabledFeatures = async () => {
 };
 
 const initChannelAuth = channel => {
+  if (channel === 'facebook') {
+    router.push(accountScopedRoute('patra_connect_facebook'));
+    return;
+  }
+
   const params = {
     sub_page: channel,
     accountId: accountId.value,
