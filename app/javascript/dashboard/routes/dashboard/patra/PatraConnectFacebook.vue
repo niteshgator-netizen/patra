@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import axios from 'axios';
 import { useAlert } from 'dashboard/composables';
 import { frontendURL } from 'dashboard/helper/URLHelper';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -106,7 +105,7 @@ const connectFacebook = async () => {
       errorMessage.value = t('PATRA_CONNECT_FACEBOOK.ERRORS.LOGIN_CANCELLED');
       return;
     }
-    const { data } = await axios.post(`${apiBase()}/fb_connect`, {
+    const { data } = await window.axios.post(`${apiBase()}/fb_connect`, {
       access_token: token,
     });
     pages.value = data.pages || [];
@@ -131,7 +130,7 @@ const connectSelectedPages = async () => {
   }
   isSubmittingPages.value = true;
   try {
-    await axios.post(`${apiBase()}/fb_connect_pages`, {
+    await window.axios.post(`${apiBase()}/fb_connect_pages`, {
       user_access_token: userAccessToken.value,
       facebook_identity_id: facebookIdentityId.value,
       pages: selected.map(p => ({
