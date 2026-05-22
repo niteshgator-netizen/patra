@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { dynamicTime } from 'shared/helpers/timeHelper';
@@ -19,6 +20,7 @@ defineOptions({
 
 const { t } = useI18n();
 const router = useRouter();
+const store = useStore();
 const { accountId, accountScopedRoute } = useAccount();
 
 const isLoading = ref(true);
@@ -32,6 +34,7 @@ const appIdInput = ref('');
 const appSecretInput = ref('');
 const errorMessage = ref('');
 const successMessage = ref('');
+const disconnectPreviewCount = ref(0);
 
 const apiBase = () => `/api/v1/accounts/${accountId.value}/patra`;
 
@@ -46,6 +49,18 @@ const appNameStorageKey = computed(
 
 const businessManagerLink = computed(
   () => 'https://business.facebook.com/settings/apps'
+);
+
+const disconnectConfirmLabel = computed(() =>
+  t('META_APP_SETTINGS.CONFIGURED.DISCONNECT_CONFIRM_WITH_COUNT', {
+    count: disconnectPreviewCount.value,
+  })
+);
+
+const disconnectConfirmHint = computed(() =>
+  t('META_APP_SETTINGS.CONFIGURED.DISCONNECT_HINT', {
+    count: disconnectPreviewCount.value,
+  })
 );
 
 const validatedAtDisplay = computed(() => {
@@ -83,6 +98,17 @@ const cacheAppName = name => {
   }
 };
 
+const fetchDisconnectPreview = async () => {
+  try {
+    const { data } = await window.axios.get(
+      `${apiBase()}/meta_app/preview_disconnect`
+    );
+    disconnectPreviewCount.value = Number(data?.inbox_count) || 0;
+  } catch {
+    disconnectPreviewCount.value = 0;
+  }
+};
+
 const fetchByocStatus = async ({ withLoading = false } = {}) => {
   if (withLoading) {
     isLoading.value = true;
@@ -95,8 +121,10 @@ const fetchByocStatus = async ({ withLoading = false } = {}) => {
     validatedAt.value = data?.app_validated_at || null;
     if (hasByocApp.value) {
       loadCachedAppName();
+      await fetchDisconnectPreview();
     } else {
       savedAppName.value = '';
+      disconnectPreviewCount.value = 0;
     }
   } catch {
     errorMessage.value = t('META_APP_SETTINGS.ERRORS.LOAD_FAILED');
@@ -138,15 +166,22 @@ const disconnectMetaApp = async () => {
   errorMessage.value = '';
   isDisconnecting.value = true;
   try {
-    await window.axios.delete(`${apiBase()}/meta_app`);
+    const { data } = await window.axios.delete(`${apiBase()}/meta_app`);
+    const removedCount = Number(data?.disconnected_inboxes) || 0;
     hasByocApp.value = false;
     savedAppId.value = '';
     savedAppName.value = '';
     validatedAt.value = null;
     appIdInput.value = '';
     appSecretInput.value = '';
+    disconnectPreviewCount.value = 0;
     cacheAppName('');
-    useAlert(t('META_APP_SETTINGS.CONFIGURED.DISCONNECT_SUCCESS'));
+    await store.dispatch('inboxes/get');
+    useAlert(
+      t('META_APP_SETTINGS.CONFIGURED.DISCONNECT_SUCCESS', {
+        count: removedCount,
+      })
+    );
   } catch (e) {
     errorMessage.value =
       e.response?.data?.error ||
@@ -245,7 +280,7 @@ onMounted(() => {
             <h4 class="text-sm font-semibold text-n-slate-12">
               {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_TITLE') }}
             </h4>
-            <p class="text-sm text-n-slate-11">
+            <p class="text-sm text-n-slate-11 whitespace-pre-line">
               {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_BODY') }}
             </p>
             <a
@@ -256,13 +291,16 @@ onMounted(() => {
             >
               {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_LINK') }}
             </a>
+            <p class="text-xs text-n-slate-10">
+              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_FOOTNOTE') }}
+            </p>
           </div>
 
           <div class="flex flex-wrap gap-3">
             <ConfirmButton
               :label="$t('META_APP_SETTINGS.CONFIGURED.DISCONNECT')"
-              :confirm-label="$t('META_APP_SETTINGS.CONFIGURED.DISCONNECT_CONFIRM')"
-              :confirm-hint="$t('META_APP_SETTINGS.CONFIGURED.DISCONNECT_HINT')"
+              :confirm-label="disconnectConfirmLabel"
+              :confirm-hint="disconnectConfirmHint"
               color="slate"
               confirm-color="ruby"
               :is-loading="isDisconnecting"

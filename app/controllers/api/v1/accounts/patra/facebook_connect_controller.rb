@@ -94,8 +94,29 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
   end
 
   def delete_meta_app
-    Current.account.update!(meta_app_id: nil, meta_app_secret_encrypted: nil, meta_app_validated_at: nil)
-    render json: { success: true }
+    account = Current.account
+    meta_app_id = account.meta_app_id
+
+    ActiveRecord::Base.transaction do
+      byoc_inboxes = byoc_inboxes_for_meta_app(account, meta_app_id)
+      deleted_inboxes_count = byoc_inboxes.size
+      byoc_inboxes.each(&:destroy!)
+
+      account.update!(meta_app_id: nil, meta_app_secret_encrypted: nil, meta_app_validated_at: nil)
+
+      render json: { success: true, disconnected_inboxes: deleted_inboxes_count }
+    end
+  rescue StandardError => e
+    Rails.logger.error("[PatraBYOC] disconnect failed: #{e.class}: #{e.message}")
+    render json: { error: "Disconnect failed: #{e.message}" }, status: :unprocessable_entity
+  end
+
+  def preview_disconnect_meta_app
+    account = Current.account
+    meta_app_id = account.meta_app_id
+    count = byoc_inboxes_for_meta_app(account, meta_app_id).size
+
+    render json: { inbox_count: count }
   end
 
   def byoc_oauth_url
@@ -127,6 +148,18 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
   def facebook_dialog_version
     version = (GlobalConfigService.load('FACEBOOK_API_VERSION', 'v18.0').presence || 'v18.0').to_s
     version.start_with?('v') ? version : "v#{version}"
+  end
+
+  def byoc_inboxes_for_meta_app(account, meta_app_id)
+    return account.inboxes.none if meta_app_id.blank?
+
+    account.inboxes
+           .where(channel_type: 'Channel::Api')
+           .joins(
+             'INNER JOIN channel_api ON channel_api.id = inboxes.channel_id ' \
+             "AND inboxes.channel_type = 'Channel::Api'"
+           )
+           .where("channel_api.additional_attributes->>'meta_app_id' = ?", meta_app_id.to_s)
   end
 
   def upsert_facebook_identity!(profile, long_lived_user_token)

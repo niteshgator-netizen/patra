@@ -15,11 +15,10 @@
       "APP_ID": "App ID: {id}",
       "REDIRECT_URI_HELP": "Make sure your Meta app has this redirect URI saved under Facebook Login → Settings → Valid OAuth Redirect URIs:",
       "CONNECT_BUTTON": "Connect Facebook pages via my Meta app",
-      "BM_NOTICE_TITLE": "Before connecting",
-      "BM_NOTICE_BODY": "If any of your Facebook pages are owned by a Business Manager, link your Meta app to that Business first — otherwise those pages won't appear during OAuth.",
-      "BM_NOTICE_APP_ID": "Your app ID: {id}",
-      "BM_NOTICE_LINK": "Open Business Settings →",
-      "BM_NOTICE_SKIP": "If your pages are personal (not in a Business), you can skip this and click Connect below."
+      "BM_NOTICE_TITLE": "Only profile-owned pages can be connected",
+      "BM_NOTICE_BODY": "Patra can only connect Facebook pages owned directly by your profile. Pages owned by a Business Manager (a business portfolio) won't appear in the OAuth flow — this is a Facebook platform restriction we can't bypass.\n\nTo check which of your pages are owned by a Business Manager, click below. Each business shows how many pages it contains — those pages are blocked.",
+      "BM_NOTICE_LINK": "Audit my businesses",
+      "BM_NOTICE_FOOTNOTE": "Pages owned directly by your profile work fine — no action needed for those."
     },
     "ERRORS": {
       "MISSING_APP_ID": "Facebook is not configured on this server (missing app id).",
