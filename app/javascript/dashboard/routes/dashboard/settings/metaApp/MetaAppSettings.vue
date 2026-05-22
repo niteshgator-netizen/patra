@@ -44,9 +44,19 @@ const appNameStorageKey = computed(
   () => `patra_meta_app_name_${accountId.value}`
 );
 
-const formattedValidatedAt = computed(() => {
-  if (!validatedAt.value) return '';
-  return dynamicTime(validatedAt.value);
+const validatedAtDisplay = computed(() => {
+  const v = validatedAt.value;
+  if (!v) return '';
+  try {
+    const unixSeconds =
+      typeof v === 'number'
+        ? v
+        : Math.floor(new Date(v).getTime() / 1000);
+    if (!unixSeconds || Number.isNaN(unixSeconds)) return '';
+    return dynamicTime(unixSeconds);
+  } catch {
+    return '';
+  }
 });
 
 const loadCachedAppName = () => {
@@ -69,8 +79,10 @@ const cacheAppName = name => {
   }
 };
 
-const fetchMetaApp = async () => {
-  isLoading.value = true;
+const fetchByocStatus = async ({ withLoading = false } = {}) => {
+  if (withLoading) {
+    isLoading.value = true;
+  }
   errorMessage.value = '';
   try {
     const { data } = await window.axios.get(`${apiBase()}/meta_app`);
@@ -86,9 +98,13 @@ const fetchMetaApp = async () => {
     errorMessage.value = t('META_APP_SETTINGS.ERRORS.LOAD_FAILED');
     hasByocApp.value = false;
   } finally {
-    isLoading.value = false;
+    if (withLoading) {
+      isLoading.value = false;
+    }
   }
 };
+
+const fetchMetaApp = () => fetchByocStatus({ withLoading: true });
 
 const saveMetaApp = async () => {
   errorMessage.value = '';
@@ -101,11 +117,11 @@ const saveMetaApp = async () => {
     });
     savedAppName.value = data?.app_name || '';
     cacheAppName(savedAppName.value);
+    appSecretInput.value = '';
+    await fetchByocStatus();
     successMessage.value = t('META_APP_SETTINGS.EMPTY.SAVE_SUCCESS', {
       name: savedAppName.value || data?.app_id,
     });
-    appSecretInput.value = '';
-    await fetchMetaApp();
   } catch (e) {
     errorMessage.value =
       e.response?.data?.error || t('META_APP_SETTINGS.ERRORS.SAVE_FAILED');
@@ -208,11 +224,11 @@ onMounted(() => {
               </dt>
               <dd class="font-mono text-n-slate-12">{{ savedAppId }}</dd>
             </div>
-            <div v-if="validatedAt" class="flex flex-col gap-0.5">
+            <div v-if="validatedAtDisplay" class="flex flex-col gap-0.5">
               <dt class="text-n-slate-10">
                 {{
                   $t('META_APP_SETTINGS.CONFIGURED.VALIDATED', {
-                    date: formattedValidatedAt,
+                    date: validatedAtDisplay,
                   })
                 }}
               </dt>
