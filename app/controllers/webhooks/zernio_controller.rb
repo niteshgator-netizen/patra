@@ -28,7 +28,14 @@ module Webhooks
       when 'message.received'
         ProcessZernioInboundJob.perform_later(payload)
       when 'message.failed'
-        Rails.logger.error("[ZernioWebhook] message.failed payload=#{payload['data']&.slice('messageId', 'conversationId')}")
+        # Real Zernio webhook shape uses top-level `message` / `conversation`
+        # keys (verified against production logs in Phase F). The previous
+        # `payload['data']` lookup was a stale guess that always logged nil.
+        Rails.logger.error(
+          "[ZernioWebhook] message.failed " \
+          "message=#{payload['message']&.slice('id', 'conversationId', 'platform').inspect} " \
+          "conversation=#{payload['conversation']&.slice('id').inspect}"
+        )
       else
         # message.sent / delivered / read / account.* — ack only for now
         Rails.logger.info("[ZernioWebhook] ack event=#{event}")
