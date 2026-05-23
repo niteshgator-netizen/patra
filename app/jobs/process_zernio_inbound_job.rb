@@ -32,7 +32,7 @@ class ProcessZernioInboundJob < ApplicationJob
 
   def find_inbox_by_zernio_account(zernio_account_id)
     Inbox.where(messaging_provider: 'zernio').find do |i|
-      i.additional_attributes&.dig('zernio_account_id') == zernio_account_id
+      i.channel&.additional_attributes&.dig('zernio_account_id') == zernio_account_id
     end
   end
 end

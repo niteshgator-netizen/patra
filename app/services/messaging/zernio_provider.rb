@@ -105,7 +105,7 @@ module Messaging
     end
 
     def zernio_account_id
-      inbox.additional_attributes&.dig('zernio_account_id')
+      inbox.channel&.additional_attributes&.dig('zernio_account_id')
     end
   end
 end
