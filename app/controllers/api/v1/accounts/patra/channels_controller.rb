@@ -146,7 +146,13 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
     inbox.messages.where('created_at > ?', 24.hours.ago).exists? ? 'live' : 'idle'
   end
 
+  # Zernio sends the user back here after OAuth completes. The unified
+  # multi-platform picker (PatraAddChannel.vue) lives at this route — it
+  # reads the connection params from the query string and POSTs to /complete
+  # to finalize the inbox creation. Previously this returned them to the
+  # Settings → Inboxes wizard which is now redirected to the same picker
+  # via Phase H.10 item 4.
   def default_redirect_url
-    "#{ENV.fetch('FRONTEND_URL', 'https://patrahq.com').to_s.chomp('/')}/app/accounts/#{Current.account.id}/settings/inboxes/new"
+    "#{ENV.fetch('FRONTEND_URL', 'https://patrahq.com').to_s.chomp('/')}/app/accounts/#{Current.account.id}/patra/connect-facebook"
   end
 end

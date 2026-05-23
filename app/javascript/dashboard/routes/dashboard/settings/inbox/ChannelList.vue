@@ -87,6 +87,14 @@ const channelList = computed(() => {
   return channels;
 });
 
+// Phase H.10 item 4: the legacy Chatwoot "pick a channel type" wizard is
+// retired in favor of the unified PatraAddChannel picker which supports
+// Zernio's multi-platform OAuth. Redirect on mount — replace() so the
+// browser back button doesn't bounce users back here.
+const redirectToPatraAddChannel = () => {
+  router.replace(accountScopedRoute('patra_connect_facebook'));
+};
+
 const initializeEnabledFeatures = async () => {
   enabledFeatures.value = currentAccount.value.features;
 };
@@ -106,6 +114,7 @@ const initChannelAuth = channel => {
 
 onMounted(() => {
   initializeEnabledFeatures();
+  redirectToPatraAddChannel();
 });
 </script>
 
