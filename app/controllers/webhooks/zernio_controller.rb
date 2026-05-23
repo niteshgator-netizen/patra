@@ -66,6 +66,7 @@ module Webhooks
     # to the new text. UI can render an "(edited)" badge by reading
     # content_attributes['is_edited'].
     def handle_message_edited(payload)
+      Thread.current[:zernio_webhook_update] = true
       zernio_message_id = payload.dig('message', 'id')
       return if zernio_message_id.blank?
 
@@ -93,6 +94,8 @@ module Webhooks
       Rails.logger.error(
         "[ZernioWebhook] message.edited failed zernio_id=#{zernio_message_id} #{e.class}: #{e.message}"
       )
+    ensure
+      Thread.current[:zernio_webhook_update] = nil
     end
 
     # Soft-delete: flag the message via content_attributes; the original
@@ -100,6 +103,7 @@ module Webhooks
     # later can still see what was sent. UI renders the "[deleted]"
     # placeholder by branching on content_attributes['is_deleted'].
     def handle_message_deleted(payload)
+      Thread.current[:zernio_webhook_update] = true
       zernio_message_id = payload.dig('message', 'id')
       return if zernio_message_id.blank?
 
@@ -119,6 +123,8 @@ module Webhooks
       Rails.logger.error(
         "[ZernioWebhook] message.deleted failed zernio_id=#{zernio_message_id} #{e.class}: #{e.message}"
       )
+    ensure
+      Thread.current[:zernio_webhook_update] = nil
     end
 
     # Apply a delivery / read receipt: update message.status via the
