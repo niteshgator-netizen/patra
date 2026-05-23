@@ -22,6 +22,13 @@ export function useChannelIcon(inbox) {
     google: 'i-woot-gmail',
   };
 
+  const zernioPlatformIconMap = {
+    facebook: 'i-woot-messenger',
+    instagram: 'i-woot-instagram',
+    whatsapp: 'i-woot-whatsapp',
+    telegram: 'i-woot-telegram',
+  };
+
   const channelIcon = computed(() => {
     const inboxDetails = inbox.value || inbox;
     const type = inboxDetails.channel_type;
@@ -30,7 +37,13 @@ export function useChannelIcon(inbox) {
     if (type === 'Channel::Api') {
       const attrs =
         inboxDetails.additional_attributes || inboxDetails.additionalAttributes || {};
-      if (attrs.fb_page_id) {
+      const provider =
+        inboxDetails.messaging_provider || inboxDetails.messagingProvider;
+
+      if (provider === 'zernio') {
+        const platform = attrs.zernio_platform || attrs.zernioPlatform;
+        icon = zernioPlatformIconMap[platform] || icon;
+      } else if (attrs.fb_page_id) {
         icon = 'i-woot-messenger';
       }
     }

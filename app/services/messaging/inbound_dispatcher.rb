@@ -14,6 +14,7 @@ module Messaging
       return if parsed[:sender_id].blank?
 
       ActiveRecord::Base.transaction do
+        persist_channel_platform!
         contact_inbox = find_or_create_contact_inbox
         conversation = find_or_create_conversation(contact_inbox)
         message = create_message(conversation, contact_inbox.contact)
@@ -26,6 +27,28 @@ module Messaging
     end
 
     private
+
+    # Write-once persistence: the first inbound webhook for a Zernio channel
+    # records the underlying platform (facebook/instagram/whatsapp/telegram)
+    # on the channel so the sidebar can render the correct icon. Idempotent —
+    # subsequent webhooks skip if already set, and silent no-op if the payload
+    # doesn't carry a platform value.
+    def persist_channel_platform!
+      platform = parsed[:platform].to_s.presence
+      return if platform.blank?
+
+      channel = inbox.channel
+      return unless channel.respond_to?(:additional_attributes)
+
+      attrs = channel.additional_attributes.to_h
+      return if attrs['zernio_platform'].present?
+
+      attrs['zernio_platform'] = platform
+      channel.update!(additional_attributes: attrs)
+      Rails.logger.info("[ZernioDispatcher] persisted zernio_platform=#{platform} on channel=#{channel.id} inbox=#{inbox.id}")
+    rescue StandardError => e
+      Rails.logger.warn("[ZernioDispatcher] failed to persist zernio_platform inbox=#{inbox.id}: #{e.class}: #{e.message}")
+    end
 
     def duplicate_message?
       return false if parsed[:external_message_id].blank?
