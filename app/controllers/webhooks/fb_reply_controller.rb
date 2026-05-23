@@ -35,8 +35,15 @@ class Webhooks::FbReplyController < ActionController::API
     return true if inbox_id == ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
 
     inbox = Inbox.find_by(id: inbox_id)
-    inbox&.channel_type == 'Channel::Api' &&
-      inbox.channel&.additional_attributes&.dig('fb_page_id').present?
+    return false unless inbox&.channel_type == 'Channel::Api'
+
+    # Direct-Meta inboxes are identified by `fb_page_id` on the channel
+    # (existing condition). Non-direct-Meta inboxes (Zernio and any future
+    # vendor) are admitted by their `messaging_provider` so the message
+    # flows into Facebook::SendApiService where Phase E3 routing picks the
+    # right provider.
+    inbox.channel&.additional_attributes&.dig('fb_page_id').present? ||
+      inbox.messaging_provider.to_s != 'direct_meta'
   end
 
   def outgoing?
