@@ -13,7 +13,7 @@ import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
 import OnboardingAccountDetails from './onboarding/Index.vue';
-import PatraConnectFacebook from './patra/PatraConnectFacebook.vue';
+import PatraAddChannel from './patra/PatraAddChannel.vue';
 
 export default {
   routes: [
@@ -32,9 +32,13 @@ export default {
         ...helpcenterRoutes.routes,
         ...campaignsRoutes.routes,
         {
+          // Route name kept (`patra_connect_facebook`) so existing links in
+          // MetaAppSettings, ChannelList, and onboarding/Index keep working
+          // — the user-facing label and content are now generic "Add Channel"
+          // for multi-platform Zernio OAuth (Phase H Issue 2 fix).
           path: 'patra/connect-facebook',
           name: 'patra_connect_facebook',
-          component: PatraConnectFacebook,
+          component: PatraAddChannel,
           meta: {
             permissions: ['administrator'],
           },
