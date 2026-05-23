@@ -202,17 +202,17 @@ const currentRole = useMapGetter('getCurrentRole');
 const showAddChannel = computed(() => currentRole.value === 'administrator');
 
 // Replaces the old FB-only patraFacebookConnectNav. A single generic
-// "+ Add Channel" entry that lands on the existing PatraConnectFacebook
-// page; that page will evolve to support multi-platform (facebook /
-// instagram / whatsapp / telegram) via Zernio's headless OAuth in a
-// follow-up. Until that page ships the picker UI, this entry still gets
-// users to the connect flow and is the right shape for sidebar navigation.
+// "+ Add Channel" entry that lands on PatraAddChannel.vue — the multi-
+// platform picker for Zernio's headless OAuth (facebook / instagram /
+// whatsapp / telegram). Label is hardcoded since the old i18n key
+// PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK still resolved to "+ Connect
+// Facebook" and was misleading.
 const addChannelNav = computed(() =>
   showAddChannel.value
     ? [
         {
           name: 'PatraAddChannel',
-          label: t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK'),
+          label: '+ Add Channel',
           icon: 'i-lucide-plus',
           to: accountScopedRoute('patra_connect_facebook'),
         },
@@ -255,16 +255,9 @@ const reportRoutes = computed(() => newReportRoutes());
 
 const menuItems = computed(() => {
   return [
-    {
-      name: 'Inbox',
-      label: t('SIDEBAR.INBOX'),
-      icon: 'i-lucide-inbox',
-      to: accountScopedRoute('inbox_view'),
-      activeOn: ['inbox_view', 'inbox_view_conversation'],
-      getterKeys: {
-        count: 'notifications/getUnreadCount',
-      },
-    },
+    // The top-level "Inbox" notifications entry was hidden in Phase H Issue 3.
+    // The `inbox_view` route is still registered so deep links keep working;
+    // we just removed the nav item that was driving users to it.
     {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
