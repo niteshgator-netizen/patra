@@ -18,7 +18,7 @@ import AudioTranscription from './components/AudioTranscription.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
 const INDUSTRIES = [
-  { slug: 'sweepstakes', label: 'Sweepstakes / Gaming', persona: 'Bella' },
+  { slug: 'sweepstakes', label: 'Social Gaming', persona: 'Bella' },
   { slug: 'real_estate', label: 'Real Estate', persona: 'Mia' },
   { slug: 'retail', label: 'Retail / E-commerce', persona: 'Ava' },
   { slug: 'spa', label: 'Spa / Wellness', persona: 'Sofia' },

@@ -137,6 +137,8 @@ class Message < ApplicationRecord
   after_create_commit :execute_after_create_commit_callbacks
 
   after_update_commit :dispatch_update_event
+  after_update :notify_agent_edit, if: :should_notify_agent_edit?
+  after_update :notify_agent_delete, if: :should_notify_agent_delete?
   after_commit :reindex_for_search, if: :should_index?, on: [:create, :update]
   after_commit :capture_for_bella_training, on: :create
 
@@ -463,6 +465,59 @@ class Message < ApplicationRecord
     Bella::TakeoverCapture.new(self).capture!
   rescue StandardError => e
     Rails.logger.warn("[Message#capture_for_bella_training] msg_id=#{id} #{e.class}: #{e.message[0, 200]}")
+  end
+
+  def should_notify_agent_edit?
+    zernio_agent_notifier_enabled? &&
+      outgoing? &&
+      saved_change_to_content? &&
+      !Thread.current[:zernio_webhook_update]
+  end
+
+  def should_notify_agent_delete?
+    return false unless zernio_agent_notifier_enabled?
+    return false unless outgoing?
+    return false if Thread.current[:zernio_webhook_update]
+    return false unless saved_change_to_content_attributes?
+
+    prev_attrs, new_attrs = saved_change_to_content_attributes
+    prev_deleted = prev_attrs.is_a?(Hash) ? prev_attrs['is_deleted'] : nil
+    new_deleted = new_attrs.is_a?(Hash) ? new_attrs['is_deleted'] : nil
+
+    new_deleted == true && !prev_deleted
+  end
+
+  def notify_agent_edit
+    return unless defined?(Zernio::AgentActionNotifier)
+
+    old_content = saved_changes['content']&.first || ''
+    editor = Current.user&.name || 'Bella'
+
+    Zernio::AgentActionNotifier.notify_edit(
+      message: self,
+      old_content: old_content,
+      new_content: content,
+      editor_name: editor
+    )
+  rescue StandardError => e
+    Rails.logger.error("[Message] agent edit notifier failed: #{e.message}")
+  end
+
+  def notify_agent_delete
+    return unless defined?(Zernio::AgentActionNotifier)
+
+    deleter = Current.user&.name || 'Bella'
+    Zernio::AgentActionNotifier.notify_delete(
+      message: self,
+      deleted_content: content,
+      deleter_name: deleter
+    )
+  rescue StandardError => e
+    Rails.logger.error("[Message] agent delete notifier failed: #{e.message}")
+  end
+
+  def zernio_agent_notifier_enabled?
+    ActiveModel::Type::Boolean.new.cast(ENV.fetch('ZERNIO_AGENT_NOTIFIER_ENABLED', false))
   end
 end
 
