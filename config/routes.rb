@@ -337,6 +337,16 @@ Rails.application.routes.draw do
             post 'meta_app', to: 'facebook_connect#save_meta_app'
             delete 'meta_app', to: 'facebook_connect#delete_meta_app'
             post 'byoc_oauth_url', to: 'facebook_connect#byoc_oauth_url'
+
+            resources :channels, only: [:index] do
+              collection do
+                post :connect
+                post :complete
+              end
+              member do
+                post :resync
+              end
+            end
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
