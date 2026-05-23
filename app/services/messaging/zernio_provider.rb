@@ -19,6 +19,11 @@ module Messaging
       body = { accountId: zernio_account_id, message: text }
       body[:attachments] = attachments if attachments.present?
 
+      # Human-typing cadence: tiny pause (max 2s) before the Zernio API call so
+      # replies don't land instantly. Direct-Meta's send path uses the same
+      # scale (see Facebook::SendApiService#typing_delay_seconds).
+      apply_typing_delay(text)
+
       response = HTTParty.post(
         "#{API_BASE}/inbox/conversations/#{conversation_id}/messages",
         headers: api_headers,
@@ -94,6 +99,27 @@ module Messaging
     end
 
     private
+
+    # Sleep wrapped in rescue so an interrupt or thread-kill during the
+    # cadence pause never blocks the actual outbound send.
+    def apply_typing_delay(text)
+      sleep(typing_delay_seconds(text))
+    rescue StandardError => e
+      Rails.logger.warn("[Zernio] typing delay skipped inbox=#{inbox.id}: #{e.class}: #{e.message}")
+    end
+
+    # Tiered human-cadence delay. Same scale as Facebook::SendApiService.
+    # Total range: 0.5s (tiny replies) to 2.0s (long replies).
+    def typing_delay_seconds(text)
+      length = text.to_s.length
+      base = case length
+             when 0..30 then 0.5
+             when 31..60 then 1.0
+             when 61..100 then 1.4
+             else 1.7
+             end
+      base + rand(0.0..0.3)
+    end
 
     # Classify HTTP error responses. 5xx and 408/429 are transient (Sidekiq
     # should retry with backoff). Other 4xx are permanent (no point retrying
