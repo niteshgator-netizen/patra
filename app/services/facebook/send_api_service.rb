@@ -20,6 +20,8 @@ class Facebook::SendApiService
     return false if @conversation_id.blank?
     return false if @message_content.strip.empty?
 
+    return route_via_provider_dispatcher if non_direct_meta_inbox?
+
     convo = fetch_conversation_payload
     return false if convo.blank?
 
@@ -37,6 +39,39 @@ class Facebook::SendApiService
   end
 
   private
+
+  # Looks up the AR conversation by display_id (callers pass display_id, not
+  # the AR primary key). Returns true only when the inbox is configured to use
+  # a non-direct-Meta provider — direct_meta inboxes fall through to the
+  # existing Graph send path UNCHANGED.
+  def non_direct_meta_inbox?
+    @conversation_record ||= Conversation.find_by(display_id: @conversation_id, account_id: account_id)
+    return false unless @conversation_record
+
+    inbox = @conversation_record.inbox
+    return false unless inbox
+
+    @inbox_record = inbox
+    inbox.messaging_provider.to_s != 'direct_meta'
+  end
+
+  def route_via_provider_dispatcher
+    return false if @inbox_record.blank?
+
+    Messaging::OutboundDispatcher.send(
+      inbox: @inbox_record,
+      conversation: @conversation_record,
+      text: @message_content
+    )
+    Rails.logger.info("[FbReply] routed via #{@inbox_record.messaging_provider} provider conv=#{@conversation_id} inbox=#{@inbox_record.id}")
+    true
+  rescue Messaging::SendError => e
+    Rails.logger.error("[FbReply] OutboundDispatcher send failed conv=#{@conversation_id} inbox=#{@inbox_record&.id}: #{e.message}")
+    false
+  rescue StandardError => e
+    Rails.logger.error("[FbReply] OutboundDispatcher unexpected #{e.class} conv=#{@conversation_id}: #{e.message}")
+    false
+  end
 
   def fetch_conversation_payload
     response = HTTParty.get(
