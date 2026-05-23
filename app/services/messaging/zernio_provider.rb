@@ -19,9 +19,14 @@ module Messaging
       body = { accountId: zernio_account_id, message: text }
       body[:attachments] = attachments if attachments.present?
 
-      # Human-typing cadence: tiny pause (max 2s) before the Zernio API call so
-      # replies don't land instantly. Direct-Meta's send path uses the same
-      # scale (see Facebook::SendApiService#typing_delay_seconds).
+      # Show "..." typing dots to the customer before the message lands so the
+      # reply feels like a real human typing, not a bot answer. Best-effort;
+      # any failure here logs at debug and continues into the actual send.
+      send_typing_indicator(conversation_id)
+
+      # Human-typing cadence: additional pause (max ~2s) scaled by text length
+      # so the dots don't disappear instantly. Direct-Meta's send path uses
+      # the same scale — see Facebook::SendApiService#typing_delay_seconds.
       apply_typing_delay(text)
 
       response = HTTParty.post(
@@ -99,6 +104,35 @@ module Messaging
     end
 
     private
+
+    # POST a typing-on signal to Zernio so the customer's Messenger / Instagram
+    # / WhatsApp client renders the "..." dots before our message arrives.
+    # Endpoint per Zernio OpenAPI: POST /inbox/conversations/{id}/typing with
+    # body { accountId }. Best-effort — failures never block the actual send;
+    # they're logged at debug because the dots are a UX nicety, not critical.
+    def send_typing_indicator(conversation_id)
+      return if conversation_id.to_s.blank?
+
+      response = HTTParty.post(
+        "#{API_BASE}/inbox/conversations/#{conversation_id}/typing",
+        headers: api_headers,
+        body: { accountId: zernio_account_id }.to_json,
+        timeout: 3
+      )
+
+      unless response.success?
+        Rails.logger.debug do
+          "[Zernio] typing indicator non-success inbox=#{inbox.id} http=#{response.code} body=#{response.body.to_s[0, 120]}"
+        end
+      end
+
+      # Brief pause so the customer's client has time to render the dots
+      # before we follow up with the message. 0.5s is enough on every major
+      # platform without making the conversation feel sluggish.
+      sleep(0.5)
+    rescue StandardError => e
+      Rails.logger.debug { "[Zernio] typing indicator failed (non-blocking) inbox=#{inbox.id}: #{e.class}: #{e.message}" }
+    end
 
     # Sleep wrapped in rescue so an interrupt or thread-kill during the
     # cadence pause never blocks the actual outbound send.
