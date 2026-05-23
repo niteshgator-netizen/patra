@@ -21,6 +21,7 @@ import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import PatraChannelsAPI from 'dashboard/api/patraChannels';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -163,6 +164,24 @@ const conversationCustomViews = useMapGetter(
   'customViews/getConversationCustomViews'
 );
 
+// Per-inbox live/idle status (from /patra/channels, Phase H.3 endpoint).
+// Best-effort: a failed fetch just means status dots don't render — the
+// rest of the sidebar works fine.
+const channelStatuses = ref({});
+
+const fetchChannelStatuses = async () => {
+  try {
+    const response = await PatraChannelsAPI.get();
+    const map = {};
+    (response.data?.channels || []).forEach(c => {
+      map[c.id] = c.status;
+    });
+    channelStatuses.value = map;
+  } catch (e) {
+    // silent — sidebar still works without dots
+  }
+};
+
 onMounted(() => {
   store.dispatch('labels/get');
   store.dispatch('inboxes/get');
@@ -171,6 +190,7 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
+  fetchChannelStatuses();
 });
 
 const sortedInboxes = computed(() =>
@@ -178,31 +198,22 @@ const sortedInboxes = computed(() =>
 );
 
 const currentRole = useMapGetter('getCurrentRole');
-const fbBridgeCount = computed(
-  () =>
-    inboxes.value.filter(
-      i =>
-        i.channel_type === 'Channel::Api' &&
-        i.additional_attributes?.fb_page_id
-    ).length
-);
 
-const showPatraFacebookConnect = computed(() => {
-  if (currentRole.value !== 'administrator') return false;
-  const cfg = typeof window !== 'undefined' ? window.chatwootConfig || {} : {};
-  return !!cfg.fbAppId;
-});
+const showAddChannel = computed(() => currentRole.value === 'administrator');
 
-const patraFacebookConnectNav = computed(() =>
-  showPatraFacebookConnect.value
+// Replaces the old FB-only patraFacebookConnectNav. A single generic
+// "+ Add Channel" entry that lands on the existing PatraConnectFacebook
+// page; that page will evolve to support multi-platform (facebook /
+// instagram / whatsapp / telegram) via Zernio's headless OAuth in a
+// follow-up. Until that page ships the picker UI, this entry still gets
+// users to the connect flow and is the right shape for sidebar navigation.
+const addChannelNav = computed(() =>
+  showAddChannel.value
     ? [
         {
-          name: 'PatraConnectFacebook',
-          label:
-            fbBridgeCount.value === 0
-              ? t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK')
-              : t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK_ANOTHER'),
-          icon: 'i-lucide-facebook',
+          name: 'PatraAddChannel',
+          label: t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK'),
+          icon: 'i-lucide-plus',
           to: accountScopedRoute('patra_connect_facebook'),
         },
       ]
@@ -311,19 +322,20 @@ const menuItems = computed(() => {
           icon: 'i-lucide-mailbox',
           activeOn: ['conversation_through_inbox', 'patra_connect_facebook'],
           children: [
-            ...patraFacebookConnectNav.value,
+            ...addChannelNav.value,
             ...sortedInboxes.value.map(inbox => ({
-            name: `${inbox.name}-${inbox.id}`,
-            label: inbox.name,
-            icon: h(ChannelIcon, { inbox, class: 'size-[16px]' }),
-            to: accountScopedRoute('inbox_dashboard', { inbox_id: inbox.id }),
-            component: leafProps =>
-              h(ChannelLeaf, {
-                label: leafProps.label,
-                active: leafProps.active,
-                inbox,
-              }),
-          })),
+              name: `${inbox.name}-${inbox.id}`,
+              label: inbox.name,
+              icon: h(ChannelIcon, { inbox, class: 'size-[16px]' }),
+              to: accountScopedRoute('inbox_dashboard', { inbox_id: inbox.id }),
+              component: leafProps =>
+                h(ChannelLeaf, {
+                  label: leafProps.label,
+                  active: leafProps.active,
+                  inbox,
+                  live: channelStatuses.value[inbox.id] === 'live',
+                }),
+            })),
           ],
         },
         {

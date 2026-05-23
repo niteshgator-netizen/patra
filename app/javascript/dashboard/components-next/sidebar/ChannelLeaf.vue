@@ -17,6 +17,13 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Live status dot (green) when the inbox has had any message activity in
+  // the last 24h. Sourced from /patra/channels (see Sidebar.vue#channelStatuses).
+  // Defaults to false so existing call sites that don't pass it keep working.
+  live: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const reauthorizationRequired = computed(() => {
@@ -29,6 +36,11 @@ const reauthorizationRequired = computed(() => {
     <ChannelIcon :inbox="inbox" class="size-4" />
   </span>
   <div class="flex-1 truncate min-w-0">{{ label }}</div>
+  <span
+    v-if="live"
+    v-tooltip.top-end="'Active in last 24h'"
+    class="size-2 rounded-full bg-emerald-500 flex-shrink-0"
+  />
   <div
     v-if="reauthorizationRequired"
     v-tooltip.top-end="$t('SIDEBAR.REAUTHORIZE')"
