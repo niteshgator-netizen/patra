@@ -17,6 +17,21 @@ import AccountDelete from './components/AccountDelete.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
+const INDUSTRIES = [
+  { slug: 'sweepstakes', label: 'Sweepstakes / Gaming', persona: 'Bella' },
+  { slug: 'real_estate', label: 'Real Estate', persona: 'Mia' },
+  { slug: 'retail', label: 'Retail / E-commerce', persona: 'Ava' },
+  { slug: 'spa', label: 'Spa / Wellness', persona: 'Sofia' },
+  { slug: 'restaurant', label: 'Restaurant / Food', persona: 'Marco' },
+  { slug: 'healthcare', label: 'Healthcare', persona: 'Nadia' },
+  { slug: 'auto', label: 'Auto / Dealership', persona: 'Max' },
+  { slug: 'fitness', label: 'Fitness / Gym', persona: 'Jax' },
+  { slug: 'services', label: 'Home Services', persona: 'Sam' },
+  { slug: 'education', label: 'Education', persona: 'Leo' },
+  { slug: 'legal', label: 'Legal', persona: 'Ellis' },
+  { slug: 'hotel', label: 'Hotel / Hospitality', persona: 'Olivia' },
+];
+
 export default {
   components: {
     BaseSettingsHeader,
@@ -44,7 +59,9 @@ export default {
       locale: 'en',
       domain: '',
       supportEmail: '',
+      industrySlug: 'sweepstakes',
       features: {},
+      industries: INDUSTRIES,
     };
   },
   validations: {
@@ -93,6 +110,10 @@ export default {
     currentAccount() {
       return this.getAccount(this.accountId) || {};
     },
+    selectedIndustryPersona() {
+      const match = this.industries.find(i => i.slug === this.industrySlug);
+      return match?.persona || 'Bella';
+    },
   },
   mounted() {
     this.initializeAccount();
@@ -100,7 +121,7 @@ export default {
   methods: {
     async initializeAccount() {
       try {
-        const { name, locale, id, domain, support_email, features } =
+        const { name, locale, id, domain, support_email, features, industry_slug } =
           this.getAccount(this.accountId);
 
         const effectiveLocale = this.uiSettings?.locale || locale;
@@ -112,6 +133,7 @@ export default {
         this.id = id;
         this.domain = domain;
         this.supportEmail = support_email;
+        this.industrySlug = industry_slug || 'sweepstakes';
         this.features = features;
       } catch (error) {
         // Ignore error
@@ -130,6 +152,7 @@ export default {
           name: this.name,
           domain: this.domain,
           support_email: this.supportEmail,
+          industry_slug: this.industrySlug,
         });
         // If user locale is set, update the locale with user locale
         const updatedLocale = this.uiSettings?.locale || this.locale;
@@ -189,6 +212,20 @@ export default {
                 {{ lang.name }}
               </option>
             </select>
+          </WithLabel>
+          <WithLabel name="industry" label="Industry">
+            <select v-model="industrySlug" class="!mb-0 text-sm w-full">
+              <option
+                v-for="industry in industries"
+                :key="industry.slug"
+                :value="industry.slug"
+              >
+                {{ industry.label }}
+              </option>
+            </select>
+            <template #help>
+              Your AI persona: {{ selectedIndustryPersona }}
+            </template>
           </WithLabel>
           <WithLabel
             v-if="featureCustomReplyDomainEnabled"

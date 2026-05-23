@@ -4,7 +4,7 @@ module BellaRag
 
     def perform(candidate_id)
       cand = BellaTakeoverCandidate.find(candidate_id)
-      return unless cand.status == 'auto_added'
+      return unless cand.status.in?(%w[auto_added approved])
 
       return if BellaRagPair.exists?(account_id: cand.account_id, customer_text: cand.customer_text)
 

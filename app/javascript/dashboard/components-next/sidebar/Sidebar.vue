@@ -590,6 +590,13 @@ const menuItems = computed(() => {
           activeOn: ['settings_integrations_games'],
         },
         {
+          name: 'Settings AI Training',
+          label: 'AI Training',
+          icon: 'i-lucide-brain',
+          to: accountScopedRoute('patra_ai_training'),
+          activeOn: ['patra_ai_training'],
+        },
+        {
           name: 'Settings Notifications',
           label: t('NOTIFICATIONS.NAV_LABEL'),
           icon: 'i-lucide-bell',

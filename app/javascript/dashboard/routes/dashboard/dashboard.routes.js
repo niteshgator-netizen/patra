@@ -14,6 +14,7 @@ import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
 import OnboardingAccountDetails from './onboarding/Index.vue';
 import PatraAddChannel from './patra/PatraAddChannel.vue';
+import PatraAiTraining from './patra/PatraAiTraining.vue';
 
 export default {
   routes: [
@@ -39,6 +40,14 @@ export default {
           path: 'patra/connect-facebook',
           name: 'patra_connect_facebook',
           component: PatraAddChannel,
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'patra/ai-training',
+          name: 'patra_ai_training',
+          component: PatraAiTraining,
           meta: {
             permissions: ['administrator'],
           },
