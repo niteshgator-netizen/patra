@@ -174,7 +174,11 @@ const fetchChannelStatuses = async () => {
     const response = await PatraChannelsAPI.get();
     const map = {};
     (response.data?.channels || []).forEach(c => {
-      map[c.id] = c.status;
+      // Coerce to Number on the WRITE side so the read-side lookup
+      // (channelStatuses.value[Number(inbox.id)]) always matches —
+      // belt-and-suspenders against Vuex/JSON edge cases where one side
+      // could end up as a string and the other an integer.
+      map[Number(c.id)] = c.status;
     });
     channelStatuses.value = map;
   } catch (e) {
@@ -258,6 +262,11 @@ const menuItems = computed(() => {
     // The top-level "Inbox" notifications entry was hidden in Phase H Issue 3.
     // The `inbox_view` route is still registered so deep links keep working;
     // we just removed the nav item that was driving users to it.
+
+    // Phase H.10 item 1: "+ Add Channel" promoted to a top-level primary
+    // action. Sits above Conversation so admins always see it. Routes to
+    // PatraAddChannel.vue (multi-platform picker).
+    ...addChannelNav.value,
     {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
@@ -315,7 +324,8 @@ const menuItems = computed(() => {
           icon: 'i-lucide-mailbox',
           activeOn: ['conversation_through_inbox', 'patra_connect_facebook'],
           children: [
-            ...addChannelNav.value,
+            // "+ Add Channel" moved to the top-level menu (Phase H.10 item 1).
+            // The Channels section now lists connected inboxes only.
             ...sortedInboxes.value.map(inbox => ({
               name: `${inbox.name}-${inbox.id}`,
               label: inbox.name,
@@ -326,7 +336,7 @@ const menuItems = computed(() => {
                   label: leafProps.label,
                   active: leafProps.active,
                   inbox,
-                  live: channelStatuses.value[inbox.id] === 'live',
+                  live: channelStatuses.value[Number(inbox.id)] === 'live',
                 }),
             })),
           ],
@@ -463,28 +473,8 @@ const menuItems = computed(() => {
         },
       ],
     },
-    {
-      name: 'Campaigns',
-      label: t('SIDEBAR.CAMPAIGNS'),
-      icon: 'i-lucide-megaphone',
-      children: [
-        {
-          name: 'Live chat',
-          label: t('SIDEBAR.LIVE_CHAT'),
-          to: accountScopedRoute('campaigns_livechat_index'),
-        },
-        {
-          name: 'SMS',
-          label: t('SIDEBAR.SMS'),
-          to: accountScopedRoute('campaigns_sms_index'),
-        },
-        {
-          name: 'WhatsApp',
-          label: t('SIDEBAR.WHATSAPP'),
-          to: accountScopedRoute('campaigns_whatsapp_index'),
-        },
-      ],
-    },
+    // Phase H.10 item 5: Campaigns nav entry hidden. Routes still registered;
+    // only the sidebar link is removed.
     {
       name: 'Settings',
       label: t('SIDEBAR.SETTINGS'),
@@ -563,29 +553,13 @@ const menuItems = computed(() => {
           icon: 'i-lucide-tags',
           to: accountScopedRoute('labels_list'),
         },
-        {
-          name: 'Settings Custom Attributes',
-          label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
-          icon: 'i-lucide-code',
-          to: accountScopedRoute('attributes_list'),
-        },
+        // Phase H.10 item 6: Custom Attributes / Agent Bots / Macros hidden.
+        // Routes still registered; only sidebar entries removed.
         {
           name: 'Settings Automation',
           label: t('SIDEBAR.AUTOMATION'),
           icon: 'i-lucide-repeat',
           to: accountScopedRoute('automation_list'),
-        },
-        {
-          name: 'Settings Agent Bots',
-          label: t('SIDEBAR.AGENT_BOTS'),
-          icon: 'i-lucide-bot',
-          to: accountScopedRoute('agent_bots'),
-        },
-        {
-          name: 'Settings Macros',
-          label: t('SIDEBAR.MACROS'),
-          icon: 'i-lucide-toy-brick',
-          to: accountScopedRoute('macros_wrapper'),
         },
         {
           name: 'Settings Canned Responses',
@@ -599,13 +573,8 @@ const menuItems = computed(() => {
           icon: 'i-lucide-blocks',
           to: accountScopedRoute('settings_applications'),
         },
-        {
-          name: 'Settings Meta App',
-          label: t('SIDEBAR.META_APP'),
-          icon: 'i-lucide-key-round',
-          activeOn: ['settings_meta_app'],
-          to: accountScopedRoute('settings_meta_app'),
-        },
+        // Phase H.10 item 7: Meta App hidden — BYOC flow is replaced by Zernio
+        // OAuth. The /settings/meta-app route stays registered.
         {
           name: 'Settings Payment Handles',
           label: t('PAYMENT_HANDLES.NAV_LABEL'),
@@ -627,36 +596,8 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_integrations_notifications'),
           activeOn: ['settings_integrations_notifications'],
         },
-        {
-          name: 'Settings Audit Logs',
-          label: t('SIDEBAR.AUDIT_LOGS'),
-          icon: 'i-lucide-briefcase',
-          to: accountScopedRoute('auditlogs_list'),
-        },
-        {
-          name: 'Settings Custom Roles',
-          label: t('SIDEBAR.CUSTOM_ROLES'),
-          icon: 'i-lucide-shield-plus',
-          to: accountScopedRoute('custom_roles_list'),
-        },
-        {
-          name: 'Settings Sla',
-          label: t('SIDEBAR.SLA'),
-          icon: 'i-lucide-clock-alert',
-          to: accountScopedRoute('sla_list'),
-        },
-        {
-          name: 'Conversation Workflow',
-          label: t('SIDEBAR.CONVERSATION_WORKFLOW'),
-          icon: 'i-lucide-workflow',
-          to: accountScopedRoute('conversation_workflow_index'),
-        },
-        {
-          name: 'Settings Security',
-          label: t('SIDEBAR.SECURITY'),
-          icon: 'i-lucide-shield',
-          to: accountScopedRoute('security_settings_index'),
-        },
+        // Phase H.10 item 6: Audit Logs / Custom Roles / SLA / Conversation
+        // Workflow / Security hidden. Routes still registered.
         {
           name: 'Settings Billing',
           label: t('SIDEBAR.BILLING'),
