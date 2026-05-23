@@ -216,7 +216,7 @@ const addChannelNav = computed(() =>
     ? [
         {
           name: 'PatraAddChannel',
-          label: '+ Add Channel',
+          label: 'Add Channel',
           icon: 'i-lucide-plus',
           to: accountScopedRoute('patra_connect_facebook'),
         },

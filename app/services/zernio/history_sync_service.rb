@@ -126,6 +126,7 @@ module Zernio
       end
 
       contact_inbox = find_or_create_contact_inbox(conv)
+      Messaging::ZernioContactEnrichment.enrich_contact_from_conversation!(contact_inbox.contact, conv)
       conversation = find_or_create_conversation(conv, contact_inbox)
 
       message = build_message(msg, conversation, contact_inbox.contact)
@@ -143,17 +144,16 @@ module Zernio
 
     def find_or_create_contact_inbox(conv)
       sender_id = (conv['participantId'].presence || conv['id']).to_s
+      attrs = Messaging::ZernioContactEnrichment.contact_attributes_from_conversation(conv)
 
       ContactInboxWithContactBuilder.new(
         source_id: sender_id,
         inbox: @inbox,
         contact_attributes: {
-          name: conv['participantName'].presence || "Zernio User #{sender_id}",
-          identifier: sender_id,
-          additional_attributes: {
-            zernio_sender_id: sender_id,
-            zernio_platform: conv['platform']
-          }.compact
+          name: attrs[:name],
+          identifier: attrs[:identifier],
+          avatar_url: attrs[:avatar_url],
+          additional_attributes: attrs[:additional_attributes]
         }
       ).perform
     end

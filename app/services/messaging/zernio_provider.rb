@@ -66,6 +66,7 @@ module Messaging
       conv = payload['conversation'] || {}
       acct = payload['account'] || {}
       sender = msg['sender'] || {}
+      participant = conv['participant'] || {}
 
       {
         provider: 'zernio',
@@ -73,10 +74,13 @@ module Messaging
         external_message_id: msg['id'],
         platform_message_id: msg['platformMessageId'],
         conversation_id: msg['conversationId'] || conv['id'],
-        platform: msg['platform'] || acct['platform'],
+        platform: msg['platform'] || acct['platform'] || conv['platform'],
         direction: msg['direction'],
         sender_id: sender['id'] || conv['participantId'],
-        sender_name: sender['name'] || conv['participantName'],
+        sender_name: sender['name'],
+        participant_name: conv['participantName'] || participant['name'],
+        participant_picture: conv['participantPicture'] || participant['picture'] || participant['profilePicture'],
+        profile_url: conv['url'] || participant['url'],
         text: msg['text'],
         attachments: Array(msg['attachments']),
         timestamp: msg['sentAt'] || payload['timestamp'],

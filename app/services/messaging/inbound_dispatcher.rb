@@ -19,6 +19,7 @@ module Messaging
       ActiveRecord::Base.transaction do
         persist_channel_platform!
         contact_inbox = find_or_create_contact_inbox
+        enrich_contact!(contact_inbox.contact)
         conversation = find_or_create_conversation(contact_inbox)
         message = create_message(conversation, contact_inbox.contact)
         persist_message_attachments!(message)
@@ -155,16 +156,22 @@ module Messaging
 
     def find_or_create_contact_inbox
       sender_id = parsed[:sender_id].to_s
+      attrs = Messaging::ZernioContactEnrichment.contact_attributes_from_inbound(parsed)
 
       ContactInboxWithContactBuilder.new(
         source_id: sender_id,
         inbox: inbox,
         contact_attributes: {
-          name: parsed[:sender_name].presence || "Zernio User #{sender_id}",
-          identifier: sender_id,
-          additional_attributes: { zernio_sender_id: sender_id }
+          name: attrs[:name],
+          identifier: attrs[:identifier],
+          avatar_url: attrs[:avatar_url],
+          additional_attributes: attrs[:additional_attributes]
         }
       ).perform
+    end
+
+    def enrich_contact!(contact)
+      Messaging::ZernioContactEnrichment.enrich_contact!(contact, parsed)
     end
 
     def find_or_create_conversation(contact_inbox)
