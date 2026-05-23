@@ -45,19 +45,25 @@ module Messaging
     end
 
     def parse_inbound(payload)
-      data = payload['data'] || {}
-      sender = data['sender'] || {}
+      msg = payload['message'] || {}
+      conv = payload['conversation'] || {}
+      acct = payload['account'] || {}
+      sender = msg['sender'] || {}
+
       {
         provider: 'zernio',
-        external_message_id: data['messageId'],
-        conversation_id: data['conversationId'],
-        platform: data['platform'],
-        direction: data['direction'],
-        sender_id: sender['id'],
-        sender_name: sender['name'],
-        text: data['text'],
-        attachments: Array(data['attachments']),
-        timestamp: data['timestamp'],
+        event_id: payload['id'],
+        external_message_id: msg['id'],
+        platform_message_id: msg['platformMessageId'],
+        conversation_id: msg['conversationId'] || conv['id'],
+        platform: msg['platform'] || acct['platform'],
+        direction: msg['direction'],
+        sender_id: sender['id'] || conv['participantId'],
+        sender_name: sender['name'] || conv['participantName'],
+        text: msg['text'],
+        attachments: Array(msg['attachments']),
+        timestamp: msg['sentAt'] || payload['timestamp'],
+        zernio_account_id: acct['id'] || acct['accountId'],
         raw: payload
       }
     end
