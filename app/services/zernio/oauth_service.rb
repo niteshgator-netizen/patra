@@ -4,7 +4,7 @@
 #
 # Lifecycle:
 #   1. ensure_profile! — create-or-reuse the Zernio profile (one per Patra account)
-#   2. connect_url — get OAuth URL for a platform (facebook/instagram/whatsapp/telegram)
+#   2. connect_url — get OAuth URL for a platform (see SUPPORTED_PLATFORMS)
 #   3. (Zernio redirects the user back with connection params)
 #   4. complete_connect — create-or-reuse the Patra Channel::Api + Inbox for the
 #      connected Zernio account
@@ -16,8 +16,10 @@
 #   - Channel::Api.additional_attributes:
 #       'zernio_account_id'    — the connected platform-side account on Zernio
 #       'zernio_profile_id'    — for cross-reference / debugging
-#       'zernio_platform'      — facebook/instagram/whatsapp/telegram (matches
-#                                the Phase F.2 icon-picker key in provider.js)
+#       'zernio_platform'      — Patra UI platform key (facebook/instagram/…/
+#                                google_business). Used by the sidebar icon
+#                                picker. May differ from the Zernio API slug
+#                                when PLATFORM_API_SLUGS maps an alias.
 #       'zernio_page_username' — optional, populated when Zernio returns it
 #   - Inbox.messaging_provider = 'zernio' — the column from the Phase E
 #     migration. NEVER store this inside channel.additional_attributes; the
@@ -30,7 +32,24 @@ module Zernio
     ZERNIO_BASE = 'https://zernio.com/api/v1'
     HTTP_TIMEOUT = 15
 
-    SUPPORTED_PLATFORMS = %w[facebook instagram whatsapp telegram].freeze
+    # Patra UI platform keys accepted from PatraAddChannel.vue / channels API.
+    # Ads platforms (meta_ads, google_ads, …) are intentionally excluded —
+    # they are disabled "Coming soon" cards on the frontend.
+    SUPPORTED_PLATFORMS = %w[
+      facebook instagram whatsapp telegram
+      tiktok youtube linkedin twitter threads
+      bluesky pinterest reddit google_business discord
+    ].freeze
+
+    # Maps Patra UI keys → Zernio GET /connect/{platform} path slugs.
+    # Verified against Zernio OpenAPI (docs.zernio.com/connect/get-connect-url):
+    #   facebook instagram linkedin twitter tiktok youtube threads reddit
+    #   pinterest bluesky googlebusiness telegram snapchat discord whatsapp
+    # Patra uses `google_business` in the UI; Zernio expects `googlebusiness`.
+    # Twitter/X uses `twitter` (not `x`).
+    PLATFORM_API_SLUGS = {
+      'google_business' => 'googlebusiness'
+    }.freeze
 
     def initialize(account)
       @account = account
@@ -71,7 +90,8 @@ module Zernio
 
       profile_id = ensure_profile!
 
-      resp = zernio_get("/connect/#{platform}", {
+      api_platform = zernio_api_platform(platform)
+      resp = zernio_get("/connect/#{api_platform}", {
                           profileId: profile_id,
                           redirect_url: redirect_url,
                           headless: true
@@ -149,6 +169,11 @@ module Zernio
     end
 
     private
+
+    def zernio_api_platform(platform)
+      key = platform.to_s
+      PLATFORM_API_SLUGS.fetch(key, key)
+    end
 
     def find_inbox_by_zernio_account(zernio_account_id)
       Channel::Api
