@@ -33,6 +33,10 @@ class Facebook::SendApiService
     end
 
     deliver_to_facebook(psid)
+  rescue Messaging::TransientSendError
+    # Re-raise so Sidekiq retries with exponential backoff. The inner
+    # route_via_provider_dispatcher already logged the details.
+    raise
   rescue StandardError => e
     Rails.logger.error("[FbReply] send failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
     false
@@ -65,6 +69,12 @@ class Facebook::SendApiService
     )
     Rails.logger.info("[FbReply] routed via #{@inbox_record.messaging_provider} provider conv=#{@conversation_id} inbox=#{@inbox_record.id}")
     true
+  rescue Messaging::TransientSendError => e
+    Rails.logger.warn("[FbReply] OutboundDispatcher transient error conv=#{@conversation_id} inbox=#{@inbox_record&.id}: #{e.message}; raising for Sidekiq retry")
+    raise
+  rescue Messaging::PermanentSendError => e
+    Rails.logger.error("[FbReply] OutboundDispatcher permanent error conv=#{@conversation_id} inbox=#{@inbox_record&.id}: #{e.message}; not retrying")
+    false
   rescue Messaging::SendError => e
     Rails.logger.error("[FbReply] OutboundDispatcher send failed conv=#{@conversation_id} inbox=#{@inbox_record&.id}: #{e.message}")
     false

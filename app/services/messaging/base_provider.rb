@@ -40,5 +40,7 @@ module Messaging
   end
 
   class SendError < StandardError; end
+  class TransientSendError < SendError; end
+  class PermanentSendError < SendError; end
   class WebhookVerificationError < StandardError; end
 end

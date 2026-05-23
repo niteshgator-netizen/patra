@@ -5,9 +5,16 @@ module Messaging
     API_BASE = 'https://zernio.com/api/v1'
     HTTP_TIMEOUT = 15
 
+    TRANSIENT_HTTP_STATUSES = [408, 429].freeze
+    TRANSIENT_NETWORK_EXCEPTIONS = [
+      Net::OpenTimeout, Net::ReadTimeout, Timeout::Error,
+      Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH,
+      Errno::ETIMEDOUT, SocketError
+    ].freeze
+
     def send_message(conversation_id:, text: nil, attachments: [])
-      raise Messaging::SendError, 'text required' if text.blank?
-      raise Messaging::SendError, 'zernio_account_id missing' if zernio_account_id.blank?
+      raise Messaging::PermanentSendError, 'text required' if text.blank?
+      raise Messaging::PermanentSendError, 'zernio_account_id missing' if zernio_account_id.blank?
 
       body = { accountId: zernio_account_id, message: text }
       body[:attachments] = attachments if attachments.present?
@@ -19,14 +26,14 @@ module Messaging
         timeout: HTTP_TIMEOUT
       )
 
-      unless response.success?
-        Rails.logger.error("[Zernio] send failed inbox=#{inbox.id} status=#{response.code} body=#{response.body}")
-        raise Messaging::SendError, "Zernio send failed: HTTP #{response.code}"
-      end
+      raise_for_http_status!(response) unless response.success?
 
       JSON.parse(response.body)
     rescue Messaging::SendError
       raise
+    rescue *TRANSIENT_NETWORK_EXCEPTIONS => e
+      Rails.logger.error("[Zernio] transient network error inbox=#{inbox.id} #{e.class}: #{e.message}")
+      raise Messaging::TransientSendError, e.message
     rescue StandardError => e
       Rails.logger.error("[Zernio] send exception inbox=#{inbox.id} #{e.class}: #{e.message}")
       raise Messaging::SendError, e.message
@@ -87,6 +94,21 @@ module Messaging
     end
 
     private
+
+    # Classify HTTP error responses. 5xx and 408/429 are transient (Sidekiq
+    # should retry with backoff). Other 4xx are permanent (no point retrying
+    # a 401, 403, 404, 422 etc. — same input will fail the same way).
+    def raise_for_http_status!(response)
+      status = response.code.to_i
+      Rails.logger.error("[Zernio] send failed inbox=#{inbox.id} status=#{status} body=#{response.body}")
+      msg = "Zernio send failed: HTTP #{status}"
+
+      if status >= 500 || TRANSIENT_HTTP_STATUSES.include?(status)
+        raise Messaging::TransientSendError, msg
+      end
+
+      raise Messaging::PermanentSendError, msg
+    end
 
     def api_headers
       {
