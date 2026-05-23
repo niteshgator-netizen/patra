@@ -21,6 +21,7 @@ module Messaging
         contact_inbox = find_or_create_contact_inbox
         conversation = find_or_create_conversation(contact_inbox)
         message = create_message(conversation, contact_inbox.contact)
+        persist_message_attachments!(message)
         Rails.logger.info("[ZernioDispatcher] created message=#{message.id} conv=#{conversation.id} inbox=#{inbox.id}")
       end
 
@@ -83,6 +84,67 @@ module Messaging
       Rails.logger.info("[ZernioDispatcher] persisted zernio_platform=#{platform} on channel=#{channel.id} inbox=#{inbox.id}")
     rescue StandardError => e
       Rails.logger.warn("[ZernioDispatcher] failed to persist zernio_platform inbox=#{inbox.id}: #{e.class}: #{e.message}")
+    end
+
+    # Persist inbound Zernio attachments as Patra Attachment records using
+    # external_url (no download). FB CDN URLs expire ~24h via the `oe=`
+    # signed param — acceptable for Phase G; Cloudinary permanent storage
+    # is a future phase.
+    #
+    # Best-effort: each attachment creation is wrapped in begin/rescue so a
+    # single bad item never blocks the rest, and an outer rescue ensures
+    # any structural surprise (e.g. parsed[:attachments] not being an Array)
+    # doesn't roll back the transaction. The message itself is already
+    # persisted before this runs.
+    def persist_message_attachments!(message)
+      Array(parsed[:attachments]).each do |att|
+        next if att.blank?
+
+        att_h = att.respond_to?(:with_indifferent_access) ? att.with_indifferent_access : att
+        att_type = att_h['type'].to_s.downcase
+        att_url = att_h['url'].presence || att_h.dig('payload', 'url').presence
+
+        if att_url.blank?
+          Rails.logger.warn("[ZernioDispatcher] attachment missing url inbox=#{inbox.id} type=#{att_type.inspect}")
+          next
+        end
+
+        file_type = map_zernio_attachment_type(att_type)
+
+        begin
+          message.attachments.create!(
+            account_id: inbox.account_id,
+            file_type: file_type,
+            external_url: att_url
+          )
+          Rails.logger.info(
+            "[ZernioDispatcher] stored attachment inbox=#{inbox.id} conv=#{message.conversation_id} " \
+            "type=#{file_type} external_url_present=true"
+          )
+        rescue StandardError => e
+          Rails.logger.warn(
+            "[ZernioDispatcher] attachment store failed inbox=#{inbox.id} type=#{att_type.inspect} " \
+            "#{e.class}: #{e.message}"
+          )
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.warn(
+        "[ZernioDispatcher] attachment loop crashed inbox=#{inbox.id} #{e.class}: #{e.message}; message kept"
+      )
+    end
+
+    # Maps Zernio's attachment `type` field to Patra's Attachment.file_type
+    # enum (see app/models/attachment.rb line 43). Unknown types fall back
+    # to :file so the URL is still preserved and downloadable from the UI.
+    def map_zernio_attachment_type(att_type)
+      case att_type
+      when 'image', 'photo'   then :image
+      when 'video'            then :video
+      when 'audio', 'voice'   then :audio
+      when 'file', 'document' then :file
+      else :file
+      end
     end
 
     def duplicate_message?
