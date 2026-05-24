@@ -17,6 +17,7 @@ import { useAlert } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
 import ContactAPI from 'dashboard/api/contacts';
 import PatraConversationsAPI from 'dashboard/api/patraConversations';
+import types from 'dashboard/store/mutation-types';
 
 const props = defineProps({
   chat: {
@@ -193,13 +194,15 @@ const summaryLoading = ref(false);
 const showSummary = ref(false);
 
 const togglePin = async () => {
-  const id = currentChat.value?.id;
+  const id = props.chat?.id;
   if (!id) return;
   try {
     const { data } = await PatraConversationsAPI.togglePin(id);
     const chat = { ...currentChat.value };
-    store.commit('UPDATE_CONVERSATION', {
+    store.commit(types.UPDATE_CONVERSATION, {
       ...chat,
+      id: chat.id || id,
+      updated_at: data.updated_at || chat.updated_at,
       additional_attributes: {
         ...(chat.additional_attributes || {}),
         pinned: data.pinned,
@@ -211,15 +214,16 @@ const togglePin = async () => {
 };
 
 const fetchSummary = async () => {
-  const id = currentChat.value?.id;
+  const id = props.chat?.id;
   if (!id || summaryLoading.value) return;
+  showSummary.value = true;
   summaryLoading.value = true;
+  summaryText.value = '';
   try {
     const { data } = await PatraConversationsAPI.getSummary(id);
-    summaryText.value = data.summary;
-    showSummary.value = true;
+    summaryText.value = data.summary || t('PATRA.CONVERSATION.SUMMARY_ERROR');
   } catch {
-    useAlert(t('PATRA.CONVERSATION.SUMMARY_ERROR'));
+    summaryText.value = t('PATRA.CONVERSATION.SUMMARY_ERROR');
   } finally {
     summaryLoading.value = false;
   }
@@ -301,7 +305,7 @@ const fetchSummary = async () => {
       </div>
     </div>
     <div
-      class="flex flex-row items-center justify-start xl:justify-end flex-shrink-0 gap-2 w-full xl:w-auto header-actions-wrap relative"
+      class="flex flex-row items-center justify-start xl:justify-end flex-shrink-0 gap-2 w-full xl:w-auto header-actions-wrap relative overflow-visible"
     >
       <SLACardLabel
         v-if="hasSlaPolicyId"
@@ -322,17 +326,21 @@ const fetchSummary = async () => {
       </button>
       <button
         type="button"
-        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2 disabled:opacity-60"
         :disabled="summaryLoading"
         @click="fetchSummary"
       >
+        <span v-if="summaryLoading" class="inline-block size-3 animate-spin rounded-full border-2 border-n-slate-8 border-t-n-brand" />
         📋 {{ $t('PATRA.CONVERSATION.SUMMARY') }}
       </button>
       <div
-        v-if="showSummary && summaryText"
-        class="absolute top-full right-3 z-20 mt-1 max-w-sm rounded-lg border border-n-weak bg-n-solid-1 p-3 text-xs text-n-slate-12 shadow-lg"
+        v-if="showSummary"
+        class="absolute top-full right-0 z-30 mt-1 w-72 max-w-sm rounded-lg border border-n-weak bg-n-solid-1 p-3 text-xs text-n-slate-12 shadow-lg"
       >
-        <p class="m-0 whitespace-pre-wrap">{{ summaryText }}</p>
+        <p v-if="summaryLoading" class="m-0 text-n-slate-11">
+          {{ $t('PATRA.CONVERSATION.SUMMARY_LOADING') }}
+        </p>
+        <p v-else class="m-0 whitespace-pre-wrap">{{ summaryText }}</p>
         <button
           type="button"
           class="mt-2 text-n-brand hover:underline"

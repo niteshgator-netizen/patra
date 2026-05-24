@@ -29,7 +29,8 @@
       "UNPIN": "Unpin conversation",
       "PIN_ERROR": "Could not update pin",
       "SUMMARY": "Summary",
-      "SUMMARY_ERROR": "Could not generate summary",
+      "SUMMARY_LOADING": "Generating summary…",
+      "SUMMARY_ERROR": "Summary unavailable",
       "CLOSE": "Close"
     },
     "CANNED": {

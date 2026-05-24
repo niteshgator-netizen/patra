@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 
 const props = defineProps({
@@ -17,9 +17,21 @@ const cannedMessages = useMapGetter('getCannedResponses');
 const currentChat = computed(() => store.getters.getSelectedChat);
 
 const lastCustomerMessage = computed(() => {
-  const messages = currentChat.value?.messages || [];
-  const incoming = [...messages].reverse().find(m => m.message_type === 0);
-  return incoming?.content?.toLowerCase() || '';
+  const chat = currentChat.value;
+  if (!chat?.id) return '';
+
+  const messages = chat.messages || [];
+  const incoming = [...messages]
+    .reverse()
+    .find(m => m.message_type === 0 && !m.private);
+  if (incoming?.content) return incoming.content.toLowerCase();
+
+  const apiMessage = chat.last_non_activity_message;
+  if (apiMessage?.message_type === 0 && apiMessage.content) {
+    return apiMessage.content.toLowerCase();
+  }
+
+  return '';
 });
 
 const KEYWORD_RULES = [
@@ -66,13 +78,20 @@ const suggestions = computed(() => {
   return scored;
 });
 
+const loadCannedResponses = () => {
+  store.dispatch('getCannedResponse', { searchKey: '' });
+};
+
 const onSelect = item => {
   emit('insert', item.content);
 };
 
-onMounted(() => {
-  store.dispatch('getCannedResponse', { searchKey: '' });
-});
+onMounted(loadCannedResponses);
+
+watch(
+  () => props.conversationId,
+  () => loadCannedResponses()
+);
 </script>
 
 <template>
