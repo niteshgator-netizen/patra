@@ -185,23 +185,27 @@ const avatarPresenceStatus = computed(() => {
   return currentContact.value?.availability_status || null;
 });
 
-const isPinned = computed(
-  () => currentChat.value?.additional_attributes?.pinned === true
-);
+const isPinned = computed(() => {
+  const pinned =
+    props.chat?.additional_attributes?.pinned ??
+    currentChat.value?.additional_attributes?.pinned;
+  return pinned === true || pinned === 'true';
+});
 
 const togglePin = async () => {
-  const id = props.chat?.id;
+  const id = Number(props.chat?.id);
   if (!id) return;
   try {
     const { data } = await PatraConversationsAPI.togglePin(id);
-    const chat = { ...currentChat.value };
+    const chat = currentChat.value?.id ? { ...currentChat.value } : { ...props.chat };
+    const now = Math.floor(Date.now() / 1000);
     store.commit(types.UPDATE_CONVERSATION, {
       ...chat,
-      id: chat.id || id,
-      updated_at: data.updated_at || chat.updated_at,
+      id,
+      updated_at: Math.max(Number(data.updated_at) || 0, Number(chat.updated_at) || 0, now),
       additional_attributes: {
         ...(chat.additional_attributes || {}),
-        pinned: data.pinned,
+        pinned: Boolean(data.pinned),
       },
     });
   } catch {
@@ -300,9 +304,10 @@ const togglePin = async () => {
         class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
         :class="isPinned ? 'bg-n-amber-9/15 text-n-amber-11 border-n-amber-9/30' : ''"
         :title="isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN')"
+        :aria-label="isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN')"
         @click="togglePin"
       >
-        📌
+        📌 {{ isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN') }}
       </button>
       <!-- Patra: AI status / pause toggle -->
       <button
