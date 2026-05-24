@@ -191,6 +191,7 @@ const onSwipeMarkRead = chatId => {
 const onSwipeResolve = chatId => {
   updateConversationStatus(chatId, wootConstants.STATUS_TYPE.RESOLVED);
 };
+</script>
 
 <template>
   <!-- Expanded layout: wide screen + expanded setting -->
