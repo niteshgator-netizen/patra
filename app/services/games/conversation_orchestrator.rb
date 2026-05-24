@@ -2,6 +2,8 @@
 # Called from reply_service.rb. Returns nil to let normal Bella handle the turn,
 # or { reply:, labels: } when this orchestrator handled the intent.
 
+require 'timeout'
+
 module Games
   class ConversationOrchestrator
     attr_reader :account, :contact, :conversation, :messages
@@ -151,7 +153,7 @@ module Games
       end
 
       # Payment confirmed — now check username
-      username = intent[:game_username] || stored_game_username(ag.game.slug)
+      username = intent[:game_username] || verified_stored_game_username(ag)
 
       if username.present? && !valid_username?(username)
         return {
@@ -181,30 +183,49 @@ module Games
       # Code 8 = user not found → auto-create + retry
       if !result[:ok] && result[:code] == 8
         Rails.logger.info("[Orchestrator] User #{username} not found, auto-creating")
-        add_result = executor.add_player(game_username: username, password: password_from_username(username))
+        add_result = add_player_safe(
+          executor,
+          game_username: username,
+          password: password_from_username(username, ag.game.slug)
+        )
 
-        if add_result[:ok]
-          generated_password = add_result[:password]
-          store_game_username(ag.game.slug, username)
-          store_game_password(ag.game.slug, generated_password)
+        unless add_result[:ok]
+          failure_response = add_player_failure_response(ag, add_result)
+          return failure_response if failure_response
 
-          # Retry the load now that user exists
-          result = executor.load_player(
-            game_username: username,
-            amount: requested_amount,
-            payment_method: payment[:method],
-            metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] }
-          )
-
-          if result[:ok]
-            mark_payment_loaded(payment[:id])
-            return {
-              reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
-              labels: ['auto-load', 'new-account-created']
-            }
-          end
-        else
           safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account,
+              contact: contact,
+              reason: "Failed to create user #{username} on #{ag.game.name}: #{add_result[:error]}",
+              conversation: conversation
+            )
+          end
+          return {
+            reply: "hit a snag setting up your account — flagged a teammate, they'll get you sorted in a couple minutes.",
+            labels: ['account-creation-failed', 'needs-human']
+          }
+        end
+
+        generated_password = add_result[:password]
+        store_game_username(ag.game.slug, username)
+        store_game_password(ag.game.slug, generated_password)
+
+        # Retry the load now that user exists
+        result = executor.load_player(
+          game_username: username,
+          amount: requested_amount,
+          payment_method: payment[:method],
+          metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] }
+        )
+
+        if result[:ok]
+          mark_payment_loaded(payment[:id])
+          return {
+            reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
+            labels: ['auto-load', 'new-account-created']
+          }
         end
       end
 
@@ -370,28 +391,16 @@ module Games
 
       if !result[:ok] && result[:code] == 8
         # User not found — create them
-        add_result = executor.add_player(game_username: username, password: password_from_username(username))
+        add_result = add_player_safe(
+          executor,
+          game_username: username,
+          password: password_from_username(username, ag.game.slug)
+        )
 
-        if add_result[:ok]
-          password = add_result[:password]
-          store_game_username(ag.game.slug, username)
-          store_game_password(ag.game.slug, password)
+        unless add_result[:ok]
+          failure_response = add_player_failure_response(ag, add_result)
+          return failure_response if failure_response
 
-          result = executor.load_player(
-            game_username: username,
-            amount: recent_payment[:amount],
-            payment_method: recent_payment[:method],
-            metadata: { source: 'bella_username_after_create', payment_id: recent_payment[:id] }
-          )
-
-          if result[:ok]
-            mark_payment_loaded(recent_payment[:id])
-            return {
-              reply: "created your account! username: #{username}, password: #{password} (save this!) — loaded $#{recent_payment[:amount]} 🎰",
-              labels: ['auto-load', 'new-account-created']
-            }
-          end
-        else
           safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
@@ -403,6 +412,25 @@ module Games
           return {
             reply: "hit a snag setting up your account — flagged a teammate, they'll get you sorted in a couple minutes.",
             labels: ['account-creation-failed', 'needs-human']
+          }
+        end
+
+        password = add_result[:password]
+        store_game_username(ag.game.slug, username)
+        store_game_password(ag.game.slug, password)
+
+        result = executor.load_player(
+          game_username: username,
+          amount: recent_payment[:amount],
+          payment_method: recent_payment[:method],
+          metadata: { source: 'bella_username_after_create', payment_id: recent_payment[:id] }
+        )
+
+        if result[:ok]
+          mark_payment_loaded(recent_payment[:id])
+          return {
+            reply: "created your account! username: #{username}, password: #{password} (save this!) — loaded $#{recent_payment[:amount]} 🎰",
+            labels: ['auto-load', 'new-account-created']
           }
         end
       end
@@ -441,8 +469,8 @@ module Games
                       recent_customer_text.to_s.downcase.match?(/\b(no|nah|nope|dont|don't)\b.*\b(use|like|want|that)\b/)
 
       # NO DUPLICATE ACCOUNTS — unless customer asked for a different one
-      existing_username = stored_game_username(ag.game.slug)
-      existing_password = stored_game_password(ag.game.slug)
+      existing_username = verified_stored_game_username(ag)
+      existing_password = existing_username.present? ? stored_game_password(ag.game.slug) : nil
       if existing_username.present? && !wants_replace
         methods_q = payment_methods_question
         reply = if existing_password.present?
@@ -464,18 +492,12 @@ module Games
 
       unless recent_payment
         # No payment yet — create account first, then ask for payment
-        auto_username = generate_auto_username(ag.game.slug)
-        auto_password = password_from_username(auto_username, ag.game.slug)
         executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
-        add_result = executor.add_player(game_username: auto_username, password: auto_password)
+        add_result, auto_username, = attempt_auto_add_player(executor, ag.game.slug)
 
-        unless add_result[:ok]
-          auto_username = generate_auto_username(ag.game.slug)
-          auto_password = password_from_username(auto_username, ag.game.slug)
-          add_result = executor.add_player(game_username: auto_username, password: auto_password)
-        end
+        failure_response = add_player_failure_response(ag, add_result)
+        return failure_response if failure_response
 
-        # CRITICAL: if add_player still failed after retry, DO NOT lie and say "all set"
         unless add_result[:ok]
           Rails.logger.error("[Orchestrator] add_player failed for #{ag.game.name} after 2 retries: #{add_result[:error]}")
           safe_telegram do
@@ -502,24 +524,22 @@ module Games
       end
 
       # Customer has confirmed payment — create account with auto-generated username
-      auto_username = generate_auto_username(ag.game.slug)
-      auto_password = password_from_username(auto_username, ag.game.slug)
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
-      add_result = executor.add_player(game_username: auto_username, password: auto_password)
+      add_result, auto_username, = attempt_auto_add_player(
+        executor,
+        ag.game.slug,
+        metadata: { source: 'bella_account_created_with_payment' }
+      )
 
-      unless add_result[:ok]
-        # Maybe collision — try one more time with different name
-        auto_username = generate_auto_username(ag.game.slug)
-        auto_password = password_from_username(auto_username, ag.game.slug)
-        add_result = executor.add_player(game_username: auto_username, password: auto_password)
-      end
+      failure_response = add_player_failure_response(ag, add_result)
+      return failure_response if failure_response
 
       unless add_result[:ok]
         safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Failed to auto-create username on Game Vault: #{add_result[:error]}",
+            reason: "Failed to auto-create username on #{ag.game.name}: #{add_result[:error]}",
             conversation: conversation
           )
         end
@@ -818,6 +838,81 @@ module Games
     def stored_game_username(game_slug)
       key = "game_username_#{game_slug}"
       (contact.custom_attributes || {})[key]
+    end
+
+    def verified_stored_game_username(ag)
+      existing_username = stored_game_username(ag.game.slug)
+      return nil if existing_username.blank?
+
+      begin
+        client = Games::ClientRegistry.client_for(ag)
+        check = client.get_user_id(account_name: existing_username)
+        unless check.is_a?(Hash) && check.dig('data', 'user_id').present?
+          Rails.logger.warn("[Orchestrator] stored username #{existing_username} not found on #{ag.game.slug} — clearing stale creds")
+          clear_game_credentials(ag.game.slug)
+          return nil
+        end
+      rescue StandardError => e
+        Rails.logger.warn("[Orchestrator] verify stored creds failed: #{e.message} — proceeding with stored")
+      end
+
+      existing_username
+    end
+
+    def add_player_safe(executor, game_username:, password:, metadata: {})
+      Timeout.timeout(45) do
+        executor.add_player(game_username: game_username, password: password, metadata: metadata)
+      end
+    rescue Timeout::Error
+      Rails.logger.error("[Orchestrator] add_player timed out after 45s for #{game_username}")
+      { ok: false, error: 'Account creation timed out', code: 'timeout' }
+    end
+
+    def terminal_add_failure?(add_result)
+      %w[silent_fail timeout].include?(add_result[:code].to_s)
+    end
+
+    def attempt_auto_add_player(executor, game_slug, metadata: {})
+      username = generate_auto_username(game_slug)
+      password = password_from_username(username, game_slug)
+      result = add_player_safe(executor, game_username: username, password: password, metadata: metadata)
+      return [result, username, password] if result[:ok] || terminal_add_failure?(result)
+
+      username = generate_auto_username(game_slug)
+      password = password_from_username(username, game_slug)
+      result = add_player_safe(executor, game_username: username, password: password, metadata: metadata)
+      [result, username, password]
+    end
+
+    def add_player_failure_response(ag, add_result)
+      case add_result[:code].to_s
+      when 'silent_fail'
+        Rails.logger.error("[Orchestrator] SILENT FAIL on #{ag.game.slug} — not storing credentials")
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Silent fail creating account on #{ag.game.name}: #{add_result[:error]}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: 'hit a snag setting up your account — flagged a teammate',
+          labels: ['silent-fail', 'needs-human']
+        }
+      when 'timeout'
+        Rails.logger.error("[Orchestrator] add_player timed out on #{ag.game.slug}")
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Account creation timed out on #{ag.game.name}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: "hit a snag setting up your #{ag.game.name} account — flagged a teammate, they'll get you sorted in a couple minutes.",
+          labels: ['account-creation-failed', 'needs-human']
+        }
+      end
     end
 
     def stored_game_password(game_slug)
