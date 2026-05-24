@@ -31,35 +31,121 @@ module Games
     ].freeze
 
     GAME_NAME_ALIASES = {
+      # Juwa 2 — longest aliases first at runtime via sort_by(-length)
+      'juwa 2.0' => 'juwa_2',
+      'juuwa 2' => 'juwa_2',
+      'juwa two' => 'juwa_2',
+      'jua 2' => 'juwa_2',
+      'juw 2' => 'juwa_2',
       'juwa 2' => 'juwa_2',
       'juwa2' => 'juwa_2',
-      'juwa 2.0' => 'juwa_2',
-      'juwa two' => 'juwa_2',
+      'jw2' => 'juwa_2',
+      'juwa_2' => 'juwa_2',
+
+      # Juwa
+      'juwa 1' => 'juwa',
+      'juuwa' => 'juwa',
+      'juwaa' => 'juwa',
+      'juwa1' => 'juwa',
+      'jua' => 'juwa',
+      'juw' => 'juwa',
       'juwa' => 'juwa',
+
+      # Fire Kirin
+      'fire kirin' => 'fire_kirin',
+      'fire kiren' => 'fire_kirin',
+      'fire kirn' => 'fire_kirin',
+      'fire krin' => 'fire_kirin',
+      'firekirrin' => 'fire_kirin',
+      'firekiren' => 'fire_kirin',
+      'firekirin' => 'fire_kirin',
+      'firekrin' => 'fire_kirin',
+      'fire_kirin' => 'fire_kirin',
+      'fk' => 'fire_kirin',
+
+      # Milky Way
+      'milky way' => 'milky_way',
+      'milkeyway' => 'milky_way',
+      'milkyway' => 'milky_way',
+      'milkway' => 'milky_way',
+      'milky_way' => 'milky_way',
+      'milky' => 'milky_way',
+      'mw' => 'milky_way',
+
+      # Game Vault
       'game vault' => 'game_vault',
+      'game volt' => 'game_vault',
       'gamevault' => 'game_vault',
+      'gamevolt' => 'game_vault',
       'game_vault' => 'game_vault',
+      'vault' => 'game_vault',
+      'gv' => 'game_vault',
+
+      # Vegas Sweeps
       'vegas sweeps' => 'vegas_sweeps',
-      'vegas' => 'vegas_sweeps',
+      'vega sweeps' => 'vegas_sweeps',
       'vegassweeps' => 'vegas_sweeps',
+      'vegasweeps' => 'vegas_sweeps',
       'vegas_sweeps' => 'vegas_sweeps',
-      'vblink' => 'vblink',
-      'vb link' => 'vblink',
+      'vegas' => 'vegas_sweeps',
+      'vs' => 'vegas_sweeps',
+
+      # Orion Stars
+      'orion stars' => 'orion_stars',
+      'orian stars' => 'orion_stars',
+      'orien stars' => 'orion_stars',
+      'orionstars' => 'orion_stars',
+      'orion_stars' => 'orion_stars',
+      'orion' => 'orion_stars',
+      'os' => 'orion_stars',
+
+      # Panda Master
+      'panda master' => 'panda_master',
+      'pandamaster' => 'panda_master',
+      'pandmaster' => 'panda_master',
+      'panda_master' => 'panda_master',
+      'panda' => 'panda_master',
+      'pm' => 'panda_master',
+
+      # Mafia
+      'mafia777' => 'mafia',
+      'maffia' => 'mafia',
+      'mafia' => 'mafia',
+
+      # Ultra Panda
       'ultra panda' => 'ultra_panda',
       'ultrapanda' => 'ultra_panda',
       'ultra_panda' => 'ultra_panda',
-      'panda master' => 'panda_master',
-      'pandamaster' => 'panda_master',
-      'panda_master' => 'panda_master',
-      'gameroom' => 'game_room',
-      'game room' => 'game_room',
+      'ultra' => 'ultra_panda',
+      'up' => 'ultra_panda',
+
+      # VBLink
+      'v b link' => 'vblink',
+      'vb link' => 'vblink',
+      'vblink' => 'vblink',
+      'vb' => 'vblink',
+
+      # Cash Machine
       'cash machine' => 'cash_machine',
       'cashmachine' => 'cash_machine',
       'cash_machine' => 'cash_machine',
-      'mafia' => 'mafia',
+      'cash' => 'cash_machine',
+      'cm' => 'cash_machine',
+
+      # Game Room
+      'game room' => 'game_room',
+      'game rom' => 'game_room',
+      'gameroom' => 'game_room',
+      'game_room' => 'game_room',
+      'gr' => 'game_room',
+
+      # Mr All In One
       'mr all in one' => 'mr_all_in_one',
       'mrallinone' => 'mr_all_in_one',
       'mr_all_in_one' => 'mr_all_in_one',
+      'mrallnone' => 'mr_all_in_one',
+      'all in one' => 'mr_all_in_one',
+      'allinone' => 'mr_all_in_one'
     }.freeze
 
     # Maps game slug -> array of lowercase substring keywords that, if found in customer text,
@@ -273,7 +359,8 @@ module Games
 
         normalized = text.to_s.downcase.strip
         GAME_NAME_ALIASES.keys.sort_by { |k| -k.length }.each do |alias_name|
-          return GAME_NAME_ALIASES[alias_name] if normalized.include?(alias_name)
+          pattern = alias_name.split(/\s+/).map { |part| Regexp.escape(part) }.join('\s+')
+          return GAME_NAME_ALIASES[alias_name] if normalized.match?(/\b#{pattern}\b/)
         end
         nil
       end
