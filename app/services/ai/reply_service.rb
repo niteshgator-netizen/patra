@@ -560,7 +560,12 @@ class Ai::ReplyService
             'image_thumb_url' => thumb_url_for_log,
             'image_received_at' => Time.current.iso8601,
             'source' => 'image_auto'
-          }
+          }.tap do |entry|
+            if Payments::StatusNormalizer.needs_email_confirmation?(payment[:status])
+              entry['email_confirmed'] = false
+              entry['email_check_attempts'] = 0
+            end
+          end
 
           contact_id = fetch_sender_contact_id
           acct = Account.find_by(id: account_id)
@@ -706,6 +711,10 @@ class Ai::ReplyService
             case reply_status_bucket
             when :pending
               add_conversation_labels!(%w[payment-pending cashier-action-needed needs-human])
+              Games::TelegramNotifier.payment_pending_alert(
+                contact: Contact.find_by(id: contact_id, account_id: account_id),
+                payment_details: log_entry
+              )
               return "got it, accepting it on our end real quick — you'll be loaded up in a sec"
             when :failed
               backup_display = nil
