@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 
 const props = defineProps({
@@ -9,8 +8,6 @@ const props = defineProps({
     default: () => ({}),
   },
 });
-
-const { t } = useI18n();
 
 const stats = computed(() => props.contact?.profile_stats || {});
 

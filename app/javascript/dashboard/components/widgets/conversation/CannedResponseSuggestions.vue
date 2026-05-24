@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 
 const props = defineProps({

@@ -17,7 +17,6 @@ import { useAlert } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
 import ContactAPI from 'dashboard/api/contacts';
 import PatraConversationsAPI from 'dashboard/api/patraConversations';
-import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
   chat: {
