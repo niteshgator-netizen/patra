@@ -31,10 +31,11 @@ module Games
     ].freeze
 
     GAME_NAME_ALIASES = {
+      'juwa 2' => 'juwa_2',
+      'juwa2' => 'juwa_2',
+      'juwa 2.0' => 'juwa_2',
+      'juwa two' => 'juwa_2',
       'juwa' => 'juwa',
-      'juwa 2' => 'juwa2',
-      'juwa2' => 'juwa2',
-      'juwa 2.0' => 'juwa2',
       'game vault' => 'game_vault',
       'gamevault' => 'game_vault',
       'game_vault' => 'game_vault',
@@ -68,6 +69,7 @@ module Games
     # Slugs MUST match the slug column in the games table (verified via Games::ClientRegistry).
     GAME_KEYWORDS = {
       'game_vault'    => ['gamevault', 'game vault', 'gv'],
+      'juwa_2'        => ['juwa 2.0', 'juwa 2', 'juwa2', 'juwa two'],
       'juwa'          => ['juwa'],
       'orion_stars'   => ['orionstars', 'orion stars', 'orion'],
       'fire_kirin'    => ['firekirin', 'fire kirin'],
@@ -255,10 +257,15 @@ module Games
         return resolved_slug if resolved_slug.present?
 
         lower = text.to_s.downcase
+        matches = []
         GAME_KEYWORDS.each do |slug, keywords|
-          return slug if keywords.any? { |kw| lower.include?(kw) }
+          keywords.each do |kw|
+            matches << [slug, kw] if lower.include?(kw)
+          end
         end
-        nil
+        return nil if matches.empty?
+
+        matches.max_by { |(_, kw)| kw.length }.first
       end
 
       def resolve_game_slug(text)

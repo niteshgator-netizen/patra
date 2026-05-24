@@ -433,6 +433,8 @@ Rails.application.routes.draw do
               post :load_player
               post :cashout_player
               post :check_player
+              post :add_player
+              post :reset_player_password
               post :diagnose
             end
             collection do
