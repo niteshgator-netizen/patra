@@ -14,6 +14,7 @@ module Games
     end
 
     def add_player(game_username:, password: nil, metadata: {}, order_id: nil)
+      return blacklist_error if blacklisted_contact?
       order_id ||= GameAction.generate_order_id(prefix: 'addusr')
       password ||= SecureRandom.alphanumeric(8).downcase
 
@@ -65,6 +66,8 @@ module Games
     end
 
     def load_player(game_username:, amount:, payment_method: nil, payment_handle: nil, metadata: {}, order_id: nil)
+      return blacklist_error if blacklisted_contact?
+
       limit_error = amount_limit_error('max_load_amount', amount)
       return limit_error if limit_error
 
@@ -107,8 +110,25 @@ module Games
     end
 
     def cashout_player(game_username:, amount:, payment_method: nil, metadata: {}, order_id: nil)
+      return blacklist_error if blacklisted_contact?
+
       limit_error = amount_limit_error('max_cashout_amount', amount)
       return limit_error if limit_error
+
+      if Approvals::CashoutApprovalGate.requires_approval?(agent_game.account, amount)
+        request = Approvals::CashoutApprovalGate.create_request!(
+          account: agent_game.account,
+          user: Current.user || agent_game.account.account_users.first&.user,
+          amount: amount,
+          target: agent_game,
+          metadata: metadata.merge(
+            player_name: game_username,
+            game_name: agent_game.game.name,
+            game_username: game_username
+          )
+        )
+        return { ok: false, error: 'Cashout requires approval', code: 'approval_required', approval_request_id: request.id }
+      end
 
       order_id ||= GameAction.generate_order_id(prefix: 'cash')
 
@@ -214,6 +234,14 @@ module Games
     end
 
     private
+
+    def blacklisted_contact?
+      contact.present? && Contacts::BlacklistChecker.blacklisted?(contact)
+    end
+
+    def blacklist_error
+      { ok: false, error: 'Contact is blacklisted', code: 'blacklisted' }
+    end
 
     def client_for(ag)
       client = Games::ClientRegistry.client_for(ag)

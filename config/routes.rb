@@ -220,6 +220,8 @@ Rails.application.routes.draw do
               resources :contact_inboxes, only: [:create]
               resources :labels, only: [:create, :index]
               resources :notes
+              resource :blacklist, only: [:update], controller: 'blacklist'
+              resource :merge, only: [:create], controller: 'merge'
               post :call, on: :member, to: 'calls#create' if ChatwootApp.enterprise?
             end
           end
@@ -332,6 +334,9 @@ Rails.application.routes.draw do
           namespace :patra do
             get 'dashboard', to: 'dashboard#show'
             get 'reports', to: 'reports#show'
+            get 'conversations/export', to: 'conversations_export#show'
+            get 'game_health', to: 'game_health#index'
+            resources :holidays, only: [:index, :create, :destroy]
             resource :settings, only: [:show, :update], controller: 'settings'
             scope 'conversations/:conversation_id' do
               get 'summary', to: 'conversation_summary#show'
@@ -427,6 +432,16 @@ Rails.application.routes.draw do
 
           resources :upload, only: [:create]
           resources :payment_handles, only: [:index, :create, :update, :destroy]
+          resources :patra_audit_logs, only: [:index]
+          resources :approval_requests, only: [:index] do
+            member do
+              post :approve
+              post :reject
+            end
+          end
+          resources :scheduled_messages, only: [:index, :create, :destroy]
+          resources :player_bonuses, only: [:index, :create]
+          resources :game_actions, only: [:index]
           resources :agent_games do
             member do
               post :test_connection

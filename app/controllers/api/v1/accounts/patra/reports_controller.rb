@@ -28,7 +28,9 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
       top_players: top_players(limit: 10),
       game_usage: game_usage_stats,
       payment_volume: payment_volume_by_day(days: 7),
-      agent_performance: agent_performance_today
+      agent_performance: Analytics::AgentPerformanceService.new(Current.account, period: today_range).call,
+      revenue_by_game: revenue_by_game,
+      export_url: "/api/v1/accounts/#{Current.account.id}/patra/conversations/export"
     }
   end
 
@@ -147,21 +149,23 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
   end
 
   def agent_performance_today
-    today = Time.current.beginning_of_day..Time.current
-    counts = messages_scope.outgoing
-                           .where(created_at: today, sender_type: 'User')
-                           .group(:sender_id)
-                           .count
+    Analytics::AgentPerformanceService.new(Current.account, period: Time.current.all_day).call
+  end
 
-    user_ids = counts.keys.compact
-    users = User.where(id: user_ids).index_by(&:id)
+  def revenue_by_game
+    actions = Current.account.game_actions
+                     .joins(agent_game: :game)
+                     .where(action_type: %w[load cashout], status: 'success')
+                     .where('game_actions.created_at >= ?', 30.days.ago)
 
-    counts.map do |user_id, count|
-      {
-        user_id: user_id,
-        name: users[user_id]&.name || "Agent ##{user_id}",
-        messages: count
-      }
-    end.sort_by { |row| -row[:messages] }
+    loads = actions.where(action_type: 'load').group('games.slug', 'games.name').sum(:amount)
+    cashouts = actions.where(action_type: 'cashout').group('games.slug', 'games.name').sum(:amount)
+
+    slugs = (loads.keys + cashouts.keys).uniq
+    slugs.map do |(slug, name)|
+      load_amt = loads[[slug, name]].to_f
+      cash_amt = cashouts[[slug, name]].to_f
+      { slug: slug, name: name, loads: load_amt.round(2), cashouts: cash_amt.round(2), net: (load_amt - cash_amt).round(2) }
+    end.sort_by { |g| -g[:net] }
   end
 end

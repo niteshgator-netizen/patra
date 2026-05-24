@@ -1,17 +1,32 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useStore } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 
 import Button from 'dashboard/components-next/button/Button.vue';
+import ContactBlacklistAPI from 'dashboard/api/contactBlacklist';
+import GameActionsAPI from 'dashboard/api/gameActions';
+import PlayerBonusesAPI from 'dashboard/api/playerBonuses';
 
 const props = defineProps({
   contact: {
     type: Object,
     default: null,
   },
+  conversationId: {
+    type: [Number, String],
+    default: null,
+  },
 });
 
 const { t } = useI18n();
+const store = useStore();
+
+const bonuses = ref([]);
+const cashouts = ref([]);
+const blacklistReason = ref('');
+const savingBlacklist = ref(false);
 
 const attrs = computed(() => {
   const raw = props.contact?.custom_attributes;
@@ -369,10 +384,91 @@ function financeStatusPill(entry) {
 }
 
 const isEmpty = computed(() => displayRows.value.length === 0);
+
+const isBlacklisted = computed(() => attrs.value.blacklisted === true || attrs.value.blacklisted === 'true');
+
+const gameCredentials = computed(() => {
+  const creds = [];
+  Object.entries(attrs.value).forEach(([key, value]) => {
+    if (!key.endsWith('_username') || !value) return;
+    const game = key.replace(/_username$/, '');
+    const password = attrs.value[`${game}_password`];
+    if (password) creds.push({ game, username: value, password });
+  });
+  return creds;
+});
+
+const referredByName = computed(() => {
+  const id = attrs.value.referred_by_contact_id;
+  return id ? `#${id}` : '';
+});
+
+async function loadExtras() {
+  if (!props.contact?.id) return;
+  blacklistReason.value = attrs.value.blacklist_reason || '';
+  try {
+    const { data: bonusData } = await PlayerBonusesAPI.forContact(props.contact.id);
+    bonuses.value = bonusData || [];
+  } catch {
+    bonuses.value = [];
+  }
+  try {
+    const { data: cashoutData } = await GameActionsAPI.forContact(props.contact.id, 'cashout');
+    cashouts.value = cashoutData || [];
+  } catch {
+    cashouts.value = [];
+  }
+}
+
+async function toggleBlacklist() {
+  savingBlacklist.value = true;
+  try {
+    await ContactBlacklistAPI.update(props.contact.id, {
+      blacklisted: !isBlacklisted.value,
+      blacklist_reason: blacklistReason.value,
+    });
+    useAlert(t('PATRA.SETTINGS.SAVED'));
+    store.dispatch('contacts/show', { id: props.contact.id });
+  } catch {
+    useAlert(t('PATRA.SETTINGS.SAVE_ERROR'));
+  } finally {
+    savingBlacklist.value = false;
+  }
+}
+
+async function sendCredentials(cred) {
+  if (!props.conversationId) return;
+  const content = `your ${cred.game} login — username: ${cred.username}, password: ${cred.password}`;
+  await store.dispatch('createPendingMessageAndSend', {
+    conversationId: props.conversationId,
+    content,
+    private: false,
+  });
+}
+
+onMounted(loadExtras);
+watch(() => props.contact?.id, loadExtras);
 </script>
 
 <template>
   <div class="rounded-lg border border-n-weak bg-n-solid-1 p-3 text-sm">
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <label class="flex items-center gap-2 text-xs text-n-slate-12">
+        <input
+          type="checkbox"
+          :checked="isBlacklisted"
+          @change="toggleBlacklist"
+        />
+        {{ $t('BLACKLIST.TOGGLE') }}
+      </label>
+      <input
+        v-if="isBlacklisted || blacklistReason"
+        v-model="blacklistReason"
+        type="text"
+        class="min-w-0 flex-1 rounded border border-n-weak bg-n-solid-2 px-2 py-1 text-xs"
+        :placeholder="$t('BLACKLIST.REASON')"
+      />
+    </div>
     <div
       v-if="attrs.loyalty_tier"
       class="mb-3 flex items-center justify-between gap-2"
@@ -530,6 +626,14 @@ const isEmpty = computed(() => displayRows.value.length === 0);
       {{ $t('PLAYER_PROFILE.EMPTY') }}
     </p>
     <dl v-else class="m-0 space-y-2">
+      <div v-if="attrs.lifecycle_stage" class="min-w-0">
+        <dt class="text-xs font-medium text-n-slate-11">{{ $t('PLAYER_PROFILE.LIFECYCLE') }}</dt>
+        <dd class="m-0 capitalize text-n-slate-12">{{ attrs.lifecycle_stage }}</dd>
+      </div>
+      <div v-if="referredByName" class="min-w-0">
+        <dt class="text-xs font-medium text-n-slate-11">{{ $t('PLAYER_PROFILE.REFERRED_BY') }}</dt>
+        <dd class="m-0 text-n-slate-12">{{ referredByName }}</dd>
+      </div>
       <div
         v-for="row in displayRows"
         :key="row.key"
@@ -546,5 +650,36 @@ const isEmpty = computed(() => displayRows.value.length === 0);
         </dd>
       </div>
     </dl>
+    <div v-if="gameCredentials.length" class="mt-3 border-t border-n-weak pt-3 space-y-2">
+      <p class="text-xs font-semibold text-n-slate-12">Vault</p>
+      <div
+        v-for="cred in gameCredentials"
+        :key="cred.game"
+        class="flex items-center justify-between gap-2 text-xs"
+      >
+        <span class="truncate text-n-slate-11">{{ cred.game }}: {{ cred.username }}</span>
+        <Button
+          xs
+          :label="$t('PLAYER_PROFILE.SEND_CREDENTIALS')"
+          @click="sendCredentials(cred)"
+        />
+      </div>
+    </div>
+    <div v-if="bonuses.length" class="mt-3 border-t border-n-weak pt-3">
+      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.BONUS_HISTORY') }}</p>
+      <ul class="space-y-1 text-xs text-n-slate-11">
+        <li v-for="bonus in bonuses.slice(0, 5)" :key="bonus.id">
+          ${{ bonus.amount }} — {{ bonus.reason || bonus.game_slug }}
+        </li>
+      </ul>
+    </div>
+    <div v-if="cashouts.length" class="mt-3 border-t border-n-weak pt-3">
+      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.CASHOUT_HISTORY') }}</p>
+      <ul class="space-y-1 text-xs text-n-slate-11">
+        <li v-for="cashout in cashouts.slice(0, 5)" :key="cashout.id">
+          ${{ cashout.amount }} — {{ cashout.game_username }}
+        </li>
+      </ul>
+    </div>
   </div>
 </template>

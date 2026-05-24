@@ -17,6 +17,13 @@ class Ai::ReplyJob < ApplicationJob
   def perform(conversation_id, bridge_account_id = nil, fb_attachments = nil)
     @bridge_account_id = bridge_account_id
 
+    conversation = Conversation.find_by(id: conversation_id)
+    if conversation&.contact && Contacts::BlacklistChecker.blacklisted?(conversation.contact)
+      reply_text = Contacts::BlacklistChecker.restricted_reply
+      send_blacklist_reply(conversation_id, reply_text)
+      return
+    end
+
     lock_key = format(REPLY_LOCK_KEY, conv_id: conversation_id)
     already_replied = Redis::Alfred.get(lock_key)
     if already_replied
@@ -67,6 +74,15 @@ class Ai::ReplyJob < ApplicationJob
     Redis::Alfred.delete(lock_key)
   rescue StandardError => e
     Rails.logger.warn("[AiReply] failed to release reply lock: #{e.class}: #{e.message}")
+  end
+
+  def send_blacklist_reply(conversation_id, content)
+    sent = Facebook::SendApiService.new(
+      conversation_id,
+      content,
+      account_id: effective_account_id
+    ).call
+    log_to_chatwoot(conversation_id, content) if sent
   end
 
   def log_to_chatwoot(conversation_id, content)

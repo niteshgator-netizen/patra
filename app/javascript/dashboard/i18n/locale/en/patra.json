@@ -13,7 +13,21 @@
       "NO_DATA": "No conversations yet today",
       "NO_AGENTS": "No agents online",
       "GAME_PERFORMANCE": "Game Performance",
-      "COMING_SOON": "Coming soon — game success rates will appear here"
+      "COMING_SOON": "Coming soon — game success rates will appear here",
+      "NEW_CUSTOMERS": "New customers today",
+      "FLAGGED_REVIEW": "Flagged for review",
+      "NET_TODAY": "Net today",
+      "LOADS_CASHOUTS": "Today's loads & cashouts",
+      "LOADS_CASHOUTS_DETAIL": "Loads: ${loads} ({loadCount} txns) · Cashouts: ${cashouts} ({cashoutCount} txns)"
+    },
+    "BUSINESS_SETTINGS": {
+      "TITLE": "Patra business settings",
+      "AUTO_RESOLVE_HOURS": "Auto-resolve after (hours, 0 = off)",
+      "WEBHOOK_URL": "Outbound webhook URL",
+      "REENGAGE_MESSAGE": "Re-engagement message template",
+      "CASHOUT_APPROVAL": "Cashout approval threshold ($)",
+      "ROUND_ROBIN": "Enable round-robin assignment",
+      "ROUND_ROBIN_MAX": "Max open conversations per agent"
     },
     "REPORTS": {
       "NAV": "Reports",
@@ -35,7 +49,10 @@
       "AGENT_PERFORMANCE": "Agent performance today",
       "AGENT": "Agent",
       "MESSAGES_TODAY": "Messages today",
-      "NO_DATA": "No data yet"
+      "NO_DATA": "No data yet",
+      "EXPORT": "Export conversations",
+      "REVENUE_BY_GAME": "Revenue by game (30 days)",
+      "NET": "Net"
     },
     "PROFILE": {
       "STATS": "Stats",
@@ -78,6 +95,7 @@
       "SAVE": "Save Patra settings",
       "SAVED": "Patra settings saved",
       "SAVE_ERROR": "Could not save Patra settings",
+      "LOADING": "Loading…",
       "DAYS": {
         "MON": "Mon",
         "TUE": "Tue",

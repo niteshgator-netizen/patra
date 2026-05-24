@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import PatraDashboardAPI from 'dashboard/api/patraDashboard';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import GameHealthDashboard from 'dashboard/components/widgets/GameHealthDashboard.vue';
+import OnboardingChecklist from 'dashboard/components/widgets/OnboardingChecklist.vue';
 
 const { t } = useI18n();
 
@@ -50,6 +52,7 @@ onMounted(async () => {
     <p v-else-if="error" class="text-n-ruby-11">{{ error }}</p>
 
     <template v-else-if="stats">
+      <OnboardingChecklist class="mb-4" />
       <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
           <p class="text-xs font-medium uppercase text-n-slate-11">
@@ -81,6 +84,27 @@ onMounted(async () => {
           </p>
           <p class="mt-1 text-2xl font-bold text-n-slate-12">
             {{ stats.ai_handle_rate }}%
+          </p>
+        </div>
+        <div class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+          <p class="mt-1 text-2xl font-bold text-n-slate-12">
+            {{ stats.new_customers_today }}
+          </p>
+        </div>
+        <div class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+          <p class="text-xs font-medium uppercase text-n-slate-11">
+            {{ $t('PATRA.DASHBOARD.FLAGGED_REVIEW') }}
+          </p>
+          <p class="mt-1 text-2xl font-bold text-n-slate-12">
+            {{ stats.flagged_for_review }}
+          </p>
+        </div>
+        <div class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+          <p class="text-xs font-medium uppercase text-n-slate-11">
+            {{ $t('PATRA.DASHBOARD.NET_TODAY') }}
+          </p>
+          <p class="mt-1 text-2xl font-bold text-n-slate-12">
+            ${{ stats.net_today }}
           </p>
         </div>
       </div>
@@ -131,12 +155,19 @@ onMounted(async () => {
         </div>
       </div>
 
+      <GameHealthDashboard />
+
       <div class="rounded-xl border border-dashed border-n-weak bg-n-alpha-1 p-6 text-center">
         <p class="text-sm font-medium text-n-slate-12">
-          {{ $t('PATRA.DASHBOARD.GAME_PERFORMANCE') }}
+          {{ $t('PATRA.DASHBOARD.LOADS_CASHOUTS') }}
         </p>
         <p class="mt-1 text-xs text-n-slate-11">
-          {{ $t('PATRA.DASHBOARD.COMING_SOON') }}
+          {{ $t('PATRA.DASHBOARD.LOADS_CASHOUTS_DETAIL', {
+            loads: stats.loads_today?.amount || 0,
+            loadCount: stats.loads_today?.count || 0,
+            cashouts: stats.cashouts_today?.amount || 0,
+            cashoutCount: stats.cashouts_today?.count || 0,
+          }) }}
         </p>
       </div>
     </template>

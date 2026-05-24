@@ -248,7 +248,7 @@ onMounted(() => {
               compact
               @toggle="togglePlayerProfileAccordion"
             >
-              <PlayerProfileCard :contact="contact" />
+              <PlayerProfileCard :contact="contact" :conversation-id="conversationId" />
               <GameQuickActionsPanel />
             </AccordionItem>
           </div>
