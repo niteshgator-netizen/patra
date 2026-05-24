@@ -16,7 +16,7 @@
     <div class="stats-row">
       <div class="stat">
         <div class="stat__label">{{ $t('GAMES.STATS.AVAILABLE') }}</div>
-        <div class="stat__value">{{ availableGames.length }}</div>
+        <div class="stat__value">{{ mergedGames.length }}</div>
       </div>
       <div class="stat">
         <div class="stat__label">{{ $t('GAMES.STATS.ACTIVATED') }}</div>
@@ -92,13 +92,15 @@ export default {
       });
     },
     activatedCount() {
-      return this.agentGames.filter(ag => ag.status === 'active').length;
+      return this.mergedGames.filter(g => g.agentGame?.status === 'active').length;
     },
     apiConnectedCount() {
-      return this.agentGames.filter(ag => ag.api_configured).length;
+      return this.mergedGames.filter(g => g.agentGame?.api_configured).length;
     },
     pendingSetupCount() {
-      return this.agentGames.filter(ag => ag.status === 'active' && !ag.api_configured).length;
+      return this.mergedGames.filter(
+        g => g.agentGame?.status === 'active' && !g.agentGame?.api_configured
+      ).length;
     },
   },
   mounted() {

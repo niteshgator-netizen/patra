@@ -29,6 +29,7 @@
       "EVENT_HUMAN_ESCALATION": "Bella escalations (needs human)",
       "EVENT_API_ERROR": "System errors",
       "SAVE_BTN": "Save",
+      "RETRY": "Retry",
       "TEST_BTN": "Test connection",
       "DELETE_BTN": "Disconnect Telegram",
       "DELETE_CONFIRM": "Are you sure you want to disconnect Telegram? You'll stop receiving alerts."
