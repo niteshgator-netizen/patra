@@ -217,6 +217,14 @@ export const mutations = {
     if (pendingMessageIndex !== -1) {
       chat.messages[pendingMessageIndex] = message;
     } else {
+      const existingMessageIndex = chat.messages.findIndex(
+        m => m.id === message.id
+      );
+      if (existingMessageIndex !== -1) {
+        chat.messages[existingMessageIndex] = message;
+        return;
+      }
+
       chat.messages.push(message);
       chat.timestamp = message.created_at;
       const { conversation: { unread_count: unreadCount = 0 } = {} } = message;

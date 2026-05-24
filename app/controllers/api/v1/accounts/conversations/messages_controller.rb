@@ -1,5 +1,5 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController
-  before_action :ensure_api_inbox, only: :update
+  before_action :ensure_api_inbox, only: :update, unless: :pin_update_requested?
 
   def index
     @messages = message_finder.perform
@@ -14,8 +14,12 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def update
-    Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
-    @message = message
+    if pin_update_requested?
+      update_message_pin
+    else
+      Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
+    end
+    @message = message.reload
   end
 
   def destroy
@@ -65,7 +69,30 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def permitted_params
-    params.permit(:id, :target_language, :status, :external_error)
+    params.permit(:id, :target_language, :status, :external_error, content_attributes: [:pinned])
+  end
+
+  def pin_update_requested?
+    content_attributes_params.key?(:pinned)
+  end
+
+  def content_attributes_params
+    permitted_params.fetch(:content_attributes, ActionController::Parameters.new).permit(:pinned)
+  end
+
+  def update_message_pin
+    attrs = message.content_attributes.to_h.stringify_keys
+    pinned = ActiveModel::Type::Boolean.new.cast(content_attributes_params[:pinned])
+
+    if pinned
+      attrs['pinned'] = true
+      attrs['pinned_at'] = Time.current.to_i
+    else
+      attrs.delete('pinned')
+      attrs.delete('pinned_at')
+    end
+
+    message.update!(content_attributes: attrs)
   end
 
   def already_translated_content_available?

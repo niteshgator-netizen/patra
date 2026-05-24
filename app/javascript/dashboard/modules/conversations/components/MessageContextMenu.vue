@@ -81,6 +81,9 @@ export default {
         this.message.content_attributes ?? this.message.contentAttributes
       );
     },
+    isPinned() {
+      return this.contentAttributes?.pinned === true;
+    },
   },
   methods: {
     async copyLinkToMessage() {
@@ -133,6 +136,18 @@ export default {
       this.$emit('replyTo', this.message);
       this.handleClose();
     },
+    async handlePinToggle() {
+      try {
+        await this.$store.dispatch('toggleMessagePin', {
+          conversationId: this.conversationId,
+          messageId: this.messageId,
+          pinned: !this.isPinned,
+        });
+        this.handleClose();
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.PINNED_MESSAGES.ERROR'));
+      }
+    },
     openDeleteModal() {
       this.handleClose();
       this.showDeleteModal = true;
@@ -157,7 +172,7 @@ export default {
 </script>
 
 <template>
-  <div class="context-menu">
+  <div class="context-menu flex items-center gap-0.5">
     <!-- Add To Canned Responses -->
     <woot-modal
       v-if="isCannedResponseModalOpen && enabledOptions['cannedResponse']"
@@ -182,12 +197,29 @@ export default {
       :reject-text="$t('CONVERSATION.CONTEXT_MENU.DELETE_CONFIRMATION.CANCEL')"
     />
     <NextButton
+      v-if="enabledOptions['pin']"
+      v-tooltip.top="
+        isPinned
+          ? $t('CONVERSATION.CONTEXT_MENU.UNPIN')
+          : $t('CONVERSATION.CONTEXT_MENU.PIN')
+      "
+      ghost
+      slate
+      sm
+      :icon="isPinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+      :class="[
+        'invisible group-hover/message:visible',
+        { 'text-amber-400': isPinned },
+      ]"
+      @click.stop="handlePinToggle"
+    />
+    <NextButton
       v-if="!hideButton"
       ghost
       slate
       sm
       icon="i-lucide-ellipsis-vertical"
-      class="invisible group-hover/context-menu:visible"
+      class="invisible group-hover/message:visible"
       @click="handleOpen"
     />
     <ContextMenu
@@ -214,6 +246,17 @@ export default {
           }"
           variant="icon"
           @click.stop="handleCopy"
+        />
+        <MenuItem
+          v-if="enabledOptions['pin']"
+          :option="{
+            icon: isPinned ? 'pin-off' : 'pin',
+            label: isPinned
+              ? $t('CONVERSATION.CONTEXT_MENU.UNPIN')
+              : $t('CONVERSATION.CONTEXT_MENU.PIN'),
+          }"
+          variant="icon"
+          @click.stop="handlePinToggle"
         />
         <MenuItem
           v-if="enabledOptions['translate']"
