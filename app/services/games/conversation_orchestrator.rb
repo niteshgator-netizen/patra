@@ -17,6 +17,8 @@ module Games
       'pandamaster' => 'panda_master',
       'orionstar' => 'orion_stars',
       'juwa' => 'juwa',
+      'juwa2' => 'juwa_2',
+      'juwa_2' => 'juwa_2',
       'gameroom' => 'game_room',
       'cash_machine' => 'cash_machine',
       'mr_all_in_one' => 'mr_all_in_one',

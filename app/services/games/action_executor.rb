@@ -33,14 +33,35 @@ module Games
         status: 'pending'
       )
 
-      execute_in_audit(action) do
+      result = execute_in_audit(action) do
         client = client_for(agent_game)
         result = client.add_user(account: game_username, password: password)
         action.update!(metadata: action.metadata.merge(password: password))
         result
-      end.tap do |result|
-        result[:password] = password if result[:ok]
       end
+
+      if result[:ok]
+        sleep(1)
+        unless player_exists_after_create?(game_username)
+          Rails.logger.error(
+            "[ActionExecutor] SILENT FAIL: add_player said OK but check_balance failed for #{game_username} on #{agent_game.game.slug}"
+          )
+          mark_add_player_verification_failed!(result[:action])
+          return {
+            ok: false,
+            action: result[:action],
+            error: 'Account creation reported success but verification failed — account may not exist',
+            code: 'silent_fail'
+          }
+        end
+
+        Rails.logger.info(
+          "[ActionExecutor] VERIFIED: #{game_username} exists on #{agent_game.game.slug}"
+        )
+        result[:password] = password
+      end
+
+      result
     end
 
     def load_player(game_username:, amount:, payment_method: nil, payment_handle: nil, metadata: {}, order_id: nil)
@@ -158,6 +179,27 @@ module Games
 
       result = client.user_balance(user_id: user_id)
       result.dig('data', 'user_balance')
+    end
+
+    def player_exists_after_create?(game_username)
+      !check_player_balance(game_username: game_username).nil?
+    rescue StandardError => e
+      Rails.logger.warn(
+        "[ActionExecutor] player_exists_after_create? failed for #{game_username}: #{e.class}: #{e.message}"
+      )
+      false
+    end
+
+    def mark_add_player_verification_failed!(action)
+      return unless action
+
+      action.update!(
+        status: 'failed',
+        api_response_code: 'silent_fail',
+        api_response_message: 'Account creation reported success but verification failed — account may not exist',
+        executed_at: Time.current
+      )
+      agent_game.record_failure!
     end
 
     private

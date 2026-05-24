@@ -48,6 +48,14 @@ class GamesAPI extends ApiClient {
   checkPlayer(id, gameUsername) {
     return axios.post(`${this.url}/${id}/check_player`, { game_username: gameUsername });
   }
+
+  addPlayer(id, payload) {
+    return axios.post(`${this.url}/${id}/add_player`, payload);
+  }
+
+  resetPlayerPassword(id, payload) {
+    return axios.post(`${this.url}/${id}/reset_player_password`, payload);
+  }
 }
 
 export default new GamesAPI();

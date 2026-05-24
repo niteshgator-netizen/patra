@@ -26,6 +26,7 @@ import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
 import PlayerProfileCard from 'dashboard/components/widgets/PlayerProfileCard.vue';
+import GameQuickActionsPanel from 'dashboard/components/widgets/GameQuickActionsPanel.vue';
 
 const props = defineProps({
   conversationId: {
@@ -248,6 +249,7 @@ onMounted(() => {
               @toggle="togglePlayerProfileAccordion"
             >
               <PlayerProfileCard :contact="contact" />
+              <GameQuickActionsPanel />
             </AccordionItem>
           </div>
           <div v-else-if="element.name === 'previous_conversation'">

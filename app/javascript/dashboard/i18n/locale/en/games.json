@@ -41,6 +41,17 @@
       "CASHOUT_SUCCESS": "✓ Cashed out ${amount} from {username}",
       "ERROR_PREFIX": "Error: "
     },
+    "QUICK_ACTIONS": {
+      "TITLE": "Quick Actions",
+      "GAME": "Game",
+      "CREATE": "Create",
+      "REDEEM": "Redeem",
+      "RESET": "Reset Password",
+      "CREATE_SUCCESS": "Account created:",
+      "RESET_SUCCESS": "New password:",
+      "NO_ACTIVE_GAME": "This game is not activated for your account",
+      "USERNAME_REQUIRED": "Enter a username first"
+    },
     "CARD_ACTIONS": {
       "MANAGE_PLAYERS": "Manage Players"
     },

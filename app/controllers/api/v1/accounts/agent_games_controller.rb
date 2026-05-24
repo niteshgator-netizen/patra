@@ -140,6 +140,55 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
     render json: { ok: false, message: e.message }, status: :internal_server_error
   end
 
+  def add_player
+    @agent_game = Current.account.agent_games.find(params[:id])
+    return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
+
+    username = params[:game_username].to_s.strip
+    return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
+
+    executor = Games::ActionExecutor.new(agent_game: @agent_game)
+    result = executor.add_player(
+      game_username: username,
+      password: params[:password].presence,
+      metadata: { source: 'manual_ui', operator_user_id: Current.user&.id }
+    )
+
+    payload = serialize_action_result(result)
+    payload[:password] = result[:password] if result[:password].present?
+    render json: payload
+  rescue Games::ActionExecutor::IdempotencyError => e
+    render json: { ok: false, message: e.message }, status: :conflict
+  rescue StandardError => e
+    Rails.logger.error("[add_player] #{e.class}: #{e.message}")
+    render json: { ok: false, message: e.message }, status: :internal_server_error
+  end
+
+  def reset_player_password
+    @agent_game = Current.account.agent_games.find(params[:id])
+    return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
+
+    username = params[:game_username].to_s.strip
+    return render json: { ok: false, message: 'Missing game username' }, status: :unprocessable_entity if username.blank?
+
+    new_password = params[:new_password].presence || SecureRandom.alphanumeric(8).downcase
+    executor = Games::ActionExecutor.new(agent_game: @agent_game)
+    result = executor.reset_player_password(
+      game_username: username,
+      new_password: new_password,
+      metadata: { source: 'manual_ui', operator_user_id: Current.user&.id }
+    )
+
+    payload = serialize_action_result(result)
+    payload[:new_password] = new_password if result[:ok]
+    render json: payload
+  rescue Games::ActionExecutor::IdempotencyError => e
+    render json: { ok: false, message: e.message }, status: :conflict
+  rescue StandardError => e
+    Rails.logger.error("[reset_player_password] #{e.class}: #{e.message}")
+    render json: { ok: false, message: e.message }, status: :internal_server_error
+  end
+
   def diagnose
     @agent_game = Current.account.agent_games.find(params[:id])
     return render_not_supported unless Games::ClientRegistry.client_for(@agent_game)
