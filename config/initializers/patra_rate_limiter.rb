@@ -1,3 +1,3 @@
 # frozen_string_literal: true
 
-Rails.application.config.middleware.use PatraRateLimiter
+Rails.application.config.middleware.use 'PatraRateLimiter'
