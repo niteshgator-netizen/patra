@@ -9,6 +9,8 @@ class Captain::BaseTaskService
   # 120000 * 4 = 480,000 characters (rounding off downwards to 400,000 to be safe)
   TOKEN_LIMIT = 400_000
   GPT_MODEL = Llm::Config::DEFAULT_MODEL
+  XAI_EVENTS = %w[summarize reply_suggestion].freeze
+  XAI_URL = 'https://api.x.ai/v1'.freeze
 
   # Prepend enterprise module to subclasses when they're defined.
   # This ensures the enterprise perform wrapper is applied even when
@@ -32,6 +34,8 @@ class Captain::BaseTaskService
   end
 
   def api_base
+    return XAI_URL if uses_xai?
+
     endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value.presence || 'https://api.openai.com/'
     endpoint = endpoint.chomp('/')
     "#{endpoint}/v1"
@@ -57,6 +61,7 @@ class Captain::BaseTaskService
 
   def execute_ruby_llm_request(model:, messages:, schema: nil, tools: [])
     credential = llm_credential
+    model = xai_model if uses_xai?
 
     Llm::Config.with_api_key(credential[:api_key], api_base: api_base) do |context|
       chat = build_chat(context, model: model, messages: messages, schema: schema, tools: tools)
@@ -158,7 +163,23 @@ class Captain::BaseTaskService
   end
 
   def llm_credential
-    @llm_credential ||= hook_llm_credential || system_llm_credential
+    @llm_credential ||= if uses_xai?
+                          { api_key: xai_api_key, source: :xai }
+                        else
+                          hook_llm_credential || system_llm_credential
+                        end
+  end
+
+  def uses_xai?
+    XAI_EVENTS.include?(event_name) && xai_api_key.present?
+  end
+
+  def xai_api_key
+    ENV['XAI_API_KEY'].to_s.presence
+  end
+
+  def xai_model
+    ENV.fetch('XAI_MODEL', 'grok-4.3')
   end
 
   def hook_llm_credential
