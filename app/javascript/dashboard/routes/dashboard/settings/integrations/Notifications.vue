@@ -148,27 +148,26 @@ onMounted(loadChannel);
 
     <div
       v-if="loading"
-      class="rounded-xl border border-n-weak bg-n-alpha-1 px-6 py-8 text-center text-sm text-n-slate-11"
+      class="mb-6 rounded-xl border border-n-weak bg-n-alpha-1 px-6 py-8 text-center text-sm text-n-slate-11"
     >
       Loading your notification settings…
     </div>
 
     <div
-      v-else-if="errorLoading"
-      class="rounded-xl border border-n-ruby-6 bg-n-ruby-2 px-6 py-8 text-center text-sm text-n-ruby-11"
+      v-if="!loading && errorLoading"
+      class="mb-6 rounded-xl border border-n-ruby-6 bg-n-ruby-2 px-4 py-3 text-sm text-n-ruby-11"
     >
       ⚠️ {{ errorLoading }}
-      <div class="mt-3">
-        <NextButton
-          :label="$t('NOTIFICATIONS.FORM.RETRY')"
-          slate
-          sm
-          @click="loadChannel"
-        />
-      </div>
+      <button
+        type="button"
+        class="ml-2 text-n-brand underline"
+        @click="loadChannel"
+      >
+        {{ $t('NOTIFICATIONS.FORM.RETRY') }}
+      </button>
     </div>
 
-    <template v-else>
+    <template v-if="!loading">
       <div
         v-if="!isConfigured"
         class="mb-6 rounded-xl border border-n-amber-6 bg-n-amber-2 px-5 py-4"
@@ -268,7 +267,7 @@ onMounted(loadChannel);
           <NextButton
             v-if="channel?.id"
             :label="$t('NOTIFICATIONS.FORM.DELETE_BTN')"
-            ruby
+            color="ruby"
             @click="remove"
           />
         </div>

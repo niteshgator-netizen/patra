@@ -1318,6 +1318,11 @@ export default {
           @content-ready="copilot.setContentReady"
           @send="copilot.sendFollowUp"
         />
+        <CannedResponseSuggestions
+          v-if="!copilot.isActive.value && !isPrivate"
+          :conversation-id="conversationId"
+          @insert="insertCannedSuggestion"
+        />
         <WootMessageEditor
           v-else-if="!showAudioRecorderEditor"
           ref="messageEditor"
@@ -1376,12 +1381,6 @@ export default {
         />
       </div>
     </Transition>
-
-    <CannedResponseSuggestions
-      v-if="!copilot.isActive.value && !isPrivate"
-      :conversation-id="conversationId"
-      @insert="insertCannedSuggestion"
-    />
 
     <Transition
       mode="out-in"

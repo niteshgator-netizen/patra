@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { getLastMessage } from 'dashboard/helper/conversationHelper';
 
 const props = defineProps({
   conversationId: {
@@ -26,9 +27,9 @@ const lastCustomerMessage = computed(() => {
     .find(m => m.message_type === 0 && !m.private);
   if (incoming?.content) return incoming.content.toLowerCase();
 
-  const apiMessage = chat.last_non_activity_message;
-  if (apiMessage?.message_type === 0 && apiMessage.content) {
-    return apiMessage.content.toLowerCase();
+  const lastMsg = getLastMessage(chat);
+  if (lastMsg?.message_type === 0 && lastMsg.content) {
+    return lastMsg.content.toLowerCase();
   }
 
   return '';
@@ -44,7 +45,10 @@ const KEYWORD_RULES = [
 
 const suggestions = computed(() => {
   const text = lastCustomerMessage.value;
-  if (!text) return [];
+  const all = (cannedMessages.value || []).filter(item => item.short_code);
+  if (!all.length) return [];
+
+  if (!text) return all.slice(0, 3);
 
   const matchedCodes = new Set();
   KEYWORD_RULES.forEach(rule => {
@@ -53,7 +57,8 @@ const suggestions = computed(() => {
     }
   });
 
-  const all = cannedMessages.value || [];
+  const words = text.split(/\s+/).filter(w => w.length > 2);
+
   const scored = all
     .map(item => {
       const code = item.short_code?.toLowerCase() || '';
@@ -69,13 +74,17 @@ const suggestions = computed(() => {
           }
         });
       });
+      words.forEach(word => {
+        if (code.includes(word) || content.includes(word)) score += 1;
+      });
       return { ...item, score };
     })
     .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3);
+    .sort((a, b) => b.score - a.score);
 
-  return scored;
+  if (scored.length) return scored.slice(0, 3);
+
+  return all.slice(0, 3);
 });
 
 const loadCannedResponses = () => {

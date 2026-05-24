@@ -53,8 +53,8 @@ onMounted(async () => {
 async function saveSettings() {
   saving.value = true;
   try {
-    await PatraSettingsAPI.update({
-      reengage_days: reengageDays.value,
+    const { data } = await PatraSettingsAPI.update({
+      reengage_days: Number(reengageDays.value) || 7,
       business_hours: {
         start: startTime.value,
         end: endTime.value,
@@ -62,6 +62,13 @@ async function saveSettings() {
         days: workingDays.value,
       },
     });
+    reengageDays.value = data.reengage_days ?? reengageDays.value;
+    if (data.business_hours) {
+      startTime.value = data.business_hours.start || startTime.value;
+      endTime.value = data.business_hours.end || endTime.value;
+      timezone.value = data.business_hours.timezone || timezone.value;
+      workingDays.value = data.business_hours.days || workingDays.value;
+    }
     useAlert(t('PATRA.SETTINGS.SAVED'));
   } catch {
     useAlert(t('PATRA.SETTINGS.SAVE_ERROR'));

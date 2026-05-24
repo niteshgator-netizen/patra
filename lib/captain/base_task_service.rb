@@ -1,3 +1,5 @@
+require 'httparty'
+
 class Captain::BaseTaskService
   include Integrations::LlmInstrumentation
   include Captain::ToolInstrumentation
@@ -47,7 +49,7 @@ class Captain::BaseTaskService
     return { error: I18n.t('captain.disabled'), error_code: 403 } unless captain_tasks_enabled?
     return { error: I18n.t('captain.api_key_missing'), error_code: 401 } unless api_key_configured?
 
-    instrumentation_params = build_instrumentation_params(model, messages)
+    instrumentation_params = build_instrumentation_params(uses_xai? ? xai_model : model, messages)
     instrumentation_method = tools.any? ? :instrument_tool_session : :instrument_llm_call
 
     response = send(instrumentation_method, instrumentation_params) do
@@ -60,8 +62,9 @@ class Captain::BaseTaskService
   end
 
   def execute_ruby_llm_request(model:, messages:, schema: nil, tools: [])
+    return execute_xai_request(messages) if uses_xai?
+
     credential = llm_credential
-    model = xai_model if uses_xai?
 
     Llm::Config.with_api_key(credential[:api_key], api_base: api_base) do |context|
       chat = build_chat(context, model: model, messages: messages, schema: schema, tools: tools)
@@ -151,10 +154,14 @@ class Captain::BaseTaskService
   end
 
   def captain_tasks_enabled?
+    return true if xai_task?
+
     account.feature_enabled?('captain_tasks')
   end
 
   def api_key_configured?
+    return true if xai_task?
+
     llm_credential.present?
   end
 
@@ -163,15 +170,19 @@ class Captain::BaseTaskService
   end
 
   def llm_credential
-    @llm_credential ||= if uses_xai?
+    @llm_credential ||= if xai_task?
                           { api_key: xai_api_key, source: :xai }
                         else
                           hook_llm_credential || system_llm_credential
                         end
   end
 
-  def uses_xai?
+  def xai_task?
     XAI_EVENTS.include?(event_name) && xai_api_key.present?
+  end
+
+  def uses_xai?
+    xai_task?
   end
 
   def xai_api_key
@@ -180,6 +191,41 @@ class Captain::BaseTaskService
 
   def xai_model
     ENV.fetch('XAI_MODEL', 'grok-4.3')
+  end
+
+  def execute_xai_request(messages)
+    payload_messages = messages.map { |m| { role: m[:role].to_s, content: m[:content].to_s } }
+
+    response = HTTParty.post(
+      "#{XAI_URL}/chat/completions",
+      headers: {
+        'Authorization' => "Bearer #{xai_api_key}",
+        'Content-Type' => 'application/json'
+      },
+      body: {
+        model: xai_model,
+        max_tokens: 1024,
+        messages: payload_messages
+      }.to_json,
+      timeout: 30
+    )
+
+    unless response.success?
+      Rails.logger.error("[Captain][xAI] HTTP #{response.code}: #{response.body.to_s.truncate(500)}")
+      return { error: "xAI request failed (#{response.code})", request_messages: messages }
+    end
+
+    text = response.parsed_response.dig('choices', 0, 'message', 'content')
+    return { error: 'No response from xAI', request_messages: messages } if text.blank?
+
+    {
+      message: text,
+      usage: response.parsed_response['usage'] || {},
+      request_messages: messages
+    }
+  rescue StandardError => e
+    Rails.logger.error("[Captain][xAI] #{e.class}: #{e.message}")
+    { error: e.message, request_messages: messages }
   end
 
   def hook_llm_credential
