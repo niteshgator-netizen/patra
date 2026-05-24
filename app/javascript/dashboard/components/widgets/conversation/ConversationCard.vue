@@ -141,10 +141,6 @@ const isPinned = computed(() => {
   return pinned === true || pinned === 'true';
 });
 
-const canResolve = computed(
-  () => props.chat?.status !== wootConstants.STATUS_TYPE.RESOLVED
-);
-
 const accountLabels = computed(() => store.getters['labels/getLabels'] || []);
 const savedLabelTitles = computed(() => props.chat?.labels || []);
 
@@ -199,18 +195,6 @@ const selectedModel = computed({
   get: () => props.selected,
   set: value => onSelectConversation(value),
 });
-
-const resolveConversation = async () => {
-  try {
-    await store.dispatch('toggleStatus', {
-      conversationId: props.chat.id,
-      status: wootConstants.STATUS_TYPE.RESOLVED,
-    });
-    useAlert(t('CONVERSATION.CHANGE_STATUS'));
-  } catch {
-    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.STATUS_CHANGE.FAILED'));
-  }
-};
 
 const togglePin = async () => {
   const id = Number(props.chat?.id);
@@ -455,15 +439,6 @@ onUnmounted(() => {
         class="absolute bottom-2 ltr:right-2 rtl:left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-[2]"
         @click.stop
       >
-        <button
-          v-if="canResolve"
-          type="button"
-          class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
-          :title="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
-          @click="resolveConversation"
-        >
-          ✓
-        </button>
         <button
           type="button"
           class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
