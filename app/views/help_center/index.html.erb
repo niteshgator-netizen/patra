@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help Center</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-2">Help Center</h1>
+    <form action="<%= help_center_search_path(account_id: @account.id) %>" method="get" class="mb-8">
+      <input name="q" type="search" placeholder="Search articles…" class="w-full p-3 border rounded-lg" />
+    </form>
+
+    <% @categories.each do |category| %>
+      <h2 class="text-xl font-semibold mt-6 mb-3"><%= category %></h2>
+      <ul class="space-y-2">
+        <% @articles.select { |a| a.category == category }.each do |article| %>
+          <li>
+            <a href="<%= help_center_article_path(account_id: @account.id, id: article.id) %>" class="text-blue-600 hover:underline">
+              <%= article.title %>
+            </a>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <% uncategorized = @articles.select { |a| a.category.blank? } %>
+    <% if uncategorized.any? %>
+      <h2 class="text-xl font-semibold mt-6 mb-3">General</h2>
+      <ul class="space-y-2">
+        <% uncategorized.each do |article| %>
+          <li>
+            <a href="<%= help_center_article_path(account_id: @account.id, id: article.id) %>" class="text-blue-600 hover:underline">
+              <%= article.title %>
+            </a>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</body>
+</html>

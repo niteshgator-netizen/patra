@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= @article.title %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-3xl mx-auto px-4 py-8">
+    <a href="<%= help_center_path(account_id: @account.id) %>" class="text-blue-600 text-sm hover:underline">← Back to Help Center</a>
+    <h1 class="text-3xl font-bold mt-4 mb-6"><%= @article.title %></h1>
+    <div class="prose max-w-none"><%= simple_format(@article.content) %></div>
+
+    <div class="mt-8 p-4 border rounded-lg bg-white">
+      <p class="text-sm text-gray-600 mb-3">Was this helpful?</p>
+      <form action="<%= help_center_feedback_path(account_id: @account.id, id: @article.id) %>" method="post" class="inline">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>" />
+        <input type="hidden" name="helpful" value="true" />
+        <button type="submit" class="px-3 py-1 mr-2 text-sm border rounded-lg hover:bg-gray-50">👍 Yes</button>
+      </form>
+      <form action="<%= help_center_feedback_path(account_id: @account.id, id: @article.id) %>" method="post" class="inline">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>" />
+        <input type="hidden" name="helpful" value="false" />
+        <button type="submit" class="px-3 py-1 text-sm border rounded-lg hover:bg-gray-50">👎 No</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

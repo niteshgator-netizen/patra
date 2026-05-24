@@ -5,7 +5,7 @@ class PaymentHandle < ApplicationRecord
 
   encrypts :verification_email_password
 
-  PLATFORMS = %w[cashapp chime paypal venmo zelle].freeze
+  PLATFORMS = %w[cashapp chime paypal venmo zelle bitcoin ethereum usdt].freeze
   MAX_HANDLES_PER_PLATFORM = {
     'cashapp' => 3,
     'chime' => 3,

@@ -2,21 +2,17 @@
 
 module Ai
   class SentimentScorer
-    NEGATIVE = %w[angry upset frustrated mad terrible horrible worst scam fraud steal cheat complaint].freeze
-    POSITIVE = %w[thanks thank awesome great love excellent perfect amazing wonderful].freeze
+    POSITIVE = %w[thanks thank great awesome love happy good perfect].freeze
+    NEGATIVE = %w[bad angry scam steal refund hate terrible worst fraud attorney].freeze
 
-    def self.score(messages)
-      text = Array(messages).map { |m| m.content.to_s }.join(' ').downcase
-      neg = NEGATIVE.count { |w| text.include?(w) }
-      pos = POSITIVE.count { |w| text.include?(w) }
+    def self.score(text)
+      return 'neutral' if text.blank?
 
-      if neg > pos + 1
-        'negative'
-      elsif pos > neg + 1
-        'positive'
-      else
-        'neutral'
-      end
+      down = text.downcase
+      return 'negative' if NEGATIVE.any? { |w| down.include?(w) }
+      return 'positive' if POSITIVE.any? { |w| down.include?(w) }
+
+      'neutral'
     end
   end
 end
