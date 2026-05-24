@@ -221,7 +221,7 @@ module Games
         status: 'success',
         api_response_code: result['code'],
         api_response_message: result['msg'],
-        api_response_body: result,
+        api_response_body: sanitize_for_db(result),
         executed_at: Time.current
       )
       agent_game.mark_used!
@@ -233,7 +233,7 @@ module Games
         status: 'failed',
         api_response_code: e.code,
         api_response_message: e.message,
-        api_response_body: e.payload || {},
+        api_response_body: sanitize_for_db(e.payload || {}),
         executed_at: Time.current
       )
       agent_game.record_failure!
@@ -246,6 +246,19 @@ module Games
       )
       agent_game.record_failure!
       { ok: false, action: action, error: e.message, code: -1 }
+    end
+
+    def sanitize_for_db(obj)
+      case obj
+      when String
+        obj.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+      when Hash
+        obj.transform_values { |v| sanitize_for_db(v) }
+      when Array
+        obj.map { |v| sanitize_for_db(v) }
+      else
+        obj
+      end
     end
   end
 end
