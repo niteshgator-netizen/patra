@@ -116,7 +116,7 @@ module Games
 
       def recharge(user_id:, amount:, order_id:)
         post('/fast/user/deposit', {
-          requestid: order_id.to_s,
+          requestid: order_id.to_s.gsub(/[^a-zA-Z0-9]/, ''),
           account: user_id.to_s,
           amount: amount.to_s
         })
@@ -124,7 +124,7 @@ module Games
 
       def withdraw(user_id:, amount:, order_id:)
         post('/fast/user/withdrawal', {
-          requestid: order_id.to_s,
+          requestid: order_id.to_s.gsub(/[^a-zA-Z0-9]/, ''),
           account: user_id.to_s,
           amount: amount.to_s
         })
