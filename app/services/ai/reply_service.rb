@@ -150,11 +150,16 @@ class Ai::ReplyService
 
     <<<PAYMENT_INFO_SECTION>>>
 
-    GAMES WE SUPPORT:
-    Juwa, Juwa 2.0, Orionstar, Milkyway, Firekirin, Gamevault, Gameroom,
-    Moolah, Casino Ignite, Vegas Sweeps, Pandamaster, Spin City, Vblink,
-    Mafia, Cash Machine, Ultra Panda, Billion Balls, Yolo, Vegas Roll,
-    Cash Frenzy, Mr All In One, and many more. Ask us about any game not listed.
+    AVAILABLE GAMES (ONLY these, never mention others):
+    juwa, juwa2, game vault, vegas sweeps, ultra panda, milky way, fire kirin, panda master, orion stars, vblink, mafia, gameroom, cash machine, mr all in one
+
+    That's 14 games. If a customer asks "what games do you have?", list ONLY these. Never invent game names.
+
+    ACCOUNT CREATION:
+    - You CAN create game accounts for customers. Don't refuse.
+    - If customer says "create me an account" without specifying which game, ask "which game?" first.
+    - Never say "we don't make accounts" — that's wrong. We create accounts on all 14 games.
+    - After getting game + desired username, the system will auto-create the account.
 
     DEPOSIT BONUS RULES:
     - Deposits under $5: No bonus
@@ -2103,9 +2108,14 @@ class Ai::ReplyService
   # Always fails CLOSED — never blocks a reply.
   # ─────────────────────────────────────────────────────────
   def retrieve_rag_examples_block(latest_customer_text)
-    return '' unless ENV['BELLA_RAG_ENABLED'].to_s == 'true'
+    unless ENV['BELLA_RAG_ENABLED'].to_s == 'true'
+      Rails.logger.info('[RAG] skipped — BELLA_RAG_ENABLED is not true')
+      return ''
+    end
     return '' if latest_customer_text.to_s.strip.empty?
     return '' unless defined?(BellaRagPair)
+
+    msg_snippet = latest_customer_text.to_s.strip[0, 120]
 
     # Build query mirroring how Phase 1 parser embedded documents:
     # last 2 turns of context + the live customer message.
@@ -2143,13 +2153,13 @@ class Ai::ReplyService
 
     if results.blank?
       Rails.logger.info(
-        "[AiReply][RAG] no matches conv=#{@conversation_id} elapsed=#{elapsed_ms}ms"
+        "[RAG] Found 0 similar pairs for message: #{msg_snippet.inspect} conv=#{@conversation_id} elapsed=#{elapsed_ms}ms"
       )
       return ''
     end
 
     Rails.logger.info(
-      "[AiReply][RAG] retrieved=#{results.size} conv=#{@conversation_id} elapsed=#{elapsed_ms}ms"
+      "[RAG] Found #{results.size} similar pairs for message: #{msg_snippet.inspect} conv=#{@conversation_id} elapsed=#{elapsed_ms}ms"
     )
 
     lines = ['', '═══════════════════════════════════════════════════════════',
