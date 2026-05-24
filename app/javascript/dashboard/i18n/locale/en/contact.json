@@ -24,6 +24,7 @@
     "REENGAGE_SENDING": "Sending re-engagement…",
     "REENGAGE_SUCCESS": "Re-engagement message sent.",
     "REENGAGE_ERROR": "Could not send re-engagement.",
+    "FACEBOOK_PROFILE_PSID_ONLY": "Not available (PSID only)",
     "CALL": "Call",
     "CALL_INITIATED": "Calling the contact…",
     "CALL_FAILED": "Unable to start the call. Please try again.",

@@ -569,14 +569,8 @@ const menuItems = computed(() => {
           icon: 'i-lucide-message-square-quote',
           to: accountScopedRoute('canned_list'),
         },
-        {
-          name: 'Settings Integrations',
-          label: t('SIDEBAR.INTEGRATIONS'),
-          icon: 'i-lucide-blocks',
-          to: accountScopedRoute('settings_applications'),
-        },
-        // Phase H.10 item 7: Meta App hidden — BYOC flow is replaced by Zernio
-        // OAuth. The /settings/meta-app route stays registered.
+        // Phase H.10: Integrations hub hidden — Patra uses dedicated sidebar entries
+        // (Payment Handles, Games, AI Training, Notifications). Routes stay registered.
         {
           name: 'Settings Payment Handles',
           label: t('PAYMENT_HANDLES.NAV_LABEL'),

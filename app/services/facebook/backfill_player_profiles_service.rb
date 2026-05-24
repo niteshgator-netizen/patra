@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Backfills Messenger contacts that were created with placeholder "Player …" names
-# using the Facebook Graph API (name + profile picture) and sets facebook_profile.
+# using the Facebook Graph API (name + profile picture).
 module Facebook
   class BackfillPlayerProfilesService
     DEFAULT_ACCOUNT_ID = 2
@@ -41,8 +41,7 @@ module Facebook
 
       old_name = contact.name
 
-      attrs = contact.custom_attributes.stringify_keys.merge('facebook_profile' => "https://facebook.com/#{psid}")
-      contact.update!(name: new_name, custom_attributes: attrs)
+      contact.update!(name: new_name)
 
       pic = profile[:profile_pic].presence
       Avatar::AvatarFromUrlJob.perform_later(contact, pic) if pic.present?

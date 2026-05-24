@@ -154,12 +154,14 @@ class Captain::BaseTaskService
   end
 
   def captain_tasks_enabled?
+    return true if xai_api_key.present?
     return true if xai_task?
 
     account.feature_enabled?('captain_tasks')
   end
 
   def api_key_configured?
+    return true if xai_api_key.present?
     return true if xai_task?
 
     llm_credential.present?

@@ -12,7 +12,6 @@ import AttachmentPreview from 'dashboard/components/widgets/AttachmentsPreview.v
 import ReplyTopPanel from 'dashboard/components/widgets/WootWriter/ReplyTopPanel.vue';
 import ReplyEmailHead from './ReplyEmailHead.vue';
 import ReplyBottomPanel from 'dashboard/components/widgets/WootWriter/ReplyBottomPanel.vue';
-import CannedResponseSuggestions from './CannedResponseSuggestions.vue';
 import CopilotReplyBottomPanel from 'dashboard/components/widgets/WootWriter/CopilotReplyBottomPanel.vue';
 import ArticleSearchPopover from 'dashboard/routes/dashboard/helpcenter/components/ArticleSearch/SearchPopover.vue';
 import CopilotEditorSection from './CopilotEditorSection.vue';
@@ -80,7 +79,6 @@ export default {
     QuotedEmailPreview,
     CopilotEditorSection,
     CopilotReplyBottomPanel,
-    CannedResponseSuggestions,
   },
   mixins: [inboxMixin, fileUploadMixin, keyboardEventListenerMixins],
   emits: ['toggleEditorSize'],
@@ -538,9 +536,6 @@ export default {
     emitter.off('patra:focus-reply', this.focusFromPatra);
   },
   methods: {
-    insertCannedSuggestion(content) {
-      this.message = content;
-    },
     focusFromPatra() {
       this.$nextTick(() => this.messageEditor?.focusEditorInputField());
     },
@@ -1318,13 +1313,8 @@ export default {
           @content-ready="copilot.setContentReady"
           @send="copilot.sendFollowUp"
         />
-        <CannedResponseSuggestions
-          v-if="!copilot.isActive.value && !isPrivate"
-          :conversation-id="conversationId"
-          @insert="insertCannedSuggestion"
-        />
         <WootMessageEditor
-          v-else-if="!showAudioRecorderEditor"
+          v-if="!copilot.isActive.value && !showAudioRecorderEditor"
           ref="messageEditor"
           v-model="message"
           :conversation-id="conversationId"

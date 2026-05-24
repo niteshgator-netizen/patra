@@ -62,7 +62,7 @@ module Messaging
         picture = participant_picture.to_s.presence
         additional[:profile_picture] = picture if picture.present?
 
-        url = profile_url.to_s.presence || facebook_profile_url(psid, platform)
+        url = usable_profile_url(profile_url, psid)
         additional[:profile_url] = url if url.present?
 
         {
@@ -125,11 +125,19 @@ module Messaging
         value.to_s.match?(/\A\d{5,}\z/)
       end
 
-      def facebook_profile_url(psid, platform)
-        return nil if psid.blank?
-        return nil unless platform.to_s.downcase.in?(%w[facebook messenger])
+      def usable_profile_url(url, psid)
+        normalized = url.to_s.strip
+        return nil if normalized.blank?
+        return nil if psid_profile_url?(normalized, psid)
 
-        "https://facebook.com/#{psid}"
+        normalized
+      end
+
+      def psid_profile_url?(url, psid)
+        return true if url.match?(%r{\Ahttps?://(www\.)?facebook\.com/\d{5,}/?\z}i)
+        return true if psid.present? && url.match?(%r{\Ahttps?://(www\.)?facebook\.com/#{Regexp.escape(psid)}/?\z}i)
+
+        false
       end
     end
   end
