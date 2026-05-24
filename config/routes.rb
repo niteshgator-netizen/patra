@@ -330,6 +330,13 @@ Rails.application.routes.draw do
           end
 
           namespace :patra do
+            get 'dashboard', to: 'dashboard#show'
+            resource :settings, only: [:show, :update], controller: 'settings'
+            scope 'conversations/:conversation_id' do
+              get 'summary', to: 'conversation_summary#show'
+              post 'toggle_pin', to: 'conversations#toggle_pin'
+            end
+
             post 'fb_connect', to: 'facebook_connect#fb_connect'
             post 'fb_connect_pages', to: 'facebook_connect#fb_connect_pages'
             post 'inboxes/:inbox_id/migrate_fb_to_api', to: 'facebook_connect#migrate_fb_to_api'

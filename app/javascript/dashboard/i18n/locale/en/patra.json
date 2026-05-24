@@ -1,0 +1,65 @@
+{
+  "PATRA": {
+    "DASHBOARD": {
+      "NAV": "Dashboard",
+      "TITLE": "Owner Dashboard",
+      "SUBTITLE": "Today's performance at a glance",
+      "CONVERSATIONS_TODAY": "Conversations today",
+      "MESSAGES_IN": "Messages in",
+      "MESSAGES_OUT": "Messages out",
+      "AI_HANDLE_RATE": "AI handle rate",
+      "VOLUME_BY_CHANNEL": "Volume by channel",
+      "ACTIVE_AGENTS": "Active agents",
+      "NO_DATA": "No conversations yet today",
+      "NO_AGENTS": "No agents online",
+      "GAME_PERFORMANCE": "Game Performance",
+      "COMING_SOON": "Coming soon — game success rates will appear here"
+    },
+    "PROFILE": {
+      "STATS": "Stats",
+      "CONVERSATIONS": "Conversations",
+      "DEPOSITS": "Deposits",
+      "CASHOUTS": "Cashouts",
+      "PREFERRED_PAYMENT": "Preferred payment",
+      "LAST_GAME": "Last game",
+      "ACTIVE_AGO": "Active {time}"
+    },
+    "CONVERSATION": {
+      "PIN": "Pin conversation",
+      "UNPIN": "Unpin conversation",
+      "PIN_ERROR": "Could not update pin",
+      "SUMMARY": "Summary",
+      "SUMMARY_ERROR": "Could not generate summary",
+      "CLOSE": "Close"
+    },
+    "CANNED": {
+      "SUGGESTED": "Suggested:"
+    },
+    "SCHEDULED": {
+      "SEND_LATER": "Send later",
+      "COMING_SOON": "Scheduled messages coming soon"
+    },
+    "SETTINGS": {
+      "BUSINESS_HOURS_TITLE": "Business hours",
+      "BUSINESS_HOURS_NOTE": "Bella uses these hours for after-hours auto-replies (wiring pending).",
+      "REENGAGE_TITLE": "Re-engagement",
+      "REENGAGE_NOTE": "Auto-message dormant customers after this many days (log-only for now).",
+      "START": "Start",
+      "END": "End",
+      "TIMEZONE": "Timezone",
+      "DAYS_LABEL": "days",
+      "SAVE": "Save Patra settings",
+      "SAVED": "Patra settings saved",
+      "SAVE_ERROR": "Could not save Patra settings",
+      "DAYS": {
+        "MON": "Mon",
+        "TUE": "Tue",
+        "WED": "Wed",
+        "THU": "Thu",
+        "FRI": "Fri",
+        "SAT": "Sat",
+        "SUN": "Sun"
+      }
+    }
+  }
+}

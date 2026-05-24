@@ -87,6 +87,24 @@ reengagement_dormant_player_job:
   class: 'Reengagement::DormantPlayerJob'
   queue: scheduled_jobs
 
+# Every hour — auto-resolve open conversations with no activity in 24+ hours
+auto_resolve_stale_conversations_job:
+  cron: '0 * * * *'
+  class: 'AutoResolveStaleConversationsJob'
+  queue: low
+
+# Daily at 09:00 UTC — log dormant contacts eligible for re-engagement
+reengage_dormant_contacts_job:
+  cron: '0 9 * * *'
+  class: 'ReengageDormantContactsJob'
+  queue: low
+
+# Every 15 minutes — check pending payment timeouts (log-only for now)
+pending_payment_timeout_job:
+  cron: '*/15 * * * *'
+  class: 'PendingPaymentTimeoutJob'
+  queue: low
+
 # Every 4 hours — refresh Cluster 1 ASP.NET + Cluster 2 Laravel panel sessions before expiry (Ship 4)
 games_proactive_session_refresh_job:
   cron: '15 */4 * * *'

@@ -259,10 +259,12 @@ const reportRoutes = computed(() => newReportRoutes());
 
 const menuItems = computed(() => {
   return [
-    // The top-level "Inbox" notifications entry was hidden in Phase H Issue 3.
-    // The `inbox_view` route is still registered so deep links keep working;
-    // we just removed the nav item that was driving users to it.
-
+    {
+      name: 'PatraDashboard',
+      label: t('PATRA.DASHBOARD.NAV'),
+      icon: 'i-lucide-layout-dashboard',
+      to: accountScopedRoute('patra_owner_dashboard'),
+    },
     // Phase H.10 item 1: "+ Add Channel" promoted to a top-level primary
     // action. Sits above Conversation so admins always see it. Routes to
     // PatraAddChannel.vue (multi-platform picker).

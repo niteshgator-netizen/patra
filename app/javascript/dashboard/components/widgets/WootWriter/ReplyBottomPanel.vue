@@ -1,6 +1,7 @@
 <script>
 import { ref } from 'vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useAlert } from 'dashboard/composables';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import FileUpload from 'vue-upload-component';
 import * as ActiveStorage from 'activestorage';
@@ -279,6 +280,9 @@ export default {
     toggleInsertArticle() {
       this.$emit('toggleInsertArticle');
     },
+    sendLater() {
+      useAlert(this.$t('PATRA.SCHEDULED.COMING_SOON'));
+    },
   },
 };
 </script>
@@ -405,6 +409,15 @@ export default {
       />
     </div>
     <div class="right-wrap">
+      <NextButton
+        v-if="!isNote && !isEditorDisabled"
+        v-tooltip.top-end="$t('PATRA.SCHEDULED.SEND_LATER')"
+        icon="i-lucide-clock"
+        slate
+        faded
+        sm
+        @click="sendLater"
+      />
       <NextButton
         :label="sendButtonText"
         type="submit"
