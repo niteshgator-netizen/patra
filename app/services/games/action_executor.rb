@@ -216,7 +216,7 @@ module Games
     end
 
     def execute_in_audit(action)
-      result = yield
+      result = sanitize_for_db(yield)
       action.update!(
         status: 'success',
         api_response_code: result['code'],
