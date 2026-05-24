@@ -1,0 +1,34 @@
+{
+  "BLACKLIST": {
+    "BANNER": "BLACKLISTED: {reason}",
+    "NO_REASON": "No reason provided",
+    "TOGGLE": "Blacklist player",
+    "REASON": "Reason",
+    "SAVE": "Update blacklist"
+  },
+  "GAME_HEALTH": {
+    "TITLE": "Game integrations",
+    "LOADING": "Checking game health…"
+  },
+  "ONBOARDING": {
+    "TITLE": "Getting started",
+    "DISMISS": "Dismiss",
+    "FACEBOOK": "Connect Facebook page",
+    "GAME": "Add your first game",
+    "PAYMENT": "Set up payment handles",
+    "HOURS": "Configure business hours",
+    "PERSONA": "Customize AI persona",
+    "TEST": "Send your first test message"
+  },
+  "PLAYER_PROFILE": {
+    "BLACKLIST": "Blacklist",
+    "SEND_CREDENTIALS": "Send",
+    "BONUS_HISTORY": "Bonus history",
+    "CASHOUT_HISTORY": "Cashout history",
+    "ADD_BONUS": "Add bonus",
+    "REFERRED_BY": "Referred by",
+    "REFERRALS": "Referrals",
+    "MERGE": "Merge with…",
+    "LIFECYCLE": "Lifecycle stage"
+  }
+}

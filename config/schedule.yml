@@ -87,6 +87,42 @@ reengagement_dormant_player_job:
   class: 'Reengagement::DormantPlayerJob'
   queue: scheduled_jobs
 
+# Every hour — auto-resolve open conversations with no activity (configurable per account)
+conversations_auto_resolve_job:
+  cron: '0 * * * *'
+  class: 'Conversations::AutoResolveJob'
+  queue: low
+
+# Every minute — SLA violation checks
+sla_check_violations_job:
+  cron: '*/1 * * * *'
+  class: 'Sla::CheckViolationsJob'
+  queue: low
+
+# Every minute — send scheduled messages
+messages_send_scheduled_job:
+  cron: '*/1 * * * *'
+  class: 'Messages::SendScheduledJob'
+  queue: low
+
+# Daily — update contact lifecycle stages
+contacts_lifecycle_update_job:
+  cron: '0 6 * * *'
+  class: 'Contacts::LifecycleUpdateJob'
+  queue: low
+
+# Daily — auto-tag contact segments
+contacts_segmentation_job:
+  cron: '0 7 * * *'
+  class: 'Contacts::SegmentationJob'
+  queue: low
+
+# Daily — re-engage inactive players
+contacts_re_engage_job:
+  cron: '0 8 * * *'
+  class: 'Contacts::ReEngageJob'
+  queue: low
+
 # Every hour — auto-resolve open conversations with no activity in 24+ hours
 auto_resolve_stale_conversations_job:
   cron: '0 * * * *'

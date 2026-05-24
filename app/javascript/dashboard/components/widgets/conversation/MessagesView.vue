@@ -11,6 +11,7 @@ import MessageList from 'next/message/MessageList.vue';
 import PinnedMessagesSection from './PinnedMessagesSection.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
+import BlacklistBanner from 'dashboard/components/widgets/BlacklistBanner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ResizableEditorWrapper from './ResizableEditorWrapper.vue';
 
@@ -44,6 +45,7 @@ export default {
     PinnedMessagesSection,
     ReplyBox,
     Banner,
+    BlacklistBanner,
     ConversationLabelSuggestion,
     Spinner,
     ResizableEditorWrapper,
@@ -460,6 +462,7 @@ export default {
     class="flex flex-col justify-between flex-grow h-full min-w-0 m-0"
   >
     <div ref="topBannerRef">
+      <BlacklistBanner :contact="currentChat.meta?.sender" />
       <Banner
         v-if="!currentChat.can_reply"
         color-scheme="alert"

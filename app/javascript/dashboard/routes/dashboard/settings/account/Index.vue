@@ -16,6 +16,7 @@ import BuildInfo from './components/BuildInfo.vue';
 import AccountDelete from './components/AccountDelete.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import PatraAutomationSettings from './components/PatraAutomationSettings.vue';
+import PatraBusinessSettings from '../PatraBusinessSettings.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
 const INDUSTRIES = [
@@ -42,6 +43,7 @@ export default {
     AccountDelete,
     AudioTranscription,
     PatraAutomationSettings,
+    PatraBusinessSettings,
     SectionLayout,
     WithLabel,
     NextInput,
@@ -275,6 +277,7 @@ export default {
       </SectionLayout>
 
       <PatraAutomationSettings />
+      <PatraBusinessSettings class="mt-6" />
       <woot-loading-state v-if="uiFlags.isFetchingItem" />
     </div>
     <AudioTranscription v-if="showAudioTranscriptionConfig" />

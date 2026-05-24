@@ -42,6 +42,7 @@ import mfa from './mfa.json';
 import onboarding from './onboarding.json';
 import patraConnectFacebook from './patraConnectFacebook.json';
 import patra from './patra.json';
+import patraFeatures from './patraFeatures.json';
 import metaAppSettings from './metaAppSettings.json';
 import paymentHandles from './paymentHandles.json';
 import yearInReview from './yearInReview.json';
@@ -91,6 +92,7 @@ export default {
   ...onboarding,
   ...patraConnectFacebook,
   ...patra,
+  ...patraFeatures,
   ...metaAppSettings,
   ...paymentHandles,
   ...yearInReview,

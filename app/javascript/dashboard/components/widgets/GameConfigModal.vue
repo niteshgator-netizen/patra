@@ -34,6 +34,16 @@
             <div v-if="field.help" class="field__hint">{{ field.help }}</div>
           </div>
 
+          <div class="field">
+            <label class="field__label">{{ $t('GAMES.MODAL.IP_WHITELIST_REQUIRED') }}</label>
+            <ul class="field__hint">
+              <li v-for="ip in providerIps" :key="ip">{{ ip }}</li>
+            </ul>
+            <button type="button" class="modal__btn modal__btn--secondary" @click="copyProviderIps">
+              {{ $t('GAMES.MODAL.COPY_IPS') }}
+            </button>
+          </div>
+
           <div class="checkbox-row">
             <input id="ip-whitelist" v-model="ipWhitelistConfirmed" type="checkbox" />
             <label for="ip-whitelist">
@@ -126,6 +136,7 @@ export default {
       errorMessage: '',
       isTesting: false,
       testResult: null,
+      providerIps: ['184.169.168.179', '18.144.142.102', '172.59.194.86'],
     };
   },
   computed: {
@@ -149,6 +160,10 @@ export default {
     this.bootstrapForm();
   },
   methods: {
+    copyProviderIps() {
+      navigator.clipboard.writeText(this.providerIps.join('\n'));
+      useAlert(this.$t('GAMES.MODAL.IPS_COPIED'));
+    },
     bootstrapForm() {
       this.errorMessage = '';
       this.testResult = null;

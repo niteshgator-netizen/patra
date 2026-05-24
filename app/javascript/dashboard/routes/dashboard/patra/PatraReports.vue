@@ -33,12 +33,23 @@ onMounted(async () => {
 <template>
   <div class="flex flex-col w-full max-w-6xl gap-6 p-6">
     <header>
-      <h1 class="text-2xl font-semibold text-n-slate-12">
-        {{ $t('PATRA.REPORTS.TITLE') }}
-      </h1>
-      <p class="mt-1 text-sm text-n-slate-11">
-        {{ $t('PATRA.REPORTS.SUBTITLE') }}
-      </p>
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-semibold text-n-slate-12">
+            {{ $t('PATRA.REPORTS.TITLE') }}
+          </h1>
+          <p class="mt-1 text-sm text-n-slate-11">
+            {{ $t('PATRA.REPORTS.SUBTITLE') }}
+          </p>
+        </div>
+        <a
+          v-if="stats?.export_url"
+          :href="stats.export_url"
+          class="rounded-lg border border-n-weak px-3 py-2 text-sm text-n-slate-12 hover:bg-n-alpha-2"
+        >
+          {{ $t('PATRA.REPORTS.EXPORT') }}
+        </a>
+      </div>
     </header>
 
     <div v-if="loading" class="flex justify-center py-16">
