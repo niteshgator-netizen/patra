@@ -113,6 +113,12 @@ const replyToPreview = computed(() => {
         class="prose prose-bubble line-clamp-2"
       />
     </div>
+    <p
+      v-if="variant === MESSAGE_VARIANTS.PRIVATE"
+      class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-n-amber-11/80"
+    >
+      {{ t('PATRA.MESSAGE.INTERNAL_NOTE') }}
+    </p>
     <slot />
     <MessageMeta
       v-if="shouldShowMeta"

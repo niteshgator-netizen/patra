@@ -7,6 +7,9 @@ import ConversationCard from './widgets/conversation/ConversationCard.vue';
 import ConversationCardExpanded from 'dashboard/components-next/Conversation/ConversationCard/ConversationCardExpanded.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import ConversationContextMenu from './widgets/conversation/contextMenu/Index.vue';
+import SwipeableConversationItem from './widgets/conversation/SwipeableConversationItem.vue';
+import { useWindowSize } from '@vueuse/core';
+import wootConstants from 'dashboard/constants/globals';
 
 const props = defineProps({
   source: { type: Object, required: true },
@@ -20,6 +23,10 @@ const props = defineProps({
 
 const router = useRouter();
 const store = useStore();
+const { width: windowWidth } = useWindowSize();
+const isMobile = computed(
+  () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
+);
 
 const selectConversation = inject('selectConversation');
 const deSelectConversation = inject('deSelectConversation');
@@ -176,7 +183,14 @@ const onDeleteConversation = () => {
   deleteConversation(props.source.id);
   closeContextMenu();
 };
-</script>
+
+const onSwipeMarkRead = chatId => {
+  markAsRead(chatId);
+};
+
+const onSwipeResolve = chatId => {
+  updateConversationStatus(chatId, wootConstants.STATUS_TYPE.RESOLVED);
+};
 
 <template>
   <!-- Expanded layout: wide screen + expanded setting -->
@@ -198,6 +212,28 @@ const onDeleteConversation = () => {
   />
 
   <!-- Default (condensed) layout -->
+  <SwipeableConversationItem
+    v-else-if="isMobile"
+    :chat-id="source.id"
+    :has-unread="source.unread_count > 0"
+    @mark-read="onSwipeMarkRead"
+    @resolve="onSwipeResolve"
+    @click="onCardClick"
+  >
+    <ConversationCard
+      :chat="source"
+      :current-contact="currentContact"
+      :assignee="assignee"
+      :inbox="inbox"
+      :selected="isConversationSelected(source.id)"
+      :is-active-chat="isActiveChat"
+      :show-assignee="showAssignee"
+      :show-inbox-name="showInboxName"
+      @contextmenu="openContextMenu"
+      @select-conversation="selectConversation"
+      @de-select-conversation="deSelectConversation"
+    />
+  </SwipeableConversationItem>
   <ConversationCard
     v-else
     :chat="source"

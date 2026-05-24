@@ -42,6 +42,7 @@ import FormBubble from './bubbles/Form.vue';
 import VoiceCallBubble from './bubbles/VoiceCall.vue';
 
 import MessageError from './MessageError.vue';
+import QuickEmojiReactions from './QuickEmojiReactions.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
 import { useBranding } from 'shared/composables/useBranding';
 
@@ -365,6 +366,16 @@ const isFailedOrProcessing = computed(() => {
   );
 });
 
+const shouldShowQuickReactions = computed(() => {
+  if (props.private) return false;
+  if (props.messageType !== MESSAGE_TYPES.INCOMING) return false;
+  if (isFailedOrProcessing.value) return false;
+  if (isMessageDeleted.value) return false;
+  if (props.contentAttributes?.isUnsupported) return false;
+
+  return isBubble.value;
+});
+
 const actionBarPositionClass = computed(() =>
   orientation.value === ORIENTATION.RIGHT
     ? 'ltr:left-10 rtl:right-10'
@@ -585,7 +596,7 @@ provideMessageContext({
         <Avatar v-bind="avatarInfo" :size="24" />
       </div>
       <div
-        class="[grid-area:bubble] flex"
+        class="[grid-area:bubble] relative flex"
         :class="{
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
@@ -594,6 +605,10 @@ provideMessageContext({
         }"
         @contextmenu="openContextMenu($event)"
       >
+        <QuickEmojiReactions
+          v-if="shouldShowQuickReactions"
+          :conversation-id="conversationId"
+        />
         <Component :is="componentToRender" />
       </div>
       <MessageError

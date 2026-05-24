@@ -24,10 +24,25 @@
       "TITLE": "Patra business settings",
       "AUTO_RESOLVE_HOURS": "Auto-resolve after (hours, 0 = off)",
       "WEBHOOK_URL": "Outbound webhook URL",
+      "WEBHOOK_TEST": "Test webhook",
+      "WEBHOOK_TEST_SUCCESS": "Test webhook delivered successfully",
+      "WEBHOOK_TEST_ERROR": "Webhook test failed",
       "REENGAGE_MESSAGE": "Re-engagement message template",
       "CASHOUT_APPROVAL": "Cashout approval threshold ($)",
       "ROUND_ROBIN": "Enable round-robin assignment",
-      "ROUND_ROBIN_MAX": "Max open conversations per agent"
+      "ROUND_ROBIN_MAX": "Max open conversations per agent",
+      "SLA_TITLE": "SLA alerts",
+      "SLA_NOTE": "Telegram alerts when conversations exceed these limits.",
+      "FIRST_RESPONSE_LIMIT": "First response limit (minutes)",
+      "RESOLUTION_LIMIT": "Resolution limit (minutes)",
+      "SLA_ALERTS": "Enable SLA Telegram alerts",
+      "KEYWORD_MAPPING_TITLE": "Keyword → tag mapping",
+      "KEYWORD_MAPPING_NOTE": "Auto-tag conversations when incoming messages contain these keywords.",
+      "KEYWORD": "Keyword",
+      "TAG": "Tag",
+      "ACTIONS": "Actions",
+      "ADD_ROW": "Add row",
+      "REMOVE_ROW": "Remove"
     },
     "REPORTS": {
       "NAV": "Reports",
@@ -52,7 +67,47 @@
       "NO_DATA": "No data yet",
       "EXPORT": "Export conversations",
       "REVENUE_BY_GAME": "Revenue by game (30 days)",
-      "NET": "Net"
+      "NET": "Net",
+      "CONVERSATION_VOLUME": "Conversation volume (30 days)",
+      "BUSIEST_HOURS": "Busiest hours (30 days)"
+    },
+    "SIDEBAR": {
+      "OPEN": "Open",
+      "MINE": "Mine",
+      "UNASSIGNED": "Unassigned"
+    },
+    "MESSAGE": {
+      "INTERNAL_NOTE": "🔒 Internal Note"
+    },
+    "MESSAGE_SEARCH": {
+      "TITLE": "Search messages",
+      "PLACEHOLDER": "Search in this conversation…",
+      "HINT": "Type to search messages",
+      "NO_RESULTS": "No matching messages",
+      "FILTER_ALL": "All",
+      "FILTER_INCOMING": "Incoming",
+      "FILTER_OUTGOING": "Outgoing",
+      "FILTER_PRIVATE": "Private"
+    },
+    "INFO_PANEL": {
+      "TITLE": "Conversation info",
+      "CONVERSATION": "Conversation",
+      "CREATED": "Created",
+      "CHANNEL": "Channel",
+      "INBOX": "Inbox",
+      "LABELS": "Labels",
+      "SLA": "SLA",
+      "AGENT": "Agent",
+      "PRIORITY": "Priority",
+      "UNASSIGNED": "Unassigned",
+      "CONTACT": "Contact",
+      "NAME": "Name",
+      "EMAIL": "Email",
+      "PHONE": "Phone"
+    },
+    "SWIPE": {
+      "MARK_READ": "Read",
+      "RESOLVE": "Resolve"
     },
     "PROFILE": {
       "STATS": "Stats",
@@ -70,7 +125,23 @@
       "SUMMARY": "Summary",
       "SUMMARY_LOADING": "Generating summary…",
       "SUMMARY_ERROR": "Summary unavailable",
-      "CLOSE": "Close"
+      "CLOSE": "Close",
+      "CUSTOMER_TYPING": "Customer is typing"
+    },
+    "MESSAGE": {
+      "READ": "Read"
+    },
+    "REPLY": {
+      "CHAR_COUNT": "{current} / {max}"
+    },
+    "CONVERSATION_CARD": {
+      "SLA_WAITING": "Waiting for reply",
+      "GAME_BADGE": "🎰 {game}",
+      "VIP_BADGE": "VIP",
+      "AI_HANDLING": "AI handling",
+      "AI_NEEDS_ATTENTION": "Needs attention",
+      "RESOLVE": "Resolve",
+      "LABEL": "Add label"
     },
     "CANNED": {
       "SUGGESTED": "Suggested:"
@@ -81,7 +152,13 @@
     },
     "SCHEDULED": {
       "SEND_LATER": "Send later",
-      "COMING_SOON": "Scheduled messages coming soon"
+      "COMING_SOON": "Scheduled messages coming soon",
+      "PICK_TIME": "Schedule message",
+      "CONFIRM": "Schedule",
+      "CANCEL": "Cancel",
+      "SUCCESS": "Message scheduled for {time}",
+      "ERROR": "Could not schedule message",
+      "EMPTY_MESSAGE": "Write a message before scheduling"
     },
     "SETTINGS": {
       "BUSINESS_HOURS_TITLE": "Business hours",

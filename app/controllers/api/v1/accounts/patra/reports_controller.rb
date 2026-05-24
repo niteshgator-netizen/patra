@@ -30,6 +30,8 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
       payment_volume: payment_volume_by_day(days: 7),
       agent_performance: Analytics::AgentPerformanceService.new(Current.account, period: today_range).call,
       revenue_by_game: revenue_by_game,
+      conversation_volume_by_day: conversation_volume_by_day(days: 30),
+      busiest_hours: busiest_hours,
       export_url: "/api/v1/accounts/#{Current.account.id}/patra/conversations/export"
     }
   end
@@ -167,5 +169,31 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
       cash_amt = cashouts[[slug, name]].to_f
       { slug: slug, name: name, loads: load_amt.round(2), cashouts: cash_amt.round(2), net: (load_amt - cash_amt).round(2) }
     end.sort_by { |g| -g[:net] }
+  end
+
+  def conversation_volume_by_day(days:)
+    start_date = days.days.ago.beginning_of_day
+    counts = Current.account.conversations
+                    .where('created_at >= ?', start_date)
+                    .group(Arel.sql('DATE(created_at)'))
+                    .count
+
+    ((Date.current - (days - 1))..Date.current).map do |date|
+      { date: date.to_s, count: counts[date].to_i }
+    end
+  end
+
+  def busiest_hours
+    start_date = 30.days.ago.beginning_of_day
+    rows = Current.account.conversations
+                  .where('created_at >= ?', start_date)
+                  .pluck(Arel.sql('EXTRACT(DOW FROM created_at)::integer'), Arel.sql('EXTRACT(HOUR FROM created_at)::integer'))
+
+    grid = Array.new(7) { Array.new(24, 0) }
+    rows.each do |day, hour|
+      grid[day][hour] += 1 if day && hour
+    end
+
+    { days: %w[Sun Mon Tue Wed Thu Fri Sat], hours: (0..23).to_a, grid: grid }
   end
 end

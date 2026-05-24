@@ -13,7 +13,6 @@ const saving = ref(false);
 const startTime = ref('09:00');
 const endTime = ref('17:00');
 const timezone = ref('America/New_York');
-const reengageDays = ref(7);
 const workingDays = ref(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
 
 const dayOptions = computed(() => [
@@ -42,7 +41,6 @@ onMounted(async () => {
     endTime.value = hours.end || '17:00';
     timezone.value = hours.timezone || 'America/New_York';
     workingDays.value = hours.days || workingDays.value;
-    reengageDays.value = data.reengage_days || 7;
   } catch {
     // defaults
   } finally {
@@ -54,7 +52,6 @@ async function saveSettings() {
   saving.value = true;
   try {
     const { data } = await PatraSettingsAPI.update({
-      reengage_days: Number(reengageDays.value) || 7,
       business_hours: {
         start: startTime.value,
         end: endTime.value,
@@ -62,7 +59,6 @@ async function saveSettings() {
         days: workingDays.value,
       },
     });
-    reengageDays.value = data.reengage_days ?? reengageDays.value;
     if (data.business_hours) {
       startTime.value = data.business_hours.start || startTime.value;
       endTime.value = data.business_hours.end || endTime.value;
@@ -122,19 +118,6 @@ async function saveSettings() {
         >
           {{ day.label }}
         </button>
-      </div>
-    </div>
-
-    <div>
-      <h3 class="text-base font-medium text-n-slate-12">
-        {{ $t('PATRA.SETTINGS.REENGAGE_TITLE') }}
-      </h3>
-      <p class="mt-1 text-sm text-n-slate-11">
-        {{ $t('PATRA.SETTINGS.REENGAGE_NOTE') }}
-      </p>
-      <div class="mt-3 flex items-center gap-2">
-        <NextInput v-model="reengageDays" type="number" class="!w-20" />
-        <span class="text-sm text-n-slate-11">{{ $t('PATRA.SETTINGS.DAYS_LABEL') }}</span>
       </div>
     </div>
 

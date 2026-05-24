@@ -1,5 +1,10 @@
 <script>
-import { defineAsyncComponent, ref, computed } from 'vue';
+import { defineAsyncComponent, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useStore } from 'dashboard/composables/store';
+import {
+  updateTabTitle,
+  getTotalUnreadCount,
+} from 'dashboard/helper/tabTitleHelper';
 
 import NextSidebar from 'next/sidebar/Sidebar.vue';
 import WootKeyShortcutModal from 'dashboard/components/widgets/modal/WootKeyShortcutModal.vue';
@@ -44,6 +49,19 @@ export default {
     const { accountId } = useAccount();
     const { width: windowWidth } = useWindowSize();
     const callsStore = useCallsStore();
+    const store = useStore();
+
+    const syncTabTitle = () => {
+      updateTabTitle(getTotalUnreadCount(store.getters.getAllConversations));
+    };
+
+    watch(() => store.getters.getAllConversations, syncTabTitle, { deep: true });
+
+    onMounted(syncTabTitle);
+
+    onBeforeUnmount(() => {
+      updateTabTitle(0);
+    });
 
     return {
       uiSettings,
