@@ -35,6 +35,14 @@
           >
             {{ isChecking ? '…' : $t('GAMES.ACTIONS_MODAL.CHECK_BALANCE_BTN') }}
           </button>
+          <button
+            type="button"
+            class="btn btn--secondary"
+            :disabled="!username || isCreating"
+            @click="onCreatePlayer"
+          >
+            {{ isCreating ? '…' : $t('GAMES.ACTIONS_MODAL.CREATE_PLAYER_BTN') }}
+          </button>
           <button type="button" class="btn btn--secondary" :disabled="diagnosing" @click="runDiagnose">
             {{ diagnosing ? '...' : 'Diagnose' }}
           </button>
@@ -68,6 +76,26 @@
             {{ isSubmitting && submitType === 'cashout' ? '…' : $t('GAMES.ACTIONS_MODAL.CASHOUT_BTN') }}
           </button>
         </div>
+
+        <div class="field">
+          <label class="field__label">{{ $t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_LABEL') }}</label>
+          <input
+            v-model="newPassword"
+            class="field__input"
+            type="text"
+            :placeholder="$t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_PLACEHOLDER')"
+          />
+        </div>
+
+        <div class="action-buttons action-buttons--reset">
+          <button
+            class="btn btn--secondary"
+            :disabled="!username || isResetting"
+            @click="onResetPassword"
+          >
+            {{ isResetting ? '…' : $t('GAMES.ACTIONS_MODAL.RESET_PASSWORD_BTN') }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -75,6 +103,18 @@
 
 <script>
 import GamesAPI from '../../api/games';
+
+const CLUSTER_2_SLUGS = ['mafia', 'game_room', 'cash_machine', 'mr_all_in_one'];
+const FASTAPI_NO_UNDERSCORE_SLUGS = ['vblink', 'ultra_panda'];
+
+function passwordFromUsername(username, gameSlug) {
+  const name = username.toString().trim();
+  if (!name) return '';
+  if (gameSlug && (CLUSTER_2_SLUGS.includes(gameSlug) || FASTAPI_NO_UNDERSCORE_SLUGS.includes(gameSlug))) {
+    return name.replace(/[a-z]{2,3}$/i, '');
+  }
+  return name.split('_')[0] || name;
+}
 
 export default {
   name: 'GamePlayerActionsModal',
@@ -87,8 +127,11 @@ export default {
     return {
       username: '',
       amount: null,
+      newPassword: '',
       balance: null,
       isChecking: false,
+      isCreating: false,
+      isResetting: false,
       isSubmitting: false,
       submitType: null,
       resultBanner: null,
@@ -120,6 +163,38 @@ export default {
         this.resultBanner = { ok: false, message: err.response?.data?.message || 'Check failed' };
       } finally {
         this.isChecking = false;
+      }
+    },
+    async onCreatePlayer() {
+      if (!this.username) return;
+      this.isCreating = true;
+      this.resultBanner = null;
+      this.result = '';
+      try {
+        const password = passwordFromUsername(this.username, this.game.slug);
+        const response = await GamesAPI.addPlayer(this.agentGame.id, {
+          game_username: this.username.trim(),
+          password: password || undefined,
+        });
+        if (response.data.ok) {
+          const pwd = response.data.password || password;
+          this.resultBanner = {
+            ok: true,
+            message: this.$t('GAMES.ACTIONS_MODAL.CREATE_SUCCESS', {
+              username: this.username,
+              password: pwd,
+            }),
+          };
+        } else {
+          this.resultBanner = {
+            ok: false,
+            message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message,
+          };
+        }
+      } catch (err) {
+        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Create failed' };
+      } finally {
+        this.isCreating = false;
       }
     },
     async runDiagnose() {
@@ -191,6 +266,35 @@ export default {
       } finally {
         this.isSubmitting = false;
         this.submitType = null;
+      }
+    },
+    async onResetPassword() {
+      if (!this.username) return;
+      this.isResetting = true;
+      this.resultBanner = null;
+      this.result = '';
+      try {
+        const payload = { game_username: this.username.trim() };
+        if (this.newPassword.trim()) payload.new_password = this.newPassword.trim();
+        const response = await GamesAPI.resetPlayerPassword(this.agentGame.id, payload);
+        if (response.data.ok) {
+          this.resultBanner = {
+            ok: true,
+            message: this.$t('GAMES.ACTIONS_MODAL.RESET_SUCCESS', {
+              password: response.data.new_password,
+            }),
+          };
+          this.newPassword = '';
+        } else {
+          this.resultBanner = {
+            ok: false,
+            message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message,
+          };
+        }
+      } catch (err) {
+        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Reset failed' };
+      } finally {
+        this.isResetting = false;
       }
     },
   },
@@ -302,6 +406,12 @@ export default {
 .action-buttons {
   display: flex; gap: 8px; margin-top: 16px;
   padding-top: 16px; border-top: 1px solid #2D2356;
+
+  &--reset {
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
+  }
 }
 
 .result-banner {

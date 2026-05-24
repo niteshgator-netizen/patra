@@ -41,6 +41,43 @@
             </label>
           </div>
         </div>
+
+        <div v-if="game.has_api" class="section">
+          <h4 class="section__title">{{ $t('GAMES.MODAL.LIMITS_TAB') }}</h4>
+          <div class="field">
+            <label class="field__label">{{ $t('GAMES.MODAL.LOW_BALANCE_THRESHOLD_LABEL') }}</label>
+            <input
+              v-model="credentials.low_balance_threshold"
+              type="number"
+              min="0"
+              step="1"
+              class="field__input"
+              :placeholder="$t('GAMES.MODAL.LOW_BALANCE_THRESHOLD_PLACEHOLDER')"
+            />
+          </div>
+          <div class="field">
+            <label class="field__label">{{ $t('GAMES.MODAL.MAX_LOAD_AMOUNT_LABEL') }}</label>
+            <input
+              v-model="credentials.max_load_amount"
+              type="number"
+              min="0"
+              step="0.01"
+              class="field__input"
+              :placeholder="$t('GAMES.MODAL.MAX_LOAD_AMOUNT_PLACEHOLDER')"
+            />
+          </div>
+          <div class="field">
+            <label class="field__label">{{ $t('GAMES.MODAL.MAX_CASHOUT_AMOUNT_LABEL') }}</label>
+            <input
+              v-model="credentials.max_cashout_amount"
+              type="number"
+              min="0"
+              step="0.01"
+              class="field__input"
+              :placeholder="$t('GAMES.MODAL.MAX_CASHOUT_AMOUNT_PLACEHOLDER')"
+            />
+          </div>
+        </div>
       </div>
 
       <footer class="modal__foot">
@@ -129,6 +166,9 @@ export default {
             creds[name] = creds[name] || '';
           }
         }
+      });
+      ['low_balance_threshold', 'max_load_amount', 'max_cashout_amount'].forEach((key) => {
+        if (creds[key] == null) creds[key] = '';
       });
       this.credentials = creds;
       this.ipWhitelistConfirmed = this.agentGame?.ip_whitelist_confirmed || false;

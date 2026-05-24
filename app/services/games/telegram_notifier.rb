@@ -89,6 +89,22 @@ module Games
         notify(account: account, event: nil, text: text, ignore_filters: true)
       end
 
+      def low_balance_alert(game_name:, balance:, threshold:, account:)
+        msg = "⚠️ Low balance on #{game_name}\n" \
+              "Balance: $#{'%.2f' % balance}\n" \
+              "Threshold: $#{threshold}\n" \
+              "Top up soon!"
+        send_to_cashout_group(msg, account: account)
+      end
+
+      def send_to_cashout_group(text, account: nil)
+        token = ENV['TELEGRAM_BOT_TOKEN'].presence
+        chat_id = ENV['TELEGRAM_CASHOUT_GROUP_ID'].presence || ENV['TELEGRAM_CHAT_ID'].presence
+        return { ok: false, reason: 'no telegram configured' } if token.blank? || chat_id.blank?
+
+        send_message_plain(token, chat_id, text)
+      end
+
       # Send raw text (used by Test Connection with explicit credentials)
       def send_raw(bot_token:, chat_id:, text:)
         send_message(bot_token, chat_id, text)
@@ -277,6 +293,33 @@ module Games
           chat_id: chat_id,
           text: text,
           parse_mode: 'MarkdownV2',
+          disable_web_page_preview: true
+        }.to_json
+
+        response = http.request(req)
+        if response.is_a?(Net::HTTPSuccess)
+          { ok: true, status: response.code }
+        else
+          body_preview = response.body.to_s[0..300]
+          Rails.logger.error("[Telegram] non-2xx response: #{response.code} body=#{body_preview}")
+          { ok: false, status: response.code, body: body_preview }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Telegram] send failed: #{e.message}")
+        { ok: false, error: e.message }
+      end
+
+      def send_message_plain(bot_token, chat_id, text)
+        uri = URI("https://api.telegram.org/bot#{bot_token}/sendMessage")
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.read_timeout = 5
+        http.open_timeout = 5
+
+        req = Net::HTTP::Post.new(uri.request_uri, 'Content-Type' => 'application/json')
+        req.body = {
+          chat_id: chat_id,
+          text: text,
           disable_web_page_preview: true
         }.to_json
 

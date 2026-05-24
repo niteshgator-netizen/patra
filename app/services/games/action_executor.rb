@@ -65,6 +65,9 @@ module Games
     end
 
     def load_player(game_username:, amount:, payment_method: nil, payment_handle: nil, metadata: {}, order_id: nil)
+      limit_error = amount_limit_error('max_load_amount', amount)
+      return limit_error if limit_error
+
       order_id ||= GameAction.generate_order_id(prefix: 'load')
 
       # Idempotency check — same order_id can't be re-executed
@@ -86,7 +89,7 @@ module Games
         status: 'pending'
       )
 
-      execute_in_audit(action) do
+      result = execute_in_audit(action) do
         client = client_for(agent_game)
         # Look up user_id from username
         user_lookup = client.get_user_id(account_name: game_username)
@@ -98,9 +101,15 @@ module Games
         # Execute recharge
         client.recharge(user_id: user_id, amount: amount.to_s, order_id: order_id)
       end
+
+      check_low_balance_alert(result)
+      result
     end
 
     def cashout_player(game_username:, amount:, payment_method: nil, metadata: {}, order_id: nil)
+      limit_error = amount_limit_error('max_cashout_amount', amount)
+      return limit_error if limit_error
+
       order_id ||= GameAction.generate_order_id(prefix: 'cash')
 
       existing = GameAction.find_by(account_id: agent_game.account_id, order_id: order_id)
@@ -210,6 +219,52 @@ module Games
       client = Games::ClientRegistry.client_for(ag)
       raise "Game #{ag.game.slug} not yet integrated" unless client
       client
+    end
+
+    def amount_limit_error(credential_key, amount)
+      max = agent_game.credentials.to_h[credential_key.to_s].to_i
+      return nil if max <= 0
+      return nil unless amount.to_f > max
+
+      { ok: false, error: "Amount $#{amount} exceeds max $#{max} for #{agent_game.game.name}" }
+    end
+
+    def check_low_balance_alert(result)
+      return unless result[:ok]
+
+      agent_balance = result.dig(:response, 'data', 'agent_balance')
+      if agent_balance.blank?
+        begin
+          bal_result = client_for(agent_game).agent_balance
+          agent_balance = bal_result.dig('data', 'agent_balance') if bal_result.is_a?(Hash)
+          agent_balance ||= bal_result[:agent_balance] if bal_result.is_a?(Hash)
+        rescue StandardError => e
+          Rails.logger.warn("[ActionExecutor] low balance check skipped: #{e.class}: #{e.message}")
+          return
+        end
+      end
+      return if agent_balance.blank?
+
+      threshold = agent_game.credentials.to_h['low_balance_threshold'].to_i
+      return if threshold <= 0
+
+      balance = agent_balance.to_f
+      return if balance >= threshold
+
+      safe_telegram do
+        Games::TelegramNotifier.low_balance_alert(
+          game_name: agent_game.game.name,
+          balance: balance,
+          threshold: threshold,
+          account: agent_game.account
+        )
+      end
+    end
+
+    def safe_telegram
+      yield
+    rescue StandardError => e
+      Rails.logger.error("[ActionExecutor] Telegram call failed: #{e.class}: #{e.message}")
     end
 
     def execute_in_audit(action)
