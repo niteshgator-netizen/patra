@@ -182,7 +182,7 @@
         "GRAMMAR": "Fix grammar & spelling",
         "SUGGESTION": "Suggest a reply",
         "SUMMARIZE": "Summarize the conversation",
-        "ASK_COPILOT": "Ask Copilot"
+        "ASK_COPILOT": "Ask Bella"
       },
       "ASSISTANCE_MODAL": {
         "DRAFT_TITLE": "Draft content",
@@ -398,13 +398,13 @@
       "EMPTY_LIST": "No assistants found, please create one to get started"
     },
     "COPILOT": {
-      "TITLE": "Copilot",
+      "TITLE": "Bella",
       "TRY_THESE_PROMPTS": "Try these prompts",
-      "PANEL_TITLE": "Get started with Copilot",
-      "KICK_OFF_MESSAGE": "Need a quick summary, want to check past conversations, or draft a better reply? Copilot’s here to speed things up.",
+      "PANEL_TITLE": "Get started with Bella",
+      "KICK_OFF_MESSAGE": "Need a quick summary, want to check past conversations, or draft a better reply? Bella's here to speed things up.",
       "SEND_MESSAGE": "Send message...",
       "EMPTY_MESSAGE": "There was an error generating the response. Please try again.",
-      "LOADER": "Captain is thinking",
+      "LOADER": "Bella is thinking",
       "YOU": "You",
       "USE": "Use this",
       "RESET": "Reset",

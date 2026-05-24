@@ -189,10 +189,6 @@ const isPinned = computed(
   () => currentChat.value?.additional_attributes?.pinned === true
 );
 
-const summaryText = ref('');
-const summaryLoading = ref(false);
-const showSummary = ref(false);
-
 const togglePin = async () => {
   const id = props.chat?.id;
   if (!id) return;
@@ -210,22 +206,6 @@ const togglePin = async () => {
     });
   } catch {
     useAlert(t('PATRA.CONVERSATION.PIN_ERROR'));
-  }
-};
-
-const fetchSummary = async () => {
-  const id = props.chat?.id;
-  if (!id || summaryLoading.value) return;
-  showSummary.value = true;
-  summaryLoading.value = true;
-  summaryText.value = '';
-  try {
-    const { data } = await PatraConversationsAPI.getSummary(id);
-    summaryText.value = data.summary || t('PATRA.CONVERSATION.SUMMARY_ERROR');
-  } catch {
-    summaryText.value = t('PATRA.CONVERSATION.SUMMARY_ERROR');
-  } finally {
-    summaryLoading.value = false;
   }
 };
 </script>
@@ -314,7 +294,7 @@ const fetchSummary = async () => {
         :parent-width="width"
         class="hidden md:flex"
       />
-      <!-- Patra: pin + summary -->
+      <!-- Patra: pin -->
       <button
         type="button"
         class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
@@ -324,31 +304,6 @@ const fetchSummary = async () => {
       >
         📌
       </button>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2 disabled:opacity-60"
-        :disabled="summaryLoading"
-        @click="fetchSummary"
-      >
-        <span v-if="summaryLoading" class="inline-block size-3 animate-spin rounded-full border-2 border-n-slate-8 border-t-n-brand" />
-        📋 {{ $t('PATRA.CONVERSATION.SUMMARY') }}
-      </button>
-      <div
-        v-if="showSummary"
-        class="absolute top-full right-0 z-30 mt-1 w-72 max-w-sm rounded-lg border border-n-weak bg-n-solid-1 p-3 text-xs text-n-slate-12 shadow-lg"
-      >
-        <p v-if="summaryLoading" class="m-0 text-n-slate-11">
-          {{ $t('PATRA.CONVERSATION.SUMMARY_LOADING') }}
-        </p>
-        <p v-else class="m-0 whitespace-pre-wrap">{{ summaryText }}</p>
-        <button
-          type="button"
-          class="mt-2 text-n-brand hover:underline"
-          @click="showSummary = false"
-        >
-          {{ $t('PATRA.CONVERSATION.CLOSE') }}
-        </button>
-      </div>
       <!-- Patra: AI status / pause toggle -->
       <button
         type="button"
