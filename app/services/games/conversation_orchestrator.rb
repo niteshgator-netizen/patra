@@ -125,7 +125,8 @@ module Games
     private
 
     def handle_load_intent(intent)
-      ag = pick_agent_game(chosen_game_slug(intent))
+      ag = agent_game_for_intent(intent)
+      return ag if ag.is_a?(Hash)
       return nil unless ag
 
       requested_amount = intent[:amount].to_f
@@ -241,7 +242,8 @@ module Games
       # Prevents stale state across turns. Wrapped safe — never blocks the flow.
       clear_stale_cashout_label_safely
 
-      ag = pick_agent_game(chosen_game_slug(intent))
+      ag = agent_game_for_intent(intent)
+      return ag if ag.is_a?(Hash)
       return nil unless ag
 
       username = intent[:game_username] || stored_game_username(ag.game.slug)
@@ -339,7 +341,8 @@ module Games
     end
 
     def handle_username_provided(intent)
-      ag = pick_agent_game(chosen_game_slug(intent))
+      ag = agent_game_for_intent(intent)
+      return ag if ag.is_a?(Hash)
       return nil unless ag
 
       username = intent[:game_username]
@@ -429,7 +432,8 @@ module Games
     end
 
     def handle_account_creation_request(intent)
-      ag = pick_agent_game(chosen_game_slug(intent))
+      ag = agent_game_for_intent(intent)
+      return ag if ag.is_a?(Hash)
       return nil unless ag
 
       # Check if customer wants to create a DIFFERENT account (replace existing)
@@ -724,13 +728,43 @@ module Games
     end
 
     def pick_agent_game(game_slug)
-      ag = account.agent_games.joins(:game).where(games: { slug: game_slug }, status: 'active').first
-      unless ag
-        any_ag = account.agent_games.joins(:game).where(games: { slug: game_slug }).first
-        Rails.logger.warn("[Orchestrator] pick_agent_game: no active agent_game for slug=#{game_slug} account=#{account.id} fallback_id=#{any_ag&.id.inspect} fallback_status=#{any_ag&.status.inspect}")
-        ag = any_ag
+      return nil if game_slug.blank?
+
+      account.agent_games.joins(:game).where(games: { slug: game_slug }, status: 'active').first
+    end
+
+    def agent_game_for_intent(intent)
+      slug = chosen_game_slug(intent)
+      ag = pick_agent_game(slug)
+      return ag if ag
+
+      detected_slug = intent.is_a?(Hash) ? intent[:game_slug] : nil
+      if detected_slug.present?
+        Rails.logger.info("[Orchestrator] detected game unavailable slug=#{detected_slug} account=#{account.id}")
+        return { reply: unavailable_game_reply(detected_slug), labels: ['game-unavailable'] }
       end
-      ag
+
+      nil
+    end
+
+    def active_game_names
+      account.agent_games.joins(:game).where(status: 'active').map { |ag| ag.game.name }
+    end
+
+    def active_games_list_text
+      names = active_game_names
+      names.present? ? names.join(', ') : 'no games'
+    end
+
+    def unavailable_game_reply(detected_slug)
+      list = active_games_list_text
+      game = Game.find_by(slug: detected_slug)
+
+      if game
+        "we don't have #{game.name} set up right now. we got #{list} — which one you want?"
+      else
+        "i don't recognize that game. we got #{list} — which one you want?"
+      end
     end
 
     def latest_customer_text
@@ -990,14 +1024,19 @@ module Games
     # Falls back to stored username and auto-generated password if not provided.
     def handle_reset_password_intent(intent)
       game_slug = intent[:game_slug]
-      ag = pick_agent_game(game_slug) if game_slug.present?
-      ag ||= account.agent_games.joins(:game).where(status: 'active').first
-
-      unless ag
-        return {
-          reply: "which game do you want me to reset? (juwa, milky way, mafia, etc.)",
-          labels: ['reset-needs-game']
-        }
+      if game_slug.present?
+        ag = pick_agent_game(game_slug)
+        unless ag
+          return { reply: unavailable_game_reply(game_slug), labels: ['game-unavailable'] }
+        end
+      else
+        ag = account.agent_games.joins(:game).where(status: 'active').first
+        unless ag
+          return {
+            reply: "which game do you want me to reset? (juwa, milky way, mafia, etc.)",
+            labels: ['reset-needs-game']
+          }
+        end
       end
 
       # Resolve the username: explicit > stored. Don't auto-create here — reset on a
