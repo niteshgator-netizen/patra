@@ -182,13 +182,10 @@ module Games
     end
 
     def player_exists_after_create?(game_username)
-      !check_player_balance(game_username: game_username).nil?
-    rescue Encoding::CompatibilityError => e
-      Rails.logger.warn(
-        "[ActionExecutor] player_exists_after_create? encoding error for #{game_username}: #{e.class}: #{e.message}"
-      )
-      false
-    rescue StandardError => e
+      client = Games::ClientRegistry.client_for(agent_game)
+      result = client.get_user_id(account_name: game_username)
+      result.is_a?(Hash) && result.dig('data', 'user_id').present?
+    rescue StandardError, Encoding::CompatibilityError => e
       Rails.logger.warn(
         "[ActionExecutor] player_exists_after_create? failed for #{game_username}: #{e.class}: #{e.message}"
       )
