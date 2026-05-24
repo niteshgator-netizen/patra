@@ -66,6 +66,15 @@ module PatraAuditHooks
   end
 end
 
-Message.include PatraAuditHooks
-Conversation.include PatraAuditHooks
-Contact.include PatraAuditHooks
+ActiveSupport::Reloader.to_prepare do
+  
+  
+  
+end
+
+
+ActiveSupport::Reloader.to_prepare do
+  Message.include PatraAuditHooks
+  Conversation.include PatraAuditHooks
+  Contact.include PatraAuditHooks
+end
