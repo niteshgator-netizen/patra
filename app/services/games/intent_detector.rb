@@ -104,20 +104,44 @@ module Games
 
     CREATE_ACCOUNT_PATTERNS = [
       /create\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account|profile|login|it)/i,
+      /create\s+me\s+one\b/i,
+      /create\s+me\s+an?\s+account\b/i,
+      /create\s+one\s+for\s+me\b/i,
       /make\s+(?:me\s+)?(?:a\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account)/i,
+      /make\s+me\s+one\b/i,
+      /make\s+me\s+an?\s+account\b/i,
+      /make\s+one\s+for\s+me\b/i,
       /(?:i\s+)?need\s+(?:an?\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account)/i,
       /(?:can\s+you\s+)?sign\s+me\s+up/i,
+      /\bsign\s+up\b/i,
+      /register\s+me\b/i,
       /set\s+(?:me\s+)?up\s+(?:a\s+)?(?:new\s+)?(?:.+\s+)?(?:account|username)/i,
+      /set\s+me\s+up\b/i,
+      /set\s+up\s+an?\s+account\b/i,
+      /set\s+up\s+my\s+account\b/i,
       /never\s+played\s+(?:before|here)/i,
       /first\s+time\s+(?:playing|here)/i,
       /(?:i\s+)?don'?t\s+have\s+(?:a\s+)?(?:username|account)/i,
+      /(?:i\s+)?don'?t\s+have\s+one\b/i,
+      /dont\s+have\s+one\b/i,
       /(?:set\s+it\s+up|set\s+me\s+up)/i,
       /give\s+me\s+(?:an?\s+)?(?:new\s+)?(?:.+\s+)?account/i,
+      /give\s+me\s+one\b/i,
       /(?:i\s+)?want\s+(?:an?\s+)?(?:new\s+)?(?:.+\s+)?account/i,
+      /i\s+want\s+an?\s+account\b/i,
+      /i\s+need\s+an?\s+account\b/i,
+      /i\s+need\s+one\b/i,
+      /get\s+me\s+an?\s+account\b/i,
+      /can\s+you\s+create\b/i,
+      /can\s+you\s+make\b/i,
+      /can\s+i\s+get\s+an?\s+account\b/i,
+      /\bnew\s+account\b/i,
+      /open\s+an?\s+account\b/i,
       /(?:i\s+)?(?:want|wanna|need)\s+(?:to\s+)?(?:join|start|play|get\s+(?:in|started))/i,
       /(?:can\s+i\s+)?get\s+(?:me\s+)?(?:a\s+|an\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account|profile|login)/i,
       /make\s+(?:me\s+)?(?:a\s+)?(?:brand\s+)?(?:new\s+)?(?:.+\s+)?account/i,
-      /(?:hook|set)\s+me\s+up/i
+      /(?:hook|set)\s+me\s+up/i,
+      /hook\s+me\s+up\b/i
     ].freeze
 
     # Customer asks to reset their game password. Multiple natural phrasings.
@@ -254,9 +278,9 @@ module Games
           return nil if text.blank?
           return nil unless match_any(text, CREATE_ACCOUNT_PATTERNS)
 
-          slug = resolve_game_slug(text)
+          slug = detect_game(text)
           Rails.logger.info("[IntentDetector] matched request_account_creation slug=#{slug.inspect}")
-          { intent: :request_account_creation, game_slug: slug }
+          { intent: :request_account_creation, game_slug: slug.presence }
         rescue StandardError => e
           Rails.logger.warn("[IntentDetector] detect_account_creation_request failed: #{e.class}: #{e.message}")
           nil
