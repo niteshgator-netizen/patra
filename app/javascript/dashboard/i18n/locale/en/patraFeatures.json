@@ -24,11 +24,18 @@
     "BLACKLIST": "Blacklist",
     "SEND_CREDENTIALS": "Send",
     "BONUS_HISTORY": "Bonus history",
+    "LOAD_HISTORY": "Load history",
     "CASHOUT_HISTORY": "Cashout history",
     "ADD_BONUS": "Add bonus",
     "REFERRED_BY": "Referred by",
     "REFERRALS": "Referrals",
     "MERGE": "Merge with…",
-    "LIFECYCLE": "Lifecycle stage"
+    "LIFECYCLE": "Lifecycle stage",
+    "TOTAL_LOADED": "Total loaded",
+    "TOTAL_CASHED_OUT": "Total cashed out",
+    "NET": "Net",
+    "AGENT_NOTES": "Agent notes",
+    "AGENT_NOTES_PLACEHOLDER": "Freeform notes about this customer…",
+    "AGENT_NOTES_UPDATED": "Last updated {time}"
   }
 }

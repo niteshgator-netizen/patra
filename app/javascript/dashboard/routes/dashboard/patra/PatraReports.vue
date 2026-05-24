@@ -18,6 +18,30 @@ const maxPaymentDay = computed(() => {
   return Math.max(...rows.flatMap(r => [r.deposits, r.cashouts]), 1);
 });
 
+const maxRevenueNet = computed(() => {
+  const rows = stats.value?.revenue_by_game || [];
+  return Math.max(...rows.map(r => Math.abs(r.net)), 1);
+});
+
+const maxVolumeDay = computed(() => {
+  const rows = stats.value?.conversation_volume_by_day || [];
+  return Math.max(...rows.map(r => r.count), 1);
+});
+
+const maxHeatmapCell = computed(() => {
+  const grid = stats.value?.busiest_hours?.grid || [];
+  return Math.max(...grid.flat(), 1);
+});
+
+const heatmapCellClass = count => {
+  if (!count) return 'bg-n-alpha-1';
+  const ratio = count / maxHeatmapCell.value;
+  if (ratio > 0.75) return 'bg-n-brand';
+  if (ratio > 0.5) return 'bg-n-brand/70';
+  if (ratio > 0.25) return 'bg-n-brand/40';
+  return 'bg-n-brand/20';
+};
+
 onMounted(async () => {
   try {
     const { data } = await PatraReportsAPI.get();
@@ -199,6 +223,98 @@ onMounted(async () => {
           </p>
         </section>
       </div>
+
+      <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+        <h2 class="mb-4 text-sm font-semibold text-n-slate-12">
+          {{ $t('PATRA.REPORTS.REVENUE_BY_GAME') }}
+        </h2>
+        <div v-if="stats.revenue_by_game?.length" class="space-y-3">
+          <div v-for="game in stats.revenue_by_game" :key="game.slug">
+            <div class="mb-1 flex justify-between text-xs text-n-slate-11">
+              <span>{{ game.name }}</span>
+              <span :class="game.net >= 0 ? 'text-n-brand' : 'text-n-ruby-11'">
+                ${{ game.net }}
+              </span>
+            </div>
+            <div class="h-3 overflow-hidden rounded-full bg-n-alpha-2">
+              <div
+                class="h-full rounded-full"
+                :class="game.net >= 0 ? 'bg-n-brand' : 'bg-n-ruby-9'"
+                :style="{
+                  width: `${(Math.abs(game.net) / maxRevenueNet) * 100}%`,
+                }"
+              />
+            </div>
+          </div>
+        </div>
+        <p v-else class="text-sm text-n-slate-11">
+          {{ $t('PATRA.REPORTS.NO_DATA') }}
+        </p>
+      </section>
+
+      <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+        <h2 class="mb-4 text-sm font-semibold text-n-slate-12">
+          {{ $t('PATRA.REPORTS.CONVERSATION_VOLUME') }}
+        </h2>
+        <div
+          v-if="stats.conversation_volume_by_day?.length"
+          class="flex items-end gap-1 h-32"
+        >
+          <div
+            v-for="row in stats.conversation_volume_by_day"
+            :key="row.date"
+            class="flex flex-1 flex-col items-center justify-end gap-1 min-w-0"
+          >
+            <div
+              class="w-full rounded-t bg-n-brand min-h-[2px]"
+              :style="{ height: `${(row.count / maxVolumeDay) * 100}%` }"
+              :title="`${row.date}: ${row.count}`"
+            />
+            <span class="text-[9px] text-n-slate-10 truncate w-full text-center">
+              {{ row.date.slice(5) }}
+            </span>
+          </div>
+        </div>
+        <p v-else class="text-sm text-n-slate-11">
+          {{ $t('PATRA.REPORTS.NO_DATA') }}
+        </p>
+      </section>
+
+      <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+        <h2 class="mb-4 text-sm font-semibold text-n-slate-12">
+          {{ $t('PATRA.REPORTS.BUSIEST_HOURS') }}
+        </h2>
+        <div v-if="stats.busiest_hours?.grid?.length" class="overflow-x-auto">
+          <div class="inline-grid gap-0.5" style="grid-template-columns: 32px repeat(24, 1fr)">
+            <div />
+            <span
+              v-for="hour in stats.busiest_hours.hours"
+              :key="hour"
+              class="text-center text-[9px] text-n-slate-10"
+            >
+              {{ hour % 6 === 0 ? hour : '' }}
+            </span>
+            <template
+              v-for="(dayRow, dayIndex) in stats.busiest_hours.grid"
+              :key="stats.busiest_hours.days[dayIndex]"
+            >
+              <span class="text-[10px] text-n-slate-10 pr-1 text-right">
+                {{ stats.busiest_hours.days[dayIndex] }}
+              </span>
+              <div
+                v-for="(count, hourIndex) in dayRow"
+                :key="`${dayIndex}-${hourIndex}`"
+                class="size-3 rounded-sm"
+                :class="heatmapCellClass(count)"
+                :title="`${stats.busiest_hours.days[dayIndex]} ${hourIndex}:00 — ${count}`"
+              />
+            </template>
+          </div>
+        </div>
+        <p v-else class="text-sm text-n-slate-11">
+          {{ $t('PATRA.REPORTS.NO_DATA') }}
+        </p>
+      </section>
 
       <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
         <h2 class="mb-4 text-sm font-semibold text-n-slate-12">

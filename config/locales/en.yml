@@ -337,6 +337,24 @@ en:
       channel_disconnected: 'Facebook is disconnected for this inbox. Reconnect the channel and try again.'
       not_dormant: 'This contact messaged recently; re-engagement is only for dormant players (7+ days).'
       error: 'Could not send the re-engagement message. Please try again later.'
+  patra:
+    settings:
+      webhook_url_blank: 'Webhook URL is not configured'
+      webhook_test_success: 'Test webhook delivered successfully'
+      webhook_test_failed: 'Webhook test failed (HTTP %{status})'
+      webhook_test_payload: 'Patra webhook connection test'
+    reports:
+      daily_summary: |
+        📊 Daily Summary — %{account}
+        Date: %{date}
+
+        Conversations: %{conversations}
+        Messages in: %{messages_in}
+        Messages out: %{messages_out}
+        AI handle rate: %{ai_handle_rate}%
+        Loads: $%{loads_amount} (%{loads_count} txns)
+        Cashouts: $%{cashouts_amount} (%{cashouts_count} txns)
+        Net: $%{net}
   integration_apps:
     # Note: webhooks and dashboard_apps don't need short_description as they use different modal components
     dashboard_apps:

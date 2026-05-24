@@ -337,7 +337,9 @@ Rails.application.routes.draw do
             get 'conversations/export', to: 'conversations_export#show'
             get 'game_health', to: 'game_health#index'
             resources :holidays, only: [:index, :create, :destroy]
-            resource :settings, only: [:show, :update], controller: 'settings'
+            resource :settings, only: [:show, :update], controller: 'settings' do
+              post :test_webhook
+            end
             scope 'conversations/:conversation_id' do
               get 'summary', to: 'conversation_summary#show'
               post 'toggle_pin', to: 'conversations#toggle_pin'

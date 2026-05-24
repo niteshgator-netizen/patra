@@ -9,6 +9,10 @@ class PatraSettingsAPI extends ApiClient {
   update(data) {
     return axios.patch(this.url, data);
   }
+
+  testWebhook() {
+    return axios.post(`${this.url}/test_webhook`);
+  }
 }
 
 export default new PatraSettingsAPI();

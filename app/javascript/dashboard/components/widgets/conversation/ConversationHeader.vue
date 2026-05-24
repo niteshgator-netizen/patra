@@ -18,6 +18,8 @@ import { emitter } from 'shared/helpers/mitt';
 import ContactAPI from 'dashboard/api/contacts';
 import PatraConversationsAPI from 'dashboard/api/patraConversations';
 import types from 'dashboard/store/mutation-types';
+import ConversationMessageSearch from './ConversationMessageSearch.vue';
+import ConversationInfoPanel from './ConversationInfoPanel.vue';
 
 const props = defineProps({
   chat: {
@@ -192,6 +194,9 @@ const isPinned = computed(() => {
   return pinned === true || pinned === 'true';
 });
 
+const showMessageSearch = ref(false);
+const showInfoPanel = ref(false);
+
 const togglePin = async () => {
   const id = Number(props.chat?.id);
   if (!id) return;
@@ -297,6 +302,36 @@ const togglePin = async () => {
         show-extended-info
         :parent-width="width"
         class="hidden md:flex"
+      />
+      <div class="relative">
+        <button
+          type="button"
+          class="inline-flex items-center justify-center size-8 rounded-full border border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+          :title="$t('PATRA.MESSAGE_SEARCH.TITLE')"
+          :aria-label="$t('PATRA.MESSAGE_SEARCH.TITLE')"
+          @click="showMessageSearch = !showMessageSearch"
+        >
+          <span class="i-lucide-search size-4" />
+        </button>
+        <ConversationMessageSearch
+          v-if="showMessageSearch"
+          :conversation-id="chat.id"
+          @close="showMessageSearch = false"
+        />
+      </div>
+      <button
+        type="button"
+        class="inline-flex items-center justify-center size-8 rounded-full border border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+        :title="$t('PATRA.INFO_PANEL.TITLE')"
+        :aria-label="$t('PATRA.INFO_PANEL.TITLE')"
+        @click="showInfoPanel = true"
+      >
+        <span class="i-lucide-info size-4" />
+      </button>
+      <ConversationInfoPanel
+        :chat="chat"
+        :show="showInfoPanel"
+        @close="showInfoPanel = false"
       />
       <!-- Patra: pin -->
       <button

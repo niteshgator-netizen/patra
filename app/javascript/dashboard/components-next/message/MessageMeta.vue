@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { messageTimestamp } from 'shared/helpers/timeHelper';
 
 import MessageStatus from './MessageStatus.vue';
@@ -32,8 +33,14 @@ const {
   contentAttributes,
 } = useMessageContext();
 
+const { t } = useI18n();
+
 const readableTime = computed(() =>
   messageTimestamp(createdAt.value, 'LLL d, h:mm a')
+);
+
+const exactTimestamp = computed(() =>
+  messageTimestamp(createdAt.value, 'EEEE, MMMM d, yyyy h:mm:ss a')
 );
 
 const showStatusIndicator = computed(() => {
@@ -123,21 +130,54 @@ const isRead = computed(() => {
 });
 
 const statusToShow = computed(() => {
-  if (isRead.value) return MESSAGE_STATUS.READ;
+  if (isRead.value || contentAttributes.value?.read_at) return MESSAGE_STATUS.READ;
   if (isDelivered.value) return MESSAGE_STATUS.DELIVERED;
   if (isSent.value) return MESSAGE_STATUS.SENT;
 
   return MESSAGE_STATUS.PROGRESS;
+});
+
+const hasPatraReadReceipt = computed(
+  () => !!contentAttributes.value?.read_at && showStatusIndicator.value
+);
+
+const patraReadLabel = computed(() => {
+  if (hasPatraReadReceipt.value) {
+    return {
+      text: `✓✓ ${t('PATRA.MESSAGE.READ')}`,
+      class: 'text-[#7EB6FF]',
+    };
+  }
+
+  if (isSent.value || isDelivered.value) {
+    return {
+      text: '✓',
+      class: 'text-n-slate-10',
+    };
+  }
+
+  return null;
 });
 </script>
 
 <template>
   <div class="text-xs flex items-center gap-1.5">
     <div class="inline">
-      <time class="inline">{{ readableTime }}</time>
+      <time v-tooltip.top="exactTimestamp" class="inline cursor-default">
+        {{ readableTime }}
+      </time>
     </div>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
-    <MessageStatus v-if="showStatusIndicator" :status="statusToShow" />
+    <span
+      v-if="patraReadLabel"
+      class="text-xs"
+      :class="patraReadLabel.class"
+    >
+      {{ patraReadLabel.text }}
+    </span>
+    <MessageStatus
+      v-else-if="showStatusIndicator"
+      :status="statusToShow"
+    />
   </div>
 </template>
-`

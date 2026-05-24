@@ -13,10 +13,11 @@ import VideoCallButton from '../VideoCallButton.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { mapGetters } from 'vuex';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import ScheduleMessagePopover from '../conversation/ScheduleMessagePopover.vue';
 
 export default {
   name: 'ReplyBottomPanel',
-  components: { NextButton, FileUpload, VideoCallButton },
+  components: { NextButton, FileUpload, VideoCallButton, ScheduleMessagePopover },
   mixins: [inboxMixin],
   props: {
     isNote: {
@@ -133,6 +134,7 @@ export default {
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
+    'messageScheduled',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -170,6 +172,7 @@ export default {
   data() {
     return {
       ALLOWED_FILE_TYPES,
+      showSchedulePopover: false,
     };
   },
   computed: {
@@ -281,7 +284,17 @@ export default {
       this.$emit('toggleInsertArticle');
     },
     sendLater() {
-      useAlert(this.$t('PATRA.SCHEDULED.COMING_SOON'));
+      if (!this.message.trim()) {
+        useAlert(this.$t('PATRA.SCHEDULED.EMPTY_MESSAGE'));
+        return;
+      }
+      this.showSchedulePopover = true;
+    },
+    closeSchedulePopover() {
+      this.showSchedulePopover = false;
+    },
+    onMessageScheduled() {
+      this.$emit('messageScheduled');
     },
   },
 };
@@ -408,7 +421,14 @@ export default {
         @click="toggleInsertArticle"
       />
     </div>
-    <div class="right-wrap">
+    <div class="right-wrap relative">
+      <ScheduleMessagePopover
+        :show="showSchedulePopover"
+        :conversation-id="conversationId"
+        :message="message"
+        @close="closeSchedulePopover"
+        @scheduled="onMessageScheduled"
+      />
       <NextButton
         v-if="!isNote && !isEditorDisabled"
         v-tooltip.top-end="$t('PATRA.SCHEDULED.SEND_LATER')"

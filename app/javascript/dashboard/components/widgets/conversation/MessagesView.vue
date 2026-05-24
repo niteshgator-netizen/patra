@@ -125,14 +125,20 @@ export default {
       const userList = this.typingUsersList;
       return userList.length !== 0;
     },
+    isContactTyping() {
+      return this.typingUsersList.some(user => user.type === 'contact');
+    },
+    isAgentTyping() {
+      return this.typingUsersList.some(user => user.type !== 'contact');
+    },
     typingUserNames() {
-      const userList = this.typingUsersList;
-      if (this.isAnyoneTyping) {
-        const [i18nKey, params] = getTypingUsersText(userList);
-        return this.$t(i18nKey, params);
-      }
+      const userList = this.typingUsersList.filter(
+        user => user.type !== 'contact'
+      );
+      if (userList.length === 0) return '';
 
-      return '';
+      const [i18nKey, params] = getTypingUsersText(userList);
+      return this.$t(i18nKey, params);
     },
     getMessages() {
       const messages = this.currentChat.messages || [];
@@ -484,7 +490,7 @@ export default {
     />
     <MessageList
       ref="conversationPanelRef"
-      class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 pb-4"
+      class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 pb-4 max-md:pb-36"
       :current-user-id="currentUserId"
       :first-unread-id="unReadMessages[0]?.id"
       :is-an-email-channel="isAnEmailChannel"
@@ -523,13 +529,34 @@ export default {
         />
       </template>
     </MessageList>
-    <div class="flex relative flex-col bg-n-surface-1">
+    <div
+      class="flex relative flex-col bg-n-surface-1 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:border-t max-md:border-n-weak max-md:shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+    >
       <div
-        v-if="isAnyoneTyping"
+        v-if="isContactTyping"
         class="absolute flex items-center w-full h-0 -top-7"
       >
         <div
-          class="flex py-2 pr-4 pl-5 shadow-md rounded-full bg-white dark:bg-n-solid-3 text-n-slate-11 text-xs font-semibold my-2.5 mx-auto"
+          class="flex items-center py-2 pr-4 pl-5 shadow-md rounded-full bg-n-solid-3 border border-n-weak text-n-slate-11 text-xs font-medium my-2.5 mx-auto"
+        >
+          {{ $t('PATRA.CONVERSATION.CUSTOMER_TYPING') }}
+          <span class="inline-flex items-center gap-0.5 ltr:ml-1 rtl:mr-1">
+            <span
+              class="size-1 rounded-full bg-n-slate-11 animate-bounce [animation-delay:-0.3s]"
+            />
+            <span
+              class="size-1 rounded-full bg-n-slate-11 animate-bounce [animation-delay:-0.15s]"
+            />
+            <span class="size-1 rounded-full bg-n-slate-11 animate-bounce" />
+          </span>
+        </div>
+      </div>
+      <div
+        v-else-if="isAgentTyping"
+        class="absolute flex items-center w-full h-0 -top-7"
+      >
+        <div
+          class="flex py-2 pr-4 pl-5 shadow-md rounded-full bg-n-solid-3 border border-n-weak text-n-slate-11 text-xs font-semibold my-2.5 mx-auto"
         >
           {{ typingUserNames }}
           <img

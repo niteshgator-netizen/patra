@@ -81,6 +81,12 @@ patra_refresh_fb_tokens_job:
   class: 'Patra::RefreshFbTokensJob'
   queue: scheduled_jobs
 
+# Daily at midnight UTC — Telegram summary of yesterday's activity per account
+reports_daily_summary_job:
+  cron: '0 0 * * *'
+  class: 'Reports::DailySummaryJob'
+  queue: scheduled_jobs
+
 # Daily at 10:00 UTC — dormant Facebook Messenger players (adjust cron for local 10 AM if needed)
 reengagement_dormant_player_job:
   cron: '0 10 * * *'

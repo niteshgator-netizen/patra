@@ -22,6 +22,7 @@ import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import PatraChannelsAPI from 'dashboard/api/patraChannels';
+import SidebarQuickStats from 'dashboard/components/widgets/conversation/SidebarQuickStats.vue';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -194,6 +195,7 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
+  store.dispatch('conversationStats/get', { status: 'open' });
   fetchChannelStatuses();
 });
 
@@ -654,6 +656,7 @@ const menuItems = computed(() => {
         </ComposeConversation>
       </div>
     </section>
+    <SidebarQuickStats v-if="!isEffectivelyCollapsed" />
     <nav
       class="grid overflow-y-scroll flex-grow gap-2 pb-5 no-scrollbar min-w-0"
       :class="isEffectivelyCollapsed ? 'px-1' : 'px-2'"

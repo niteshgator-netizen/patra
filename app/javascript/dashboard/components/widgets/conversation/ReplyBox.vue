@@ -19,6 +19,9 @@ import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
+
+const PATRA_REPLY_CHAR_LIMIT = 2000;
+const PATRA_REPLY_CHAR_WARN = 1800;
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 import AudioRecorder from 'dashboard/components/widgets/WootWriter/AudioRecorder.vue';
 import { AUDIO_FORMATS } from 'shared/constants/messages';
@@ -106,6 +109,7 @@ export default {
       messageEditor,
       copilot,
       shortcutKey,
+      PATRA_REPLY_CHAR_LIMIT,
     };
   },
   data() {
@@ -211,6 +215,23 @@ export default {
     isMessageLengthReachingThreshold() {
       return this.message.length > this.maxLength - 50;
     },
+    patraCharCount() {
+      return this.message.length;
+    },
+    isPatraCharLimitExceeded() {
+      return this.patraCharCount >= PATRA_REPLY_CHAR_LIMIT;
+    },
+    isPatraCharWarning() {
+      return (
+        this.patraCharCount >= PATRA_REPLY_CHAR_WARN &&
+        this.patraCharCount < PATRA_REPLY_CHAR_LIMIT
+      );
+    },
+    patraCharCounterClass() {
+      if (this.isPatraCharLimitExceeded) return 'text-n-ruby-9';
+      if (this.isPatraCharWarning) return 'text-n-amber-11';
+      return 'text-n-slate-11';
+    },
     charactersRemaining() {
       return this.maxLength - this.message.length;
     },
@@ -222,7 +243,8 @@ export default {
       return (
         this.isMessageEmpty ||
         this.message.length === 0 ||
-        this.message.length > this.maxLength
+        this.message.length > this.maxLength ||
+        this.isPatraCharLimitExceeded
       );
     },
     sender() {
@@ -1232,6 +1254,9 @@ export default {
       this.message = acceptedMessage;
       this.setCopilotAcceptedMessage(acceptedMessage);
     },
+    onMessageScheduled() {
+      this.clearMessage();
+    },
   },
 };
 </script>
@@ -1369,6 +1394,19 @@ export default {
           "
           class="mb-2"
         />
+        <div
+          v-if="isDefaultEditorMode && !isOnPrivateNote"
+          class="flex justify-end pb-1"
+        >
+          <span class="text-xs tabular-nums" :class="patraCharCounterClass">
+            {{
+              $t('PATRA.REPLY.CHAR_COUNT', {
+                current: patraCharCount,
+                max: PATRA_REPLY_CHAR_LIMIT,
+              })
+            }}
+          </span>
+        </div>
       </div>
     </Transition>
 
@@ -1422,6 +1460,7 @@ export default {
         @select-content-template="openContentTemplateModal"
         @toggle-insert-article="toggleInsertArticle"
         @toggle-quoted-reply="toggleQuotedReply"
+        @message-scheduled="onMessageScheduled"
       />
     </Transition>
 

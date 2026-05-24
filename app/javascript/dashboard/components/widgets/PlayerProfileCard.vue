@@ -25,8 +25,12 @@ const store = useStore();
 
 const bonuses = ref([]);
 const cashouts = ref([]);
+const loads = ref([]);
 const blacklistReason = ref('');
 const savingBlacklist = ref(false);
+const agentNotes = ref('');
+const savingNotes = ref(false);
+const notesUpdatedAt = ref(null);
 
 const attrs = computed(() => {
   const raw = props.contact?.custom_attributes;
@@ -403,9 +407,53 @@ const referredByName = computed(() => {
   return id ? `#${id}` : '';
 });
 
+const paymentMethodDisplay = computed(() => {
+  const method = (attrs.value.preferred_payment_method || '').toLowerCase();
+  const icons = {
+    cashapp: '💵 CashApp',
+    venmo: '💰 Venmo',
+    chime: '🏦 Chime',
+    paypal: '💳 PayPal',
+  };
+  return icons[method] || attrs.value.preferred_payment_method || '';
+});
+
+const depositSummary = computed(() => {
+  const total = Number.parseFloat(attrs.value.total_deposits) || 0;
+  const count = Number.parseInt(attrs.value.deposit_count, 10) || loads.value.length;
+  return { total, count };
+});
+
+const cashoutSummary = computed(() => {
+  const total = Number.parseFloat(attrs.value.total_cashouts) || 0;
+  return { total, count: cashouts.value.length };
+});
+
+const netSummary = computed(
+  () => depositSummary.value.total - cashoutSummary.value.total
+);
+
+const socialLinks = computed(() => {
+  const links = [];
+  const fb = attrs.value.facebook_profile || attrs.value.profile_url;
+  if (fb && !isPsidFacebookUrl(fb)) {
+    links.push({ type: 'facebook', url: fb, icon: 'i-lucide-facebook' });
+  }
+  if (attrs.value.instagram_profile) {
+    links.push({
+      type: 'instagram',
+      url: attrs.value.instagram_profile,
+      icon: 'i-lucide-instagram',
+    });
+  }
+  return links;
+});
+
 async function loadExtras() {
   if (!props.contact?.id) return;
   blacklistReason.value = attrs.value.blacklist_reason || '';
+  agentNotes.value = attrs.value.agent_notes || attrs.value.notes || '';
+  notesUpdatedAt.value = attrs.value.agent_notes_updated_at || null;
   try {
     const { data: bonusData } = await PlayerBonusesAPI.forContact(props.contact.id);
     bonuses.value = bonusData || [];
@@ -417,6 +465,34 @@ async function loadExtras() {
     cashouts.value = cashoutData || [];
   } catch {
     cashouts.value = [];
+  }
+  try {
+    const { data: loadData } = await GameActionsAPI.forContact(props.contact.id, 'load');
+    loads.value = loadData || [];
+  } catch {
+    loads.value = [];
+  }
+}
+
+async function saveAgentNotes() {
+  if (!props.contact?.id) return;
+  savingNotes.value = true;
+  try {
+    const updatedAt = new Date().toISOString();
+    await store.dispatch('contacts/update', {
+      id: props.contact.id,
+      custom_attributes: {
+        ...attrs.value,
+        agent_notes: agentNotes.value,
+        agent_notes_updated_at: updatedAt,
+      },
+    });
+    notesUpdatedAt.value = updatedAt;
+    useAlert(t('PATRA.SETTINGS.SAVED'));
+  } catch {
+    useAlert(t('PATRA.SETTINGS.SAVE_ERROR'));
+  } finally {
+    savingNotes.value = false;
   }
 }
 
@@ -468,6 +544,50 @@ watch(() => props.contact?.id, loadExtras);
         class="min-w-0 flex-1 rounded border border-n-weak bg-n-solid-2 px-2 py-1 text-xs"
         :placeholder="$t('BLACKLIST.REASON')"
       />
+    </div>
+    <div
+      v-if="depositSummary.total || cashoutSummary.total"
+      class="mb-3 grid grid-cols-3 gap-2 rounded-lg border border-n-weak bg-n-alpha-1 p-2 text-xs"
+    >
+      <div>
+        <p class="text-n-slate-11">{{ $t('PLAYER_PROFILE.TOTAL_LOADED') }}</p>
+        <p class="font-semibold text-n-slate-12">
+          {{ formatMoney(depositSummary.total) }}
+          <span class="font-normal text-n-slate-11">({{ depositSummary.count }})</span>
+        </p>
+      </div>
+      <div>
+        <p class="text-n-slate-11">{{ $t('PLAYER_PROFILE.TOTAL_CASHED_OUT') }}</p>
+        <p class="font-semibold text-n-slate-12">
+          {{ formatMoney(cashoutSummary.total) }}
+          <span class="font-normal text-n-slate-11">({{ cashoutSummary.count }})</span>
+        </p>
+      </div>
+      <div>
+        <p class="text-n-slate-11">{{ $t('PLAYER_PROFILE.NET') }}</p>
+        <p
+          class="font-semibold"
+          :class="netSummary >= 0 ? 'text-green-600' : 'text-red-500'"
+        >
+          {{ netSummary >= 0 ? '+' : '' }}{{ formatMoney(netSummary) }}
+        </p>
+      </div>
+    </div>
+    <div v-if="paymentMethodDisplay" class="mb-3 flex items-center gap-2 text-xs">
+      <span class="text-n-slate-11">{{ $t('PLAYER_PROFILE.FIELDS.PREFERRED_PAYMENT') }}:</span>
+      <span class="font-medium text-n-slate-12">{{ paymentMethodDisplay }}</span>
+    </div>
+    <div v-if="socialLinks.length" class="mb-3 flex gap-2">
+      <a
+        v-for="link in socialLinks"
+        :key="link.type"
+        :href="link.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex size-8 items-center justify-center rounded-lg border border-n-weak bg-n-alpha-1 text-n-slate-12 hover:bg-n-alpha-2"
+      >
+        <i :class="[link.icon, 'size-4']" />
+      </a>
     </div>
     <div
       v-if="attrs.loyalty_tier"
@@ -673,13 +793,42 @@ watch(() => props.contact?.id, loadExtras);
         </li>
       </ul>
     </div>
+    <div v-if="loads.length" class="mt-3 border-t border-n-weak pt-3">
+      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.LOAD_HISTORY') }}</p>
+      <ul class="space-y-1 text-xs text-n-slate-11">
+        <li v-for="load in loads.slice(0, 10)" :key="load.id">
+          {{ formatDate(load.created_at) }} · {{ load.game_slug || load.game_username }} ·
+          {{ formatMoney(load.amount) }} · {{ load.status }}
+        </li>
+      </ul>
+    </div>
     <div v-if="cashouts.length" class="mt-3 border-t border-n-weak pt-3">
       <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.CASHOUT_HISTORY') }}</p>
       <ul class="space-y-1 text-xs text-n-slate-11">
-        <li v-for="cashout in cashouts.slice(0, 5)" :key="cashout.id">
-          ${{ cashout.amount }} — {{ cashout.game_username }}
+        <li v-for="cashout in cashouts.slice(0, 10)" :key="cashout.id">
+          {{ formatDate(cashout.created_at) }} · {{ cashout.game_slug || cashout.game_username }} ·
+          {{ formatMoney(cashout.amount) }} · {{ cashout.status }}
         </li>
       </ul>
+    </div>
+    <div class="mt-3 border-t border-n-weak pt-3">
+      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.AGENT_NOTES') }}</p>
+      <textarea
+        v-model="agentNotes"
+        rows="3"
+        class="w-full rounded-lg border border-n-weak bg-n-solid-2 px-2 py-1.5 text-xs text-n-slate-12"
+        :placeholder="$t('PLAYER_PROFILE.AGENT_NOTES_PLACEHOLDER')"
+      />
+      <p v-if="notesUpdatedAt" class="mt-1 text-[10px] text-n-slate-11">
+        {{ $t('PLAYER_PROFILE.AGENT_NOTES_UPDATED', { time: formatDate(notesUpdatedAt) }) }}
+      </p>
+      <Button
+        class="mt-2"
+        xs
+        :label="$t('PATRA.SETTINGS.SAVE')"
+        :is-loading="savingNotes"
+        @click="saveAgentNotes"
+      />
     </div>
   </div>
 </template>

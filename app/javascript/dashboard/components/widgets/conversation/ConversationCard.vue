@@ -1,5 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useStore } from 'vuex';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import Avatar from 'next/avatar/Avatar.vue';
 import MessagePreview from './MessagePreview.vue';
@@ -11,6 +13,13 @@ import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
+import LabelDropdown from 'shared/components/ui/label/LabelDropdown.vue';
+import wootConstants from 'dashboard/constants/globals';
+import { CONVERSATION_PRIORITY } from 'shared/constants/messages';
+import PatraConversationsAPI from 'dashboard/api/patraConversations';
+import types from 'dashboard/store/mutation-types';
+import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -32,7 +41,17 @@ const emit = defineEmits([
   'deSelectConversation',
 ]);
 
+const { t } = useI18n();
+const store = useStore();
+const { isAdmin } = useAdmin();
+
+const assignLabels = inject('assignLabels', null);
+const removeLabels = inject('removeLabels', null);
+
 const hovered = ref(false);
+const showLabelDropdown = ref(false);
+const now = ref(Date.now());
+let slaTimer = null;
 
 const unreadCount = computed(() => props.chat.unread_count);
 const hasUnread = computed(() => unreadCount.value > 0);
@@ -59,7 +78,6 @@ const showMetaSection = computed(() => {
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
 
-// Patra: AI handling vs. needs-attention, VIP badge, online indicator.
 const conversationLabels = computed(() => props.chat?.labels || []);
 const needsAiAttention = computed(() => {
   const labels = conversationLabels.value;
@@ -69,12 +87,65 @@ const aiStatus = computed(() =>
   needsAiAttention.value ? 'needs-attention' : 'ai-on'
 );
 const aiStatusLabel = computed(() =>
-  needsAiAttention.value ? 'Needs attention' : 'AI handling'
+  needsAiAttention.value
+    ? t('PATRA.CONVERSATION_CARD.AI_NEEDS_ATTENTION')
+    : t('PATRA.CONVERSATION_CARD.AI_HANDLING')
 );
 const hasVipLabel = computed(() => (props.chat?.labels || []).includes('vip'));
-const isContactOnline = computed(
-  () => props.currentContact?.availability_status === 'online'
+const hasVipTier = computed(
+  () =>
+    (props.currentContact?.custom_attributes?.loyalty_tier || '')
+      .toString()
+      .toLowerCase() === 'vip'
 );
+  () => props.currentContact?.custom_attributes?.preferred_platform
+);
+
+const gameBadgeLabel = computed(() => {
+  const platform = preferredPlatform.value;
+  if (!platform) return null;
+  const name = String(platform)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+  return t('PATRA.CONVERSATION_CARD.GAME_BADGE', { game: name });
+});
+
+const waitingMinutes = computed(() => {
+  const waitingSince = props.chat?.waiting_since;
+  if (!waitingSince || waitingSince <= 0) return 0;
+  return (now.value - waitingSince * 1000) / 60000;
+});
+
+const slaDotColor = computed(() => {
+  if (props.chat?.status !== wootConstants.STATUS_TYPE.OPEN) return null;
+  if (!props.chat?.waiting_since || props.chat.waiting_since <= 0) return null;
+  if (waitingMinutes.value > 5) return 'bg-red-500';
+  if (waitingMinutes.value > 3) return 'bg-amber-500';
+  return null;
+});
+
+const priorityBorderClass = computed(() => {
+  const priority = props.chat?.priority;
+  if (priority === CONVERSATION_PRIORITY.URGENT) {
+    return 'ltr:border-l-[3px] rtl:border-r-[3px] ltr:border-l-red-500 rtl:border-r-red-500';
+  }
+  if (priority === CONVERSATION_PRIORITY.HIGH) {
+    return 'ltr:border-l-[3px] rtl:border-r-[3px] ltr:border-l-amber-500 rtl:border-r-amber-500';
+  }
+  return '';
+});
+
+const isPinned = computed(() => {
+  const pinned = props.chat?.additional_attributes?.pinned;
+  return pinned === true || pinned === 'true';
+});
+
+const canResolve = computed(
+  () => props.chat?.status !== wootConstants.STATUS_TYPE.RESOLVED
+);
+
+const accountLabels = computed(() => store.getters['labels/getLabels'] || []);
+const savedLabelTitles = computed(() => props.chat?.labels || []);
 
 const sentimentEmoji = computed(() => {
   const sentiment = props.chat?.additional_attributes?.sentiment;
@@ -128,29 +199,124 @@ const selectedModel = computed({
   set: value => onSelectConversation(value),
 });
 
+const resolveConversation = async () => {
+  try {
+    await store.dispatch('toggleStatus', {
+      conversationId: props.chat.id,
+      status: wootConstants.STATUS_TYPE.RESOLVED,
+    });
+    useAlert(t('CONVERSATION.CHANGE_STATUS'));
+  } catch {
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.STATUS_CHANGE.FAILED'));
+  }
+};
+
+const togglePin = async () => {
+  const id = Number(props.chat?.id);
+  if (!id) return;
+  try {
+    const { data } = await PatraConversationsAPI.togglePin(id);
+    store.commit(types.UPDATE_CONVERSATION, {
+      ...props.chat,
+      id,
+      updated_at: Math.max(
+        Number(data.updated_at) || 0,
+        Number(props.chat.updated_at) || 0,
+        Math.floor(Date.now() / 1000)
+      ),
+      additional_attributes: {
+        ...(props.chat.additional_attributes || {}),
+        pinned: Boolean(data.pinned),
+      },
+    });
+  } catch {
+    useAlert(t('PATRA.CONVERSATION.PIN_ERROR'));
+  }
+};
+
+const toggleLabelDropdown = () => {
+  showLabelDropdown.value = !showLabelDropdown.value;
+};
+
+const closeLabelDropdown = () => {
+  showLabelDropdown.value = false;
+};
+
+const addLabelToConversation = label => {
+  if (assignLabels) {
+    assignLabels([label.title], [props.chat.id]);
+  } else {
+    store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids: [props.chat.id],
+      labels: { add: [label.title] },
+    });
+  }
+  closeLabelDropdown();
+};
+
+const removeLabelFromConversation = label => {
+  if (removeLabels) {
+    removeLabels([label.title], [props.chat.id]);
+  } else {
+    store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids: [props.chat.id],
+      labels: { remove: [label.title] },
+    });
+  }
+};
+
+const startSlaTimer = () => {
+  if (slaTimer) clearInterval(slaTimer);
+  if (
+    props.chat?.status === wootConstants.STATUS_TYPE.OPEN &&
+    props.chat?.waiting_since > 0
+  ) {
+    slaTimer = setInterval(() => {
+      now.value = Date.now();
+    }, 60000);
+  }
+};
+
 watch(
   () => props.chat.id,
   () => {
     hovered.value = false;
+    showLabelDropdown.value = false;
+    startSlaTimer();
   }
 );
+
+watch(
+  () => [props.chat.status, props.chat.waiting_since],
+  () => startSlaTimer()
+);
+
+onMounted(startSlaTimer);
+onUnmounted(() => {
+  if (slaTimer) clearInterval(slaTimer);
+});
 </script>
 
 <template>
   <div
     class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full py-0 cursor-pointer conversation border-b border-n-slate-3 hover:border-n-surface-1 hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group hover:z-[1] before:content-[none] before:absolute before:-top-px before:inset-x-0 before:h-px before:bg-n-surface-1 before:pointer-events-none hover:before:content-['']"
-    :class="{
-      'active animate-card-select bg-n-background !border-n-surface-1':
-        isActiveChat,
-      'selected bg-n-slate-2 !border-n-surface-1': selected,
-      'px-0': compact,
-      'px-3': !compact,
-    }"
+    :class="[
+      {
+        'active animate-card-select bg-n-background !border-n-surface-1':
+          isActiveChat,
+        'selected bg-n-slate-2 !border-n-surface-1': selected,
+        'px-0': compact,
+        'px-3': !compact,
+      },
+      priorityBorderClass,
+    ]"
     @click="$emit('click', $event)"
     @contextmenu="$emit('contextmenu', $event)"
   >
     <div
-      class="avatar-wrapper"
+      class="relative inline-block"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -174,7 +340,16 @@ watch(
           </label>
         </template>
       </Avatar>
-      <span v-if="isCustomerOnline" class="online-dot" />
+      <span
+        v-if="slaDotColor"
+        class="absolute top-0 ltr:left-0 rtl:right-0 w-2.5 h-2.5 rounded-full border-2 border-n-background z-[3]"
+        :class="slaDotColor"
+        :title="$t('PATRA.CONVERSATION_CARD.SLA_WAITING')"
+      />
+      <span
+        v-if="isCustomerOnline"
+        class="absolute bottom-0 ltr:right-0 rtl:left-0 w-[11px] h-[11px] bg-green-500 rounded-full border-2 border-white dark:border-[#16161d] z-[2]"
+      />
     </div>
     <div class="px-0 py-3 flex-1 min-w-0 border-line">
       <div
@@ -211,7 +386,15 @@ watch(
       >
         {{ currentContact.name }}
         <span v-if="sentimentEmoji" class="ml-1">{{ sentimentEmoji }}</span>
-        <span v-if="hasVipLabel" class="vip-badge">⭐ VIP</span>
+        <span
+          v-if="gameBadgeLabel"
+          class="ml-1 text-[10px] font-medium normal-case text-n-slate-11"
+        >
+          {{ gameBadgeLabel }}
+        </span>
+        <span v-if="showVipBadge" class="vip-badge">
+          ⭐ {{ $t('PATRA.CONVERSATION_CARD.VIP_BADGE') }}
+        </span>
       </h4>
       <VoiceCallStatus
         v-if="voiceCallData.status"
@@ -242,7 +425,6 @@ watch(
           {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
-      <!-- Patra: AI handling status pill. Class hooks land in patra-themes.css. -->
       <div class="mx-2">
         <span class="status-pill" :class="aiStatus">
           <span class="dot" />
@@ -250,10 +432,12 @@ watch(
         </span>
       </div>
       <div
-        class="absolute flex flex-col ltr:right-3 rtl:left-3"
+        class="absolute flex flex-col items-end ltr:right-3 rtl:left-3 z-[1]"
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
-        <span class="ml-auto font-normal leading-4 text-xxs">
+        <span
+          class="font-normal leading-4 text-xxs text-n-slate-11 [&_div]:text-n-slate-11"
+        >
           <TimeAgo
             :last-activity-timestamp="chat.timestamp"
             :created-at-timestamp="chat.created_at"
@@ -263,8 +447,58 @@ watch(
         <UnreadBadge
           v-if="hasUnread"
           :count="unreadCount"
-          class="ltr:ml-auto rtl:mr-auto mt-1"
+          class="ltr:ml-auto rtl:mr-auto mt-1 ring-1 ring-n-background"
         />
+      </div>
+      <div
+        class="absolute bottom-2 ltr:right-2 rtl:left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-[2]"
+        @click.stop
+      >
+        <button
+          v-if="canResolve"
+          type="button"
+          class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
+          :title="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
+          @click="resolveConversation"
+        >
+          ✓
+        </button>
+        <button
+          type="button"
+          class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
+          :title="
+            isPinned
+              ? $t('PATRA.CONVERSATION.UNPIN')
+              : $t('PATRA.CONVERSATION.PIN')
+          "
+          @click="togglePin"
+        >
+          📌
+        </button>
+        <div class="relative">
+          <button
+            type="button"
+            class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
+            :title="$t('PATRA.CONVERSATION_CARD.LABEL')"
+            @click="toggleLabelDropdown"
+          >
+            🏷️
+          </button>
+          <div
+            v-if="showLabelDropdown"
+            v-on-clickaway="closeLabelDropdown"
+            class="absolute bottom-full mb-1 ltr:right-0 rtl:left-0 w-56 rounded-lg border border-n-strong bg-n-alpha-3 backdrop-blur-[100px] shadow-lg p-2 z-[9999]"
+            @click.stop
+          >
+            <LabelDropdown
+              :account-labels="accountLabels"
+              :selected-labels="savedLabelTitles"
+              :allow-creation="isAdmin"
+              @add="addLabelToConversation"
+              @remove="removeLabelFromConversation"
+            />
+          </div>
+        </div>
       </div>
       <CardLabels
         v-if="showLabelsSection"
@@ -278,26 +512,3 @@ watch(
     </div>
   </div>
 </template>
-
-<style scoped>
-.avatar-wrapper {
-  position: relative;
-  display: inline-block;
-}
-
-.online-dot {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 11px;
-  height: 11px;
-  background: #22c55e;
-  border-radius: 50%;
-  border: 2px solid white;
-  z-index: 2;
-}
-
-:global([data-theme='dark']) .online-dot {
-  border-color: #16161d;
-}
-</style>
