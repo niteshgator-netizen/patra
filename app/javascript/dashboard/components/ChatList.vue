@@ -44,6 +44,7 @@ import {
   isOnMentionsView,
   isOnParticipatingView,
   isOnUnattendedView,
+  isOnResolvedView,
 } from '../store/modules/conversations/helpers/actionHelpers';
 import {
   getUserPermissions,
@@ -287,6 +288,9 @@ const pageTitle = computed(() => {
   if (props.conversationType === wootConstants.CONVERSATION_TYPE.UNATTENDED) {
     return t('CHAT_LIST.UNATTENDED_HEADING');
   }
+  if (props.conversationType === wootConstants.CONVERSATION_TYPE.RESOLVED) {
+    return t('CHAT_LIST.RESOLVED_HEADING');
+  }
   if (hasActiveFolders.value) {
     return activeFolder.value.name;
   }
@@ -359,7 +363,22 @@ const uniqueInboxes = computed(() => {
 });
 
 // ---------------------- Methods -----------------------
+function applyConversationTypeFilters() {
+  if (props.conversationType === wootConstants.CONVERSATION_TYPE.RESOLVED) {
+    activeStatus.value = wootConstants.STATUS_TYPE.RESOLVED;
+  }
+}
+
 function setFiltersFromUISettings() {
+  applyConversationTypeFilters();
+  if (props.conversationType === wootConstants.CONVERSATION_TYPE.RESOLVED) {
+    activeSortBy.value = Object.values(wootConstants.SORT_BY_TYPE).includes(
+      uiSettings.value.conversations_filter_by?.order_by
+    )
+      ? uiSettings.value.conversations_filter_by.order_by
+      : wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC;
+    return;
+  }
   const { conversations_filter_by: filterBy = {} } = uiSettings.value;
   const { status, order_by: orderBy } = filterBy;
   activeStatus.value = status || wootConstants.STATUS_TYPE.OPEN;
@@ -634,6 +653,8 @@ function redirectToConversationList() {
     conversationType = wootConstants.CONVERSATION_TYPE.PARTICIPATING;
   } else if (isOnUnattendedView({ route: { name } })) {
     conversationType = wootConstants.CONVERSATION_TYPE.UNATTENDED;
+  } else if (isOnResolvedView({ route: { name } })) {
+    conversationType = wootConstants.CONVERSATION_TYPE.RESOLVED;
   }
   router.push(
     conversationListPageURL({
@@ -841,7 +862,16 @@ watch(
 );
 watch(
   computed(() => props.conversationType),
-  () => resetAndFetchData()
+  type => {
+    if (type === wootConstants.CONVERSATION_TYPE.RESOLVED) {
+      activeStatus.value = wootConstants.STATUS_TYPE.RESOLVED;
+    } else if (activeStatus.value === wootConstants.STATUS_TYPE.RESOLVED) {
+      activeStatus.value =
+        uiSettings.value.conversations_filter_by?.status ||
+        wootConstants.STATUS_TYPE.OPEN;
+    }
+    resetAndFetchData();
+  }
 );
 
 watch(activeFolder, (newVal, oldVal) => {

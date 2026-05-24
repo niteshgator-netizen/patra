@@ -57,7 +57,16 @@ class ConversationFinder
   end
 
   def perform_meta_only
-    set_up
+    set_inboxes
+    set_team
+    set_assignee_type
+    find_all_conversations
+    resolved_count = @conversations.where(status: :resolved).count
+    filter_by_status unless params[:q]
+    filter_by_team
+    filter_by_labels
+    filter_by_query
+    filter_by_source_id
 
     mine_count, unassigned_count, all_count, = set_count_for_all_conversations
     assigned_count = all_count - unassigned_count
@@ -67,7 +76,8 @@ class ConversationFinder
         mine_count: mine_count,
         assigned_count: assigned_count,
         unassigned_count: unassigned_count,
-        all_count: all_count
+        all_count: all_count,
+        resolved_count: resolved_count
       }
     }
   end

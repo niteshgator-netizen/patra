@@ -233,5 +233,28 @@ export default {
         conversationType: 'participating',
       }),
     },
+    {
+      path: frontendURL('accounts/:accountId/resolved/conversations'),
+      name: 'conversation_resolved',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: () => ({ conversationType: 'resolved' }),
+    },
+    {
+      path: frontendURL(
+        'accounts/:accountId/resolved/conversations/:conversationId'
+      ),
+      name: 'conversation_through_resolved',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: route => ({
+        conversationId: route.params.conversationId,
+        conversationType: 'resolved',
+      }),
+    },
   ],
 };
