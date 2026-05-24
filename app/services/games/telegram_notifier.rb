@@ -10,6 +10,7 @@
 #   Games::TelegramNotifier.load_failed(game_action)
 #   Games::TelegramNotifier.cashout_failed(game_action, cashout_request)
 #   Games::TelegramNotifier.human_escalation(account:, contact:, reason:, conversation: nil)
+#   Games::TelegramNotifier.payment_pending_alert(contact:, payment_details:)
 #   Games::TelegramNotifier.api_error(account:, message:, details: nil)
 #   Games::TelegramNotifier.test_message(account:, custom_text: nil)
 
@@ -24,6 +25,7 @@ module Games
     EVENT_CASHOUT_REQUEST = 'cashout_request'.freeze
     EVENT_CASHOUT_FAILED = 'cashout_failed'.freeze
     EVENT_HUMAN_ESCALATION = 'human_escalation'.freeze
+    EVENT_PAYMENT_PENDING = 'payment_pending'.freeze
     EVENT_SECRET_PHRASE = 'secret_phrase'.freeze
     EVENT_API_ERROR = 'api_error'.freeze
 
@@ -66,6 +68,22 @@ module Games
           event: EVENT_HUMAN_ESCALATION,
           text: build_escalation_text(contact, reason, conversation)
         )
+      end
+
+      def payment_pending_alert(contact:, payment_details:)
+        details = payment_details.stringify_keys
+        txn_id = details['transaction_id'].to_s.strip
+        return { ok: false, reason: 'deduped' } if txn_id.present? && payment_pending_alert_sent?(txn_id)
+
+        account = contact.account
+        notify(
+          account: account,
+          event: EVENT_PAYMENT_PENDING,
+          text: build_payment_pending_text(contact, details)
+        )
+      rescue StandardError => e
+        Rails.logger.error("[TelegramNotifier] payment_pending_alert #{e.class}: #{e.message}")
+        { ok: false, error: e.message }
       end
 
       def secret_phrase_triggered(account:, conversation:, phrase_record:)
@@ -263,6 +281,37 @@ module Games
           lines << "*Conversation:* \\##{esc(conversation.display_id.to_s)}"
         end
         lines.join("\n")
+      end
+
+      def build_payment_pending_text(contact, details)
+        account_id = contact.account_id
+        contact_url = "https://patrahq.com/app/accounts/#{account_id}/contacts/#{contact.id}"
+        lines = []
+        lines << "⏳ *Payment pending verification*"
+        lines << ""
+        lines << "*Player:* #{esc(contact.name || 'Unknown')}"
+        lines << "*Link:* #{esc(contact_url)}"
+        lines << "*Amount:* $#{esc(format('%.2f', details['amount'].to_f))}"
+        lines << "*Platform:* #{esc(details['platform'].to_s)}"
+        lines << "*Sender:* #{esc(details['sender_name'].to_s.presence || 'N/A')}"
+        lines << "*Recipient:* #{esc(details['recipient_handle'].to_s.presence || 'N/A')}"
+        lines << "*Txn ID:* `#{esc(details['transaction_id'].to_s.presence || 'N/A')}`"
+        lines << "*Status:* #{esc(details['raw_status'].to_s.presence || 'N/A')}"
+        lines << ""
+        lines << "_Patra · awaiting IMAP confirmation_"
+        lines.join("\n")
+      end
+
+      def payment_pending_alert_sent?(txn_id)
+        redis = Redis.new(Redis::Config.app)
+        key = "telegram:payment_pending:#{txn_id}"
+        return true if redis.get(key).present?
+
+        redis.setex(key, 1.hour.to_i, '1')
+        false
+      rescue StandardError => e
+        Rails.logger.warn("[TelegramNotifier] payment_pending dedupe skipped: #{e.message}")
+        false
       end
 
       def build_api_error_text(message, details)
