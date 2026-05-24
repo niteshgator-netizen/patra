@@ -114,12 +114,10 @@ class Facebook::ChatwootBridgeService
   def create_contact!
     profile = safe_fetch_graph_profile
     name = profile[:name].presence || "Player #{@sender_id.to_s.last(4)}"
-    facebook_profile = "https://facebook.com/#{@sender_id}"
 
     body = {
       name: name,
-      identifier: @sender_id,
-      custom_attributes: { facebook_profile: facebook_profile }
+      identifier: @sender_id
     }
     body[:avatar_url] = profile[:profile_pic] if profile[:profile_pic].present?
 

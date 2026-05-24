@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import PatraChannelsAPI from 'dashboard/api/patraChannels';
 import Icon from 'next/icon/Icon.vue';
@@ -163,6 +164,7 @@ const channels = ref([]);
 const isLoading = ref(true);
 const connectingPlatform = ref(null);
 const loadError = ref('');
+const { t } = useI18n();
 
 const platformIsConnected = platformKey =>
   channels.value.some(
@@ -192,6 +194,8 @@ const fetchChannels = async () => {
   }
 };
 
+const BOT_TOKEN_PLATFORMS = new Set(['telegram']);
+
 const connectPlatform = async platform => {
   if (platform.comingSoon) return;
   if (connectingPlatform.value) return;
@@ -204,7 +208,11 @@ const connectPlatform = async platform => {
       window.location.href = authUrl;
       return;
     }
-    useAlert('Connect failed: no auth URL returned by Zernio.');
+    if (BOT_TOKEN_PLATFORMS.has(platform.key)) {
+      useAlert(t('PATRA.CHANNELS.TELEGRAM_BOT_TOKEN_COMING_SOON'));
+      return;
+    }
+    useAlert(t('PATRA.CHANNELS.CONNECT_NO_AUTH_URL'));
   } catch (e) {
     useAlert(
       `Connect failed: ${e?.response?.data?.error || e?.message || 'unknown error'}`

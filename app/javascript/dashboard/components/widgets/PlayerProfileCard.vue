@@ -43,6 +43,24 @@ function humanizeAttrKey(key) {
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function isPsidFacebookUrl(value) {
+  return /^https?:\/\/(www\.)?facebook\.com\/\d{5,}\/?$/i.test(
+    String(value || '').trim()
+  );
+}
+
+function formatProfileFieldValue(key, value) {
+  const normalizedKey = String(key).toLowerCase();
+  if (
+    (normalizedKey === 'facebook_profile' || normalizedKey === 'profile_url') &&
+    isPsidFacebookUrl(value)
+  ) {
+    return t('CONTACT_PANEL.FACEBOOK_PROFILE_PSID_ONLY');
+  }
+
+  return typeof value === 'object' ? JSON.stringify(value) : String(value);
+}
+
 const tierClass = computed(() => {
   const tier = (attrs.value.loyalty_tier || '').toString().toLowerCase();
   const map = {
@@ -170,7 +188,7 @@ const extraAttrRows = computed(() => {
     out.push({
       key: `extra_${key}`,
       label: humanizeAttrKey(key),
-      value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      value: formatProfileFieldValue(key, value),
     });
   });
   return out.sort((a, b) => a.label.localeCompare(b.label));
