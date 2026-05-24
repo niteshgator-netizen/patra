@@ -16,6 +16,5 @@ class CreateAutomationFlowRuns < ActiveRecord::Migration[7.1]
     end
 
     add_index :automation_flow_runs, [:automation_flow_id, :status]
-    add_index :automation_flow_runs, :contact_id
   end
 end
