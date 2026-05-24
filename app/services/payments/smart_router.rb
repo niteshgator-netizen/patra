@@ -25,6 +25,5 @@ module Payments
     def self.increment_usage(_handle)
       nil
     end
-    end
   end
 end
