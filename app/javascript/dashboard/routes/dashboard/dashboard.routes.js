@@ -15,6 +15,7 @@ import NoAccounts from './noAccounts/Index.vue';
 import OnboardingAccountDetails from './onboarding/Index.vue';
 import PatraAddChannel from './patra/PatraAddChannel.vue';
 import PatraAiTraining from './patra/PatraAiTraining.vue';
+import PatraOwnerDashboard from './patra/PatraOwnerDashboard.vue';
 
 export default {
   routes: [
@@ -32,6 +33,14 @@ export default {
         ...notificationRoutes,
         ...helpcenterRoutes.routes,
         ...campaignsRoutes.routes,
+        {
+          path: 'patra/dashboard',
+          name: 'patra_owner_dashboard',
+          component: PatraOwnerDashboard,
+          meta: {
+            permissions: ['administrator', 'agent'],
+          },
+        },
         {
           // Route name kept (`patra_connect_facebook`) so existing links in
           // MetaAppSettings, ChannelList, and onboarding/Index keep working

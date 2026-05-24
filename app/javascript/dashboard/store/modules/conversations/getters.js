@@ -1,5 +1,13 @@
 import { MESSAGE_TYPE } from 'shared/constants/messages';
 import { applyPageFilters, applyRoleFilter, sortComparator } from './helpers';
+
+const pinAwareSort = (a, b, sortKey) => {
+  const aPinned = a.additional_attributes?.pinned === true;
+  const bPinned = b.additional_attributes?.pinned === true;
+  if (aPinned && !bPinned) return -1;
+  if (!aPinned && bPinned) return 1;
+  return sortComparator(a, b, sortKey);
+};
 import filterQueryGenerator from 'dashboard/helper/filterQueryGenerator';
 import { matchesFilters } from './helpers/filterHelpers';
 import {
@@ -16,7 +24,7 @@ export const getSelectedChatConversation = ({
 
 const getters = {
   getAllConversations: ({ allConversations, chatSortFilter: sortKey }) => {
-    return allConversations.sort((a, b) => sortComparator(a, b, sortKey));
+    return allConversations.sort((a, b) => pinAwareSort(a, b, sortKey));
   },
   getFilteredConversations: (
     { allConversations, chatSortFilter, appliedFilters },
@@ -46,7 +54,7 @@ const getters = {
 
         return matchesFilterResult && allowedForRole;
       })
-      .sort((a, b) => sortComparator(a, b, chatSortFilter));
+      .sort((a, b) => pinAwareSort(a, b, chatSortFilter));
   },
   getSelectedChat: ({ selectedChatId, allConversations }) => {
     const selectedChat = allConversations.find(

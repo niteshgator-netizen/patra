@@ -26,6 +26,7 @@ module Messaging
         Rails.logger.info("[ZernioDispatcher] created message=#{message.id} conv=#{conversation.id} inbox=#{inbox.id}")
       end
 
+      post_message_hooks(conversation, message) if conversation && message
       enqueue_ai_reply(conversation) if conversation
       message
     rescue StandardError => e
@@ -34,6 +35,22 @@ module Messaging
     end
 
     private
+
+    def post_message_hooks(conversation, message)
+      AutoTagger.tag(message)
+      update_conversation_sentiment!(conversation, message)
+      PendingPaymentTimeoutJob.mark_pending!(conversation)
+    rescue StandardError => e
+      Rails.logger.warn("[ZernioDispatcher] post_message_hooks failed conv=#{conversation.id} #{e.class}: #{e.message}")
+    end
+
+    def update_conversation_sentiment!(conversation, message)
+      recent = conversation.messages.incoming.where('id <= ?', message.id).order(id: :desc).limit(3)
+      sentiment = Ai::SentimentScorer.score(recent.to_a)
+      attrs = conversation.additional_attributes.to_h
+      attrs['sentiment'] = sentiment
+      conversation.update!(additional_attributes: attrs)
+    end
 
     # Mirrors Webhooks::FacebookBridgeJob's AI enqueue exactly: positional
     # args (display_id, account_id, fb_shaped_attachments) with a 3-second

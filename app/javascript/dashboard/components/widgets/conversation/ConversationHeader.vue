@@ -16,6 +16,8 @@ import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import { useAlert } from 'dashboard/composables';
 import { emitter } from 'shared/helpers/mitt';
 import ContactAPI from 'dashboard/api/contacts';
+import PatraConversationsAPI from 'dashboard/api/patraConversations';
+import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
   chat: {
@@ -182,6 +184,47 @@ const avatarPresenceStatus = computed(() => {
   if (contactPresence.value.online) return 'online';
   return currentContact.value?.availability_status || null;
 });
+
+const isPinned = computed(
+  () => currentChat.value?.additional_attributes?.pinned === true
+);
+
+const summaryText = ref('');
+const summaryLoading = ref(false);
+const showSummary = ref(false);
+
+const togglePin = async () => {
+  const id = currentChat.value?.id;
+  if (!id) return;
+  try {
+    const { data } = await PatraConversationsAPI.togglePin(id);
+    const chat = { ...currentChat.value };
+    store.commit('UPDATE_CONVERSATION', {
+      ...chat,
+      additional_attributes: {
+        ...(chat.additional_attributes || {}),
+        pinned: data.pinned,
+      },
+    });
+  } catch {
+    useAlert(t('PATRA.CONVERSATION.PIN_ERROR'));
+  }
+};
+
+const fetchSummary = async () => {
+  const id = currentChat.value?.id;
+  if (!id || summaryLoading.value) return;
+  summaryLoading.value = true;
+  try {
+    const { data } = await PatraConversationsAPI.getSummary(id);
+    summaryText.value = data.summary;
+    showSummary.value = true;
+  } catch {
+    useAlert(t('PATRA.CONVERSATION.SUMMARY_ERROR'));
+  } finally {
+    summaryLoading.value = false;
+  }
+};
 </script>
 
 <template>
@@ -259,7 +302,7 @@ const avatarPresenceStatus = computed(() => {
       </div>
     </div>
     <div
-      class="flex flex-row items-center justify-start xl:justify-end flex-shrink-0 gap-2 w-full xl:w-auto header-actions-wrap"
+      class="flex flex-row items-center justify-start xl:justify-end flex-shrink-0 gap-2 w-full xl:w-auto header-actions-wrap relative"
     >
       <SLACardLabel
         v-if="hasSlaPolicyId"
@@ -268,6 +311,37 @@ const avatarPresenceStatus = computed(() => {
         :parent-width="width"
         class="hidden md:flex"
       />
+      <!-- Patra: pin + summary -->
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+        :class="isPinned ? 'bg-n-amber-9/15 text-n-amber-11 border-n-amber-9/30' : ''"
+        :title="isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN')"
+        @click="togglePin"
+      >
+        📌
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+        :disabled="summaryLoading"
+        @click="fetchSummary"
+      >
+        📋 {{ $t('PATRA.CONVERSATION.SUMMARY') }}
+      </button>
+      <div
+        v-if="showSummary && summaryText"
+        class="absolute top-full right-3 z-20 mt-1 max-w-sm rounded-lg border border-n-weak bg-n-solid-1 p-3 text-xs text-n-slate-12 shadow-lg"
+      >
+        <p class="m-0 whitespace-pre-wrap">{{ summaryText }}</p>
+        <button
+          type="button"
+          class="mt-2 text-n-brand hover:underline"
+          @click="showSummary = false"
+        >
+          {{ $t('PATRA.CONVERSATION.CLOSE') }}
+        </button>
+      </div>
       <!-- Patra: AI status / pause toggle -->
       <button
         type="button"

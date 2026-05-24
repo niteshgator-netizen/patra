@@ -76,6 +76,14 @@ const isContactOnline = computed(
   () => props.currentContact?.availability_status === 'online'
 );
 
+const sentimentEmoji = computed(() => {
+  const sentiment = props.chat?.additional_attributes?.sentiment;
+  if (sentiment === 'positive') return '😊';
+  if (sentiment === 'negative') return '😡';
+  if (sentiment === 'neutral') return '😐';
+  return null;
+});
+
 const isCustomerOnline = computed(() => {
   const lastMsg =
     props.chat?.messages?.[props.chat.messages.length - 1] ||
@@ -202,6 +210,7 @@ watch(
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
         {{ currentContact.name }}
+        <span v-if="sentimentEmoji" class="ml-1">{{ sentimentEmoji }}</span>
         <span v-if="hasVipLabel" class="vip-badge">⭐ VIP</span>
       </h4>
       <VoiceCallStatus
