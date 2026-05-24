@@ -46,10 +46,11 @@ module Games
 
       def test_connection
         resp = http_request(:get, search_url, headers: nav_headers(referer: search_url))
-        if resp.body.to_s.include?('default.aspx') && resp.body.to_s.length < 5000
+        body = response_body_utf8(resp)
+        if body.include?('default.aspx') && body.length < 5000
           { ok: false, code: -1, message: 'Session expired — re-capture asp_session_id' }
         else
-          { ok: true, balance: extract_agent_balance(resp.body), message: 'Connected' }
+          { ok: true, balance: extract_agent_balance(body), message: 'Connected' }
         end
       rescue Games::ClientError => e
         { ok: false, code: e.code, message: e.message }
@@ -59,19 +60,19 @@ module Games
 
       def agent_balance
         resp = http_request(:get, search_url, headers: nav_headers(referer: search_url))
-        bal = extract_agent_balance(resp.body)
+        bal = extract_agent_balance(response_body_utf8(resp))
         { 'data' => { 'agent_balance' => bal }, 'code' => 0, 'msg' => 'Success' }
       end
 
       def get_user_id(account_name:)
         # Run steps 1+2 to resolve username → uid+gid. Return as "uid:gid".
-        vs1, vsg1 = scrape_viewstate(fetch_search_page.body)
+        vs1, vsg1 = scrape_viewstate(response_body_utf8(fetch_search_page))
         body = "__EVENTTARGET=ctl16&__EVENTARGUMENT=&__VIEWSTATE=#{CGI.escape(vs1)}&__VIEWSTATEGENERATOR=#{CGI.escape(vsg1)}&__SCROLLPOSITIONX=0&__SCROLLPOSITIONY=0&txtSearch=#{CGI.escape(account_name.to_s)}&ShowHideAccount=1"
         resp = http_request(:post, search_url, body: body,
           headers: nav_headers(referer: search_url).merge(
             'Origin' => self.class::BASE_URL,
             'Content-Type' => 'application/x-www-form-urlencoded'))
-        m = resp.body.to_s.match(/updateSelect\(\s*'(\d+),(\d+)'\s*\)/)
+        m = response_body_utf8(resp).match(/updateSelect\(\s*'(\d+),(\d+)'\s*\)/)
         if m
           { 'data' => { 'user_id' => "#{m[1]}:#{m[2]}" }, 'code' => 0, 'msg' => 'Found' }
         else
@@ -88,7 +89,7 @@ module Games
         # Search by gid (works on all 4 panels; gid is the visible "Account ID" column key)
         resp = http_request(:get, search_url, headers: nav_headers(referer: search_url))
         # Extract balance for matching gid row from the table
-        balance = extract_player_balance_from_listing(resp.body, gid)
+        balance = extract_player_balance_from_listing(response_body_utf8(resp), gid)
         if balance.nil?
           raise Games::ClientError.new("Could not extract player balance for gid=#{gid}", code: -1)
         end
@@ -224,9 +225,10 @@ module Games
           headers: xhr_headers(referer: search_url).merge(
             'Origin' => self.class::BASE_URL,
             'Content-Type' => 'application/x-www-form-urlencoded'))
-        path = resp.body.to_s.split('|', 2).first.to_s.strip
+        raw = response_body_utf8(resp)
+        path = raw.split('|', 2).first.to_s.strip
         if path.blank?
-          raise Games::ClientError.new("Server returned blank action URL for tourl=#{tourl}", code: -1, payload: { raw: resp.body[0..300] })
+          raise Games::ClientError.new("Server returned blank action URL for tourl=#{tourl}", code: -1, payload: { raw: raw[0..300] })
         end
         "#{self.class::BASE_URL}/#{path}"
       end
@@ -238,9 +240,10 @@ module Games
           headers: xhr_headers(referer: search_url).merge(
             'Origin' => self.class::BASE_URL,
             'Content-Type' => 'application/x-www-form-urlencoded'))
-        path = resp.body.to_s.split('|', 2).first.to_s.strip
+        raw = response_body_utf8(resp)
+        path = raw.split('|', 2).first.to_s.strip
         if path.blank?
-          raise Games::ClientError.new('Server returned blank create URL (tourl=6)', code: -1, payload: { raw: resp.body[0..300] })
+          raise Games::ClientError.new('Server returned blank create URL (tourl=6)', code: -1, payload: { raw: raw[0..300] })
         end
         "#{self.class::BASE_URL}/#{path}"
       end
@@ -253,8 +256,9 @@ module Games
         action_url = fetch_action_url(tourl: tourl, uid: uid, gid: gid)
         sleep_jitter(1.0)
         page = http_request(:get, action_url, headers: nav_headers(referer: search_url))
-        vs, vsg = scrape_viewstate(page.body)
-        ev = scrape_event_validation(page.body)
+        page_body = response_body_utf8(page)
+        vs, vsg = scrape_viewstate(page_body)
+        ev = scrape_event_validation(page_body)
         sleep_jitter(1.2)
         amt_int = sanitize_whole_amount(amount, action_label)
         body = "__EVENTTARGET=Button1&__EVENTARGUMENT=&__VIEWSTATE=#{CGI.escape(vs)}&__VIEWSTATEGENERATOR=#{CGI.escape(vsg)}&__EVENTVALIDATION=#{CGI.escape(ev)}&txtAddGold=#{amt_int}&txtReason=#{CGI.escape("order:#{order_id}")}"
@@ -262,11 +266,12 @@ module Games
           headers: nav_headers(referer: action_url).merge(
             'Origin' => self.class::BASE_URL,
             'Content-Type' => 'application/x-www-form-urlencoded'))
-        if resp.body.to_s.include?('Confirmed successful')
+        resp_body = response_body_utf8(resp)
+        if resp_body.include?('Confirmed successful')
           { 'data' => { 'order_id' => order_id, 'amount' => amt_int }, 'code' => 0, 'msg' => "#{action_label} successful" }
         else
-          err = resp.body.to_s.match(/showAlter\("([^"]+)"\)/)&.[](1) || 'Unknown server response'
-          raise Games::ClientError.new("#{action_label} failed: #{err}", code: -1, payload: { snippet: resp.body[0..500] })
+          err = resp_body.match(/showAlter\("([^"]+)"\)/)&.[](1) || 'Unknown server response'
+          raise Games::ClientError.new("#{action_label} failed: #{err}", code: -1, payload: { snippet: resp_body[0..500] })
         end
       end
 
@@ -278,19 +283,21 @@ module Games
         action_url = fetch_action_url(tourl: 2, uid: uid, gid: gid)
         sleep_jitter(1.0)
         page = http_request(:get, action_url, headers: nav_headers(referer: search_url))
-        vs, vsg = scrape_viewstate(page.body)
-        ev = scrape_event_validation(page.body)
+        page_body = response_body_utf8(page)
+        vs, vsg = scrape_viewstate(page_body)
+        ev = scrape_event_validation(page_body)
         sleep_jitter(1.2)
         body = "__EVENTTARGET=Button1&__EVENTARGUMENT=&__VIEWSTATE=#{CGI.escape(vs)}&__VIEWSTATEGENERATOR=#{CGI.escape(vsg)}&__EVENTVALIDATION=#{CGI.escape(ev)}&textGameID=#{gid}&textAccounts=&txtConfirmPass=#{CGI.escape(new_password.to_s)}&txtSureConfirmPass=#{CGI.escape(new_password.to_s)}"
         resp = http_request(:post, action_url, body: body,
           headers: nav_headers(referer: action_url).merge(
             'Origin' => self.class::BASE_URL,
             'Content-Type' => 'application/x-www-form-urlencoded'))
-        if resp.body.to_s.include?('Confirmed successful')
+        resp_body = response_body_utf8(resp)
+        if resp_body.include?('Confirmed successful')
           { 'data' => { 'reset' => true }, 'code' => 0, 'msg' => 'Password reset successful' }
         else
-          err = resp.body.to_s.match(/showAlter\("([^"]+)"\)/)&.[](1) || 'Unknown server response'
-          raise Games::ClientError.new("Reset password failed: #{err}", code: -1, payload: { snippet: resp.body[0..500] })
+          err = resp_body.match(/showAlter\("([^"]+)"\)/)&.[](1) || 'Unknown server response'
+          raise Games::ClientError.new("Reset password failed: #{err}", code: -1, payload: { snippet: resp_body[0..500] })
         end
       end
 
@@ -303,8 +310,9 @@ module Games
         create_url = fetch_create_url
         sleep_jitter(1.0)
         page = http_request(:get, create_url, headers: nav_headers(referer: search_url))
-        vs, vsg = scrape_viewstate(page.body)
-        ev = scrape_event_validation(page.body)
+        page_body = response_body_utf8(page)
+        vs, vsg = scrape_viewstate(page_body)
+        ev = scrape_event_validation(page_body)
         sleep_jitter(1.5)
         body = "__EVENTTARGET=ctl07&__EVENTARGUMENT=&__VIEWSTATE=#{CGI.escape(vs)}&__VIEWSTATEGENERATOR=#{CGI.escape(vsg)}&__EVENTVALIDATION=#{CGI.escape(ev)}&txtAccount=#{CGI.escape(safe_account)}&txtNickName=#{CGI.escape(safe_account)}&txtLogonPass=#{CGI.escape(password.to_s)}&txtLogonPass2=#{CGI.escape(password.to_s)}"
         resp = http_request(:post, create_url, body: body,
@@ -318,8 +326,9 @@ module Games
         if lookup['data'].present?
           { 'data' => { 'user_id' => lookup['data']['user_id'], 'account' => safe_account }, 'code' => 0, 'msg' => 'Player created' }
         else
-          err = resp.body.to_s.match(/showAlter\("([^"]+)"\)/)&.[](1) || 'Create reported success but player not found in search'
-          raise Games::ClientError.new("Create failed: #{err}", code: -1, payload: { account: safe_account, snippet: resp.body[0..500] })
+          resp_body = response_body_utf8(resp)
+          err = resp_body.match(/showAlter\("([^"]+)"\)/)&.[](1) || 'Create reported success but player not found in search'
+          raise Games::ClientError.new("Create failed: #{err}", code: -1, payload: { account: safe_account, snippet: resp_body[0..500] })
         end
       end
 
@@ -382,7 +391,7 @@ module Games
         # Lock-protected via refresh_session_locked! below.
         if !_retried && session_expired?(response)
           slug = @agent_game.game.slug.to_s
-          Rails.logger.info("[AspNetPanel][#{slug}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}, body_len=#{response.body.to_s.length}) — attempting locked refresh")
+          Rails.logger.info("[AspNetPanel][#{slug}] session expired on #{method.upcase} #{uri.path} (http_code=#{response.code}, body_len=#{response_body_utf8(response).length}) — attempting locked refresh")
           if refresh_session_locked!
             new_cookie = "ASP.NET_SessionId=#{@session_id}"
             retry_headers = headers.merge('Cookie' => new_cookie)
@@ -394,7 +403,7 @@ module Games
         end
 
         unless response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
-          raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response.body.to_s[0..300] })
+          raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response_body_utf8(response)[0..300] })
         end
         response
       rescue Games::ClientError
@@ -411,11 +420,15 @@ module Games
       def session_expired?(response)
         return true if response.is_a?(Net::HTTPRedirection)
         return false unless response.is_a?(Net::HTTPSuccess)
-        body = response.body.to_s
+        body = response_body_utf8(response)
         return false if body.length > 8000   # real authenticated pages are large
         return true if body.include?('default.aspx') && body.length < 5000
         return true if !body.include?('__VIEWSTATE') && body.length < 5000
         false
+      end
+
+      def response_body_utf8(response)
+        response.body.to_s.force_encoding('UTF-8').encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
       end
 
       # Ship 3 (May 21 2026): concurrency-safe session refresh.
