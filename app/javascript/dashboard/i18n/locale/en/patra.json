@@ -15,6 +15,28 @@
       "GAME_PERFORMANCE": "Game Performance",
       "COMING_SOON": "Coming soon — game success rates will appear here"
     },
+    "REPORTS": {
+      "NAV": "Reports",
+      "TITLE": "Sweepstakes Reports",
+      "SUBTITLE": "Conversations, games, payments, and agent activity",
+      "TODAY": "Today",
+      "THIS_WEEK": "This week",
+      "CONVERSATIONS_OPENED": "Conversations opened",
+      "RESOLVED": "Resolved",
+      "AI_HANDLE_RATE": "AI handle rate",
+      "TOP_PLAYERS": "Top players",
+      "PLAYER": "Player",
+      "CONVERSATIONS": "Conversations",
+      "GAME_USAGE": "Game usage (7 days)",
+      "GAME": "Game",
+      "LOADS": "Loads",
+      "CASHOUTS": "Cashouts",
+      "PAYMENT_VOLUME": "Payment volume (7 days)",
+      "AGENT_PERFORMANCE": "Agent performance today",
+      "AGENT": "Agent",
+      "MESSAGES_TODAY": "Messages today",
+      "NO_DATA": "No data yet"
+    },
     "PROFILE": {
       "STATS": "Stats",
       "CONVERSATIONS": "Conversations",

@@ -150,6 +150,13 @@ module Games
       # Payment confirmed — now check username
       username = intent[:game_username] || stored_game_username(ag.game.slug)
 
+      if username.present? && !valid_username?(username)
+        return {
+          reply: 'what username would you like for your account?',
+          labels: ['needs-username']
+        }
+      end
+
       if username.blank?
         # Need to ask + offer auto-create
         return {
@@ -334,6 +341,13 @@ module Games
       return nil unless ag
 
       username = intent[:game_username]
+
+      unless valid_username?(username)
+        return {
+          reply: 'what username would you like for your account?',
+          labels: ['needs-username']
+        }
+      end
 
       # Check if there's a confirmed payment waiting to be loaded
       recent_payment = find_unloaded_confirmed_payment
@@ -594,6 +608,20 @@ module Games
     # usernames with underscore — returns code 7 "Account format error". Use no-underscore format.
     FASTAPI_NO_UNDERSCORE_SLUGS = %w[vblink ultra_panda].freeze
 
+    USERNAME_BLACKLIST = %w[
+      test hi hello hey yo sup ok yes no yeah nah lol lmao sure
+      thanks thank please help what how why when where who
+      admin root user guest player account login password
+    ].freeze
+
+    def valid_username?(username)
+      return false if username.blank?
+      return false if USERNAME_BLACKLIST.include?(username.to_s.downcase.strip)
+      return false if username.to_s.strip.length < 3
+
+      true
+    end
+
     # Bug fix May 19 2026: format diverges by cluster.
     #   Cluster 1 (game_vault, juwa, milky_way, fire_kirin, panda_master, orion_stars):
     #     "mausam397_jw" — underscore separator allowed, easy to extract password from.
@@ -650,19 +678,11 @@ module Games
       end
     end
 
-    # Bug 1 fix: picks the game slug in priority order:
+    # Picks the game slug in priority order:
     #   1. intent[:game_slug] from latest message detection
-    #   2. contact.custom_attributes['preferred_platform'] (auto-detected
-    #      from history by Players::ProfileService)
-    #   3. 'game_vault' (legacy default — last resort)
-    # Bug fix May 20 2026: return nil instead of falling back to 'game_vault'
-    # when the slug genuinely can't be resolved. The old hardcoded 'game_vault'
-    # default caused every typo or unknown game name (e.g. "firekirrin" with
-    # two Rs) to silently route to Game Vault. Since Game Vault is currently
-    # broken (token invalid waiting on provider), customers got a confusing
-    # "hit a snag setting up your Game Vault account" reply when they actually
-    # asked for Fire Kirin. Returning nil lets Bella handle it naturally
-    # instead of confidently wrong-routing.
+    #   2. contact.custom_attributes['preferred_platform']
+    #   3. last game mentioned in recent conversation history
+    #   4. 'game_vault' (absolute last resort)
     def chosen_game_slug(intent)
       explicit = intent.is_a?(Hash) ? intent[:game_slug] : nil
       return explicit if explicit.present?
@@ -670,6 +690,33 @@ module Games
       preferred = (contact&.custom_attributes || {})['preferred_platform'].to_s.downcase.strip
       mapped = PREFERRED_PLATFORM_TO_SLUG[preferred]
       return mapped if mapped.present?
+
+      history_slug = last_game_slug_from_history
+      return history_slug if history_slug.present?
+
+      'game_vault'
+    end
+
+    def last_game_slug_from_history
+      return nil unless messages.is_a?(Array)
+
+      customer_texts = messages.select do |m|
+        if m.is_a?(Hash)
+          (m[:role] || m['role']).to_s == 'user'
+        else
+          m.respond_to?(:incoming?) && m.incoming?
+        end
+      end
+
+      customer_texts.reverse_each do |m|
+        text = if m.is_a?(Hash)
+                 (m[:content] || m['content']).to_s
+               else
+                 m.content.to_s
+               end
+        slug = Games::IntentDetector.detect_game(text)
+        return slug if slug.present?
+      end
 
       nil
     end

@@ -331,6 +331,7 @@ Rails.application.routes.draw do
 
           namespace :patra do
             get 'dashboard', to: 'dashboard#show'
+            get 'reports', to: 'reports#show'
             resource :settings, only: [:show, :update], controller: 'settings'
             scope 'conversations/:conversation_id' do
               get 'summary', to: 'conversation_summary#show'

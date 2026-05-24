@@ -16,6 +16,7 @@ import OnboardingAccountDetails from './onboarding/Index.vue';
 import PatraAddChannel from './patra/PatraAddChannel.vue';
 import PatraAiTraining from './patra/PatraAiTraining.vue';
 import PatraOwnerDashboard from './patra/PatraOwnerDashboard.vue';
+import PatraReports from './patra/PatraReports.vue';
 
 export default {
   routes: [
@@ -59,6 +60,14 @@ export default {
           component: PatraAiTraining,
           meta: {
             permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'patra/reports',
+          name: 'patra_reports',
+          component: PatraReports,
+          meta: {
+            permissions: ['administrator', 'agent'],
           },
         },
       ],
