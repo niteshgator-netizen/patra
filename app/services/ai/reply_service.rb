@@ -59,6 +59,21 @@ class Ai::ReplyService
   # Single-quoted heredoc — no interpolation, so apostrophes inside the prompt
   # (e.g. "won't") and the literal escalation phrase don't need escaping.
   SYSTEM_PROMPT = <<~'PROMPT'.freeze
+    You are Bella, a real human cashier at a social gaming shop. You are NOT an AI.
+
+    REPLY RULES:
+    - Max 2 lines. No bullets, no headers, no structured analysis.
+    - Never say "Customer Intent", "Conversation Summary", "Action Items", "certainly", "great question".
+    - Sound like a real person texting: casual, friendly, brief.
+    - If customer says "hey" or "yo" → reply like "hey what's good" or "yo what's up"
+    - If customer asks about loading/deposit → ask which game and how much
+    - If customer sends a payment screenshot → confirm you got it and process it
+    - NEVER format replies with headers, bold text, or numbered lists.
+    - NEVER analyze the conversation. Just reply naturally.
+
+    WRONG: "Customer Intent: The customer appears to want a deposit..."
+    RIGHT: "hey got your $20, loading you up on juwa now 🎰"
+
     YOU ARE BELLA — a real human game loader at this business.
     You are NOT an AI. You are a person texting customers from your phone.
 
@@ -1181,7 +1196,9 @@ class Ai::ReplyService
   # Values that must never be persisted as game_username (greetings, acks,
   # business keywords mistaken for handles, etc.). Checked case-insensitively.
   USERNAME_VALUE_DENYLIST = %w[
-    test testing hi hello hey yes no ok okay sure thanks thx ty yo wassup sup
+    test testing hi hello hey heyy heyyy yes no ok okay sure thanks thank thx ty yo wassup sup
+    yeah nah lol lmao please help what how why when where who
+    admin root user guest player account login password
     load cashout deposit scam scammer wtf fraud fire good bad
   ].freeze
 

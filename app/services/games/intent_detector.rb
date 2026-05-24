@@ -212,7 +212,7 @@ module Games
                       intent: :load,
                       amount: amount,
                       game_username: captured_username || extract_username(text),
-                      game_slug: detect_game(text) || (captured_username ? 'game_vault' : nil)
+                      game_slug: detect_game(text)
                     }
                   elsif (new_acct = detect_new_account_request_with_game(text))
                     new_acct
