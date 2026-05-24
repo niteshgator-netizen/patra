@@ -92,14 +92,15 @@ const aiStatusLabel = computed(() =>
     : t('PATRA.CONVERSATION_CARD.AI_HANDLING')
 );
 const hasVipLabel = computed(() => (props.chat?.labels || []).includes('vip'));
-const hasVipTier = computed(
-  () =>
-    (props.currentContact?.custom_attributes?.loyalty_tier || '')
-      .toString()
-      .toLowerCase() === 'vip'
-);
-  () => props.currentContact?.custom_attributes?.preferred_platform
-);
+
+const preferredPlatform = computed(() => {
+  return props.currentContact?.custom_attributes?.preferred_platform;
+});
+
+const showVipBadge = computed(() => {
+  const tier = props.chat?.meta?.sender?.custom_attributes?.loyalty_tier;
+  return tier === 'vip';
+});
 
 const gameBadgeLabel = computed(() => {
   const platform = preferredPlatform.value;
