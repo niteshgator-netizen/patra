@@ -350,6 +350,13 @@ const actions = {
     }
   },
 
+  toggleMessagePin: async ({ commit }, { conversationId, messageId, pinned }) => {
+    const { data } = await MessageApi.update(conversationId, messageId, {
+      content_attributes: { pinned },
+    });
+    commit(types.ADD_MESSAGE, data);
+  },
+
   deleteConversation: async ({ commit, dispatch }, conversationId) => {
     try {
       await ConversationApi.delete(conversationId);

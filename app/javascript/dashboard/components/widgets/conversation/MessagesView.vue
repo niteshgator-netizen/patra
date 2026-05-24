@@ -8,6 +8,7 @@ import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 // components
 import ReplyBox from './ReplyBox.vue';
 import MessageList from 'next/message/MessageList.vue';
+import PinnedMessagesSection from './PinnedMessagesSection.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -40,6 +41,7 @@ import { INBOX_TYPES } from 'dashboard/helper/inbox';
 export default {
   components: {
     MessageList,
+    PinnedMessagesSection,
     ReplyBox,
     Banner,
     ConversationLabelSuggestion,
@@ -339,6 +341,10 @@ export default {
       });
       this.makeMessagesRead();
     },
+    scrollToPinnedMessage(messageId) {
+      emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE, { messageId });
+      emitter.emit(BUS_EVENTS.HIGHLIGHT_MESSAGE, { messageId });
+    },
     addScrollListener() {
       this.conversationPanel = this.$el.querySelector('.conversation-panel');
       this.setScrollParams();
@@ -469,6 +475,10 @@ export default {
         :banner-message="$t('CONVERSATION.OLD_INSTAGRAM_INBOX_REPLY_BANNER')"
       />
     </div>
+    <PinnedMessagesSection
+      :messages="getMessages"
+      @scroll-to-message="scrollToPinnedMessage"
+    />
     <MessageList
       ref="conversationPanelRef"
       class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 pb-4"

@@ -277,6 +277,8 @@
       "COPY": "Copy",
       "REPLY_TO": "Reply to this message",
       "DELETE": "Delete",
+      "PIN": "Pin message",
+      "UNPIN": "Unpin message",
       "CREATE_A_CANNED_RESPONSE": "Add to canned responses",
       "TRANSLATE": "Translate",
       "COPY_PERMALINK": "Copy link to the message",
@@ -287,6 +289,12 @@
         "DELETE": "Delete",
         "CANCEL": "Cancel"
       }
+    },
+    "PINNED_MESSAGES": {
+      "SECTION_TITLE": "Pinned Messages ({count})",
+      "PIN": "Pin",
+      "UNPIN": "Unpin",
+      "ERROR": "Could not update pin status"
     },
     "SIDEBAR": {
       "CONTACT": "Contact",

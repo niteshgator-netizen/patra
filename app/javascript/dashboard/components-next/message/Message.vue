@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed, ref, toRefs } from 'vue';
+import { onMounted, onBeforeUnmount, computed, ref, toRefs } from 'vue';
 import { useTimeoutFn } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
 import { useTrack } from 'dashboard/composables';
@@ -356,6 +356,21 @@ const isMessageDeleted = computed(() => {
   return props.contentAttributes?.deleted;
 });
 
+const isPinned = computed(() => props.contentAttributes?.pinned === true);
+
+const isFailedOrProcessing = computed(() => {
+  return (
+    props.status === MESSAGE_STATUS.FAILED ||
+    props.status === MESSAGE_STATUS.PROGRESS
+  );
+});
+
+const actionBarPositionClass = computed(() =>
+  orientation.value === ORIENTATION.RIGHT
+    ? 'ltr:left-10 rtl:right-10'
+    : 'ltr:right-10 rtl:left-10'
+);
+
 const payloadForContextMenu = computed(() => {
   return {
     id: props.id,
@@ -370,23 +385,22 @@ const contextMenuEnabledOptions = computed(() => {
   const hasAttachments = !!(props.attachments && props.attachments.length > 0);
 
   const isOutgoing = props.messageType === MESSAGE_TYPES.OUTGOING;
-  const isFailedOrProcessing =
-    props.status === MESSAGE_STATUS.FAILED ||
-    props.status === MESSAGE_STATUS.PROGRESS;
+  const isFailedOrProcessingValue = isFailedOrProcessing.value;
 
   return {
     copy: hasText,
     delete:
       (hasText || hasAttachments) &&
-      !isFailedOrProcessing &&
+      !isFailedOrProcessingValue &&
       !isMessageDeleted.value,
     cannedResponse: isOutgoing && hasText && !isMessageDeleted.value,
-    copyLink: !isFailedOrProcessing,
-    translate: !isFailedOrProcessing && !isMessageDeleted.value && hasText,
+    copyLink: !isFailedOrProcessingValue,
+    translate: !isFailedOrProcessingValue && !isMessageDeleted.value && hasText,
     replyTo:
       !props.private &&
       props.inboxSupportsReplyTo.outgoing &&
-      !isFailedOrProcessing,
+      !isFailedOrProcessingValue,
+    pin: isBubble.value && !isMessageDeleted.value && !isFailedOrProcessingValue,
   };
 });
 
@@ -495,6 +509,10 @@ const setupHighlightTimer = () => {
     return;
   }
 
+  triggerHighlight();
+};
+
+const triggerHighlight = () => {
   showBackgroundHighlight.value = true;
   const HIGHLIGHT_TIMER = 1000;
   useTimeoutFn(() => {
@@ -502,7 +520,20 @@ const setupHighlightTimer = () => {
   }, HIGHLIGHT_TIMER);
 };
 
-onMounted(setupHighlightTimer);
+const onHighlightMessage = ({ messageId }) => {
+  if (Number(messageId) === Number(props.id)) {
+    triggerHighlight();
+  }
+};
+
+onMounted(() => {
+  setupHighlightTimer();
+  emitter.on(BUS_EVENTS.HIGHLIGHT_MESSAGE, onHighlightMessage);
+});
+
+onBeforeUnmount(() => {
+  emitter.off(BUS_EVENTS.HIGHLIGHT_MESSAGE, onHighlightMessage);
+});
 
 provideMessageContext({
   ...toRefs(props),
@@ -519,7 +550,7 @@ provideMessageContext({
   <div
     v-if="shouldRenderMessage"
     :id="`message${props.id}`"
-    class="flex w-full mb-2 message-bubble-container"
+    class="flex w-full mb-2 message-bubble-container group/message relative"
     :data-message-id="props.id"
     :class="[
       flexOrientationClass,
@@ -559,6 +590,7 @@ provideMessageContext({
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
           'min-w-0': variant === MESSAGE_VARIANTS.EMAIL,
+          'border-l-2 border-amber-400 rounded-l-sm': isPinned,
         }"
         @contextmenu="openContextMenu($event)"
       >
@@ -572,9 +604,12 @@ provideMessageContext({
         @retry="emit('retry')"
       />
     </div>
-    <div v-if="shouldShowContextMenu" class="context-menu-wrap">
+    <div
+      v-if="shouldShowContextMenu && isBubble"
+      class="context-menu-wrap absolute top-0 z-10 flex items-center gap-0.5"
+      :class="actionBarPositionClass"
+    >
       <ContextMenu
-        v-if="isBubble"
         :context-menu-position="contextMenuPosition"
         :is-open="showContextMenu"
         :enabled-options="contextMenuEnabledOptions"
