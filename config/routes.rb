@@ -210,6 +210,7 @@ Rails.application.routes.draw do
             end
             member do
               get :contactable_inboxes
+              get :timeline, to: 'contacts/timeline#show'
               get :presence, to: 'contacts/presences#show'
               post :destroy_custom_attributes
               post :reengage
@@ -363,6 +364,20 @@ Rails.application.routes.draw do
                 post :resync
               end
             end
+
+            post 'click_to_chat', to: 'click_to_chat#create'
+            get 'api_docs', to: 'api_docs#index'
+
+            post 'incident/pause_ai', to: 'incident#pause_ai'
+            post 'incident/broadcast_open', to: 'incident#broadcast_open'
+            post 'incident/reassign_all', to: 'incident#reassign_all'
+
+            post 'ai/copilot_suggestion', to: 'ai#copilot_suggestion'
+            post 'ai/summarize', to: 'ai#summarize'
+            post 'ai/suggest_tags', to: 'ai#suggest_tags'
+            post 'ai/smart_compose', to: 'ai#smart_compose'
+            post 'ai/translate', to: 'ai#translate'
+            post 'ai/analyze_image', to: 'ai#analyze_image'
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
@@ -442,6 +457,50 @@ Rails.application.routes.draw do
             end
           end
           resources :scheduled_messages, only: [:index, :create, :destroy]
+          resources :automation_flows do
+            collection do
+              get :templates
+              post :from_template
+            end
+            member do
+              post :duplicate
+              post :preview
+              post :activate
+              get :analytics
+            end
+          end
+          resources :broadcasts do
+            member do
+              post :send_now
+              get :preview_count
+            end
+          end
+          resources :drip_campaigns do
+            member do
+              post :activate
+            end
+          end
+          resources :knowledge_articles do
+            collection do
+              get :search
+            end
+            member do
+              post :draft_from_conversations
+              post :improve
+            end
+          end
+          resources :cashier_claims, only: [:index] do
+            member do
+              post :claim
+              post :complete
+            end
+          end
+          resources :backup_pages do
+            collection do
+              post :reorder
+            end
+          end
+          resources :agent_shifts, only: [:index, :create, :update, :destroy]
           resources :player_bonuses, only: [:index, :create]
           resources :game_actions, only: [:index]
           resources :agent_games do
@@ -688,6 +747,15 @@ Rails.application.routes.draw do
   post 'webhooks/tiktok', to: 'webhooks/tiktok#events'
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
 
+  # Patra public help center
+  get 'help/:account_id', to: 'help_center#index', as: :help_center
+  get 'help/:account_id/search', to: 'help_center#search', as: :help_center_search
+  get 'help/:account_id/articles/:id', to: 'help_center#show', as: :help_center_article
+  post 'help/:account_id/articles/:id/feedback', to: 'help_center#feedback', as: :help_center_feedback
+
+  # Patra embeddable widget public API
+  post 'widget/patra/messages', to: 'widget/messages#create'
+
   namespace :twitter do
     resource :callback, only: [:show]
   end
@@ -765,6 +833,10 @@ Rails.application.routes.draw do
 
       # resources that doesn't appear in primary navigation in super admin
       resources :account_users, only: [:new, :create, :show, :destroy]
+      resource :patra_dashboard, only: [:show], controller: 'patra_dashboard' do
+        get :system_health
+      end
+      resources :feature_flags, only: [:index, :create, :update]
     end
     authenticated :super_admin do
       mount Sidekiq::Web => '/monitoring/sidekiq'

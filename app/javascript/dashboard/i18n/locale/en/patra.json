@@ -182,6 +182,79 @@
         "SAT": "Sat",
         "SUN": "Sun"
       }
+    },
+    "FLOWS": {
+      "TITLE": "Automation Flows",
+      "SUBTITLE": "Visual flow builder for customer journeys",
+      "ACTIVE": "active",
+      "FROM_TEMPLATE": "From template",
+      "ACTIVATE": "Activate",
+      "DEACTIVATE": "Deactivate",
+      "DUPLICATE": "Duplicate",
+      "DELETE": "Delete",
+      "STEP_PALETTE": "Step types",
+      "NAME_PLACEHOLDER": "Flow name",
+      "PREVIEW": "Preview",
+      "PREVIEW_LOG": "Preview execution log",
+      "PREVIEW_CONTACT_ID": "Contact ID for preview",
+      "SAVE": "Save flow",
+      "MESSAGE_PLACEHOLDER": "Message content (supports {{variables}})",
+      "WAIT_MINUTES": "Wait duration (minutes)",
+      "TAG_PLACEHOLDER": "Tag name"
+    },
+    "BROADCASTS": {
+      "TITLE": "Broadcasts",
+      "NEW": "New broadcast",
+      "COMPOSE": "Compose broadcast",
+      "EDIT": "Edit",
+      "NAME": "Broadcast name",
+      "CONTENT": "Message content",
+      "SAVE": "Save",
+      "SEND_NOW": "Send now",
+      "MATCHING_CONTACTS": "{count} contacts match this segment"
+    },
+    "AI": {
+      "SUGGESTED": "Suggested",
+      "USE": "Use",
+      "EDIT": "Edit",
+      "DISMISS": "Dismiss"
+    },
+    "CASHIER": {
+      "QUEUE_TITLE": "Cashier Queue",
+      "EMPTY": "No pending claims",
+      "CLAIM": "Claim",
+      "COMPLETE": "Complete"
+    },
+    "SUPER_ADMIN": {
+      "TITLE": "Patra Super Admin",
+      "LOADING": "Loading system metrics…",
+      "ACCOUNTS": "Total accounts",
+      "CONVERSATIONS": "Total conversations",
+      "MESSAGES": "Total messages",
+      "SIDEKIQ": "Sidekiq queue depth"
+    },
+    "LEADERBOARD": {
+      "TITLE": "Agent Leaderboard",
+      "SUBTITLE": "Weekly performance rankings",
+      "RANK": "Rank",
+      "RESOLVED": "Resolved",
+      "RESPONSE_TIME": "Avg response time"
+    },
+    "KNOWLEDGE": {
+      "TITLE": "Knowledge Base",
+      "NEW": "New article",
+      "SEARCH": "Search articles",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "EDIT": "Edit",
+      "DRAFT_FROM_CONVERSATIONS": "Draft from conversations"
+    },
+    "ATTRIBUTES": {
+      "TITLE": "Custom Attributes",
+      "SUBTITLE": "Define custom contact fields",
+      "LABEL": "Field label",
+      "ADD": "Add field",
+      "REMOVE": "Remove"
     }
   }
 }

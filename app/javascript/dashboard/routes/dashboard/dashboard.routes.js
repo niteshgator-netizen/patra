@@ -17,6 +17,10 @@ import PatraAddChannel from './patra/PatraAddChannel.vue';
 import PatraAiTraining from './patra/PatraAiTraining.vue';
 import PatraOwnerDashboard from './patra/PatraOwnerDashboard.vue';
 import PatraReports from './patra/PatraReports.vue';
+import broadcastsRoutes from './broadcasts/broadcasts.routes';
+import Leaderboard from './reports/Leaderboard.vue';
+import KnowledgeBase from './settings/knowledge/KnowledgeBase.vue';
+import CustomAttributesBuilder from './settings/attributes/CustomAttributesBuilder.vue';
 
 export default {
   routes: [
@@ -34,6 +38,7 @@ export default {
         ...notificationRoutes,
         ...helpcenterRoutes.routes,
         ...campaignsRoutes.routes,
+        ...broadcastsRoutes.routes,
         {
           path: 'patra/dashboard',
           name: 'patra_owner_dashboard',
@@ -68,6 +73,30 @@ export default {
           component: PatraReports,
           meta: {
             permissions: ['administrator', 'agent'],
+          },
+        },
+        {
+          path: 'patra/leaderboard',
+          name: 'patra_leaderboard',
+          component: Leaderboard,
+          meta: {
+            permissions: ['administrator', 'agent'],
+          },
+        },
+        {
+          path: 'patra/knowledge',
+          name: 'patra_knowledge',
+          component: KnowledgeBase,
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'patra/custom-attributes',
+          name: 'patra_custom_attributes',
+          component: CustomAttributesBuilder,
+          meta: {
+            permissions: ['administrator'],
           },
         },
       ],

@@ -153,3 +153,45 @@ games_proactive_session_refresh_job:
   class: 'Games::ProactiveSessionRefreshJob'
   queue: low
   description: 'Refresh Cluster 1 ASP.NET + Cluster 2 Laravel panel sessions before they expire (Ship 4)'
+
+# Every 2 minutes — poll email inboxes for new messages
+channels_email_poll_job:
+  cron: '*/2 * * * *'
+  class: 'Channels::EmailPollJob'
+  queue: scheduled_jobs
+
+# Every 5 minutes — cross-check payment IMAP notifications
+payments_imap_check_job:
+  cron: '*/5 * * * *'
+  class: 'Payments::ImapCheckJob'
+  queue: scheduled_jobs
+
+# Every hour — backup page health checks
+backup_health_check_job:
+  cron: '0 * * * *'
+  class: 'Backup::HealthCheckJob'
+  queue: scheduled_jobs
+
+# Every 8 hours — shift report for sweepstakes
+reports_shift_report_job:
+  cron: '0 */8 * * *'
+  class: 'Reports::ShiftReportJob'
+  queue: scheduled_jobs
+
+# Daily — update contact activity scores
+contacts_activity_score_job:
+  cron: '0 5 * * *'
+  class: 'Contacts::ActivityScoreJob'
+  queue: low
+
+# Every minute — expire unclaimed cashier claims
+cashier_expire_claims_job:
+  cron: '*/1 * * * *'
+  class: 'Cashier::ExpireClaimsJob'
+  queue: low
+
+# Every hour — payment handle health monitor
+payments_handle_health_job:
+  cron: '0 * * * *'
+  class: 'Payments::HandleHealthMonitorJob'
+  queue: low

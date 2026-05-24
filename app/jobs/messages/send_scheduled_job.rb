@@ -12,7 +12,12 @@ module Messages
         user = scheduled.created_by_user
 
         Messages::MessageBuilder.new(user, conversation, { content: scheduled.content, private: false }).perform
-        scheduled.update!(status: 'sent', sent_at: Time.current)
+        if scheduled.recurring? && (scheduled.recurrence_end_at.nil? || scheduled.recurrence_end_at > Time.current)
+          next_at = scheduled.next_occurrence
+          scheduled.update!(scheduled_at: next_at, status: 'pending') if next_at
+        else
+          scheduled.update!(status: 'sent', sent_at: Time.current)
+        end
       rescue StandardError => e
         Rails.logger.error("[SendScheduledJob] id=#{scheduled.id} #{e.class}: #{e.message}")
       end
