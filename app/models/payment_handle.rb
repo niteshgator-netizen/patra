@@ -30,7 +30,20 @@ class PaymentHandle < ApplicationRecord
   end
 
   def display_handle
-    display_name.presence || handle
+    h = handle.to_s.strip
+    return h if h.start_with?('$', '@')
+    return '' if h.blank?
+
+    case platform.to_s.downcase
+    when 'cashapp', 'chime' then "$#{h}"
+    when 'venmo'            then "@#{h}"
+    else h
+    end
+  end
+
+  def display_person_name
+    name = try(:display_name).to_s.strip
+    name.presence
   end
 
   def active?
