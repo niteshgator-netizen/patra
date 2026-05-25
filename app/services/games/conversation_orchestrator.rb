@@ -1111,6 +1111,7 @@ module Games
       end
 
       Rails.logger.info("[Orchestrator] payment_method_chosen platform=#{platform} handle=#{handle_text}")
+      store_expected_payment_handle!(platform: platform, handle: handle_text)
       {
         reply: "easy! send to #{handle_text} on #{platform} and drop the screenshot here 📸",
         labels: ['payment-method-chosen', "payment-#{platform}"]
@@ -1226,6 +1227,22 @@ module Games
       yield
     rescue StandardError => e
       Rails.logger.error("[Orchestrator] Telegram call failed: #{e.class}: #{e.message}")
+    end
+
+    def store_expected_payment_handle!(platform:, handle:)
+      return if conversation.blank? || platform.blank? || handle.blank?
+
+      begin
+        attrs = (conversation.additional_attributes || {}).stringify_keys
+        attrs['expected_platform'] = platform.to_s.downcase
+        attrs['expected_handle'] = handle.to_s
+        attrs['expected_handle_at'] = Time.current.iso8601
+        conversation.additional_attributes = attrs
+        conversation.save!
+        Rails.logger.info("[Orchestrator] stored expected payment handle platform=#{platform} handle=#{handle}")
+      rescue StandardError => e
+        Rails.logger.warn("[Orchestrator] store_expected_payment_handle! failed: #{e.message}")
+      end
     end
 
     # Looks at the most recent patra_finance_logs entry. If it's a confirmed deposit
