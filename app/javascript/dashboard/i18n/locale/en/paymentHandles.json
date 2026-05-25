@@ -45,7 +45,7 @@
     "FORM": {
       "PLATFORM": "Platform",
       "HANDLE": "Tag/Username",
-      "HANDLE_PLACEHOLDER": "Enter cashtag/username (e.g. $sofiamann8 or @DEVPATEL742)",
+      "HANDLE_PLACEHOLDER": "Enter cashtag or username (e.g. sofiamann8, DEVPATEL742, nadia-khan-7)",
       "DISPLAY_NAME": "Name",
       "DISPLAY_NAME_PLACEHOLDER": "Enter the person's name (e.g. Sofia Mann)",
       "PRIORITY": "Priority",
