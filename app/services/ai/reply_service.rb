@@ -534,6 +534,28 @@ class Ai::ReplyService
       if image_url.present?
         payment = Ai::ImagePaymentExtractor.new(image_url).extract
         if payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
+          contact_id = fetch_sender_contact_id
+          acct = Account.find_by(id: account_id)
+
+          validator = Payments::ReceiptValidator.new(payment)
+          if !validator.valid_receipt? && validator.likely_profile_page?
+            Rails.logger.info("[ReplyService] REJECTED profile-page image contact=#{contact_id}")
+            add_conversation_labels!(%w[non-receipt-image])
+            return 'hey that looks like the profile page, not the payment receipt. can you screenshot the actual transaction from your history? 🙏'
+          end
+
+          if acct
+            resolved = Payments::HandleResolver.new(account: acct, ocr_result: payment).resolve
+            if resolved && resolved[:handle].platform.to_s.downcase != payment[:platform].to_s.downcase
+              original_ocr_platform = payment[:platform].to_s
+              Rails.logger.info("[ReplyService] PLATFORM_OVERRIDE ocr=#{original_ocr_platform} → db=#{resolved[:handle].platform} score=#{resolved[:score]} source=#{resolved[:source]} contact=#{contact_id}")
+              payment[:platform] = resolved[:handle].platform
+              payment[:ocr_platform_original] = original_ocr_platform
+              payment[:resolved_handle_id] = resolved[:handle].id
+              payment[:resolved_handle_score] = resolved[:score]
+            end
+          end
+
           grok_injection = nil
           raw_first = @raw_fb_attachments.first
           raw_h = raw_first.is_a?(Hash) ? raw_first.stringify_keys : {}
@@ -567,8 +589,6 @@ class Ai::ReplyService
             end
           end
 
-          contact_id = fetch_sender_contact_id
-          acct = Account.find_by(id: account_id)
           recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
           if contact_id.present?
             contact_response = HTTParty.get(

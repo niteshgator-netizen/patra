@@ -31,7 +31,8 @@ module Ai
         "transaction_time": "<time as written, e.g. '5:45 PM' or '17:45', or null>",
         "status": "sent|pending|failed|completed",
         "note_or_memo": "<the 'For' / 'Note' / 'Memo' field value if shown, or null>",
-        "confidence": "high|medium|low"
+        "confidence": "high|medium|low",
+        "raw_text": "<concatenate EVERY readable word/handle/number you can see anywhere in the image, separated by spaces, all lowercase, no punctuation removed from $handles — purpose: full-text fallback for downstream matching>"
       }
 
       If NOT a payment screenshot:
@@ -56,6 +57,7 @@ module Ai
 
       OTHER RULES:
       - Return is_payment:true only if at least 70 percent confident.
+      - raw_text must include $cashtags, @handles, and recipient/sender names verbatim — case-insensitive but characters preserved.
       - amount must be a number, not a string.
       - Read names, handles, and transaction_id EXACTLY as shown. Do not paraphrase. Do not invent.
       - transaction_id is critical for duplicate detection — extract it verbatim if visible.
