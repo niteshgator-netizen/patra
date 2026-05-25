@@ -647,32 +647,55 @@ class Ai::ReplyService
               unless log_entry['flag_reason']
                 bridge_conversation = @bridge_account_id.present? ? Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id) : nil
                 expected_platform = bridge_conversation&.additional_attributes&.dig('expected_platform')
+                expected_handle = bridge_conversation&.additional_attributes&.dig('expected_handle')
+
                 if expected_platform.present? && payment[:platform].to_s.downcase != expected_platform.to_s.downcase
-                  add_conversation_labels!(%w[wrong-platform needs-human])
-                  return "hey — I gave you a #{expected_platform.titleize} handle but this screenshot looks like #{payment[:platform].titleize}. those are different apps with different people. We didn't receive that payment. Want to re-send via #{expected_platform.titleize}? Or if you'd rather use #{payment[:platform].titleize}, I can give you our #{payment[:platform].titleize} handle"
-                end
+                  ocr_platform = payment[:platform].to_s.downcase
+                  alt_handle = nil
+                  if acct && PaymentHandle::PLATFORMS.include?(ocr_platform)
+                    alt_ph = acct.payment_handles.active_for(ocr_platform).order(:priority).first
+                    alt_handle = alt_ph&.display_handle
+                  end
 
-                platform = payment[:platform].to_s.downcase
-                db_norms = if acct && PaymentHandle::PLATFORMS.include?(platform)
-                           acct.payment_handles.where(platform: platform).map(&:normalized_handle).uniq.reject(&:blank?)
-                         else
-                           []
-                         end
-                legacy = OUR_HANDLES[platform]
-                legacy_norms = Array(legacy).map { |h| h.to_s.gsub(/^[\$@]/, '').strip.downcase }.reject(&:blank?)
-                expected_norms = db_norms.presence || legacy_norms
-
-                if recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
+                  add_conversation_labels!(%w[wrong-platform])
                   log_entry['kind'] = 'flagged'
-                  log_entry['flag_reason'] = 'recipient_mismatch'
-                  expected_display = if db_norms.any? && acct
-                                       Payments::HandleSelector.new(acct).pick(platform)&.display_handle
-                                     elsif legacy.present?
-                                       legacy.first.to_s.start_with?('$') ? legacy.first.to_s : "$#{legacy.first}"
-                                     end
-                  log_entry['expected_handle'] = expected_display
-                  Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected_norms} got=#{recip_handle} contact=#{contact_id}")
-                  grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is #{expected_display}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to #{expected_display}. Do NOT confirm a deposit and do NOT offer a bonus."
+                  log_entry['flag_reason'] = 'wrong_platform'
+                  log_entry['expected_platform'] = expected_platform
+                  log_entry['paid_platform'] = ocr_platform
+
+                  grok_injection = <<~INJ.squish
+                    PLATFORM MISMATCH (do not accuse the customer — small mistake, recoverable).
+                    You gave them the #{expected_platform.upcase} handle "#{expected_handle}" earlier in the chat.
+                    Their screenshot shows they actually paid via #{ocr_platform.upcase} to "#{payment[:recipient_handle]}" — a stranger with the same handle string on a different app. We did NOT receive that payment.
+                    Reply in Bella's casual lowercase tone, max 2 lines, no bullets. Apologize warmly (it's an easy mix-up, $ and @ formats look similar across apps). Then offer BOTH options in ONE message:
+                    Option 1: re-send the same amount on #{expected_platform.upcase} to "#{expected_handle}"
+                    Option 2: switch to #{ocr_platform.upcase} — #{alt_handle.present? ? %(our #{ocr_platform.upcase} handle is "#{alt_handle}") : %(you'll need to wait while we grab the right #{ocr_platform.upcase} handle)}
+                    Do NOT confirm a deposit or bonus. Do NOT say "verify you sent it to" — they verified, the issue is the platform itself.
+                  INJ
+                  Rails.logger.warn("[ReplyService] WRONG_PLATFORM expected=#{expected_platform} got=#{ocr_platform} contact=#{contact_id}")
+                elsif log_entry['flag_reason'].blank?
+                  platform = payment[:platform].to_s.downcase
+                  db_norms = if acct && PaymentHandle::PLATFORMS.include?(platform)
+                             acct.payment_handles.where(platform: platform).map(&:normalized_handle).uniq.reject(&:blank?)
+                           else
+                             []
+                           end
+                  legacy = OUR_HANDLES[platform]
+                  legacy_norms = Array(legacy).map { |h| h.to_s.gsub(/^[\$@]/, '').strip.downcase }.reject(&:blank?)
+                  expected_norms = db_norms.presence || legacy_norms
+
+                  if recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
+                    log_entry['kind'] = 'flagged'
+                    log_entry['flag_reason'] = 'recipient_mismatch'
+                    expected_display = if db_norms.any? && acct
+                                         Payments::HandleSelector.new(acct).pick(platform)&.display_handle
+                                       elsif legacy.present?
+                                         legacy.first.to_s.start_with?('$') ? legacy.first.to_s : "$#{legacy.first}"
+                                       end
+                    log_entry['expected_handle'] = expected_display
+                    Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected_norms} got=#{recip_handle} contact=#{contact_id}")
+                    grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is #{expected_display}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to #{expected_display}. Do NOT confirm a deposit and do NOT offer a bonus."
+                  end
                 end
               end
 
