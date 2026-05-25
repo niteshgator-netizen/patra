@@ -27,7 +27,7 @@ module Messaging
       end
 
       post_message_hooks(conversation, message) if conversation && message
-      enqueue_ai_reply(conversation) if conversation
+      enqueue_ai_reply(message) if message&.incoming?
       message
     rescue StandardError => e
       Rails.logger.error("[ZernioDispatcher] failed inbox=#{inbox.id} #{e.class}: #{e.message}")
@@ -57,18 +57,19 @@ module Messaging
     # delay so AR commits land before Ai::ReplyService reads the conversation
     # history back over Chatwoot's REST API. Best-effort — failure to enqueue
     # never blocks ingestion (the agent UI already has the inbound message).
-    def enqueue_ai_reply(conversation)
+    def enqueue_ai_reply(message)
+      conversation = message.conversation
       Ai::ReplyJob.set(wait: 3.seconds).perform_later(
-        conversation.display_id,
+        message.id,
         conversation.account_id,
         fb_shaped_attachments
       )
       Rails.logger.info(
-        "[ZernioDispatcher] enqueued Ai::ReplyJob conv=#{conversation.display_id} account=#{conversation.account_id}"
+        "[ZernioDispatcher] enqueued Ai::ReplyJob message=#{message.id} conv=#{conversation.display_id} account=#{conversation.account_id}"
       )
     rescue StandardError => e
       Rails.logger.error(
-        "[ZernioDispatcher] AI enqueue failed conv=#{conversation&.display_id} #{e.class}: #{e.message}"
+        "[ZernioDispatcher] AI enqueue failed message=#{message&.id} #{e.class}: #{e.message}"
       )
     end
 
