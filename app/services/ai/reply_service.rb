@@ -379,6 +379,102 @@ class Ai::ReplyService
       return nil
     end
 
+    # ============ SENDER-NAME MATCH FLOW ============
+    bridge_conv_sn = nil
+    if @bridge_account_id.present? && @conversation_id.present?
+      bridge_conv_sn = Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id)
+    end
+
+    if bridge_conv_sn.present?
+      sn_state = bridge_conv_sn.additional_attributes&.dig('sender_match_state')
+      inbound_text = @routing_last_incoming_raw_content.to_s
+      if inbound_text.blank?
+        last_msg = messages.last
+        inbound_text = last_msg['content'].to_s if last_msg&.dig('role') == 'user'
+      end
+
+      recent_screenshot = bridge_conv_sn.messages
+                                        .where(message_type: :incoming)
+                                        .where('created_at > ?', 10.minutes.ago)
+                                        .joins(:attachments).where(attachments: { file_type: 'image' }).exists?
+
+      detector_sn = Games::IntentDetector.new
+      in_sender_flow = sn_state == 'awaiting_details' ||
+                       (!recent_screenshot && detector_sn.detect_sent_without_screenshot?(inbound_text))
+
+      if in_sender_flow
+        bridge_conv_sn.additional_attributes ||= {}
+        partial = (bridge_conv_sn.additional_attributes['sender_match_partial'] || {}).transform_keys(&:to_s)
+
+        parsed_amount = inbound_text.match(/\$?\s*(\d+(?:\.\d{1,2})?)\s*\$?/)&.[](1)&.to_f
+        parsed_amount = nil unless parsed_amount&.positive?
+        parsed_name = nil
+        if (m = inbound_text.match(/(?:from|name(?:'?s)? (?:is )?)\s*([A-Za-z][A-Za-z\s'.\-]{1,40})/i))
+          parsed_name = m[1].strip.downcase
+        end
+        if parsed_name.blank? && inbound_text.match?(/\A[A-Za-z\s'.\-]{3,40}\z/) && inbound_text.split.length.between?(1, 3)
+          parsed_name = inbound_text.strip.downcase
+        end
+        parsed_note = inbound_text.match(/(?:note|memo|for)[:\s]+([A-Za-z0-9\s]{1,40})/i)&.[](1)&.strip
+
+        merged_amount = parsed_amount || partial['amount']&.to_f
+        merged_amount = nil unless merged_amount&.positive?
+        merged_name = parsed_name.presence || partial['name']
+        merged_note = parsed_note.presence || partial['note']
+
+        bridge_conv_sn.additional_attributes['sender_match_partial'] = {
+          'amount' => merged_amount,
+          'name' => merged_name,
+          'note' => merged_note
+        }.compact
+
+        ready_to_match = merged_name.present? && merged_amount.present?
+
+        if ready_to_match
+          acct_sn = Account.find_by(id: account_id)
+          contact_sn = Contact.find_by(id: fetch_sender_contact_id, account_id: account_id)
+
+          if acct_sn && contact_sn && defined?(Payments::SenderNameMatcher)
+            matcher = Payments::SenderNameMatcher.new(
+              account: acct_sn,
+              sender_name: merged_name,
+              expected_amount: merged_amount.to_f
+            )
+            match = matcher.find_match
+
+            if match.present?
+              bridge_conv_sn.additional_attributes['sender_match_state'] = 'matched'
+              bridge_conv_sn.additional_attributes['sender_match_entry_id'] =
+                match[:transaction_id].presence || match[:payment_handle]&.id
+              bridge_conv_sn.additional_attributes.delete('sender_match_partial')
+              bridge_conv_sn.save!
+              Rails.logger.info(
+                "[ReplyService] SENDER_MATCH matched contact=#{contact_sn.id} amount=#{merged_amount} name=#{merged_name}"
+              )
+            else
+              bridge_conv_sn.save!
+              Rails.logger.info(
+                "[ReplyService] SENDER_MATCH no_match contact=#{contact_sn.id} amount=#{merged_amount} name=#{merged_name}"
+              )
+              return "i don't see a $#{merged_amount.to_i} from #{merged_name.split.map(&:capitalize).join(' ')} in my system yet — sometimes the bank takes 1-5 min to ping us. hang tight 🙏"
+            end
+          else
+            bridge_conv_sn.save!
+          end
+        elsif sn_state.blank? || sn_state == 'idle'
+          bridge_conv_sn.additional_attributes['sender_match_state'] = 'awaiting_details'
+          bridge_conv_sn.additional_attributes['sender_match_started_at'] = Time.current.iso8601
+          bridge_conv_sn.save!
+          Rails.logger.info("[ReplyService] SENDER_MATCH state=awaiting_details contact=#{fetch_sender_contact_id}")
+          return "got it — what name did you send it from? and the amount + any note you put on the payment? 🙏"
+        else
+          bridge_conv_sn.save!
+          return "need a bit more — what's the name on your account that sent it? and the amount in $?"
+        end
+      end
+    end
+    # ============ END SENDER-NAME MATCH FLOW ============
+
     # Tiered sentiment handling — see detect_anger_level. Only explicit
     # requests for a human/manager (Level 3) hand off; Levels 1 & 2 inject
     # empathy / apologize-and-solve hints — Bella does not auto-escalate on
@@ -446,7 +542,7 @@ class Ai::ReplyService
                 if emoji_already_used
                   rephrased = rephrased.gsub(ANY_EMOJI_PATTERN, '').strip
                 end
-                return rephrased
+                return guard_against_false_load_claim(rephrased)
               else
                 Rails.logger.info("[AiReply][RAGShortcut] rephrase returned nil, falling through")
               end
@@ -518,7 +614,7 @@ class Ai::ReplyService
             if orchestrator_result.is_a?(Hash) && orchestrator_result[:reply].to_s.strip.present?
               add_conversation_labels!(Array(orchestrator_result[:labels]))
               Rails.logger.info("[ReplyService] routed=game_orchestrator labels=#{Array(orchestrator_result[:labels]).join(',')}")
-              return orchestrator_result[:reply].to_s
+              return guard_against_false_load_claim(orchestrator_result[:reply].to_s)
             end
           end
         end
@@ -910,7 +1006,7 @@ class Ai::ReplyService
             ).generate_reply(rag_examples_block: rag_examples_block)
             if reply.present?
               Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
-              return reply
+              return guard_against_false_load_claim(reply)
             end
 
             Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
@@ -932,7 +1028,7 @@ class Ai::ReplyService
         Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
       else
         Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
-        return reply
+        return guard_against_false_load_claim(reply)
       end
     when :complex
       Rails.logger.info('[ReplyService] routed=grok')
@@ -1000,7 +1096,7 @@ class Ai::ReplyService
       end
     end
 
-    reply
+    guard_against_false_load_claim(reply)
   rescue StandardError => e
     Rails.logger.error("[AiReply] failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
     nil
@@ -1906,6 +2002,37 @@ class Ai::ReplyService
     )
   rescue StandardError => e
     Rails.logger.error("[AiReply] add_conversation_labels failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
+  end
+
+  def guard_against_false_load_claim(reply_text)
+    return reply_text if reply_text.blank?
+
+    load_claim_patterns = [
+      /\bloaded\b/i,
+      /got it.{0,20}load/i,
+      /lemme load/i,
+      /let me load/i,
+      /loading you up/i,
+      /you'?re? (set|good)/i,
+      /done.{0,10}load/i,
+      /✅/
+    ]
+
+    return reply_text unless load_claim_patterns.any? { |p| reply_text.match?(p) }
+
+    cid = fetch_sender_contact_id
+    return reply_text if cid.blank?
+
+    real_load = GameAction
+                .where(contact_id: cid, action_type: 'load', status: 'success')
+                .where('created_at > ?', 5.minutes.ago)
+                .exists?
+
+    return reply_text if real_load
+
+    Rails.logger.warn("[ReplyService] BLOCKED_FALSE_LOAD_CLAIM contact=#{cid} reply=#{reply_text.inspect[0..120]}")
+    add_conversation_labels!(%w[blocked-false-load-claim]) rescue nil
+    'verifying your payment with the bank, takes 1-5 min — hang tight 🙏'
   end
 
   def extracted_payment_status_normalized(raw)

@@ -279,6 +279,19 @@ module Games
       (?:cashapp|cash\s*app|chime|venmo|paypal|zelle)
     /ix
 
+    def detect_sent_without_screenshot?(message_text)
+      return false if message_text.blank?
+
+      text = message_text.to_s.downcase
+      sent_phrases = ['i sent', 'i paid', 'just sent', 'just paid', 'sent you', 'sent it',
+                      'sent the money', 'sent the payment', 'money sent', 'payment sent',
+                      'paid you', 'paid u', 'sent u']
+      return false unless sent_phrases.any? { |p| text.include?(p) }
+      return false if text.match?(/screenshot|receipt|proof|here'?s? (the )?pic/)
+
+      true
+    end
+
     class << self
       def detect(message_text)
         return nil if message_text.blank?
