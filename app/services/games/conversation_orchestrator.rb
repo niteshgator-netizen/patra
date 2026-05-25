@@ -947,7 +947,9 @@ module Games
 
         # CRITICAL: Reject flagged duplicates and anything with a flag_reason
         next if log['flag_reason'].to_s.strip.length > 0
-        next if log['raw_status'].to_s.downcase == 'pending'
+        if Payments::StatusNormalizer.needs_email_confirmation?(log['raw_status'])
+          next unless log['email_confirmed'] == true
+        end
 
         amount = parse_amount(log['amount'])
         next if amount.nil? || amount <= 0
@@ -982,7 +984,9 @@ module Games
 
         # Reject flagged duplicates
         next if log['flag_reason'].to_s.strip.length > 0
-        next if log['raw_status'].to_s.downcase == 'pending'
+        if Payments::StatusNormalizer.needs_email_confirmation?(log['raw_status'])
+          next unless log['email_confirmed'] == true
+        end
 
         amount = parse_amount(log['amount'])
         next if amount.nil? || amount <= 0
