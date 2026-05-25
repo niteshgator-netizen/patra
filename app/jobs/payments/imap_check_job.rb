@@ -11,6 +11,12 @@ module Payments
       Account.find_each do |account|
         next unless account.payment_handles.where.not(verification_email: nil).exists?
 
+        account.payment_handles.where.not(verification_email: nil).where(status: 'active').find_each do |ph|
+          Payments::GhostPaymentIngestionService.new(payment_handle: ph).ingest!
+        rescue StandardError => e
+          Rails.logger.error("[ImapCheckJob] ghost_ingest_failed handle=#{ph.id} error=#{e.message}")
+        end
+
         find_contacts_with_unconfirmed_entries(account).each do |contact_id|
           contact = account.contacts.find_by(id: contact_id) or next
           Payments::EmailConfirmationService.new(contact: contact).check_all

@@ -7,17 +7,14 @@ module Payments
     end
 
     def verify(amount:, sender_name: nil, transaction_id: nil, timestamp: nil)
-      emails = fetch_recent_emails
-      emails.find do |email|
+      fetch_recent_emails.find do |email|
         matches_amount?(email, amount) &&
           matches_sender?(email, sender_name) &&
           matches_transaction?(email, transaction_id)
       end
     end
 
-    private
-
-    def fetch_recent_emails
+    def fetch_recent_emails(count: 20)
       return [] unless @handle.verification_email.present?
 
       Mail.defaults do
@@ -29,11 +26,13 @@ module Payments
           enable_ssl: true
         }
       end
-      Mail.find(what: :last, count: 20, order: :desc)
+      Mail.find(what: :last, count: count, order: :desc)
     rescue StandardError => e
       Rails.logger.error("[ImapVerifier] #{e.message}")
       []
     end
+
+    private
 
     def matches_amount?(email, amount)
       email.body.to_s.include?(amount.to_s)

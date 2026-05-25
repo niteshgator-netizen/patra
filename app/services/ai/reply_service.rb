@@ -437,8 +437,10 @@ class Ai::ReplyService
           if acct_sn && contact_sn && defined?(Payments::SenderNameMatcher)
             matcher = Payments::SenderNameMatcher.new(
               account: acct_sn,
+              contact: contact_sn,
               sender_name: merged_name,
-              expected_amount: merged_amount.to_f
+              expected_amount: merged_amount.to_f,
+              note: merged_note
             )
             match = matcher.find_match
 
