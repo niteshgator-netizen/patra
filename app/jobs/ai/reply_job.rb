@@ -17,7 +17,9 @@ class Ai::ReplyJob < ApplicationJob
   def perform(conversation_id, bridge_account_id = nil, fb_attachments = nil)
     @bridge_account_id = bridge_account_id
 
-    conversation = Conversation.find_by(id: conversation_id)
+    conversation_id = Message.find_by(id: conversation_id)&.conversation&.display_id || conversation_id unless Conversation.exists?(display_id: conversation_id)
+
+    conversation = Conversation.find_by(display_id: conversation_id)
     if conversation&.contact && Contacts::BlacklistChecker.blacklisted?(conversation.contact)
       reply_text = Contacts::BlacklistChecker.restricted_reply
       send_blacklist_reply(conversation_id, reply_text)
