@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
@@ -23,6 +23,28 @@ const { t } = useI18n();
 
 const PLATFORMS = ['cashapp', 'chime', 'paypal', 'venmo', 'zelle'];
 const STATUSES = ['active', 'failed', 'disabled'];
+
+const IMAP_HOST_MAP = {
+  'gmail.com': 'imap.gmail.com',
+  'googlemail.com': 'imap.gmail.com',
+  'outlook.com': 'outlook.office365.com',
+  'hotmail.com': 'outlook.office365.com',
+  'live.com': 'outlook.office365.com',
+  'msn.com': 'outlook.office365.com',
+  'yahoo.com': 'imap.mail.yahoo.com',
+  'yahoo.co.uk': 'imap.mail.yahoo.com',
+  'ymail.com': 'imap.mail.yahoo.com',
+  'icloud.com': 'imap.mail.me.com',
+  'me.com': 'imap.mail.me.com',
+  'mac.com': 'imap.mail.me.com',
+  'aol.com': 'imap.aol.com',
+  'gmx.com': 'imap.gmx.com',
+  'gmx.us': 'imap.gmx.com',
+  'mail.com': 'imap.mail.com',
+  'zoho.com': 'imap.zoho.com',
+  'protonmail.com': '127.0.0.1',
+  'pm.me': '127.0.0.1',
+};
 
 const handles = ref([]);
 const isLoading = ref(true);
@@ -233,6 +255,24 @@ const confirmDelete = async () => {
     useAlert(t('PAYMENT_HANDLES.ERROR_GENERIC'));
   }
 };
+
+const detectImapHostFromEmail = email => {
+  const e = (email || '').toString().toLowerCase().trim();
+  const at = e.indexOf('@');
+  if (at < 0) return null;
+  const domain = e.slice(at + 1);
+  return IMAP_HOST_MAP[domain] || null;
+};
+
+watch(
+  () => form.value.verification_email,
+  newEmail => {
+    const detected = detectImapHostFromEmail(newEmail);
+    if (detected) {
+      form.value.verification_email_host = detected;
+    }
+  }
+);
 
 onMounted(() => {
   loadHandles();
@@ -459,6 +499,7 @@ onMounted(() => {
               class="w-full"
               type="email"
               :label="t('PAYMENT_HANDLES.FORM.VERIFICATION_EMAIL')"
+              placeholder="your.account@gmail.com (host auto-fills)"
             />
             <woot-input
               v-model="form.verification_email_password"
@@ -473,11 +514,17 @@ onMounted(() => {
               "
             />
             <div class="grid gap-4 sm:grid-cols-2">
-              <woot-input
-                v-model="form.verification_email_host"
-                class="w-full"
-                :label="t('PAYMENT_HANDLES.FORM.VERIFICATION_HOST')"
-              />
+              <div class="flex flex-col gap-1">
+                <woot-input
+                  v-model="form.verification_email_host"
+                  class="w-full"
+                  :label="t('PAYMENT_HANDLES.FORM.VERIFICATION_HOST')"
+                />
+                <p class="m-0 text-xs text-n-slate-11">
+                  Auto-detected from email. Override only if your provider uses a
+                  custom IMAP server.
+                </p>
+              </div>
               <woot-input
                 v-model.number="form.verification_email_port"
                 class="w-full"
