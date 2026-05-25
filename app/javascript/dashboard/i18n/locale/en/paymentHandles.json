@@ -15,8 +15,8 @@
     "LIST": {
       "TABLE_HEADER": {
         "PLATFORM": "Platform",
-        "HANDLE": "Handle",
-        "DISPLAY_NAME": "Display name",
+        "HANDLE": "Tag/Username",
+        "DISPLAY_NAME": "Name",
         "PRIORITY": "Priority",
         "STATUS": "Status",
         "FAILURE_COUNT": "Failure count",
@@ -44,8 +44,10 @@
     },
     "FORM": {
       "PLATFORM": "Platform",
-      "HANDLE": "Handle",
-      "DISPLAY_NAME": "Display name",
+      "HANDLE": "Tag/Username",
+      "HANDLE_PLACEHOLDER": "Enter cashtag/username (e.g. $sofiamann8 or @DEVPATEL742)",
+      "DISPLAY_NAME": "Name",
+      "DISPLAY_NAME_PLACEHOLDER": "Enter the person's name (e.g. Sofia Mann)",
       "PRIORITY": "Priority",
       "STATUS": "Status",
       "NOTES": "Notes",

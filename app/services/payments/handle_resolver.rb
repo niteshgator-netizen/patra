@@ -63,24 +63,36 @@ module Payments
       score = 0
       source = nil
 
-      normalized = ph.normalized_handle.to_s.downcase
-      raw = ph.handle.to_s.downcase
+      candidates = []
+      [ph.handle.to_s, ph.try(:display_name).to_s].each do |raw|
+        raw = raw.to_s.strip
+        next if raw.blank?
+        next if raw.include?(' ')
 
-      if normalized.present?
-        if ocr_tokens.include?(raw) ||
-           ocr_tokens.include?("$#{normalized}") ||
-           ocr_tokens.include?("@#{normalized}")
+        norm = raw.gsub(/^[\$@]/, '').downcase
+        next if norm.blank?
+
+        candidates << { norm: norm, raw: raw.downcase }
+      end
+      candidates.uniq! { |c| c[:norm] }
+
+      candidates.each do |cand|
+        if ocr_tokens.include?(cand[:raw]) ||
+           ocr_tokens.include?("$#{cand[:norm]}") ||
+           ocr_tokens.include?("@#{cand[:norm]}")
           score += EXACT_HANDLE_SCORE
           source = 'handle'
-        elsif ocr_tokens.include?(normalized)
+          break
+        elsif ocr_tokens.include?(cand[:norm])
           score += HANDLE_NO_PREFIX_SCORE
           source = 'handle'
+          break
         end
       end
 
-      display = ph.try(:display_name).to_s.downcase
-      if display.present?
-        name_words = display.split(/[^a-z0-9]+/).reject { |w| w.length < MIN_WORD_LENGTH }
+      name_value = [ph.handle.to_s, ph.try(:display_name).to_s].find { |v| v.to_s.include?(' ') }
+      if name_value.present?
+        name_words = name_value.downcase.split(/[^a-z0-9]+/).reject { |w| w.length < MIN_WORD_LENGTH }
         if name_words.any?
           matched = name_words & ocr_tokens
           if matched.length == name_words.length

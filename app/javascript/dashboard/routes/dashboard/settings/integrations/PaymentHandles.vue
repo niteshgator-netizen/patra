@@ -412,12 +412,14 @@ onMounted(() => {
             v-model="form.handle"
             class="w-full"
             :label="t('PAYMENT_HANDLES.FORM.HANDLE')"
+            :placeholder="t('PAYMENT_HANDLES.FORM.HANDLE_PLACEHOLDER')"
             data-testid="payment-handle-handle"
           />
           <woot-input
             v-model="form.display_name"
             class="w-full"
             :label="t('PAYMENT_HANDLES.FORM.DISPLAY_NAME')"
+            :placeholder="t('PAYMENT_HANDLES.FORM.DISPLAY_NAME_PLACEHOLDER')"
             data-testid="payment-handle-display-name"
           />
           <woot-input
