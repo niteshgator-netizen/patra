@@ -64,6 +64,22 @@ const selectedModel = computed({
     }
   },
 });
+
+const paymentStatus = computed(
+  () =>
+    props.chat?.payment_status ||
+    props.chat?.meta?.sender?.payment_status ||
+    props.currentContact?.payment_status ||
+    null
+);
+
+const paymentDotClass = computed(() => {
+  const color = paymentStatus.value?.color;
+  if (color === 'green') return 'bg-green-500';
+  if (color === 'blue') return 'bg-blue-500';
+  if (color === 'yellow') return 'bg-amber-500';
+  return null;
+});
 </script>
 
 <template>
@@ -154,6 +170,12 @@ const selectedModel = computed({
         class="text-heading-3 my-0 capitalize truncate text-n-slate-12 font-medium w-32 flex-shrink-0"
       >
         {{ currentContact.name }}
+        <span
+          v-if="paymentDotClass"
+          v-tooltip.top="paymentStatus?.label"
+          class="inline-block w-2 h-2 rounded-full ml-1 align-middle shrink-0"
+          :class="paymentDotClass"
+        />
       </h4>
 
       <CardContent
