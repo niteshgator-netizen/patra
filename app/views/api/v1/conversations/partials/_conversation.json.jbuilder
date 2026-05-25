@@ -59,4 +59,9 @@ json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i
 json.sla_policy_id conversation.sla_policy_id
+json.payment_status begin
+  Payments::ContactPaymentStatus.new(contact: conversation.contact).display_pill
+rescue StandardError
+  nil
+end
 json.partial! 'enterprise/api/v1/conversations/partials/conversation', conversation: conversation if ChatwootApp.enterprise?

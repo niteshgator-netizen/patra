@@ -38,6 +38,20 @@ const attrs = computed(() => {
   return { ...raw };
 });
 
+const paymentStatusPill = computed(() => props.contact?.payment_status || null);
+
+const paymentPillClass = computed(() => {
+  const color = paymentStatusPill.value?.color;
+  const map = {
+    green:
+      'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30',
+    blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30',
+    yellow:
+      'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30',
+  };
+  return map[color] || '';
+});
+
 const PREDEFINED_ATTR_KEYS = new Set([
   'game_username',
   'preferred_platform',
@@ -528,6 +542,14 @@ watch(() => props.contact?.id, loadExtras);
 
 <template>
   <div class="rounded-lg border border-n-weak bg-n-solid-1 p-3 text-sm">
+    <div
+      v-if="paymentStatusPill?.label"
+      class="mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+      :class="paymentPillClass"
+    >
+      <span v-if="paymentStatusPill.icon">{{ paymentStatusPill.icon }}</span>
+      <span>{{ paymentStatusPill.label }}</span>
+    </div>
     <div class="mb-3 flex flex-wrap items-center gap-2">
       <label class="flex items-center gap-2 text-xs text-n-slate-12">
         <input
