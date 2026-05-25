@@ -49,6 +49,8 @@ module Payments
         entry['email_confirmed'] = true
         entry['email_confirmed_at'] = Time.current.iso8601
         entry['email_match_source'] = 'imap_poll'
+        entry['status_before_email_verify'] = entry['status']
+        entry['status'] = 'Verified'
         true
       else
         entry['email_check_attempts'] = entry['email_check_attempts'].to_i + 1
