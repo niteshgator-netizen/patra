@@ -645,6 +645,13 @@ class Ai::ReplyService
               end
 
               unless log_entry['flag_reason']
+                bridge_conversation = @bridge_account_id.present? ? Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id) : nil
+                expected_platform = bridge_conversation&.additional_attributes&.dig('expected_platform')
+                if expected_platform.present? && payment[:platform].to_s.downcase != expected_platform.to_s.downcase
+                  add_conversation_labels!(%w[wrong-platform needs-human])
+                  return "hey — I gave you a #{expected_platform.titleize} handle but this screenshot looks like #{payment[:platform].titleize}. those are different apps with different people. We didn't receive that payment. Want to re-send via #{expected_platform.titleize}? Or if you'd rather use #{payment[:platform].titleize}, I can give you our #{payment[:platform].titleize} handle"
+                end
+
                 platform = payment[:platform].to_s.downcase
                 db_norms = if acct && PaymentHandle::PLATFORMS.include?(platform)
                            acct.payment_handles.where(platform: platform).map(&:normalized_handle).uniq.reject(&:blank?)
