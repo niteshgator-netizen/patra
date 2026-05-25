@@ -32,7 +32,17 @@ module Ai
         "status": "sent|pending|failed|completed",
         "note_or_memo": "<the 'For' / 'Note' / 'Memo' field value if shown, or null>",
         "confidence": "high|medium|low",
-        "raw_text": "<concatenate EVERY readable word/handle/number you can see anywhere in the image, separated by spaces, all lowercase, no punctuation removed from $handles — purpose: full-text fallback for downstream matching>"
+        "raw_text": "<concatenate EVERY readable word/handle/number you can see anywhere in the image, separated by spaces, all lowercase, no punctuation removed from $handles — purpose: full-text fallback for downstream matching>",
+        "transactions": [
+          {
+            "amount": <number>,
+            "date": "<date as written, e.g. 'May 24' or 'Today', or null>",
+            "counterparty_name": "<name shown on the line item, or null>",
+            "counterparty_handle": "<$cashtag/@handle shown on the line item, or null>",
+            "note": "<note/memo/emoji shown on the line item, or null>",
+            "direction": "sent|received"
+          }
+        ]
       }
 
       If NOT a payment screenshot:
@@ -61,6 +71,8 @@ module Ai
       - amount must be a number, not a string.
       - Read names, handles, and transaction_id EXACTLY as shown. Do not paraphrase. Do not invent.
       - transaction_id is critical for duplicate detection — extract it verbatim if visible.
+      - transactions[] only populates when the image shows a transaction LIST (profile pages with "Your history" section, account history views, transaction feed). For a single transaction receipt, leave transactions as [] or omit it. Each item must have at minimum amount + direction. Date/counterparty_name help downstream matching.
+      - For profile pages where you would normally output is_payment:false, still output is_payment:true with platform set to the detected app (cashapp/venmo/chime), amount/transaction_id/sender_name as null, AND populate transactions[] with everything visible in the history.
       - If a field is not visible or unreadable, return null. Do not guess.
     PROMPT
 

@@ -536,12 +536,64 @@ class Ai::ReplyService
         if payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
           contact_id = fetch_sender_contact_id
           acct = Account.find_by(id: account_id)
+          grok_injection = nil
 
           validator = Payments::ReceiptValidator.new(payment)
           if !validator.valid_receipt? && validator.likely_profile_page?
-            Rails.logger.info("[ReplyService] REJECTED profile-page image contact=#{contact_id}")
-            add_conversation_labels!(%w[non-receipt-image])
-            return 'hey that looks like the profile page, not the payment receipt. can you screenshot the actual transaction from your history? 🙏'
+            transactions = Array(payment[:transactions] || payment['transactions'])
+
+            bridge_conv_l0 = nil
+            expected_platform_l0 = nil
+            expected_handle_l0 = nil
+            if @bridge_account_id.present? && @conversation_id.present?
+              bridge_conv_l0 = Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id)
+              expected_platform_l0 = bridge_conv_l0&.additional_attributes&.dig('expected_platform')
+              expected_handle_l0 = bridge_conv_l0&.additional_attributes&.dig('expected_handle')
+            end
+
+            matching_txn = if transactions.any?
+                             transactions.find do |t|
+                               next false unless t.is_a?(Hash)
+
+                               h = t.transform_keys(&:to_s)
+                               h['amount'].to_f > 0 && h['direction'].to_s == 'sent'
+                             end&.transform_keys(&:to_s)
+                           end
+
+            if matching_txn && expected_platform_l0.present?
+              detected_platform = payment[:platform].to_s.downcase.presence || 'unknown'
+              txn_amount = matching_txn['amount']
+              txn_date = matching_txn['date']
+              txn_counterparty = matching_txn['counterparty_name'] || matching_txn['counterparty_handle'] || 'them'
+              txn_note = matching_txn['note']
+
+              add_conversation_labels!(%w[profile-page-evidence wrong-platform])
+              Rails.logger.info("[ReplyService] PROFILE_PAGE_TXN_EVIDENCE detected=#{detected_platform} expected=#{expected_platform_l0} amount=#{txn_amount} contact=#{contact_id}")
+
+              alt_handle_l0 = nil
+              if acct && PaymentHandle::PLATFORMS.include?(detected_platform)
+                alt_ph = acct.payment_handles.active_for(detected_platform).order(:priority).first
+                alt_handle_l0 = alt_ph&.display_handle
+              end
+
+              grok_injection = <<~INJ.squish
+                PROFILE PAGE EVIDENCE OF WRONG-PLATFORM PAYMENT.
+                Customer sent a profile-page screenshot (not a receipt). The visible transaction history shows they sent $#{txn_amount} to "#{txn_counterparty}"#{txn_date ? " on #{txn_date}" : ''}#{txn_note.present? ? " (note: #{txn_note})" : ''} via #{detected_platform.upcase}.
+                Earlier in this chat you told them to pay via #{expected_platform_l0.upcase} to "#{expected_handle_l0}".
+                Same handle name across different apps = different people. The "#{txn_counterparty}" they paid on #{detected_platform.upcase} is NOT us. We did NOT receive that payment.
+                Reply in Bella's casual lowercase tone, max 2 lines, no bullets. ACKNOWLEDGE what you can see in their history ($AMOUNT to NAME on DATE), then explain the mix-up briefly, then offer BOTH options in one message:
+                Option 1: re-send the same amount on #{expected_platform_l0.upcase} to "#{expected_handle_l0}"
+                Option 2: switch to #{detected_platform.upcase} — #{alt_handle_l0.present? ? %(our #{detected_platform.upcase} handle is "#{alt_handle_l0}") : %(we'll get you our #{detected_platform.upcase} handle in a sec)}
+                Do NOT confirm or load. Do NOT say "send me the actual receipt" — we already have enough info from their history. Do NOT accuse — it's an easy mix-up with $handles.
+              INJ
+
+              payment[:profile_page_txn_evidence] = matching_txn
+              payment[:profile_page_detected_platform] = detected_platform
+            else
+              Rails.logger.info("[ReplyService] REJECTED profile-page image contact=#{contact_id} (no smart-reply context)")
+              add_conversation_labels!(%w[non-receipt-image])
+              return 'hey that looks like the profile page, not the payment receipt. can you screenshot the actual transaction from your history? 🙏'
+            end
           end
 
           if acct
@@ -556,7 +608,6 @@ class Ai::ReplyService
             end
           end
 
-          grok_injection = nil
           raw_first = @raw_fb_attachments.first
           raw_h = raw_first.is_a?(Hash) ? raw_first.stringify_keys : {}
           image_url_for_log = raw_h.dig('payload', 'url').presence || raw_h['url'].presence || image_url
@@ -582,7 +633,12 @@ class Ai::ReplyService
             'image_thumb_url' => thumb_url_for_log,
             'image_received_at' => Time.current.iso8601,
             'source' => 'image_auto'
-          }.tap do |entry|
+          }
+          log_entry['profile_page_evidence'] = payment[:profile_page_txn_evidence] if payment[:profile_page_txn_evidence].present?
+          log_entry['detected_platform_from_profile'] = payment[:profile_page_detected_platform] if payment[:profile_page_detected_platform].present?
+          log_entry['kind'] = 'flagged' if payment[:profile_page_txn_evidence].present?
+          log_entry['flag_reason'] ||= 'wrong_platform_profile_page' if payment[:profile_page_txn_evidence].present?
+          log_entry.tap do |entry|
             if Payments::StatusNormalizer.needs_email_confirmation?(payment[:status])
               entry['email_confirmed'] = false
               entry['email_check_attempts'] = 0
