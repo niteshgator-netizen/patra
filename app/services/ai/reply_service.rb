@@ -1002,16 +1002,15 @@ class Ai::ReplyService
               return text_failover_reply
             end
 
-            reply = Ai::HaikuClient.new(
-              system_prompt: bella_system_prompt_with_payment_handles,
-              conversation_history: build_conversation_history
-            ).generate_reply(rag_examples_block: rag_examples_block)
+            deepseek_system = bella_system_prompt_with_payment_handles
+            deepseek_system = "#{deepseek_system}\n\n#{rag_examples_block}" unless rag_examples_block.to_s.strip.empty?
+            reply = invoke_anthropic(build_conversation_history, deepseek_system, use_deepseek: true)
             if reply.present?
-              Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
+              Rails.logger.info("[ReplyService] routed=deepseek reply_len=#{reply.length}")
               return guard_against_false_load_claim(reply)
             end
 
-            Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
+            Rails.logger.warn('[ReplyService] DeepSeek returned nil, falling back to Grok')
           when :complex
             Rails.logger.info('[ReplyService] routed=grok')
           end
@@ -1022,14 +1021,13 @@ class Ai::ReplyService
         return text_failover_reply
       end
 
-      reply = Ai::HaikuClient.new(
-        system_prompt: bella_system_prompt_with_payment_handles,
-        conversation_history: build_conversation_history
-      ).generate_reply(rag_examples_block: rag_examples_block)
+      deepseek_system = bella_system_prompt_with_payment_handles
+      deepseek_system = "#{deepseek_system}\n\n#{rag_examples_block}" unless rag_examples_block.to_s.strip.empty?
+      reply = invoke_anthropic(build_conversation_history, deepseek_system, use_deepseek: true)
       if reply.blank?
-        Rails.logger.warn('[ReplyService] Haiku returned nil, falling back to Grok')
+        Rails.logger.warn('[ReplyService] DeepSeek returned nil, falling back to Grok')
       else
-        Rails.logger.info("[ReplyService] routed=haiku reply_len=#{reply.length}")
+        Rails.logger.info("[ReplyService] routed=deepseek reply_len=#{reply.length}")
         return guard_against_false_load_claim(reply)
       end
     when :complex
@@ -1105,7 +1103,7 @@ class Ai::ReplyService
   end
 
   # Public: last-built { 'role' => 'user'|'assistant', 'content' => String }[]
-  # for Haiku (same shape as the xAI/Grok `messages` array).
+  # for DeepSeek (same shape as the xAI/Grok `messages` array).
   def build_conversation_history
     @conversation_history_for_llm || []
   end
@@ -1190,7 +1188,7 @@ class Ai::ReplyService
     history = format_conversation_history_from_raw_slice(raw_slice)
     @conversation_history_for_llm = history
 
-    # Anthropic requires the first message to be `user`. Drop any leading
+    # OpenAI-compatible APIs require the first message to be `user`. Drop any leading
     # assistant turns so the API doesn't 400 with a role-ordering error.
     history.shift while history.any? && history.first['role'] != 'user'
     history
@@ -1874,35 +1872,38 @@ class Ai::ReplyService
     result
   end
 
-  # ---------- Anthropic ----------
+  # ---------- Grok (xAI) + DeepSeek ----------
 
-  def invoke_anthropic(messages, system_prompt)
-    Rails.logger.info("[ReplyService] GROK_HTTP_TIMEOUT=#{GROK_HTTP_TIMEOUT}s xAI conv=#{@conversation_id}")
+  def invoke_anthropic(messages, system_prompt, use_deepseek: false)
+    llm_messages = use_deepseek ? messages.map { |m| { role: m['role'].to_s == 'assistant' ? 'assistant' : 'user', content: m['content'].to_s } } : messages
+
+    Rails.logger.info("[ReplyService] GROK_HTTP_TIMEOUT=#{GROK_HTTP_TIMEOUT}s xAI conv=#{@conversation_id}") unless use_deepseek
 
     response = HTTParty.post(
-      XAI_URL,
+      use_deepseek ? 'https://api.deepseek.com/v1/chat/completions' : XAI_URL,
       headers: {
-        'Authorization' => "Bearer #{api_key}",
+        'Authorization' => "Bearer #{use_deepseek ? ENV['DEEPSEEK_API_KEY'] : api_key}",
         'Content-Type' => 'application/json'
       },
       body: {
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        # xAI uses OpenAI's wire format — system prompt goes in as the first
-        # message instead of a top-level `system` field.
-        messages: [{ role: 'system', content: system_prompt }, *messages]
+        model: use_deepseek ? 'deepseek-v4-flash' : MODEL,
+        max_tokens: use_deepseek ? 1024 : MAX_TOKENS,
+        messages: [{ role: 'system', content: system_prompt }, *llm_messages],
+        **(use_deepseek ? { temperature: 0.7 } : {})
       }.to_json,
-      timeout: GROK_HTTP_TIMEOUT
+      timeout: use_deepseek ? 8 : GROK_HTTP_TIMEOUT
     )
 
     unless response.success?
-      Rails.logger.error("[AiReply] xAI HTTP #{response.code} conversation=#{@conversation_id}: #{response.body}")
+      provider = use_deepseek ? 'DeepSeek' : 'xAI'
+      Rails.logger.error("[AiReply] #{provider} HTTP #{response.code} conversation=#{@conversation_id}: #{response.body}")
       return nil
     end
 
     text = response.parsed_response.dig('choices', 0, 'message', 'content')
     if text.blank?
-      Rails.logger.warn("[AiReply] xAI returned no text conversation=#{@conversation_id} body=#{response.body}")
+      provider = use_deepseek ? 'DeepSeek' : 'xAI'
+      Rails.logger.warn("[AiReply] #{provider} returned no text conversation=#{@conversation_id} body=#{response.body}")
       return nil
     end
 
