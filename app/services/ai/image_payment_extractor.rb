@@ -7,9 +7,8 @@ require 'uri'
 
 module Ai
   class ImagePaymentExtractor
-    ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
-    MODEL_NAME = 'claude-sonnet-4-6'
-    MAX_TOKENS = 500
+    GEMINI_MODEL = 'gemini-2.0-flash'
+    MAX_OUTPUT_TOKENS = 1024
     TIMEOUT_SEC = 15
 
     VISION_PROMPT = <<~'PROMPT'.freeze
@@ -83,7 +82,7 @@ module Ai
     def extract
       return { is_payment: false, error: 'timeout' } if @image_url.blank?
 
-      api_key = ENV['ANTHROPIC_API_KEY'].to_s
+      api_key = ENV['GEMINI_API_KEY'].to_s
       return { is_payment: false, error: 'timeout' } if api_key.blank?
 
       image_bytes = nil
@@ -118,20 +117,16 @@ module Ai
         return { is_payment: false, error: 'download_error', message: e.message }
       end
 
-      Rails.logger.info("[ImagePaymentExtractor] using model=#{MODEL_NAME}")
+      Rails.logger.info("[ImagePaymentExtractor] using model=#{GEMINI_MODEL}")
 
       body = {
-        model: MODEL_NAME,
-        max_tokens: MAX_TOKENS,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: media_type, data: encoded } },
-              { type: 'text', text: VISION_PROMPT }
-            ]
-          }
-        ]
+        'contents' => [{
+          'parts' => [
+            { 'inlineData' => { 'mimeType' => media_type, 'data' => encoded } },
+            { 'text' => VISION_PROMPT }
+          ]
+        }],
+        'generationConfig' => { 'temperature' => 0, 'maxOutputTokens' => MAX_OUTPUT_TOKENS }
       }
 
       Rails.logger.info("[ImagePaymentExtractor] downloaded #{image_bytes.bytesize} bytes media_type=#{media_type}")
@@ -162,15 +157,13 @@ module Ai
     private
 
     def post_json(payload_hash, api_key)
-      uri = URI(ANTHROPIC_URL)
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{GEMINI_MODEL}:generateContent?key=#{api_key}")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.open_timeout = TIMEOUT_SEC
       http.read_timeout = TIMEOUT_SEC
 
       req = Net::HTTP::Post.new(uri)
-      req['x-api-key'] = api_key
-      req['anthropic-version'] = '2023-06-01'
       req['content-type'] = 'application/json'
       req.body = payload_hash.to_json
 
@@ -184,15 +177,7 @@ module Ai
     end
 
     def extract_text_content(parsed)
-      blocks = parsed['content']
-      return nil unless blocks.is_a?(Array)
-
-      texts = blocks.filter_map do |block|
-        next unless block.is_a?(Hash) && block['type'] == 'text'
-
-        block['text'].to_s
-      end
-      texts.join.strip.presence
+      parsed.dig('candidates', 0, 'content', 'parts', 0, 'text').to_s.strip.presence
     end
 
     def strip_code_fences(text)
