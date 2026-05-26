@@ -57,6 +57,117 @@ const formErrors = ref([]);
 const emailSectionOpen = ref(false);
 const selectedRow = ref(null);
 const editingId = ref(null);
+const expandedLedgerId = ref(null);
+const expandedDetailKey = ref(null);
+
+const LEDGER_LABELS = {
+  title: 'Payment ledger',
+  export: 'Export CSV',
+  score: 'Score',
+  amount: 'Amount',
+  sender: 'Sender',
+  tag: 'Tag',
+  note: 'Note',
+  time: 'Time',
+  status: 'Status',
+  source: 'Source',
+  view: 'View',
+  sourceImage: 'Screenshot',
+  sourceEmail: 'Email',
+  screenshotPlaceholder: 'Payment screenshot preview',
+  empty: 'No payment events yet.',
+  ledgerToggle: 'Ledger',
+};
+
+const MOCK_PAYMENT_EVENTS = [
+  {
+    id: 'evt-1',
+    amount: 25,
+    score: 92,
+    image_row: {
+      sender: 'Marcus T.',
+      tag: '$devpatel742',
+      note: 'juwa load',
+      time: 'May 24, 2:14 PM',
+      status: 'loaded',
+      receipt_data: 'Screenshot: $25.00 sent to $devpatel742 — Completed',
+    },
+    email_row: {
+      sender: 'Cash App',
+      tag: '$devpatel742',
+      note: 'juwa load',
+      time: 'May 24, 2:15 PM',
+      status: 'loaded',
+      email_raw:
+        'From: notifications@cash.app\nSubject: You sent $25\n\nYou sent $25.00 to Dev Patel ($devpatel742).\nNote: juwa load',
+    },
+  },
+  {
+    id: 'evt-2',
+    amount: 50,
+    score: 58,
+    image_row: {
+      sender: 'Sofia M.',
+      tag: '$sofiamann8',
+      note: 'fire kirin',
+      time: 'May 24, 11:02 AM',
+      status: 'verifying',
+      receipt_data: 'Screenshot: $50.00 pending to $sofiamann8',
+    },
+    email_row: {
+      sender: 'Cash App',
+      tag: '$sofiamann8',
+      note: 'fire kirin',
+      time: 'May 24, 11:05 AM',
+      status: 'verifying',
+      email_raw:
+        'From: notifications@cash.app\nSubject: Payment pending\n\nYour $50.00 payment is being processed.',
+    },
+  },
+  {
+    id: 'evt-3',
+    amount: 15,
+    score: 22,
+    image_row: {
+      sender: 'Jay K.',
+      tag: '$jaykplays',
+      note: 'gamevault',
+      time: 'May 23, 9:41 PM',
+      status: 'loaded',
+      receipt_data: 'Screenshot: $15.00 sent to $wronghandle99',
+    },
+    email_row: {
+      sender: '—',
+      tag: '—',
+      note: '—',
+      time: '—',
+      status: 'no email',
+      email_raw: '',
+    },
+  },
+  {
+    id: 'evt-4',
+    amount: 40,
+    score: 71,
+    image_row: {
+      sender: 'Nadia K.',
+      tag: '$nadiakhan7',
+      note: 'panda master',
+      time: 'May 23, 4:18 PM',
+      status: 'loaded',
+      receipt_data: 'Screenshot: $40.00 sent to $nadiakhan7',
+    },
+    email_row: {
+      sender: 'Chime',
+      tag: '$nadiakhan7',
+      note: 'partial match',
+      time: 'May 23, 4:22 PM',
+      status: 'partial',
+      email_raw:
+        'From: alerts@chime.com\nSubject: Transfer sent\n\nAmount: $38.00 to Nadia K.\nNote: (blank)',
+    },
+  },
+];
 
 const form = ref({
   platform: 'cashapp',
@@ -125,6 +236,79 @@ const statusPillClass = status => {
     return 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30';
   }
   return 'bg-n-slate-4 text-n-slate-11 border border-n-weak';
+};
+
+const getPaymentEvents = handle => {
+  if (Array.isArray(handle?.payment_events) && handle.payment_events.length) {
+    return handle.payment_events;
+  }
+  return MOCK_PAYMENT_EVENTS;
+};
+
+const toggleLedger = handleId => {
+  expandedDetailKey.value = null;
+  expandedLedgerId.value = expandedLedgerId.value === handleId ? null : handleId;
+};
+
+const isLedgerOpen = handleId => expandedLedgerId.value === handleId;
+
+const detailKey = (eventId, rowType) => `${eventId}-${rowType}`;
+
+const toggleDetail = (eventId, rowType) => {
+  const key = detailKey(eventId, rowType);
+  expandedDetailKey.value = expandedDetailKey.value === key ? null : key;
+};
+
+const isDetailOpen = (eventId, rowType) =>
+  expandedDetailKey.value === detailKey(eventId, rowType);
+
+const formatLedgerAmount = amount =>
+  typeof amount === 'number' ? `$${amount.toFixed(0)}` : '—';
+
+const scoreBarClass = score => {
+  if (score >= 75) return 'bg-[#6E56CF]';
+  if (score >= 45) return 'bg-amber-500';
+  return 'bg-red-500';
+};
+
+const scoreTextClass = score => {
+  if (score >= 75) return 'text-[#4C3799] dark:text-[#DDD8F5]';
+  if (score >= 45) return 'text-amber-700 dark:text-amber-300';
+  return 'text-red-700 dark:text-red-300';
+};
+
+const ledgerStatusClass = status => {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'loaded') {
+    return 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30';
+  }
+  if (normalized === 'verifying') {
+    return 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30';
+  }
+  if (normalized === 'partial') {
+    return 'bg-[#F0EDFF] text-[#4C3799] border border-[#DDD8F5]';
+  }
+  return 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30';
+};
+
+const ledgerStatusLabel = status => {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'no email') return 'no email';
+  if (normalized === 'mismatch') return 'mismatch';
+  return normalized || '—';
+};
+
+const exportLedger = handle => {
+  const events = getPaymentEvents(handle);
+  const blob = new Blob([JSON.stringify(events, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `payment-ledger-${handle.handle || handle.id}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 };
 
 const loadHandles = async () => {
@@ -323,71 +507,288 @@ onMounted(() => {
         "
       >
         <template #row="{ items }">
-          <BaseTableRow v-for="row in items" :key="row.id" :item="row">
-            <template #default>
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-12">
-                  {{ platformLabel(row.platform) }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-12 font-medium">
-                  {{ row.handle }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-11">
-                  {{ row.display_name || '-' }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-11">
-                  {{ row.priority }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell>
-                <span
-                  class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-                  :class="statusPillClass(row.status)"
-                >
-                  {{ statusLabel(row.status) }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-11">
-                  {{ row.failure_count ?? 0 }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-11 text-sm">
-                  {{
-                    row.last_failure_at
-                      ? dynamicTime(row.last_failure_at)
-                      : '-'
-                  }}
-                </span>
-              </BaseTableCell>
-              <BaseTableCell align="end">
-                <div class="flex gap-2 justify-end flex-shrink-0">
-                  <Button
-                    v-tooltip.top="t('PAYMENT_HANDLES.EDIT')"
-                    icon="i-woot-edit-pen"
-                    slate
-                    sm
-                    @click="openEdit(row)"
-                  />
-                  <Button
-                    v-tooltip.top="t('PAYMENT_HANDLES.DELETE')"
-                    icon="i-woot-bin"
-                    slate
-                    sm
-                    class="hover:enabled:text-n-ruby-11 hover:enabled:bg-n-ruby-2"
-                    @click="openDelete(row)"
-                  />
+          <template v-for="row in items" :key="row.id">
+            <BaseTableRow :item="row">
+              <template #default>
+                <BaseTableCell>
+                  <span class="text-body-main text-n-slate-12">
+                    {{ platformLabel(row.platform) }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell>
+                  <span class="text-body-main text-n-slate-12 font-medium">
+                    {{ row.handle }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell>
+                  <span class="text-body-main text-n-slate-11">
+                    {{ row.display_name || '-' }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell>
+                  <span class="text-body-main text-n-slate-11">
+                    {{ row.priority }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell>
+                  <span
+                    class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
+                    :class="statusPillClass(row.status)"
+                  >
+                    {{ statusLabel(row.status) }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell>
+                  <span class="text-body-main text-n-slate-11">
+                    {{ row.failure_count ?? 0 }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell>
+                  <span class="text-body-main text-n-slate-11 text-sm">
+                    {{
+                      row.last_failure_at
+                        ? dynamicTime(row.last_failure_at)
+                        : '-'
+                    }}
+                  </span>
+                </BaseTableCell>
+                <BaseTableCell align="end">
+                  <div class="flex gap-2 justify-end flex-shrink-0">
+                    <Button
+                      v-tooltip.top="LEDGER_LABELS.ledgerToggle"
+                      :label="LEDGER_LABELS.ledgerToggle"
+                      slate
+                      sm
+                      class="!text-[#6E56CF] hover:enabled:!bg-[#F0EDFF] hover:enabled:!text-[#4C3799]"
+                      :class="{
+                        '!bg-[#F0EDFF] !text-[#4C3799] ring-1 ring-[#DDD8F5]':
+                          isLedgerOpen(row.id),
+                      }"
+                      @click="toggleLedger(row.id)"
+                    />
+                    <Button
+                      v-tooltip.top="t('PAYMENT_HANDLES.EDIT')"
+                      icon="i-woot-edit-pen"
+                      slate
+                      sm
+                      @click="openEdit(row)"
+                    />
+                    <Button
+                      v-tooltip.top="t('PAYMENT_HANDLES.DELETE')"
+                      icon="i-woot-bin"
+                      slate
+                      sm
+                      class="hover:enabled:text-n-ruby-11 hover:enabled:bg-n-ruby-2"
+                      @click="openDelete(row)"
+                    />
+                  </div>
+                </BaseTableCell>
+              </template>
+            </BaseTableRow>
+            <tr v-if="isLedgerOpen(row.id)">
+              <td :colspan="tableHeaders.length" class="p-0 border-t border-[#DDD8F5]">
+                <div class="bg-[#F0EDFF]/40 dark:bg-n-alpha-2 px-4 py-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                      <h3 class="m-0 text-sm font-semibold text-[#4C3799] dark:text-[#DDD8F5]">
+                        {{ LEDGER_LABELS.title }}
+                      </h3>
+                      <p class="m-0 mt-1 text-xs text-n-slate-11">
+                        {{ platformLabel(row.platform) }} · {{ row.handle }}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 rounded-lg border border-[#6E56CF] bg-[#6E56CF] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#4C3799] hover:border-[#4C3799]"
+                      @click="exportLedger(row)"
+                    >
+                      {{ LEDGER_LABELS.export }}
+                    </button>
+                  </div>
+
+                  <div
+                    v-if="!getPaymentEvents(row).length"
+                    class="rounded-lg border border-[#DDD8F5] bg-n-solid-1 px-4 py-8 text-center text-sm text-n-slate-11"
+                  >
+                    {{ LEDGER_LABELS.empty }}
+                  </div>
+
+                  <div
+                    v-else
+                    class="overflow-x-auto rounded-xl border border-[#DDD8F5] bg-n-solid-1"
+                  >
+                    <table class="min-w-full text-xs">
+                      <thead class="border-b border-[#DDD8F5] bg-n-alpha-2 text-n-slate-11">
+                        <tr>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.score }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.amount }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.sender }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.tag }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.note }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.time }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.status }}
+                          </th>
+                          <th class="px-3 py-2 text-left font-medium">
+                            {{ LEDGER_LABELS.source }}
+                          </th>
+                          <th class="px-3 py-2 text-right font-medium" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template
+                          v-for="event in getPaymentEvents(row)"
+                          :key="event.id"
+                        >
+                          <tr class="border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/30 dark:bg-[#6E56CF]/5">
+                            <td class="px-3 py-2 align-top">
+                              <div class="flex items-center gap-2 min-w-[88px]">
+                                <div
+                                  class="h-1.5 w-14 overflow-hidden rounded-full bg-n-slate-4"
+                                >
+                                  <div
+                                    class="h-full rounded-full"
+                                    :class="scoreBarClass(event.score)"
+                                    :style="{ width: `${event.score}%` }"
+                                  />
+                                </div>
+                                <span
+                                  class="text-xs font-semibold tabular-nums"
+                                  :class="scoreTextClass(event.score)"
+                                >
+                                  {{ event.score }}
+                                </span>
+                              </div>
+                            </td>
+                            <td class="px-3 py-2 align-top font-semibold text-n-slate-12">
+                              {{ formatLedgerAmount(event.amount) }}
+                            </td>
+                            <td class="px-3 py-2 align-top text-n-slate-12">
+                              {{ event.image_row.sender }}
+                            </td>
+                            <td class="px-3 py-2 align-top font-mono text-n-slate-11">
+                              {{ event.image_row.tag }}
+                            </td>
+                            <td class="px-3 py-2 align-top text-n-slate-11">
+                              {{ event.image_row.note }}
+                            </td>
+                            <td class="px-3 py-2 align-top whitespace-nowrap text-n-slate-11">
+                              {{ event.image_row.time }}
+                            </td>
+                            <td class="px-3 py-2 align-top">
+                              <span
+                                class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize"
+                                :class="ledgerStatusClass(event.image_row.status)"
+                              >
+                                {{ ledgerStatusLabel(event.image_row.status) }}
+                              </span>
+                            </td>
+                            <td class="px-3 py-2 align-top">
+                              <span
+                                class="inline-flex items-center rounded-full bg-[#6E56CF] px-2 py-0.5 text-[11px] font-medium text-white"
+                              >
+                                {{ LEDGER_LABELS.sourceImage }}
+                              </span>
+                            </td>
+                            <td class="px-3 py-2 align-top text-right">
+                              <button
+                                type="button"
+                                class="rounded-md border border-[#DDD8F5] bg-white px-2 py-1 text-[11px] font-medium text-[#6E56CF] transition-colors hover:border-[#6E56CF] hover:bg-[#F0EDFF] hover:text-[#4C3799] dark:bg-n-alpha-2"
+                                @click="toggleDetail(event.id, 'image')"
+                              >
+                                {{ LEDGER_LABELS.view }}
+                              </button>
+                            </td>
+                          </tr>
+                          <tr
+                            v-if="isDetailOpen(event.id, 'image')"
+                            class="border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/20"
+                          >
+                            <td :colspan="9" class="px-3 py-3">
+                              <div
+                                class="rounded-lg border border-[#DDD8F5] bg-white p-4 dark:bg-n-alpha-2"
+                              >
+                                <div
+                                  class="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-[#6E56CF]/40 bg-[#F0EDFF] text-sm text-[#4C3799]"
+                                >
+                                  {{ LEDGER_LABELS.screenshotPlaceholder }}
+                                </div>
+                                <p class="mt-2 mb-0 text-xs text-n-slate-11">
+                                  {{ event.image_row.receipt_data }}
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr class="border-b border-n-weak bg-[#E6F7F2]/40 dark:bg-[#0F9B76]/5">
+                            <td class="px-3 py-2 align-top text-n-slate-11">—</td>
+                            <td class="px-3 py-2 align-top text-n-slate-11">—</td>
+                            <td class="px-3 py-2 align-top text-n-slate-12">
+                              {{ event.email_row.sender }}
+                            </td>
+                            <td class="px-3 py-2 align-top font-mono text-n-slate-11">
+                              {{ event.email_row.tag }}
+                            </td>
+                            <td class="px-3 py-2 align-top text-n-slate-11">
+                              {{ event.email_row.note }}
+                            </td>
+                            <td class="px-3 py-2 align-top whitespace-nowrap text-n-slate-11">
+                              {{ event.email_row.time }}
+                            </td>
+                            <td class="px-3 py-2 align-top">
+                              <span
+                                class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize"
+                                :class="ledgerStatusClass(event.email_row.status)"
+                              >
+                                {{ ledgerStatusLabel(event.email_row.status) }}
+                              </span>
+                            </td>
+                            <td class="px-3 py-2 align-top">
+                              <span
+                                class="inline-flex items-center rounded-full bg-[#0F9B76] px-2 py-0.5 text-[11px] font-medium text-white"
+                              >
+                                {{ LEDGER_LABELS.sourceEmail }}
+                              </span>
+                            </td>
+                            <td class="px-3 py-2 align-top text-right">
+                              <button
+                                type="button"
+                                class="rounded-md border border-[#0F9B76]/30 bg-white px-2 py-1 text-[11px] font-medium text-[#0F9B76] transition-colors hover:border-[#0F9B76] hover:bg-[#E6F7F2] dark:bg-n-alpha-2"
+                                @click="toggleDetail(event.id, 'email')"
+                              >
+                                {{ LEDGER_LABELS.view }}
+                              </button>
+                            </td>
+                          </tr>
+                          <tr
+                            v-if="isDetailOpen(event.id, 'email')"
+                            class="border-b border-n-weak bg-[#E6F7F2]/20"
+                          >
+                            <td :colspan="9" class="px-3 py-3">
+                              <pre
+                                class="m-0 overflow-x-auto rounded-lg border border-[#0F9B76]/20 bg-[#E6F7F2] p-3 text-[11px] leading-relaxed text-n-slate-12 whitespace-pre-wrap"
+                              >{{ event.email_row.email_raw || '—' }}</pre>
+                            </td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </BaseTableCell>
-            </template>
-          </BaseTableRow>
+              </td>
+            </tr>
+          </template>
         </template>
       </BaseTable>
     </template>
