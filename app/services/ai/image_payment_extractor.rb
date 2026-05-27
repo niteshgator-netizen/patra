@@ -161,7 +161,9 @@ module Ai
       data = parse_json_safe(json_text)
       return { is_payment: false, error: 'parse_error' } if data.nil? || !data.is_a?(Hash)
 
-      validate_and_symbolize(data)
+      result = validate_and_symbolize(data)
+      Rails.logger.info "[ImagePaymentExtractor] gemini_result is_payment=#{result[:is_payment]} platform=#{result[:platform]} amount=#{result[:amount]} confidence=#{result[:confidence]}"
+      result
     rescue StandardError => e
       Rails.logger.warn("[ImagePaymentExtractor] #{e.class}: #{e.message}")
       { is_payment: false, error: 'timeout' }
