@@ -18,13 +18,19 @@ module Payments
       return [] if @handle.nil?
       return [] unless @handle.verification_email.present?
 
+      host     = @handle.verification_email_host.to_s.presence || 'imap.gmail.com'
+      port     = @handle.verification_email_port || 993
+      username = @handle.verification_email
+      password = @handle.verification_email_password
+      use_ssl  = @handle.verification_email_ssl != false
+
       Mail.defaults do
         retriever_method :imap, {
-          address: @handle.verification_email_host,
-          port: 993,
-          user_name: @handle.verification_email,
-          password: @handle.verification_email_password,
-          enable_ssl: true
+          address:    host,
+          port:       port,
+          user_name:  username,
+          password:   password,
+          enable_ssl: use_ssl
         }
       end
       Mail.find(what: :last, count: count, order: :desc)
