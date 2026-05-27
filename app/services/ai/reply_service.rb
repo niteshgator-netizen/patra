@@ -1175,7 +1175,7 @@ class Ai::ReplyService
     payload = Array(response.parsed_response['payload'])
     # Captured for the freshness check in `call`. Use the raw payload (every
     # message type) so activity events still count as "the conversation is alive".
-    @latest_timestamp = payload.map { |m| message_created_at_unix(m['updated_at']) }.max
+    @latest_timestamp = Time.current.to_i
     # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
     # 2/3 are activity/template — skip those, they're not part of the conversation.
     raw_slice = payload
