@@ -53,6 +53,7 @@ class Ai::ReplyJob < ApplicationJob
       Rails.logger.warn("[AiReply] Facebook send failed after draft conversation=#{conversation_id}")
     end
     log_to_chatwoot(conversation_id, reply_text)
+    release_reply_lock(lock_key)
   rescue Messaging::TransientSendError => e
     # Transient outbound failure (5xx/408/429/timeout). Release the reply
     # lock so Sidekiq's retry can re-acquire and regenerate the AI draft
