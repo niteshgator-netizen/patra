@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
+import { format, parseISO } from 'date-fns';
 import { picoSearch } from '@scmmishra/pico-search';
 
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -46,6 +47,9 @@ const IMAP_HOST_MAP = {
   'pm.me': '127.0.0.1',
 };
 
+const IMAP_HOST_HINT =
+  'Auto-detected from email. Override only if your provider uses a custom IMAP server.';
+
 const handles = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
@@ -59,6 +63,8 @@ const selectedRow = ref(null);
 const editingId = ref(null);
 const expandedLedgerId = ref(null);
 const expandedDetailKey = ref(null);
+const ledgerData = ref({});
+const ledgerLoading = ref({});
 
 const LEDGER_LABELS = {
   title: 'Payment ledger',
@@ -79,95 +85,29 @@ const LEDGER_LABELS = {
   ledgerToggle: 'Ledger',
 };
 
-const MOCK_PAYMENT_EVENTS = [
-  {
-    id: 'evt-1',
-    amount: 25,
-    score: 92,
-    image_row: {
-      sender: 'Marcus T.',
-      tag: '$devpatel742',
-      note: 'juwa load',
-      time: 'May 24, 2:14 PM',
-      status: 'loaded',
-      receipt_data: 'Screenshot: $25.00 sent to $devpatel742 — Completed',
-    },
-    email_row: {
-      sender: 'Cash App',
-      tag: '$devpatel742',
-      note: 'juwa load',
-      time: 'May 24, 2:15 PM',
-      status: 'loaded',
-      email_raw:
-        'From: notifications@cash.app\nSubject: You sent $25\n\nYou sent $25.00 to Dev Patel ($devpatel742).\nNote: juwa load',
-    },
-  },
-  {
-    id: 'evt-2',
-    amount: 50,
-    score: 58,
-    image_row: {
-      sender: 'Sofia M.',
-      tag: '$sofiamann8',
-      note: 'fire kirin',
-      time: 'May 24, 11:02 AM',
-      status: 'verifying',
-      receipt_data: 'Screenshot: $50.00 pending to $sofiamann8',
-    },
-    email_row: {
-      sender: 'Cash App',
-      tag: '$sofiamann8',
-      note: 'fire kirin',
-      time: 'May 24, 11:05 AM',
-      status: 'verifying',
-      email_raw:
-        'From: notifications@cash.app\nSubject: Payment pending\n\nYour $50.00 payment is being processed.',
-    },
-  },
-  {
-    id: 'evt-3',
-    amount: 15,
-    score: 22,
-    image_row: {
-      sender: 'Jay K.',
-      tag: '$jaykplays',
-      note: 'gamevault',
-      time: 'May 23, 9:41 PM',
-      status: 'loaded',
-      receipt_data: 'Screenshot: $15.00 sent to $wronghandle99',
-    },
-    email_row: {
-      sender: '—',
-      tag: '—',
-      note: '—',
-      time: '—',
-      status: 'no email',
-      email_raw: '',
-    },
-  },
-  {
-    id: 'evt-4',
-    amount: 40,
-    score: 71,
-    image_row: {
-      sender: 'Nadia K.',
-      tag: '$nadiakhan7',
-      note: 'panda master',
-      time: 'May 23, 4:18 PM',
-      status: 'loaded',
-      receipt_data: 'Screenshot: $40.00 sent to $nadiakhan7',
-    },
-    email_row: {
-      sender: 'Chime',
-      tag: '$nadiakhan7',
-      note: 'partial match',
-      time: 'May 23, 4:22 PM',
-      status: 'partial',
-      email_raw:
-        'From: alerts@chime.com\nSubject: Transfer sent\n\nAmount: $38.00 to Nadia K.\nNote: (blank)',
-    },
-  },
-];
+const formatLedgerTime = raw => {
+  if (!raw) return '—';
+  try {
+    const date = typeof raw === 'string' ? parseISO(raw) : new Date(raw);
+    return format(date, 'MMM d, h:mm a');
+  } catch {
+    return '—';
+  }
+};
+
+const mapLedgerEntry = (entry, index) => ({
+  id: entry.transaction_id || entry.image_received_at || `ledger-${index}`,
+  amount: entry.amount,
+  score: entry.resolve_score ?? null,
+  sender: entry.sender_name || entry.sender_handle || '—',
+  tag: entry.recipient_handle || entry.sender_handle || '—',
+  note: entry.note_or_memo || '—',
+  time: formatLedgerTime(entry.image_received_at),
+  status: entry.status || '—',
+  source: entry.source === 'image_auto' ? 'Screenshot' : 'Email',
+  sourceKey: entry.source === 'image_auto' ? 'image' : 'email',
+  raw: entry,
+});
 
 const form = ref({
   platform: 'cashapp',
@@ -212,9 +152,7 @@ const tableHeaders = computed(() => [
   t('PAYMENT_HANDLES.LIST.TABLE_HEADER.ACTIONS'),
 ]);
 
-const deleteMessage = computed(
-  () => ` ${selectedRow.value?.handle || ''}?`
-);
+const deleteMessage = computed(() => ` ${selectedRow.value?.handle || ''}?`);
 
 const platformLabel = id => {
   const key = `PAYMENT_HANDLES.PLATFORM_LABEL.${String(id || '').toUpperCase()}`;
@@ -238,16 +176,38 @@ const statusPillClass = status => {
   return 'bg-n-slate-4 text-n-slate-11 border border-n-weak';
 };
 
-const getPaymentEvents = handle => {
-  if (Array.isArray(handle?.payment_events) && handle.payment_events.length) {
-    return handle.payment_events;
+const getPaymentEvents = handle => ledgerData.value[handle.id] || [];
+
+const isLedgerLoading = handleId => Boolean(ledgerLoading.value[handleId]);
+
+const loadLedger = async handleId => {
+  ledgerLoading.value = { ...ledgerLoading.value, [handleId]: true };
+  try {
+    const { data } = await paymentHandlesApi.ledger(handleId);
+    const entries = Array.isArray(data) ? data : [];
+    ledgerData.value = {
+      ...ledgerData.value,
+      [handleId]: entries.map(mapLedgerEntry),
+    };
+  } catch {
+    useAlert(t('PAYMENT_HANDLES.ERROR_GENERIC'));
+    ledgerData.value = { ...ledgerData.value, [handleId]: [] };
+  } finally {
+    ledgerLoading.value = { ...ledgerLoading.value, [handleId]: false };
   }
-  return MOCK_PAYMENT_EVENTS;
 };
 
 const toggleLedger = handleId => {
   expandedDetailKey.value = null;
-  expandedLedgerId.value = expandedLedgerId.value === handleId ? null : handleId;
+  if (expandedLedgerId.value === handleId) {
+    expandedLedgerId.value = null;
+    return;
+  }
+
+  expandedLedgerId.value = handleId;
+  if (!ledgerData.value[handleId]) {
+    loadLedger(handleId);
+  }
 };
 
 const isLedgerOpen = handleId => expandedLedgerId.value === handleId;
@@ -266,12 +226,14 @@ const formatLedgerAmount = amount =>
   typeof amount === 'number' ? `$${amount.toFixed(0)}` : '—';
 
 const scoreBarClass = score => {
+  if (score == null) return 'bg-n-slate-4';
   if (score >= 75) return 'bg-[#6E56CF]';
   if (score >= 45) return 'bg-amber-500';
   return 'bg-red-500';
 };
 
 const scoreTextClass = score => {
+  if (score == null) return 'text-n-slate-11';
   if (score >= 75) return 'text-[#4C3799] dark:text-[#DDD8F5]';
   if (score >= 45) return 'text-amber-700 dark:text-amber-300';
   return 'text-red-700 dark:text-red-300';
@@ -390,7 +352,8 @@ const submitForm = async () => {
         notes: form.value.notes,
         verification_email: form.value.verification_email || null,
         verification_email_host: form.value.verification_email_host || null,
-        verification_email_port: Number(form.value.verification_email_port) || 993,
+        verification_email_port:
+          Number(form.value.verification_email_port) || 993,
         verification_email_ssl: form.value.verification_email_ssl,
       },
     };
@@ -586,11 +549,18 @@ onMounted(() => {
               </template>
             </BaseTableRow>
             <tr v-if="isLedgerOpen(row.id)">
-              <td :colspan="tableHeaders.length" class="p-0 border-t border-[#DDD8F5]">
+              <td
+                :colspan="tableHeaders.length"
+                class="p-0 border-t border-[#DDD8F5]"
+              >
                 <div class="bg-[#F0EDFF]/40 dark:bg-n-alpha-2 px-4 py-4">
-                  <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-3 mb-4"
+                  >
                     <div>
-                      <h3 class="m-0 text-sm font-semibold text-[#4C3799] dark:text-[#DDD8F5]">
+                      <h3
+                        class="m-0 text-sm font-semibold text-[#4C3799] dark:text-[#DDD8F5]"
+                      >
                         {{ LEDGER_LABELS.title }}
                       </h3>
                       <p class="m-0 mt-1 text-xs text-n-slate-11">
@@ -607,7 +577,19 @@ onMounted(() => {
                   </div>
 
                   <div
-                    v-if="!getPaymentEvents(row).length"
+                    v-if="isLedgerLoading(row.id)"
+                    class="rounded-lg border border-[#DDD8F5] bg-n-solid-1 px-4 py-8 text-center text-sm text-n-slate-11"
+                  >
+                    <span class="inline-flex items-center gap-2">
+                      <span
+                        class="i-lucide-loader-circle size-4 animate-spin text-[#6E56CF]"
+                      />
+                      {{ t('PAYMENT_HANDLES.LOADING') }}
+                    </span>
+                  </div>
+
+                  <div
+                    v-else-if="!getPaymentEvents(row).length"
                     class="rounded-lg border border-[#DDD8F5] bg-n-solid-1 px-4 py-8 text-center text-sm text-n-slate-11"
                   >
                     {{ LEDGER_LABELS.empty }}
@@ -618,7 +600,9 @@ onMounted(() => {
                     class="overflow-x-auto rounded-xl border border-[#DDD8F5] bg-n-solid-1"
                   >
                     <table class="min-w-full text-xs">
-                      <thead class="border-b border-[#DDD8F5] bg-n-alpha-2 text-n-slate-11">
+                      <thead
+                        class="border-b border-[#DDD8F5] bg-n-alpha-2 text-n-slate-11"
+                      >
                         <tr>
                           <th class="px-3 py-2 text-left font-medium">
                             {{ LEDGER_LABELS.score }}
@@ -652,13 +636,21 @@ onMounted(() => {
                           v-for="event in getPaymentEvents(row)"
                           :key="event.id"
                         >
-                          <tr class="border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/30 dark:bg-[#6E56CF]/5">
+                          <tr
+                            class="border-b border-[#DDD8F5]/70"
+                            :class="
+                              event.sourceKey === 'image'
+                                ? 'bg-[#F0EDFF]/30 dark:bg-[#6E56CF]/5'
+                                : 'bg-[#E6F7F2]/40 dark:bg-[#0F9B76]/5'
+                            "
+                          >
                             <td class="px-3 py-2 align-top">
                               <div class="flex items-center gap-2 min-w-[88px]">
                                 <div
                                   class="h-1.5 w-14 overflow-hidden rounded-full bg-n-slate-4"
                                 >
                                   <div
+                                    v-if="event.score != null"
                                     class="h-full rounded-full"
                                     :class="scoreBarClass(event.score)"
                                     :style="{ width: `${event.score}%` }"
@@ -668,117 +660,90 @@ onMounted(() => {
                                   class="text-xs font-semibold tabular-nums"
                                   :class="scoreTextClass(event.score)"
                                 >
-                                  {{ event.score }}
+                                  {{ event.score ?? '—' }}
                                 </span>
                               </div>
                             </td>
-                            <td class="px-3 py-2 align-top font-semibold text-n-slate-12">
+                            <td
+                              class="px-3 py-2 align-top font-semibold text-n-slate-12"
+                            >
                               {{ formatLedgerAmount(event.amount) }}
                             </td>
                             <td class="px-3 py-2 align-top text-n-slate-12">
-                              {{ event.image_row.sender }}
+                              {{ event.sender }}
                             </td>
-                            <td class="px-3 py-2 align-top font-mono text-n-slate-11">
-                              {{ event.image_row.tag }}
+                            <td
+                              class="px-3 py-2 align-top font-mono text-n-slate-11"
+                            >
+                              {{ event.tag }}
                             </td>
                             <td class="px-3 py-2 align-top text-n-slate-11">
-                              {{ event.image_row.note }}
+                              {{ event.note }}
                             </td>
-                            <td class="px-3 py-2 align-top whitespace-nowrap text-n-slate-11">
-                              {{ event.image_row.time }}
+                            <td
+                              class="px-3 py-2 align-top whitespace-nowrap text-n-slate-11"
+                            >
+                              {{ event.time }}
                             </td>
                             <td class="px-3 py-2 align-top">
                               <span
                                 class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize"
-                                :class="ledgerStatusClass(event.image_row.status)"
+                                :class="ledgerStatusClass(event.status)"
                               >
-                                {{ ledgerStatusLabel(event.image_row.status) }}
+                                {{ ledgerStatusLabel(event.status) }}
                               </span>
                             </td>
                             <td class="px-3 py-2 align-top">
                               <span
-                                class="inline-flex items-center rounded-full bg-[#6E56CF] px-2 py-0.5 text-[11px] font-medium text-white"
+                                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
+                                :class="
+                                  event.sourceKey === 'image'
+                                    ? 'bg-[#6E56CF]'
+                                    : 'bg-[#0F9B76]'
+                                "
                               >
-                                {{ LEDGER_LABELS.sourceImage }}
+                                {{ event.source }}
                               </span>
                             </td>
                             <td class="px-3 py-2 align-top text-right">
                               <button
                                 type="button"
-                                class="rounded-md border border-[#DDD8F5] bg-white px-2 py-1 text-[11px] font-medium text-[#6E56CF] transition-colors hover:border-[#6E56CF] hover:bg-[#F0EDFF] hover:text-[#4C3799] dark:bg-n-alpha-2"
-                                @click="toggleDetail(event.id, 'image')"
+                                class="rounded-md border px-2 py-1 text-[11px] font-medium transition-colors dark:bg-n-alpha-2"
+                                :class="
+                                  event.sourceKey === 'image'
+                                    ? 'border-[#DDD8F5] bg-white text-[#6E56CF] hover:border-[#6E56CF] hover:bg-[#F0EDFF] hover:text-[#4C3799]'
+                                    : 'border-[#0F9B76]/30 bg-white text-[#0F9B76] hover:border-[#0F9B76] hover:bg-[#E6F7F2]'
+                                "
+                                @click="toggleDetail(event.id, event.sourceKey)"
                               >
                                 {{ LEDGER_LABELS.view }}
                               </button>
                             </td>
                           </tr>
                           <tr
-                            v-if="isDetailOpen(event.id, 'image')"
-                            class="border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/20"
+                            v-if="isDetailOpen(event.id, event.sourceKey)"
+                            class="border-b border-[#DDD8F5]/70 bg-n-alpha-2"
                           >
                             <td :colspan="9" class="px-3 py-3">
                               <div
+                                v-if="
+                                  event.sourceKey === 'image' &&
+                                  event.raw?.image_url
+                                "
                                 class="rounded-lg border border-[#DDD8F5] bg-white p-4 dark:bg-n-alpha-2"
                               >
-                                <div
-                                  class="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-[#6E56CF]/40 bg-[#F0EDFF] text-sm text-[#4C3799]"
-                                >
-                                  {{ LEDGER_LABELS.screenshotPlaceholder }}
-                                </div>
-                                <p class="mt-2 mb-0 text-xs text-n-slate-11">
-                                  {{ event.image_row.receipt_data }}
-                                </p>
+                                <img
+                                  :src="event.raw.image_url"
+                                  :alt="LEDGER_LABELS.screenshotPlaceholder"
+                                  class="max-h-64 w-full rounded-lg object-contain"
+                                />
                               </div>
-                            </td>
-                          </tr>
-                          <tr class="border-b border-n-weak bg-[#E6F7F2]/40 dark:bg-[#0F9B76]/5">
-                            <td class="px-3 py-2 align-top text-n-slate-11">—</td>
-                            <td class="px-3 py-2 align-top text-n-slate-11">—</td>
-                            <td class="px-3 py-2 align-top text-n-slate-12">
-                              {{ event.email_row.sender }}
-                            </td>
-                            <td class="px-3 py-2 align-top font-mono text-n-slate-11">
-                              {{ event.email_row.tag }}
-                            </td>
-                            <td class="px-3 py-2 align-top text-n-slate-11">
-                              {{ event.email_row.note }}
-                            </td>
-                            <td class="px-3 py-2 align-top whitespace-nowrap text-n-slate-11">
-                              {{ event.email_row.time }}
-                            </td>
-                            <td class="px-3 py-2 align-top">
-                              <span
-                                class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize"
-                                :class="ledgerStatusClass(event.email_row.status)"
-                              >
-                                {{ ledgerStatusLabel(event.email_row.status) }}
-                              </span>
-                            </td>
-                            <td class="px-3 py-2 align-top">
-                              <span
-                                class="inline-flex items-center rounded-full bg-[#0F9B76] px-2 py-0.5 text-[11px] font-medium text-white"
-                              >
-                                {{ LEDGER_LABELS.sourceEmail }}
-                              </span>
-                            </td>
-                            <td class="px-3 py-2 align-top text-right">
-                              <button
-                                type="button"
-                                class="rounded-md border border-[#0F9B76]/30 bg-white px-2 py-1 text-[11px] font-medium text-[#0F9B76] transition-colors hover:border-[#0F9B76] hover:bg-[#E6F7F2] dark:bg-n-alpha-2"
-                                @click="toggleDetail(event.id, 'email')"
-                              >
-                                {{ LEDGER_LABELS.view }}
-                              </button>
-                            </td>
-                          </tr>
-                          <tr
-                            v-if="isDetailOpen(event.id, 'email')"
-                            class="border-b border-n-weak bg-[#E6F7F2]/20"
-                          >
-                            <td :colspan="9" class="px-3 py-3">
                               <pre
-                                class="m-0 overflow-x-auto rounded-lg border border-[#0F9B76]/20 bg-[#E6F7F2] p-3 text-[11px] leading-relaxed text-n-slate-12 whitespace-pre-wrap"
-                              >{{ event.email_row.email_raw || '—' }}</pre>
+                                v-else
+                                class="m-0 overflow-x-auto rounded-lg border border-n-weak bg-n-alpha-2 p-3 text-[11px] leading-relaxed text-n-slate-12 whitespace-pre-wrap"
+                              >
+                                {{ JSON.stringify(event.raw, null, 2) }}
+                              </pre>
                             </td>
                           </tr>
                         </template>
@@ -807,7 +772,10 @@ onMounted(() => {
               : t('PAYMENT_HANDLES.MODAL.EDIT_DESC')
           "
         />
-        <form class="flex flex-col gap-4 px-0 pb-2" @submit.prevent="submitForm">
+        <form
+          class="flex flex-col gap-4 px-0 pb-2"
+          @submit.prevent="submitForm"
+        >
           <div
             v-if="formErrors.length"
             class="p-3 text-sm rounded-lg border text-n-ruby-11 bg-n-ruby-2 border-n-ruby-7"
@@ -825,7 +793,9 @@ onMounted(() => {
 
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="flex flex-col gap-1 text-sm">
-              <span class="text-n-slate-11">{{ t('PAYMENT_HANDLES.FORM.PLATFORM') }}</span>
+              <span class="text-n-slate-11">{{
+                t('PAYMENT_HANDLES.FORM.PLATFORM')
+              }}</span>
               <select
                 v-model="form.platform"
                 :disabled="formMode === 'edit'"
@@ -837,7 +807,9 @@ onMounted(() => {
               </select>
             </label>
             <label class="flex flex-col gap-1 text-sm">
-              <span class="text-n-slate-11">{{ t('PAYMENT_HANDLES.FORM.STATUS') }}</span>
+              <span class="text-n-slate-11">{{
+                t('PAYMENT_HANDLES.FORM.STATUS')
+              }}</span>
               <select
                 v-model="form.status"
                 class="h-10 px-3 text-sm rounded-lg border bg-n-alpha-3 border-n-weak text-n-slate-12"
@@ -872,7 +844,9 @@ onMounted(() => {
           />
 
           <label class="flex flex-col gap-1 text-sm">
-            <span class="text-n-slate-11">{{ t('PAYMENT_HANDLES.FORM.NOTES') }}</span>
+            <span class="text-n-slate-11">{{
+              t('PAYMENT_HANDLES.FORM.NOTES')
+            }}</span>
             <textarea
               v-model="form.notes"
               rows="3"
@@ -922,8 +896,7 @@ onMounted(() => {
                   :label="t('PAYMENT_HANDLES.FORM.VERIFICATION_HOST')"
                 />
                 <p class="m-0 text-xs text-n-slate-11">
-                  Auto-detected from email. Override only if your provider uses a
-                  custom IMAP server.
+                  {{ IMAP_HOST_HINT }}
                 </p>
               </div>
               <woot-input
@@ -933,7 +906,9 @@ onMounted(() => {
                 :label="t('PAYMENT_HANDLES.FORM.VERIFICATION_PORT')"
               />
             </div>
-            <label class="inline-flex gap-2 items-center text-sm cursor-pointer select-none">
+            <label
+              class="inline-flex gap-2 items-center text-sm cursor-pointer select-none"
+            >
               <input
                 v-model="form.verification_email_ssl"
                 type="checkbox"
@@ -974,4 +949,3 @@ onMounted(() => {
     />
   </SettingsLayout>
 </template>
-

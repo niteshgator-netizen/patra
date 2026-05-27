@@ -1,3 +1,4 @@
+/* global axios */
 import CacheEnabledApiClient from './CacheEnabledApiClient';
 
 class PaymentHandlesAPI extends CacheEnabledApiClient {
@@ -8,6 +9,10 @@ class PaymentHandlesAPI extends CacheEnabledApiClient {
   // eslint-disable-next-line class-methods-use-this
   get cacheModelName() {
     return 'payment_handle';
+  }
+
+  ledger(id) {
+    return axios.get(`${this.url}/${id}/ledger`);
   }
 }
 

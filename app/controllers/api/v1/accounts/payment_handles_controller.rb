@@ -31,7 +31,51 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
     head :ok
   end
 
+  def ledger
+    render json: ledger_entries_for(@payment_handle)
+  end
+
   private
+
+  LEDGER_ENTRY_KEYS = %w[
+    amount platform sender_name sender_handle recipient_handle transaction_id
+    transaction_date transaction_time status confidence source image_received_at
+    email_confirmed flag_reason resolved_handle resolve_score note_or_memo
+  ].freeze
+
+  def ledger_entries_for(payment_handle)
+    normalized_handle = payment_handle.normalized_handle
+    display_name_words = payment_handle.display_name.to_s.split(/\s+/).map(&:downcase).reject { |word| word.length < 2 }
+    matched = []
+
+    Current.account.contacts.where("custom_attributes ? 'patra_finance_logs'").find_each do |contact|
+      Array(contact.custom_attributes['patra_finance_logs']).each do |raw|
+        entry = raw.is_a?(Hash) ? raw.stringify_keys : next
+        next unless ledger_entry_matches?(entry, normalized_handle, display_name_words)
+
+        matched << entry.slice(*LEDGER_ENTRY_KEYS)
+      end
+    end
+
+    matched.sort_by { |entry| ledger_entry_timestamp(entry) || Time.at(0) }.reverse.first(50)
+  end
+
+  def ledger_entry_matches?(entry, normalized_handle, display_name_words)
+    recip = entry['recipient_handle'].to_s.gsub(/^[\$@]/, '').strip.downcase
+    return true if recip.present? && recip == normalized_handle
+
+    sender_name = entry['sender_name'].to_s.downcase
+    display_name_words.any? { |word| sender_name.include?(word) }
+  end
+
+  def ledger_entry_timestamp(entry)
+    raw = entry['image_received_at']
+    return raw if raw.is_a?(Time) || raw.is_a?(ActiveSupport::TimeWithZone)
+
+    Time.zone.parse(raw.to_s)
+  rescue ArgumentError, TypeError
+    nil
+  end
 
   def fetch_payment_handle
     @payment_handle = policy_scope(Current.account.payment_handles).find(params[:id])
