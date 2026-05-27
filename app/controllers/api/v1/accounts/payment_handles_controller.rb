@@ -64,6 +64,12 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
     recip = entry['recipient_handle'].to_s.gsub(/^[\$@]/, '').strip.downcase
     return true if recip.present? && recip == normalized_handle
 
+    resolved = entry['resolved_handle'].to_s.gsub(/^[\$@]/, '').strip.downcase
+    return true if resolved.present? && resolved == normalized_handle
+
+    recipient_name = entry['recipient_name'].to_s.downcase
+    return true if recipient_name.present? && display_name_words.any? { |word| recipient_name.include?(word) }
+
     sender_name = entry['sender_name'].to_s.downcase
     display_name_words.any? { |word| sender_name.include?(word) }
   end
