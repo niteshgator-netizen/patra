@@ -286,9 +286,10 @@ class Ai::ReplyService
     'usdt' => []
   }.freeze
 
-  def initialize(conversation_id, account_id: nil, attachments: nil)
+  def initialize(conversation_id, account_id: nil, attachments: nil, image_only_mode: false)
     @conversation_id = conversation_id
     @bridge_account_id = account_id
+    @image_only_mode = image_only_mode
     # Raw bridge payload (may include payload.url / payload.thumb_url); kept for
     # finance log image URLs alongside normalized @attachments.
     @raw_fb_attachments = Array(attachments)
@@ -630,291 +631,16 @@ class Ai::ReplyService
     case complexity
     when :has_image
       if image_url.present?
-        payment = Ai::ImagePaymentExtractor.new(image_url).extract
-        if payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
-          contact_id = fetch_sender_contact_id
-          acct = Account.find_by(id: account_id)
-          grok_injection = nil
+        result = persist_image_payment_finance_log(image_url)
+        return result[:early_reply] if result.is_a?(Hash) && result[:early_reply].present?
 
-          validator = Payments::ReceiptValidator.new(payment)
-          if !validator.valid_receipt? && validator.likely_profile_page?
-            transactions = Array(payment[:transactions] || payment['transactions'])
-
-            bridge_conv_l0 = nil
-            expected_platform_l0 = nil
-            expected_handle_l0 = nil
-            if @bridge_account_id.present? && @conversation_id.present?
-              bridge_conv_l0 = Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id)
-              expected_platform_l0 = bridge_conv_l0&.additional_attributes&.dig('expected_platform')
-              expected_handle_l0 = bridge_conv_l0&.additional_attributes&.dig('expected_handle')
-            end
-
-            matching_txn = if transactions.any?
-                             transactions.find do |t|
-                               next false unless t.is_a?(Hash)
-
-                               h = t.transform_keys(&:to_s)
-                               h['amount'].to_f > 0 && h['direction'].to_s == 'sent'
-                             end&.transform_keys(&:to_s)
-                           end
-
-            if matching_txn && expected_platform_l0.present?
-              detected_platform = payment[:platform].to_s.downcase.presence || 'unknown'
-              txn_amount = matching_txn['amount']
-              txn_date = matching_txn['date']
-              txn_counterparty = matching_txn['counterparty_name'] || matching_txn['counterparty_handle'] || 'them'
-              txn_note = matching_txn['note']
-
-              add_conversation_labels!(%w[profile-page-evidence wrong-platform])
-              Rails.logger.info("[ReplyService] PROFILE_PAGE_TXN_EVIDENCE detected=#{detected_platform} expected=#{expected_platform_l0} amount=#{txn_amount} contact=#{contact_id}")
-
-              alt_handle_l0 = nil
-              if acct && PaymentHandle::PLATFORMS.include?(detected_platform)
-                alt_ph = acct.payment_handles.active_for(detected_platform).order(:priority).first
-                alt_handle_l0 = alt_ph&.display_handle
-              end
-
-              grok_injection = <<~INJ.squish
-                PROFILE PAGE EVIDENCE OF WRONG-PLATFORM PAYMENT.
-                Customer sent a profile-page screenshot (not a receipt). The visible transaction history shows they sent $#{txn_amount} to "#{txn_counterparty}"#{txn_date ? " on #{txn_date}" : ''}#{txn_note.present? ? " (note: #{txn_note})" : ''} via #{detected_platform.upcase}.
-                Earlier in this chat you told them to pay via #{expected_platform_l0.upcase} to "#{expected_handle_l0}".
-                Same handle name across different apps = different people. The "#{txn_counterparty}" they paid on #{detected_platform.upcase} is NOT us. We did NOT receive that payment.
-                Reply in Bella's casual lowercase tone, max 2 lines, no bullets. ACKNOWLEDGE what you can see in their history ($AMOUNT to NAME on DATE), then explain the mix-up briefly, then offer BOTH options in one message:
-                Option 1: re-send the same amount on #{expected_platform_l0.upcase} to "#{expected_handle_l0}"
-                Option 2: switch to #{detected_platform.upcase} — #{alt_handle_l0.present? ? %(our #{detected_platform.upcase} handle is "#{alt_handle_l0}") : %(we'll get you our #{detected_platform.upcase} handle in a sec)}
-                Do NOT confirm or load. Do NOT say "send me the actual receipt" — we already have enough info from their history. Do NOT accuse — it's an easy mix-up with $handles.
-              INJ
-
-              payment[:profile_page_txn_evidence] = matching_txn
-              payment[:profile_page_detected_platform] = detected_platform
-            else
-              Rails.logger.info("[ReplyService] REJECTED profile-page image contact=#{contact_id} (no smart-reply context)")
-              add_conversation_labels!(%w[non-receipt-image])
-              return 'hey that looks like the profile page, not the payment receipt. can you screenshot the actual transaction from your history? 🙏'
-            end
-          end
-
-          if acct
-            resolved = Payments::HandleResolver.new(account: acct, ocr_result: payment).resolve
-            if resolved && resolved[:handle].platform.to_s.downcase != payment[:platform].to_s.downcase
-              original_ocr_platform = payment[:platform].to_s
-              Rails.logger.info("[ReplyService] PLATFORM_OVERRIDE ocr=#{original_ocr_platform} → db=#{resolved[:handle].platform} score=#{resolved[:score]} source=#{resolved[:source]} contact=#{contact_id}")
-              payment[:platform] = resolved[:handle].platform
-              payment[:ocr_platform_original] = original_ocr_platform
-              payment[:resolved_handle_id] = resolved[:handle].id
-              payment[:resolved_handle_score] = resolved[:score]
-            end
-          end
-
-          raw_first = @raw_fb_attachments.first
-          raw_h = raw_first.is_a?(Hash) ? raw_first.stringify_keys : {}
-          image_url_for_log = raw_h.dig('payload', 'url').presence || raw_h['url'].presence || image_url
-          thumb_url_for_log = raw_h.dig('payload', 'thumb_url').presence || image_url_for_log
-
-          payment_status_bucket = extracted_payment_status_bucket(payment[:status])
-          log_entry = {
-            'kind' => 'deposit',
-            'amount' => payment[:amount],
-            'platform' => payment[:platform],
-            'sender_name' => payment[:sender_name],
-            'sender_handle' => payment[:sender_handle],
-            'recipient_name' => payment[:recipient_name],
-            'recipient_handle' => payment[:recipient_handle],
-            'transaction_id' => payment[:transaction_id],
-            'transaction_date' => payment[:transaction_date],
-            'transaction_time' => payment[:transaction_time],
-            'note_or_memo' => payment[:note_or_memo],
-            'status' => finance_log_status_label(payment_status_bucket),
-            'raw_status' => payment[:status],
-            'confidence' => payment[:confidence],
-            'image_url' => image_url_for_log,
-            'image_thumb_url' => thumb_url_for_log,
-            'image_received_at' => Time.current.iso8601,
-            'source' => 'image_auto'
-          }
-          log_entry['profile_page_evidence'] = payment[:profile_page_txn_evidence] if payment[:profile_page_txn_evidence].present?
-          log_entry['detected_platform_from_profile'] = payment[:profile_page_detected_platform] if payment[:profile_page_detected_platform].present?
-          log_entry['kind'] = 'flagged' if payment[:profile_page_txn_evidence].present?
-          log_entry['flag_reason'] ||= 'wrong_platform_profile_page' if payment[:profile_page_txn_evidence].present?
-          log_entry.tap do |entry|
-            if Payments::StatusNormalizer.needs_email_confirmation?(payment[:status])
-              entry['email_confirmed'] = false
-              entry['email_check_attempts'] = 0
-            end
-          end
-
-          recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
-          if contact_id.present?
-            contact_response = HTTParty.get(
-              "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
-              headers: chatwoot_headers,
-              timeout: HTTP_TIMEOUT
-            )
-            if contact_response.success?
-              contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
-              attrs = (contact['custom_attributes'] || {}).stringify_keys
-              existing_logs = Array.wrap(attrs['patra_finance_logs'])
-
-              tx_id = payment[:transaction_id].to_s.strip
-              duplicate = nil
-              duplicate_match_tier = nil
-
-              if tx_id.present? && tx_id.length > 3
-                duplicate = existing_logs.find { |e| e.is_a?(Hash) && e['transaction_id'].to_s.strip == tx_id }
-                duplicate_match_tier = :transaction_id if duplicate
-              end
-
-              if duplicate.nil?
-                fp = payment_screenshot_fingerprint_composite(payment)
-                if fp.present?
-                  cutoff = 24.hours.ago
-                  duplicate = existing_logs.find do |e|
-                    next false unless e.is_a?(Hash)
-                    next false unless payment_screenshot_fingerprint_composite(e) == fp
-
-                    ts = begin
-                      Time.parse(e['image_received_at'].to_s)
-                    rescue ArgumentError, TypeError, StandardError
-                      nil
-                    end
-                    next false if ts.nil?
-
-                    ts >= cutoff
-                  end
-                  duplicate_match_tier = :fingerprint if duplicate
-                end
-              end
-
-              if duplicate
-                log_entry['kind'] = 'flagged'
-                log_entry['flag_reason'] = duplicate_match_tier == :transaction_id ? 'duplicate' : 'duplicate-soft'
-                Rails.logger.warn(
-                  "[ReplyService] DUPLICATE tier=#{duplicate_match_tier} transaction_id=#{tx_id.inspect} contact=#{contact_id}"
-                )
-                original_time_raw = duplicate['image_received_at'].to_s
-                original_status = duplicate['raw_status'].presence || duplicate['status'].to_s.presence || 'unknown'
-                original_time = begin
-                  Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
-                rescue ArgumentError, TypeError
-                  original_time_raw
-                end
-                formatted_time = begin
-                  Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
-                rescue ArgumentError, TypeError
-                  original_time_raw
-                end
-                grok_injection = <<~INJ.squish
-                  DUPLICATE SCREENSHOT BLOCK. This exact transaction_id was already submitted at #{original_time}.
-                  Original status was '#{original_status}'. You MUST NOT confirm this payment or apply any bonus.
-                  Reply to the customer in Bella's casual lowercase tone: 'looks like you already used this one —
-                  i got you loaded up from this same screenshot at #{formatted_time}. each screenshot can only be
-                  used once, send a fresh one if you wanna add more.' Do not deviate from this script.
-                INJ
-                dup_labels = if duplicate_match_tier == :transaction_id
-                               %w[fraud-watch duplicate-attempt]
-                             else
-                               %w[fraud-watch duplicate-attempt soft-match]
-                             end
-                add_conversation_labels!(dup_labels)
-              end
-
-              unless log_entry['flag_reason']
-                bridge_conversation = @bridge_account_id.present? ? Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id) : nil
-                expected_platform = bridge_conversation&.additional_attributes&.dig('expected_platform')
-                expected_handle = bridge_conversation&.additional_attributes&.dig('expected_handle')
-
-                handle_resolver_confident = resolved.present? &&
-                  resolved[:score] >= 60 &&
-                  resolved[:handle].platform.to_s.downcase == payment[:platform].to_s.downcase
-
-                if handle_resolver_confident
-                  # HandleResolver found a confident match to our handle — trust it, skip wrong_platform check
-                  log_entry['resolved_handle'] = resolved[:handle].display_handle
-                  log_entry['resolve_score'] = resolved[:score]
-                elsif expected_platform.present? && payment[:platform].to_s.downcase != expected_platform.to_s.downcase
-                  ocr_platform = payment[:platform].to_s.downcase
-                  alt_handle = nil
-                  if acct && PaymentHandle::PLATFORMS.include?(ocr_platform)
-                    alt_ph = acct.payment_handles.active_for(ocr_platform).order(:priority).first
-                    alt_handle = alt_ph&.display_handle
-                  end
-
-                  add_conversation_labels!(%w[wrong-platform])
-                  log_entry['kind'] = 'flagged'
-                  log_entry['flag_reason'] = 'wrong_platform'
-                  log_entry['expected_platform'] = expected_platform
-                  log_entry['paid_platform'] = ocr_platform
-
-                  grok_injection = <<~INJ.squish
-                    PLATFORM MISMATCH (do not accuse the customer — small mistake, recoverable).
-                    You gave them the #{expected_platform.upcase} handle "#{expected_handle}" earlier in the chat.
-                    Their screenshot shows they actually paid via #{ocr_platform.upcase} to "#{payment[:recipient_handle]}" — a stranger with the same handle string on a different app. We did NOT receive that payment.
-                    Reply in Bella's casual lowercase tone, max 2 lines, no bullets. Apologize warmly (it's an easy mix-up, $ and @ formats look similar across apps). Then offer BOTH options in ONE message:
-                    Option 1: re-send the same amount on #{expected_platform.upcase} to "#{expected_handle}"
-                    Option 2: switch to #{ocr_platform.upcase} — #{alt_handle.present? ? %(our #{ocr_platform.upcase} handle is "#{alt_handle}") : %(you'll need to wait while we grab the right #{ocr_platform.upcase} handle)}
-                    Do NOT confirm a deposit or bonus. Do NOT say "verify you sent it to" — they verified, the issue is the platform itself.
-                  INJ
-                  Rails.logger.warn("[ReplyService] WRONG_PLATFORM expected=#{expected_platform} got=#{ocr_platform} contact=#{contact_id}")
-                elsif log_entry['flag_reason'].blank?
-                  platform = payment[:platform].to_s.downcase
-                  db_norms = if acct && PaymentHandle::PLATFORMS.include?(platform)
-                             acct.payment_handles.where(platform: platform).map(&:normalized_handle).uniq.reject(&:blank?)
-                           else
-                             []
-                           end
-                  legacy = OUR_HANDLES[platform]
-                  legacy_norms = Array(legacy).map { |h| h.to_s.gsub(/^[\$@]/, '').strip.downcase }.reject(&:blank?)
-                  expected_norms = db_norms.presence || legacy_norms
-
-                  if !handle_resolver_confident && recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
-                    log_entry['kind'] = 'flagged'
-                    log_entry['flag_reason'] = 'recipient_mismatch'
-                    expected_display = if db_norms.any? && acct
-                                         Payments::HandleSelector.new(acct).pick(platform)&.display_handle
-                                       elsif legacy.present?
-                                         legacy.first.to_s.start_with?('$') ? legacy.first.to_s : "$#{legacy.first}"
-                                       end
-                    log_entry['expected_handle'] = expected_display
-                    Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected_norms} got=#{recip_handle} contact=#{contact_id}")
-                    grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is #{expected_display}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to #{expected_display}. Do NOT confirm a deposit and do NOT offer a bonus."
-                  end
-                end
-              end
-
-              if grok_injection.blank?
-                case extracted_payment_status_bucket(payment[:status])
-                when :pending
-                  if log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
-                    log_entry['status'] = 'Pending'
-                  end
-                when :failed
-                  if log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
-                    log_entry['status'] = 'Failed'
-                  end
-                end
-              end
-
-              updated_logs = existing_logs + [log_entry]
-              attrs['patra_finance_logs'] = updated_logs
-              patch_response = HTTParty.patch(
-                "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
-                headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
-                body: { custom_attributes: attrs }.to_json,
-                timeout: HTTP_TIMEOUT
-              )
-
-              st = extracted_payment_status_normalized(payment[:status])
-              if patch_response.success? && log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank? && %w[completed success].include?(st)
-                record_payment_handle_success!(acct, payment[:platform].to_s.downcase, recip_handle)
-              end
-
-              unless patch_response.success?
-                Rails.logger.warn(
-                  "[ReplyService] patra_finance_logs patch failed HTTP #{patch_response.code}: #{patch_response.body}"
-                )
-              end
-            end
-          end
+        if result
+          payment = result[:payment]
+          grok_injection = result[:grok_injection]
+          log_entry = result[:log_entry]
+          contact_id = result[:contact_id]
+          acct = result[:acct]
+          recip_handle = result[:recip_handle]
 
           unless grok_injection
             reply_status_bucket = extracted_payment_status_bucket(payment[:status])
@@ -995,9 +721,6 @@ class Ai::ReplyService
             "Customer just sent a payment screenshot: $#{payment[:amount]} via #{payment[:platform]}.",
             'Confirm receipt naturally, ask for their game username if not on file, and offer the correct bonus per the rules ($5+ deposit = 20-40% bonus based on loyalty tier).'
           ].join(' ')
-          Rails.logger.info(
-            "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]}"
-          )
         else
           sub = if last_user_plain.strip.present?
                   Ai::ComplexityClassifier.classify(last_user_plain, has_attachment: false)
@@ -1116,7 +839,327 @@ class Ai::ReplyService
     @conversation_history_for_llm || []
   end
 
+  def process_image_only
+    return if @conversation_id.blank?
+    return if chatwoot_token.blank?
+
+    image_url = first_fb_image_url
+    unless image_url.present?
+      Rails.logger.info("[ReplyService] process_image_only skipped — no image url conv=#{@conversation_id}")
+      return
+    end
+
+    Rails.logger.info("[ReplyService] process_image_only conv=#{@conversation_id}")
+    persist_image_payment_finance_log(image_url, image_only: @image_only_mode)
+  end
+
   private
+
+  def persist_image_payment_finance_log(image_url, image_only: false)
+    payment = Ai::ImagePaymentExtractor.new(image_url).extract
+    return nil unless payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
+
+    contact_id = fetch_sender_contact_id
+    acct = Account.find_by(id: account_id)
+    grok_injection = nil
+    resolved = nil
+
+    validator = Payments::ReceiptValidator.new(payment)
+    if !validator.valid_receipt? && validator.likely_profile_page?
+      transactions = Array(payment[:transactions] || payment['transactions'])
+
+      bridge_conv_l0 = nil
+      expected_platform_l0 = nil
+      expected_handle_l0 = nil
+      if @bridge_account_id.present? && @conversation_id.present?
+        bridge_conv_l0 = Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id)
+        expected_platform_l0 = bridge_conv_l0&.additional_attributes&.dig('expected_platform')
+        expected_handle_l0 = bridge_conv_l0&.additional_attributes&.dig('expected_handle')
+      end
+
+      matching_txn = if transactions.any?
+                       transactions.find do |t|
+                         next false unless t.is_a?(Hash)
+
+                         h = t.transform_keys(&:to_s)
+                         h['amount'].to_f > 0 && h['direction'].to_s == 'sent'
+                       end&.transform_keys(&:to_s)
+                     end
+
+      if matching_txn && expected_platform_l0.present?
+        detected_platform = payment[:platform].to_s.downcase.presence || 'unknown'
+        txn_amount = matching_txn['amount']
+        txn_date = matching_txn['date']
+        txn_counterparty = matching_txn['counterparty_name'] || matching_txn['counterparty_handle'] || 'them'
+        txn_note = matching_txn['note']
+
+        add_conversation_labels!(%w[profile-page-evidence wrong-platform])
+        Rails.logger.info("[ReplyService] PROFILE_PAGE_TXN_EVIDENCE detected=#{detected_platform} expected=#{expected_platform_l0} amount=#{txn_amount} contact=#{contact_id}")
+
+        alt_handle_l0 = nil
+        if acct && PaymentHandle::PLATFORMS.include?(detected_platform)
+          alt_ph = acct.payment_handles.active_for(detected_platform).order(:priority).first
+          alt_handle_l0 = alt_ph&.display_handle
+        end
+
+        grok_injection = <<~INJ.squish
+          PROFILE PAGE EVIDENCE OF WRONG-PLATFORM PAYMENT.
+          Customer sent a profile-page screenshot (not a receipt). The visible transaction history shows they sent $#{txn_amount} to "#{txn_counterparty}"#{txn_date ? " on #{txn_date}" : ''}#{txn_note.present? ? " (note: #{txn_note})" : ''} via #{detected_platform.upcase}.
+          Earlier in this chat you told them to pay via #{expected_platform_l0.upcase} to "#{expected_handle_l0}".
+          Same handle name across different apps = different people. The "#{txn_counterparty}" they paid on #{detected_platform.upcase} is NOT us. We did NOT receive that payment.
+          Reply in Bella's casual lowercase tone, max 2 lines, no bullets. ACKNOWLEDGE what you can see in their history ($AMOUNT to NAME on DATE), then explain the mix-up briefly, then offer BOTH options in one message:
+          Option 1: re-send the same amount on #{expected_platform_l0.upcase} to "#{expected_handle_l0}"
+          Option 2: switch to #{detected_platform.upcase} — #{alt_handle_l0.present? ? %(our #{detected_platform.upcase} handle is "#{alt_handle_l0}") : %(we'll get you our #{detected_platform.upcase} handle in a sec)}
+          Do NOT confirm or load. Do NOT say "send me the actual receipt" — we already have enough info from their history. Do NOT accuse — it's an easy mix-up with $handles.
+        INJ
+
+        payment[:profile_page_txn_evidence] = matching_txn
+        payment[:profile_page_detected_platform] = detected_platform
+      else
+        Rails.logger.info("[ReplyService] REJECTED profile-page image contact=#{contact_id} (no smart-reply context)")
+        add_conversation_labels!(%w[non-receipt-image])
+        return nil if image_only
+
+        return { early_reply: 'hey that looks like the profile page, not the payment receipt. can you screenshot the actual transaction from your history? 🙏' }
+      end
+    end
+
+    if acct
+      resolved = Payments::HandleResolver.new(account: acct, ocr_result: payment).resolve
+      if resolved && resolved[:handle].platform.to_s.downcase != payment[:platform].to_s.downcase
+        original_ocr_platform = payment[:platform].to_s
+        Rails.logger.info("[ReplyService] PLATFORM_OVERRIDE ocr=#{original_ocr_platform} → db=#{resolved[:handle].platform} score=#{resolved[:score]} source=#{resolved[:source]} contact=#{contact_id}")
+        payment[:platform] = resolved[:handle].platform
+        payment[:ocr_platform_original] = original_ocr_platform
+        payment[:resolved_handle_id] = resolved[:handle].id
+        payment[:resolved_handle_score] = resolved[:score]
+      end
+    end
+
+    raw_first = @raw_fb_attachments.first
+    raw_h = raw_first.is_a?(Hash) ? raw_first.stringify_keys : {}
+    image_url_for_log = raw_h.dig('payload', 'url').presence || raw_h['url'].presence || image_url
+    thumb_url_for_log = raw_h.dig('payload', 'thumb_url').presence || image_url_for_log
+
+    payment_status_bucket = extracted_payment_status_bucket(payment[:status])
+    log_entry = {
+      'kind' => 'deposit',
+      'amount' => payment[:amount],
+      'platform' => payment[:platform],
+      'sender_name' => payment[:sender_name],
+      'sender_handle' => payment[:sender_handle],
+      'recipient_name' => payment[:recipient_name],
+      'recipient_handle' => payment[:recipient_handle],
+      'transaction_id' => payment[:transaction_id],
+      'transaction_date' => payment[:transaction_date],
+      'transaction_time' => payment[:transaction_time],
+      'note_or_memo' => payment[:note_or_memo],
+      'status' => finance_log_status_label(payment_status_bucket),
+      'raw_status' => payment[:status],
+      'confidence' => payment[:confidence],
+      'image_url' => image_url_for_log,
+      'image_thumb_url' => thumb_url_for_log,
+      'image_received_at' => Time.current.iso8601,
+      'source' => 'image_auto'
+    }
+    log_entry['profile_page_evidence'] = payment[:profile_page_txn_evidence] if payment[:profile_page_txn_evidence].present?
+    log_entry['detected_platform_from_profile'] = payment[:profile_page_detected_platform] if payment[:profile_page_detected_platform].present?
+    log_entry['kind'] = 'flagged' if payment[:profile_page_txn_evidence].present?
+    log_entry['flag_reason'] ||= 'wrong_platform_profile_page' if payment[:profile_page_txn_evidence].present?
+    log_entry.tap do |entry|
+      if Payments::StatusNormalizer.needs_email_confirmation?(payment[:status])
+        entry['email_confirmed'] = false
+        entry['email_check_attempts'] = 0
+      end
+    end
+
+    recip_handle = payment[:recipient_handle].to_s.gsub(/^[\$@]/, '').strip.downcase
+    if contact_id.present?
+      contact_response = HTTParty.get(
+        "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+        headers: chatwoot_headers,
+        timeout: HTTP_TIMEOUT
+      )
+      if contact_response.success?
+        contact = contact_response.parsed_response['payload'] || contact_response.parsed_response
+        attrs = (contact['custom_attributes'] || {}).stringify_keys
+        existing_logs = Array.wrap(attrs['patra_finance_logs'])
+
+        tx_id = payment[:transaction_id].to_s.strip
+        duplicate = nil
+        duplicate_match_tier = nil
+
+        if tx_id.present? && tx_id.length > 3
+          duplicate = existing_logs.find { |e| e.is_a?(Hash) && e['transaction_id'].to_s.strip == tx_id }
+          duplicate_match_tier = :transaction_id if duplicate
+        end
+
+        if duplicate.nil?
+          fp = payment_screenshot_fingerprint_composite(payment)
+          if fp.present?
+            cutoff = 24.hours.ago
+            duplicate = existing_logs.find do |e|
+              next false unless e.is_a?(Hash)
+              next false unless payment_screenshot_fingerprint_composite(e) == fp
+
+              ts = begin
+                Time.parse(e['image_received_at'].to_s)
+              rescue ArgumentError, TypeError, StandardError
+                nil
+              end
+              next false if ts.nil?
+
+              ts >= cutoff
+            end
+            duplicate_match_tier = :fingerprint if duplicate
+          end
+        end
+
+        if duplicate
+          log_entry['kind'] = 'flagged'
+          log_entry['flag_reason'] = duplicate_match_tier == :transaction_id ? 'duplicate' : 'duplicate-soft'
+          Rails.logger.warn(
+            "[ReplyService] DUPLICATE tier=#{duplicate_match_tier} transaction_id=#{tx_id.inspect} contact=#{contact_id}"
+          )
+          original_time_raw = duplicate['image_received_at'].to_s
+          original_status = duplicate['raw_status'].presence || duplicate['status'].to_s.presence || 'unknown'
+          original_time = begin
+            Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
+          rescue ArgumentError, TypeError
+            original_time_raw
+          end
+          formatted_time = begin
+            Time.parse(original_time_raw).strftime('%b %-d at %-l:%M %p')
+          rescue ArgumentError, TypeError
+            original_time_raw
+          end
+          grok_injection = <<~INJ.squish
+            DUPLICATE SCREENSHOT BLOCK. This exact transaction_id was already submitted at #{original_time}.
+            Original status was '#{original_status}'. You MUST NOT confirm this payment or apply any bonus.
+            Reply to the customer in Bella's casual lowercase tone: 'looks like you already used this one —
+            i got you loaded up from this same screenshot at #{formatted_time}. each screenshot can only be
+            used once, send a fresh one if you wanna add more.' Do not deviate from this script.
+          INJ
+          dup_labels = if duplicate_match_tier == :transaction_id
+                         %w[fraud-watch duplicate-attempt]
+                       else
+                         %w[fraud-watch duplicate-attempt soft-match]
+                       end
+          add_conversation_labels!(dup_labels)
+        end
+
+        unless log_entry['flag_reason']
+          bridge_conversation = @bridge_account_id.present? ? Account.find_by(id: @bridge_account_id)&.conversations&.find_by(display_id: @conversation_id) : nil
+          expected_platform = bridge_conversation&.additional_attributes&.dig('expected_platform')
+          expected_handle = bridge_conversation&.additional_attributes&.dig('expected_handle')
+
+          handle_resolver_confident = resolved.present? &&
+            resolved[:score] >= 60 &&
+            resolved[:handle].platform.to_s.downcase == payment[:platform].to_s.downcase
+
+          if handle_resolver_confident
+            log_entry['resolved_handle'] = resolved[:handle].display_handle
+            log_entry['resolve_score'] = resolved[:score]
+          elsif expected_platform.present? && payment[:platform].to_s.downcase != expected_platform.to_s.downcase
+            ocr_platform = payment[:platform].to_s.downcase
+            alt_handle = nil
+            if acct && PaymentHandle::PLATFORMS.include?(ocr_platform)
+              alt_ph = acct.payment_handles.active_for(ocr_platform).order(:priority).first
+              alt_handle = alt_ph&.display_handle
+            end
+
+            add_conversation_labels!(%w[wrong-platform])
+            log_entry['kind'] = 'flagged'
+            log_entry['flag_reason'] = 'wrong_platform'
+            log_entry['expected_platform'] = expected_platform
+            log_entry['paid_platform'] = ocr_platform
+
+            grok_injection = <<~INJ.squish
+              PLATFORM MISMATCH (do not accuse the customer — small mistake, recoverable).
+              You gave them the #{expected_platform.upcase} handle "#{expected_handle}" earlier in the chat.
+              Their screenshot shows they actually paid via #{ocr_platform.upcase} to "#{payment[:recipient_handle]}" — a stranger with the same handle string on a different app. We did NOT receive that payment.
+              Reply in Bella's casual lowercase tone, max 2 lines, no bullets. Apologize warmly (it's an easy mix-up, $ and @ formats look similar across apps). Then offer BOTH options in ONE message:
+              Option 1: re-send the same amount on #{expected_platform.upcase} to "#{expected_handle}"
+              Option 2: switch to #{ocr_platform.upcase} — #{alt_handle.present? ? %(our #{ocr_platform.upcase} handle is "#{alt_handle}") : %(you'll need to wait while we grab the right #{ocr_platform.upcase} handle)}
+              Do NOT confirm a deposit or bonus. Do NOT say "verify you sent it to" — they verified, the issue is the platform itself.
+            INJ
+            Rails.logger.warn("[ReplyService] WRONG_PLATFORM expected=#{expected_platform} got=#{ocr_platform} contact=#{contact_id}")
+          elsif log_entry['flag_reason'].blank?
+            platform = payment[:platform].to_s.downcase
+            db_norms = if acct && PaymentHandle::PLATFORMS.include?(platform)
+                       acct.payment_handles.where(platform: platform).map(&:normalized_handle).uniq.reject(&:blank?)
+                     else
+                       []
+                     end
+            legacy = OUR_HANDLES[platform]
+            legacy_norms = Array(legacy).map { |h| h.to_s.gsub(/^[\$@]/, '').strip.downcase }.reject(&:blank?)
+            expected_norms = db_norms.presence || legacy_norms
+
+            if !handle_resolver_confident && recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
+              log_entry['kind'] = 'flagged'
+              log_entry['flag_reason'] = 'recipient_mismatch'
+              expected_display = if db_norms.any? && acct
+                                   Payments::HandleSelector.new(acct).pick(platform)&.display_handle
+                                 elsif legacy.present?
+                                   legacy.first.to_s.start_with?('$') ? legacy.first.to_s : "$#{legacy.first}"
+                                 end
+              log_entry['expected_handle'] = expected_display
+              Rails.logger.warn("[ReplyService] RECIPIENT_MISMATCH expected=#{expected_norms} got=#{recip_handle} contact=#{contact_id}")
+              grok_injection = "RECIPIENT MISMATCH. Customer's receipt shows the payment was sent to '#{payment[:recipient_handle]}' on #{platform}, but our handle is #{expected_display}. The payment did NOT come to us. Politely tell them the screenshot shows the payment went to a different account and ask them to verify they sent it to #{expected_display}. Do NOT confirm a deposit and do NOT offer a bonus."
+            end
+          end
+        end
+
+        if grok_injection.blank?
+          case extracted_payment_status_bucket(payment[:status])
+          when :pending
+            if log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
+              log_entry['status'] = 'Pending'
+            end
+          when :failed
+            if log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank?
+              log_entry['status'] = 'Failed'
+            end
+          end
+        end
+
+        updated_logs = existing_logs + [log_entry]
+        attrs['patra_finance_logs'] = updated_logs
+        patch_response = HTTParty.patch(
+          "#{base_url}/api/v1/accounts/#{account_id}/contacts/#{contact_id}",
+          headers: chatwoot_headers.merge('Content-Type' => 'application/json'),
+          body: { custom_attributes: attrs }.to_json,
+          timeout: HTTP_TIMEOUT
+        )
+
+        st = extracted_payment_status_normalized(payment[:status])
+        if patch_response.success? && log_entry['kind'] == 'deposit' && log_entry['flag_reason'].blank? && %w[completed success].include?(st)
+          record_payment_handle_success!(acct, payment[:platform].to_s.downcase, recip_handle)
+        end
+
+        unless patch_response.success?
+          Rails.logger.warn(
+            "[ReplyService] patra_finance_logs patch failed HTTP #{patch_response.code}: #{patch_response.body}"
+          )
+        end
+      end
+    end
+
+    Rails.logger.info(
+      "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]} image_only=#{image_only}"
+    )
+
+    return { payment: payment, log_entry: log_entry } if image_only
+
+    {
+      payment: payment,
+      grok_injection: grok_injection,
+      log_entry: log_entry,
+      contact_id: contact_id,
+      acct: acct,
+      recip_handle: recip_handle
+    }
+  end
 
   # ---------- Conversation context ----------
 

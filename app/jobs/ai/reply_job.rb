@@ -30,6 +30,16 @@ class Ai::ReplyJob < ApplicationJob
     already_replied = Redis::Alfred.get(lock_key)
     if already_replied
       Rails.logger.info("[AiReply] skipping duplicate reply conv=#{conversation_id}")
+      # Still process images even when skipping reply
+      if fb_attachments.present?
+        Rails.logger.info("[AiReply] duplicate skip but has image — processing OCR only")
+        Ai::ReplyService.new(
+          conversation_id,
+          account_id: bridge_account_id,
+          attachments: fb_attachments,
+          image_only_mode: true
+        ).process_image_only
+      end
       return
     end
     Redis::Alfred.set(lock_key, '1', ex: REPLY_LOCK_TTL)
