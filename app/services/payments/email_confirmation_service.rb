@@ -83,8 +83,11 @@ module Payments
 
     def resolve_payment_handle(entry)
       platform = entry['platform'].to_s.downcase
+      return nil if platform.blank? || @account.blank?
+
       recip = entry['recipient_handle'].to_s.gsub(/^[\$@]/, '').strip.downcase
-      return nil if platform.blank? || recip.blank? || @account.blank?
+      recip = entry['resolved_handle'].to_s.gsub(/^[\$@]/, '').strip.downcase if recip.blank?
+      return nil if recip.blank?
 
       @account.payment_handles.where(platform: platform).find do |handle|
         handle.normalized_handle == recip
