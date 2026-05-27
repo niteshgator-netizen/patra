@@ -137,8 +137,18 @@ module Ai
       response = post_json(body, api_key)
 
       unless response.is_a?(Net::HTTPSuccess)
-        Rails.logger.warn("[ImagePaymentExtractor] HTTP #{response&.code}")
-        return { is_payment: false, error: 'timeout' }
+        if response.code.to_s == '429'
+          Rails.logger.warn("[ImagePaymentExtractor] HTTP 429 rate limit — retrying in 4s")
+          sleep 4
+          response = post_json(body, api_key)
+          unless response.is_a?(Net::HTTPSuccess)
+            Rails.logger.warn("[ImagePaymentExtractor] HTTP #{response&.code} after retry")
+            return { is_payment: false, error: 'timeout' }
+          end
+        else
+          Rails.logger.warn("[ImagePaymentExtractor] HTTP #{response&.code}")
+          return { is_payment: false, error: 'timeout' }
+        end
       end
 
       parsed = parse_json_safe(response.body)
