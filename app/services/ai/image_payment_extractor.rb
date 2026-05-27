@@ -97,6 +97,7 @@ module Ai
         request = Net::HTTP::Get.new(uri.request_uri)
         response = http.request(request)
         unless response.is_a?(Net::HTTPSuccess)
+          Rails.logger.error("[ImagePaymentExtractor] image download failed status=#{response.code} url=#{@image_url.to_s[0,80]}")
           return { is_payment: false, error: 'download_failed', status: response.code }
         end
 
@@ -111,6 +112,8 @@ module Ai
         if response['content-type']&.start_with?('image/')
           media_type = response['content-type'].split(';').first.strip
         end
+
+        Rails.logger.info("[ImagePaymentExtractor] downloaded #{image_bytes.bytesize} bytes status=200 media=#{media_type}")
 
         encoded = Base64.strict_encode64(image_bytes)
       rescue StandardError => e
