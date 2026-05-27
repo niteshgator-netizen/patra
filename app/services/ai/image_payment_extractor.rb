@@ -8,7 +8,7 @@ require 'uri'
 module Ai
   class ImagePaymentExtractor
     GEMINI_MODEL = 'gemini-2.5-flash'
-    MAX_OUTPUT_TOKENS = 1024
+    MAX_OUTPUT_TOKENS = 8192
     TIMEOUT_SEC = 30
 
     VISION_PROMPT = <<~'PROMPT'.freeze
