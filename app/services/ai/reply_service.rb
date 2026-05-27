@@ -1149,6 +1149,19 @@ class Ai::ReplyService
       "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]} image_only=#{image_only}"
     )
 
+    # Instant IMAP verification — check email confirmation right after saving
+    begin
+      if contact_id.present?
+        contact = Account.find_by(id: account_id)&.contacts&.find_by(id: contact_id)
+        if contact.present?
+          Payments::EmailConfirmationService.new(contact: contact).check_all
+          Rails.logger.info("[ReplyService] instant IMAP check fired contact=#{contact_id}")
+        end
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[ReplyService] instant IMAP check failed contact=#{contact_id}: #{e.message}")
+    end
+
     return { payment: payment, log_entry: log_entry } if image_only
 
     {
