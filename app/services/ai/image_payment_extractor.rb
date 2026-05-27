@@ -44,8 +44,10 @@ module Ai
         ]
       }
 
-      If NOT a payment screenshot:
+      If NOT a payment screenshot (e.g. meme, game screenshot, selfie with NO payment app UI):
       {"is_payment": false, "confidence": "high"}
+
+      IMPORTANT: If you can see ANY payment app interface (PayPal, CashApp, Venmo, Chime, Zelle, Varo, Apple Pay) — even a transaction history, profile page, or balance screen — return is_payment:true. Only return is_payment:false if there is absolutely no payment app content visible.
 
       PLATFORM IDENTIFICATION (apply in order — pick the FIRST that matches):
 
@@ -206,6 +208,19 @@ module Ai
       sym = data.deep_symbolize_keys
       unless sym.key?(:is_payment) && sym.key?(:confidence)
         return { is_payment: false, error: 'parse_error' }
+      end
+
+      # Override: if Gemini said is_payment:false but raw_text or platform
+      # reveals a payment app, force it to true. Let HandleResolver decide
+      # downstream whether the handle actually matches.
+      if sym[:is_payment] == false
+        raw = sym[:raw_text].to_s.downcase
+        platform = sym[:platform].to_s.downcase
+        payment_keywords = %w[paypal cashapp venmo chime zelle varo boltpay applepay usdt]
+        if payment_keywords.any? { |kw| raw.include?(kw) || platform.include?(kw) }
+          Rails.logger.info "[ImagePaymentExtractor] override is_payment=true (keyword found in raw_text/platform)"
+          sym = sym.merge(is_payment: true, confidence: sym[:confidence] || 'medium')
+        end
       end
 
       sym
