@@ -15,6 +15,7 @@ module Payments
     end
 
     def fetch_recent_emails(count: 20)
+      return [] if @handle.nil?
       return [] unless @handle.verification_email.present?
 
       Mail.defaults do
