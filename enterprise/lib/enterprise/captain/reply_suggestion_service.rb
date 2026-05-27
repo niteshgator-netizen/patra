@@ -8,6 +8,8 @@ module Enterprise::Captain::ReplySuggestionService
   private
 
   def use_search_tool?
+    return false if ENV['XAI_API_KEY'].to_s.present?
+
     ChatwootApp.chatwoot_cloud? || ChatwootApp.self_hosted_enterprise?
   end
 

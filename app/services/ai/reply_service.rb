@@ -919,7 +919,7 @@ class Ai::ReplyService
                 contact: Contact.find_by(id: contact_id, account_id: account_id),
                 payment_details: log_entry
               )
-              return "got it, accepting it on our end real quick — you'll be loaded up in a sec"
+              return "got it, processing your payment now — I'll confirm once it clears 🙏"
             when :failed
               backup_display = nil
               failed_ph = nil
@@ -2012,6 +2012,7 @@ class Ai::ReplyService
 
     load_claim_patterns = [
       /\bloaded\b/i,
+      /\bloading\b/i,
       /got it.{0,20}load/i,
       /lemme load/i,
       /let me load/i,
