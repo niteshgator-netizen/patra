@@ -823,7 +823,15 @@ class Ai::ReplyService
                 expected_platform = bridge_conversation&.additional_attributes&.dig('expected_platform')
                 expected_handle = bridge_conversation&.additional_attributes&.dig('expected_handle')
 
-                if expected_platform.present? && payment[:platform].to_s.downcase != expected_platform.to_s.downcase
+                handle_resolver_confident = resolved.present? &&
+                  resolved[:score] >= 60 &&
+                  resolved[:handle].platform.to_s.downcase == payment[:platform].to_s.downcase
+
+                if handle_resolver_confident
+                  # HandleResolver found a confident match to our handle — trust it, skip wrong_platform check
+                  log_entry['resolved_handle'] = resolved[:handle].display_handle
+                  log_entry['resolve_score'] = resolved[:score]
+                elsif expected_platform.present? && payment[:platform].to_s.downcase != expected_platform.to_s.downcase
                   ocr_platform = payment[:platform].to_s.downcase
                   alt_handle = nil
                   if acct && PaymentHandle::PLATFORMS.include?(ocr_platform)
@@ -858,7 +866,7 @@ class Ai::ReplyService
                   legacy_norms = Array(legacy).map { |h| h.to_s.gsub(/^[\$@]/, '').strip.downcase }.reject(&:blank?)
                   expected_norms = db_norms.presence || legacy_norms
 
-                  if recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
+                  if !handle_resolver_confident && recip_handle.present? && expected_norms.any? && !expected_norms.include?(recip_handle)
                     log_entry['kind'] = 'flagged'
                     log_entry['flag_reason'] = 'recipient_mismatch'
                     expected_display = if db_norms.any? && acct
