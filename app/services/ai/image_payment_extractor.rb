@@ -9,7 +9,7 @@ module Ai
   class ImagePaymentExtractor
     GEMINI_MODEL = 'gemini-2.5-flash'
     MAX_OUTPUT_TOKENS = 1024
-    TIMEOUT_SEC = 15
+    TIMEOUT_SEC = 30
 
     VISION_PROMPT = <<~'PROMPT'.freeze
       You are analyzing a screenshot from a customer of an online gaming/sweepstakes platform. Determine if this is a payment confirmation screenshot and extract every identifying detail.
@@ -139,8 +139,8 @@ module Ai
       response = post_json(body, api_key)
 
       unless response.is_a?(Net::HTTPSuccess)
-        if response.code.to_s == '429'
-          Rails.logger.warn("[ImagePaymentExtractor] HTTP 429 rate limit — retrying in 4s")
+        if %w[429 503].include?(response.code.to_s)
+          Rails.logger.warn("[ImagePaymentExtractor] HTTP #{response.code} — retrying in 4s")
           sleep 4
           response = post_json(body, api_key)
           unless response.is_a?(Net::HTTPSuccess)
