@@ -448,7 +448,11 @@ Rails.application.routes.draw do
           end
 
           resources :upload, only: [:create]
-          resources :payment_handles, only: [:index, :create, :update, :destroy]
+          resources :payment_handles, only: [:index, :create, :update, :destroy] do
+            member do
+              get :ledger
+            end
+          end
           resources :patra_audit_logs, only: [:index]
           resources :approval_requests, only: [:index] do
             member do

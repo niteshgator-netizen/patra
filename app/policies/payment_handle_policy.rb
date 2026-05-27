@@ -13,6 +13,10 @@ class PaymentHandlePolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  def ledger?
+    show?
+  end
+
   def create?
     @account_user.administrator?
   end
