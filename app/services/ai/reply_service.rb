@@ -395,7 +395,7 @@ class Ai::ReplyService
 
       recent_screenshot = bridge_conv_sn.messages
                                         .where(message_type: :incoming)
-                                        .where('created_at > ?', 10.minutes.ago)
+                                        .where('messages.created_at > ?', 10.minutes.ago)
                                         .joins(:attachments).where(attachments: { file_type: 'image' }).exists?
 
       detector_sn = Games::IntentDetector.new
@@ -2029,7 +2029,7 @@ class Ai::ReplyService
 
     real_load = GameAction
                 .where(contact_id: cid, action_type: 'load', status: 'success')
-                .where('created_at > ?', 5.minutes.ago)
+                .where('game_actions.created_at > ?', 5.minutes.ago)
                 .exists?
 
     return reply_text if real_load
