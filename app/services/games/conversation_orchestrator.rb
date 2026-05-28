@@ -1064,7 +1064,32 @@ module Games
     end
 
     def mark_payment_loaded(payment_id)
-      # Already tracked in metadata of game_actions, no contact mutation needed
+      logs = (contact.custom_attributes || {})['patra_finance_logs']
+      if logs.is_a?(Array)
+        modified = false
+        logs.each do |entry|
+          next unless entry.is_a?(Hash)
+
+          log_id = entry['id'] || entry['transaction_id'] || "#{entry['amount']}_#{entry['recorded_at']}"
+          matches = log_id.to_s == payment_id.to_s ||
+                    entry['transaction_id'].to_s == payment_id.to_s
+          next unless matches
+
+          entry['status'] = 'Loaded'
+          entry['game_load_success'] = true
+          entry['loaded_at'] = Time.current.iso8601
+          modified = true
+          break
+        end
+
+        if modified
+          attrs = (contact.custom_attributes || {}).stringify_keys
+          attrs['patra_finance_logs'] = logs
+          contact.custom_attributes = attrs
+          contact.save!(touch: false)
+        end
+      end
+
       Rails.logger.info("[Orchestrator] payment #{payment_id} marked loaded")
     end
 

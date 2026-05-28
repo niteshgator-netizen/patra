@@ -883,10 +883,54 @@ class Ai::ReplyService
   private
 
   def persist_image_payment_finance_log(image_url, image_only: false)
+    contact_id = fetch_sender_contact_id
+
+    # Permanent duplicate check — detect already-loaded screenshots
+    if contact_id.present? && image_url.present?
+      contact = Account.find_by(id: account_id)&.contacts&.find_by(id: contact_id)
+      if contact
+        existing_logs = Array(contact.custom_attributes['patra_finance_logs'])
+        loaded_logs = existing_logs.select { |e| e['status'] == 'Loaded' && e['game_load_success'] == true }
+        duplicate_loaded = loaded_logs.find do |e|
+          # Match by image_url (same screenshot) OR txn_id (same transaction)
+          url_match = e['image_url'].present? && e['image_url'] == image_url
+          txn_match = e['transaction_id'].present? && false # will fill after OCR
+          url_match || txn_match
+        end
+        if duplicate_loaded
+          Rails.logger.info("[ReplyService] DUPLICATE_LOADED detected image_url match contact=#{contact_id}")
+          return {
+            early_reply: "hey, looks like this screenshot was already loaded — that payment went through on #{duplicate_loaded['platform']} $#{duplicate_loaded['amount']}. did you mean to send a new one? if so send the new screenshot 📸",
+            duplicate: true
+          }
+        end
+      end
+    end
+
     payment = Ai::ImagePaymentExtractor.new(image_url).extract
     return nil unless payment[:is_payment] && %w[high medium].include?(payment[:confidence].to_s)
 
-    contact_id = fetch_sender_contact_id
+    if contact_id.present?
+      tx_id = payment[:transaction_id].to_s.strip
+      if tx_id.present? && tx_id.length > 3
+        contact = Account.find_by(id: account_id)&.contacts&.find_by(id: contact_id)
+        if contact
+          existing_logs = Array(contact.custom_attributes['patra_finance_logs'])
+          loaded_logs = existing_logs.select { |e| e['status'] == 'Loaded' && e['game_load_success'] == true }
+          duplicate_loaded = loaded_logs.find do |e|
+            e['transaction_id'].present? && e['transaction_id'].to_s.strip == tx_id
+          end
+          if duplicate_loaded
+            Rails.logger.info("[ReplyService] DUPLICATE_LOADED detected txn_id match contact=#{contact_id} txn=#{tx_id}")
+            return {
+              early_reply: "hey, looks like this screenshot was already loaded — that payment went through on #{duplicate_loaded['platform']} $#{duplicate_loaded['amount']}. did you mean to send a new one? if so send the new screenshot 📸",
+              duplicate: true
+            }
+          end
+        end
+      end
+    end
+
     acct = Account.find_by(id: account_id)
     grok_injection = nil
     resolved = nil

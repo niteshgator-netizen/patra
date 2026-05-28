@@ -91,9 +91,10 @@ module Payments
       'recipient_match' => 10,
       'txn_id_present' => 10,
       'email_confirmed' => 10,
-      'note_present' => 5,
+      'note_match' => 5,
       'time_proximity' => 5,
       'time_proximity_minutes' => 30,
+      'time_match' => 5,
       'auto_load_threshold' => 80,
       'escalate_threshold' => 40,
       'decline_threshold' => 39
@@ -123,8 +124,9 @@ module Payments
         'recipient_match' => 0,
         'txn_id' => 0,
         'email_confirmed' => 0,
-        'note_present' => 0,
+        'note_match' => 0,
         'time_proximity' => 0,
+        'time_match' => 0,
         'custom_rules' => 0
       }
       return zero_breakdown unless entry.is_a?(Hash)
@@ -162,7 +164,13 @@ module Payments
 
       txn_pts = entry['transaction_id'].present? && entry['transaction_id'].to_s.length > 3 ? cfg['txn_id_present'].to_i : 0
       email_pts = entry['email_confirmed'] == true ? cfg['email_confirmed'].to_i : 0
-      note_pts = entry['note_or_memo'].present? ? cfg['note_present'].to_i : 0
+      # Note match: both screenshot and email have notes AND they match
+      note_pts = 0
+      ocr_note = entry['note_or_memo'].to_s.downcase.strip
+      email_note = entry['email_body_snippet'].to_s.downcase
+      if ocr_note.present? && email_note.present? && email_note.include?(ocr_note)
+        note_pts = cfg['note_match'].to_i
+      end
 
       time_pts = 0
       if entry['image_received_at'].present? && entry['email_date'].present?
@@ -177,6 +185,18 @@ module Payments
         end
       end
 
+      # Time match: minutes portion of screenshot and email time match (handles timezones)
+      time_match_pts = 0
+      if entry['image_received_at'].present? && entry['email_date'].present?
+        begin
+          img_min = Time.parse(entry['image_received_at'].to_s).min
+          email_min = Time.parse(entry['email_date'].to_s).min
+          time_match_pts = cfg['time_match'].to_i if (img_min - email_min).abs <= 2
+        rescue StandardError
+          # skip
+        end
+      end
+
       custom_pts = 0
       Array(cfg['custom_rules']).each do |rule|
         next unless rule.is_a?(Hash) && rule['name'].present?
@@ -184,7 +204,7 @@ module Payments
         custom_pts += rule['points'].to_i
       end
 
-      score = screenshot_pts + amount_pts + sender_pts + recipient_pts + txn_pts + email_pts + note_pts + time_pts + custom_pts
+      score = screenshot_pts + amount_pts + sender_pts + recipient_pts + txn_pts + email_pts + note_pts + time_pts + time_match_pts + custom_pts
 
       {
         'total' => score.clamp(0, 100),
@@ -194,8 +214,9 @@ module Payments
         'recipient_match' => recipient_pts,
         'txn_id' => txn_pts,
         'email_confirmed' => email_pts,
-        'note_present' => note_pts,
+        'note_match' => note_pts,
         'time_proximity' => time_pts,
+        'time_match' => time_match_pts,
         'custom_rules' => custom_pts,
         'auto_load_threshold' => cfg['auto_load_threshold'].to_i,
         'escalate_threshold' => cfg['escalate_threshold'].to_i,
