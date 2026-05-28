@@ -37,7 +37,7 @@ module Payments
     end
 
     def check_entry(entry)
-      return true if entry['email_confirmed'] == true
+      return true if entry['email_confirmed'] == true && entry['email_subject'].present?
       return false unless entry.is_a?(Hash)
       return false unless eligible_for_check?(entry)
 
@@ -95,7 +95,7 @@ module Payments
     end
 
     def eligible_for_check?(entry)
-      return false if entry['email_confirmed'] == true
+      return false if entry['email_confirmed'] == true && entry['email_subject'].present?
       return false unless StatusNormalizer.needs_email_confirmation?(entry['raw_status'])
       return false if entry['email_check_attempts'].to_i >= MAX_CHECK_ATTEMPTS
 
