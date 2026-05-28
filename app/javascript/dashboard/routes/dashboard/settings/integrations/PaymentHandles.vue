@@ -73,6 +73,13 @@ const LEDGER_LABELS = {
   title: 'Payment ledger',
   export: 'Export CSV',
   score: 'Score',
+  scoreBreakdown: 'Score Breakdown',
+  scoreScreenshot: '📷 Screenshot',
+  scoreAmountMatch: '💰 Amount match',
+  scoreSenderMatch: '👤 Sender match',
+  scoreTxnId: '🔢 Txn ID',
+  scoreEmailConfirmed: '📧 Email confirmed',
+  scoreTimeProximity: '⏱ Time proximity',
   sender: 'Sender',
   txnId: 'Txn ID',
   dateTime: 'Date & time',
@@ -107,17 +114,21 @@ const formatScreenshotDateTime = entry => {
   return parts.length ? parts.join(' · ') : '—';
 };
 
+const formatScoreComponent = (value, max) => `${value ?? 0}/${max}`;
+
 const mapLedgerEntry = (entry, index) => ({
   id: entry.transaction_id || entry.image_received_at || `ledger-${index}`,
   raw: entry,
   amount: entry.amount,
   platform: entry.platform,
   score: entry.confidence_score ?? entry.resolve_score ?? null,
+  score_breakdown: entry.score_breakdown || null,
   status: entry.status || 'Screenshot Received',
   note: entry.note_or_memo || '—',
   headerTime: formatScreenshotDateTime(entry),
   screenshot: {
-    sender: entry.sender_name || entry.sender_handle || '—',
+    sender:
+      entry.sender_name || entry.sender_display || entry.sender_handle || '—',
     txnId: entry.transaction_id || '—',
     time: formatScreenshotDateTime(entry),
     note: entry.note_or_memo || '—',
@@ -725,7 +736,9 @@ onMounted(() => {
                           </span>
                         </div>
                         <div class="flex flex-wrap items-center gap-3">
-                          <div class="flex items-center gap-2 min-w-[100px]">
+                          <div
+                            class="relative group flex items-center gap-2 min-w-[100px]"
+                          >
                             <span
                               class="text-[11px] font-medium text-n-slate-11"
                             >
@@ -747,6 +760,124 @@ onMounted(() => {
                             >
                               {{ event.score ?? '—' }}
                             </span>
+                            <div
+                              v-if="event.score_breakdown"
+                              class="absolute z-10 hidden group-hover:block right-0 top-full mt-1 w-56 rounded-lg border border-n-weak bg-n-solid-1 p-3 shadow-lg text-xs"
+                            >
+                              <div class="font-semibold mb-2">
+                                {{ LEDGER_LABELS.scoreBreakdown }}
+                              </div>
+                              <div class="flex justify-between mb-1">
+                                <span>{{ LEDGER_LABELS.scoreScreenshot }}</span>
+                                <span
+                                  :class="
+                                    event.score_breakdown.screenshot > 0
+                                      ? 'text-green-600 font-semibold'
+                                      : 'text-n-slate-10'
+                                  "
+                                >
+                                  {{
+                                    formatScoreComponent(
+                                      event.score_breakdown.screenshot,
+                                      30
+                                    )
+                                  }}
+                                </span>
+                              </div>
+                              <div class="flex justify-between mb-1">
+                                <span>{{
+                                  LEDGER_LABELS.scoreAmountMatch
+                                }}</span>
+                                <span
+                                  :class="
+                                    event.score_breakdown.amount_match > 0
+                                      ? 'text-green-600 font-semibold'
+                                      : 'text-n-slate-10'
+                                  "
+                                >
+                                  {{
+                                    formatScoreComponent(
+                                      event.score_breakdown.amount_match,
+                                      25
+                                    )
+                                  }}
+                                </span>
+                              </div>
+                              <div class="flex justify-between mb-1">
+                                <span>{{
+                                  LEDGER_LABELS.scoreSenderMatch
+                                }}</span>
+                                <span
+                                  :class="
+                                    event.score_breakdown.sender_match > 0
+                                      ? 'text-green-600 font-semibold'
+                                      : 'text-n-slate-10'
+                                  "
+                                >
+                                  {{
+                                    formatScoreComponent(
+                                      event.score_breakdown.sender_match,
+                                      15
+                                    )
+                                  }}
+                                </span>
+                              </div>
+                              <div class="flex justify-between mb-1">
+                                <span>{{ LEDGER_LABELS.scoreTxnId }}</span>
+                                <span
+                                  :class="
+                                    event.score_breakdown.txn_id > 0
+                                      ? 'text-green-600 font-semibold'
+                                      : 'text-n-slate-10'
+                                  "
+                                >
+                                  {{
+                                    formatScoreComponent(
+                                      event.score_breakdown.txn_id,
+                                      15
+                                    )
+                                  }}
+                                </span>
+                              </div>
+                              <div class="flex justify-between mb-1">
+                                <span>{{
+                                  LEDGER_LABELS.scoreEmailConfirmed
+                                }}</span>
+                                <span
+                                  :class="
+                                    event.score_breakdown.email_confirmed > 0
+                                      ? 'text-green-600 font-semibold'
+                                      : 'text-n-slate-10'
+                                  "
+                                >
+                                  {{
+                                    formatScoreComponent(
+                                      event.score_breakdown.email_confirmed,
+                                      10
+                                    )
+                                  }}
+                                </span>
+                              </div>
+                              <div class="flex justify-between">
+                                <span>{{
+                                  LEDGER_LABELS.scoreTimeProximity
+                                }}</span>
+                                <span
+                                  :class="
+                                    event.score_breakdown.time_proximity > 0
+                                      ? 'text-green-600 font-semibold'
+                                      : 'text-n-slate-10'
+                                  "
+                                >
+                                  {{
+                                    formatScoreComponent(
+                                      event.score_breakdown.time_proximity,
+                                      5
+                                    )
+                                  }}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                           <span
                             class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium"
