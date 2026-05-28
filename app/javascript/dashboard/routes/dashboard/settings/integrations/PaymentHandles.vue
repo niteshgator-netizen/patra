@@ -33,11 +33,24 @@ const DEFAULT_SCORING_CONFIG = {
   recipient_match: 10,
   txn_id_present: 10,
   email_confirmed: 10,
+  note_present: 5,
   time_proximity: 5,
+  time_proximity_minutes: 30,
   auto_load_threshold: 80,
   escalate_threshold: 40,
   decline_threshold: 39,
 };
+
+const SCORING_PLATFORM_TABS = [
+  { id: 'default', labelKey: 'PAYMENT_HANDLES.SCORING_TAB_DEFAULT' },
+  { id: 'cashapp', labelKey: 'PAYMENT_HANDLES.PLATFORM_LABEL.CASHAPP' },
+  { id: 'chime', labelKey: 'PAYMENT_HANDLES.PLATFORM_LABEL.CHIME' },
+  { id: 'paypal', labelKey: 'PAYMENT_HANDLES.PLATFORM_LABEL.PAYPAL' },
+  { id: 'venmo', labelKey: 'PAYMENT_HANDLES.PLATFORM_LABEL.VENMO' },
+];
+
+const SCORING_PLATFORM_IDS = SCORING_PLATFORM_TABS.map(tab => tab.id);
+const SCORING_CONFIG_KEYS = Object.keys(DEFAULT_SCORING_CONFIG);
 
 const SCORING_WEIGHT_FIELDS = [
   { key: 'screenshot_present', labelKey: 'PAYMENT_HANDLES.SCORING_SCREENSHOT' },
@@ -46,7 +59,7 @@ const SCORING_WEIGHT_FIELDS = [
   { key: 'recipient_match', labelKey: 'PAYMENT_HANDLES.SCORING_RECIPIENT' },
   { key: 'txn_id_present', labelKey: 'PAYMENT_HANDLES.SCORING_TXN' },
   { key: 'email_confirmed', labelKey: 'PAYMENT_HANDLES.SCORING_EMAIL' },
-  { key: 'time_proximity', labelKey: 'PAYMENT_HANDLES.SCORING_TIME' },
+  { key: 'note_present', labelKey: 'PAYMENT_HANDLES.SCORING_NOTE' },
 ];
 
 const SCORING_THRESHOLD_FIELDS = [
@@ -71,8 +84,77 @@ const SCORING_THRESHOLD_FIELDS = [
 ];
 
 const scoringSettingsOpen = ref(false);
-const scoringConfig = ref({ ...DEFAULT_SCORING_CONFIG });
+const scoringFullConfig = ref({ default: { ...DEFAULT_SCORING_CONFIG } });
+const customRules = ref([]);
+const selectedScoringPlatform = ref('default');
+const scoringPlatformDraft = ref({ ...DEFAULT_SCORING_CONFIG });
 const scoringSaving = ref(false);
+
+const parseNumericConfig = raw =>
+  Object.fromEntries(
+    Object.entries(raw || {})
+      .filter(([key]) => SCORING_CONFIG_KEYS.includes(key))
+      .map(([key, value]) => [key, Number(value)])
+  );
+
+const effectiveDefaultConfig = () => ({
+  ...DEFAULT_SCORING_CONFIG,
+  ...(scoringFullConfig.value.default || {}),
+});
+
+const isUsingDefault = computed(() => {
+  if (selectedScoringPlatform.value === 'default') return false;
+  const override = scoringFullConfig.value[selectedScoringPlatform.value];
+  return !override || !Object.keys(override).length;
+});
+
+const syncDraftFromPlatform = () => {
+  const defaults = effectiveDefaultConfig();
+  if (selectedScoringPlatform.value === 'default') {
+    scoringPlatformDraft.value = { ...defaults };
+    return;
+  }
+
+  const override = scoringFullConfig.value[selectedScoringPlatform.value];
+  scoringPlatformDraft.value = override
+    ? { ...defaults, ...override }
+    : { ...defaults };
+};
+
+const persistDraftToPlatform = () => {
+  const draft = parseNumericConfig(scoringPlatformDraft.value);
+
+  if (selectedScoringPlatform.value === 'default') {
+    scoringFullConfig.value.default = draft;
+    return;
+  }
+
+  const defaults = effectiveDefaultConfig();
+  const override = {};
+  SCORING_CONFIG_KEYS.forEach(key => {
+    if (draft[key] !== defaults[key]) {
+      override[key] = draft[key];
+    }
+  });
+
+  if (!Object.keys(override).length) {
+    delete scoringFullConfig.value[selectedScoringPlatform.value];
+  } else {
+    scoringFullConfig.value[selectedScoringPlatform.value] = override;
+  }
+};
+
+const onScoringInput = () => {
+  persistDraftToPlatform();
+};
+
+const addCustomRule = () => {
+  customRules.value.push({ name: '', points: 0 });
+};
+
+const removeCustomRule = index => {
+  customRules.value.splice(index, 1);
+};
 
 const PLATFORMS = ['cashapp', 'chime', 'paypal', 'venmo', 'zelle'];
 const STATUSES = ['active', 'failed', 'disabled'];
@@ -441,23 +523,62 @@ const exportLedger = handle => {
 const loadScoringConfig = () => {
   const saved =
     currentAccount.value?.custom_attributes?.payment_scoring_config || {};
-  scoringConfig.value = {
-    ...DEFAULT_SCORING_CONFIG,
-    ...Object.fromEntries(
-      Object.entries(saved).map(([key, value]) => [key, Number(value)])
-    ),
-  };
+  const isNested = saved.default && typeof saved.default === 'object';
+
+  scoringFullConfig.value = { default: { ...DEFAULT_SCORING_CONFIG } };
+
+  if (isNested) {
+    scoringFullConfig.value.default = {
+      ...DEFAULT_SCORING_CONFIG,
+      ...parseNumericConfig(saved.default),
+    };
+    SCORING_PLATFORM_IDS.filter(id => id !== 'default').forEach(platformId => {
+      if (saved[platformId] && typeof saved[platformId] === 'object') {
+        scoringFullConfig.value[platformId] = parseNumericConfig(
+          saved[platformId]
+        );
+      }
+    });
+  } else {
+    const { custom_rules: _customRules, ...flatConfig } = saved;
+    scoringFullConfig.value.default = {
+      ...DEFAULT_SCORING_CONFIG,
+      ...parseNumericConfig(flatConfig),
+    };
+  }
+
+  customRules.value = Array.isArray(saved.custom_rules)
+    ? saved.custom_rules.map(rule => ({
+        name: rule.name || '',
+        points: Number(rule.points) || 0,
+      }))
+    : [];
+
+  syncDraftFromPlatform();
 };
 
 const saveScoringConfig = async () => {
+  persistDraftToPlatform();
   scoringSaving.value = true;
   try {
-    const payment_scoring_config = Object.fromEntries(
-      Object.entries(scoringConfig.value).map(([key, value]) => [
-        key,
-        Number(value),
-      ])
-    );
+    const payment_scoring_config = {
+      default:
+        scoringFullConfig.value.default || { ...DEFAULT_SCORING_CONFIG },
+      custom_rules: customRules.value
+        .filter(rule => rule.name.trim())
+        .map(rule => ({
+          name: rule.name.trim(),
+          points: Number(rule.points) || 0,
+        })),
+    };
+
+    SCORING_PLATFORM_IDS.filter(id => id !== 'default').forEach(platformId => {
+      if (scoringFullConfig.value[platformId]) {
+        payment_scoring_config[platformId] =
+          scoringFullConfig.value[platformId];
+      }
+    });
+
     await updateAccount({ custom_attributes: { payment_scoring_config } });
     useAlert(t('PAYMENT_HANDLES.SCORING_SAVED'));
   } catch {
@@ -624,6 +745,10 @@ onMounted(async () => {
 watch(currentAccount, () => {
   loadScoringConfig();
 });
+
+watch(selectedScoringPlatform, () => {
+  syncDraftFromPlatform();
+});
 </script>
 
 <template>
@@ -657,6 +782,30 @@ watch(currentAccount, () => {
           v-show="scoringSettingsOpen"
           class="border-t border-[#DDD8F5] px-4 py-4"
         >
+          <div class="mb-4 flex flex-wrap gap-1 border-b border-[#DDD8F5]">
+            <button
+              v-for="tab in SCORING_PLATFORM_TABS"
+              :key="tab.id"
+              type="button"
+              class="rounded-t-lg px-3 py-2 text-xs font-medium transition-colors"
+              :class="
+                selectedScoringPlatform === tab.id
+                  ? 'border-b-2 border-[#6E56CF] bg-[#F0EDFF]/60 text-[#4C3799]'
+                  : 'text-n-slate-11 hover:bg-[#F0EDFF]/30 hover:text-[#4C3799]'
+              "
+              @click="selectedScoringPlatform = tab.id"
+            >
+              {{ t(tab.labelKey) }}
+            </button>
+          </div>
+
+          <p
+            v-if="isUsingDefault"
+            class="mb-3 text-xs italic text-n-slate-11"
+          >
+            {{ t('PAYMENT_HANDLES.SCORING_USING_DEFAULT') }}
+          </p>
+
           <div class="grid gap-6 lg:grid-cols-2">
             <div>
               <h3
@@ -674,18 +823,76 @@ watch(currentAccount, () => {
                 <div
                   v-for="field in SCORING_WEIGHT_FIELDS"
                   :key="field.key"
-                  class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
+                  class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2"
                 >
-                  <span class="text-sm text-n-slate-12">{{
-                    t(field.labelKey)
-                  }}</span>
+                  <span
+                    class="text-sm"
+                    :class="isUsingDefault ? 'text-n-slate-10' : 'text-n-slate-12'"
+                  >
+                    {{ t(field.labelKey) }}
+                  </span>
                   <input
-                    v-model.number="scoringConfig[field.key]"
+                    v-model.number="scoringPlatformDraft[field.key]"
                     type="number"
                     min="0"
                     max="100"
-                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                    :class="
+                      isUsingDefault
+                        ? 'text-n-slate-10 opacity-60'
+                        : 'text-n-slate-12'
+                    "
+                    @input="onScoringInput"
                   />
+                </div>
+                <div
+                  class="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2"
+                >
+                  <span
+                    class="text-sm"
+                    :class="isUsingDefault ? 'text-n-slate-10' : 'text-n-slate-12'"
+                  >
+                    {{ t('PAYMENT_HANDLES.SCORING_TIME') }}
+                  </span>
+                  <div class="flex flex-wrap items-center justify-end gap-2">
+                    <span class="text-xs text-n-slate-11">
+                      {{ t('PAYMENT_HANDLES.SCORING_POINTS') }}:
+                    </span>
+                    <input
+                      v-model.number="scoringPlatformDraft.time_proximity"
+                      type="number"
+                      min="0"
+                      max="100"
+                      class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                      :class="
+                        isUsingDefault
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12'
+                      "
+                      @input="onScoringInput"
+                    />
+                    <span class="text-xs text-n-slate-11">
+                      {{ t('PAYMENT_HANDLES.SCORING_TIME_WINDOW') }}:
+                    </span>
+                    <input
+                      v-model.number="
+                        scoringPlatformDraft.time_proximity_minutes
+                      "
+                      type="number"
+                      min="1"
+                      max="1440"
+                      class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                      :class="
+                        isUsingDefault
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12'
+                      "
+                      @input="onScoringInput"
+                    />
+                    <span class="text-xs text-n-slate-11">
+                      {{ t('PAYMENT_HANDLES.SCORING_TIME_MINUTES') }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -710,20 +917,76 @@ watch(currentAccount, () => {
                   :key="field.key"
                   class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
                 >
-                  <span class="text-sm text-n-slate-12">
+                  <span
+                    class="text-sm"
+                    :class="isUsingDefault ? 'text-n-slate-10' : 'text-n-slate-12'"
+                  >
                     {{ field.prefix }}
                     {{ t(field.labelKey) }}
                   </span>
                   <input
-                    v-model.number="scoringConfig[field.key]"
+                    v-model.number="scoringPlatformDraft[field.key]"
                     type="number"
                     min="0"
                     max="100"
-                    class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm text-n-slate-12"
-                    :class="field.inputClass"
+                    class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm"
+                    :class="[
+                      field.inputClass,
+                      isUsingDefault
+                        ? 'text-n-slate-10 opacity-60'
+                        : 'text-n-slate-12',
+                    ]"
+                    @input="onScoringInput"
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h3
+              class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+            >
+              {{ t('PAYMENT_HANDLES.SCORING_CUSTOM_RULES_TITLE') }}
+            </h3>
+            <div class="overflow-hidden rounded-lg border border-n-weak">
+              <div
+                v-for="(rule, index) in customRules"
+                :key="index"
+                class="flex items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
+              >
+                <input
+                  v-model="rule.name"
+                  type="text"
+                  :placeholder="
+                    t('PAYMENT_HANDLES.SCORING_RULE_NAME_PLACEHOLDER')
+                  "
+                  class="h-8 min-w-0 flex-1 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+                />
+                <input
+                  v-model.number="rule.points"
+                  type="number"
+                  min="-100"
+                  max="100"
+                  class="h-8 w-20 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+                />
+                <button
+                  type="button"
+                  class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-n-slate-11 transition-colors hover:bg-n-ruby-2 hover:text-n-ruby-11"
+                  :aria-label="t('PAYMENT_HANDLES.SCORING_DELETE_RULE')"
+                  @click="removeCustomRule(index)"
+                >
+                  <span class="i-lucide-trash-2 size-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#6E56CF] transition-colors hover:bg-[#F0EDFF]/40"
+                @click="addCustomRule"
+              >
+                <span class="text-base leading-none">➕</span>
+                {{ t('PAYMENT_HANDLES.SCORING_ADD_RULE') }}
+              </button>
             </div>
           </div>
 
