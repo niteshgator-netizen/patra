@@ -1,21 +1,6 @@
 <script setup>
-import { ref, computed, onBeforeMount } from 'vue';
-import { useStore } from 'vuex';
 import SignupForm from './components/Signup/Form.vue';
-import Spinner from 'shared/components/Spinner.vue';
 import AuthNavBar from '../../../components/Auth/AuthNavBar.vue';
-
-const store = useStore();
-
-const isLoading = ref(false);
-const globalConfig = computed(() => store.getters['globalConfig/get']);
-const isAChatwootInstance = computed(
-  () => globalConfig.value.installationName === 'Chatwoot'
-);
-
-onBeforeMount(() => {
-  isLoading.value = isAChatwootInstance.value;
-});
 </script>
 
 <template>
@@ -32,7 +17,6 @@ onBeforeMount(() => {
     <AuthNavBar />
 
     <main
-      v-show="!isLoading"
       class="flex-1 flex items-center justify-center px-5 py-12 relative z-10"
     >
       <div
@@ -62,13 +46,6 @@ onBeforeMount(() => {
         <SignupForm />
       </div>
     </main>
-
-    <div
-      v-show="isLoading"
-      class="flex-1 flex items-center justify-center relative z-10"
-    >
-      <Spinner color-scheme="primary" size="" />
-    </div>
 
     <div
       class="text-center py-6 text-[11px] text-zinc-500 font-mono tracking-wider relative z-10"
