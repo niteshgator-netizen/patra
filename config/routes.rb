@@ -20,6 +20,7 @@ Rails.application.routes.draw do
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('CW_API_ONLY_SERVER', false))
     root to: 'api#index'
   else
+    get '/', to: 'landing#show', constraints: ->(req) { req.cookies['cw_d_session_info'].blank? }
     root to: 'dashboard#index'
 
     get '/app', to: 'dashboard#index'
