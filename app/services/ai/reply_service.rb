@@ -723,7 +723,7 @@ class Ai::ReplyService
             score_acct = acct || Account.find_by(id: account_id)
             breakdown = Payments::EmailConfirmationService.confidence_score(entry, account: score_acct)
             score = breakdown['total'].to_i
-            cfg = Payments::EmailConfirmationService.scoring_config_for(score_acct)
+            cfg = Payments::EmailConfirmationService.scoring_config_for(score_acct, platform: entry['platform'].to_s)
             auto_load_threshold = cfg['auto_load_threshold'].to_i
             escalate_threshold = cfg['escalate_threshold'].to_i
 
@@ -2549,4 +2549,3 @@ class Ai::ReplyService
     ''
   end
 end
-
