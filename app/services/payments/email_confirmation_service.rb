@@ -91,21 +91,30 @@ module Payments
       'recipient_match' => 10,
       'txn_id_present' => 10,
       'email_confirmed' => 10,
+      'note_present' => 5,
       'time_proximity' => 5,
+      'time_proximity_minutes' => 30,
       'auto_load_threshold' => 80,
       'escalate_threshold' => 40,
       'decline_threshold' => 39
     }.freeze
 
-    def self.scoring_config_for(account)
+    def self.scoring_config_for(account, platform: nil)
       return DEFAULT_SCORING_CONFIG unless account
 
-      custom = account.custom_attributes&.dig('payment_scoring_config')
-      DEFAULT_SCORING_CONFIG.merge(custom || {})
+      all_config = account.custom_attributes&.dig('payment_scoring_config') || {}
+      base = DEFAULT_SCORING_CONFIG.merge(all_config['default'] || all_config.except('default', 'custom_rules') || {})
+      if platform.present? && all_config[platform.to_s].is_a?(Hash)
+        base = base.merge(all_config[platform.to_s])
+      end
+      custom_rules = all_config['custom_rules'] || []
+      base['custom_rules'] = custom_rules
+      base
     end
 
     def self.confidence_score(entry, account: nil)
-      cfg = scoring_config_for(account)
+      platform = entry.is_a?(Hash) ? entry['platform'].to_s.downcase : ''
+      cfg = scoring_config_for(account, platform: platform)
       zero_breakdown = {
         'total' => 0,
         'screenshot' => 0,
@@ -114,7 +123,9 @@ module Payments
         'recipient_match' => 0,
         'txn_id' => 0,
         'email_confirmed' => 0,
-        'time_proximity' => 0
+        'note_present' => 0,
+        'time_proximity' => 0,
+        'custom_rules' => 0
       }
       return zero_breakdown unless entry.is_a?(Hash)
 
@@ -151,19 +162,29 @@ module Payments
 
       txn_pts = entry['transaction_id'].present? && entry['transaction_id'].to_s.length > 3 ? cfg['txn_id_present'].to_i : 0
       email_pts = entry['email_confirmed'] == true ? cfg['email_confirmed'].to_i : 0
+      note_pts = entry['note_or_memo'].present? ? cfg['note_present'].to_i : 0
 
       time_pts = 0
       if entry['image_received_at'].present? && entry['email_date'].present?
         begin
           img_time = Time.parse(entry['image_received_at'].to_s)
           email_time = Time.parse(entry['email_date'].to_s)
-          time_pts = cfg['time_proximity'].to_i if (img_time - email_time).abs < 1800
+          window_seconds = cfg['time_proximity_minutes'].to_i * 60
+          window_seconds = 1800 if window_seconds <= 0
+          time_pts = cfg['time_proximity'].to_i if (img_time - email_time).abs < window_seconds
         rescue StandardError
           # skip
         end
       end
 
-      score = screenshot_pts + amount_pts + sender_pts + recipient_pts + txn_pts + email_pts + time_pts
+      custom_pts = 0
+      Array(cfg['custom_rules']).each do |rule|
+        next unless rule.is_a?(Hash) && rule['name'].present?
+
+        custom_pts += rule['points'].to_i
+      end
+
+      score = screenshot_pts + amount_pts + sender_pts + recipient_pts + txn_pts + email_pts + note_pts + time_pts + custom_pts
 
       {
         'total' => score.clamp(0, 100),
@@ -173,7 +194,9 @@ module Payments
         'recipient_match' => recipient_pts,
         'txn_id' => txn_pts,
         'email_confirmed' => email_pts,
+        'note_present' => note_pts,
         'time_proximity' => time_pts,
+        'custom_rules' => custom_pts,
         'auto_load_threshold' => cfg['auto_load_threshold'].to_i,
         'escalate_threshold' => cfg['escalate_threshold'].to_i,
         'decline_threshold' => cfg['decline_threshold'].to_i
