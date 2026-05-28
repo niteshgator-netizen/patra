@@ -150,7 +150,7 @@ channels_email_poll_job:
 
 # Every 5 minutes — cross-check payment IMAP notifications
 payments_imap_check_job:
-  cron: '*/1 * * * *'
+  cron: '*/5 * * * *'
   class: 'Payments::ImapCheckJob'
   queue: scheduled_jobs
 
