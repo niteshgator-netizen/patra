@@ -40,8 +40,8 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
   LEDGER_ENTRY_KEYS = %w[
     amount platform sender_name sender_handle recipient_handle recipient_name transaction_id
     transaction_date transaction_time status confidence source image_received_at image_url
-    email_confirmed email_amount email_sender_name email_date flag_reason resolved_handle
-    resolve_score note_or_memo
+    email_confirmed email_amount email_sender_name email_date email_subject email_from
+    email_body_snippet flag_reason resolved_handle resolve_score note_or_memo
   ].freeze
 
   def ledger_entries_for(payment_handle)
