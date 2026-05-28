@@ -109,6 +109,8 @@ module Games
         handle_username_provided(intent)
       when :request_account_creation
         handle_account_creation_request(intent)
+      when :request_multi_account_creation
+        handle_multi_account_creation_request(intent)
       when :payment_method_chosen
         handle_payment_method_chosen(intent)
       when :reset_password
@@ -460,9 +462,18 @@ module Games
     end
 
     def handle_account_creation_request(intent)
-      ag = agent_game_for_intent(intent)
-      return ag if ag.is_a?(Hash)
-      return nil unless ag
+      game_slug = intent[:game_slug]
+      if game_slug.blank?
+        return {
+          reply: "hey! which game you wanna get on? we got #{active_games_list_text}",
+          labels: ['needs-game']
+        }
+      end
+
+      ag = pick_agent_game(game_slug)
+      unless ag
+        return { reply: unavailable_game_reply(game_slug), labels: ['game-unavailable'] }
+      end
 
       # Check if customer wants to create a DIFFERENT account (replace existing)
       wants_replace = recent_customer_text.to_s.downcase.match?(/\b(diff(erent)?|another|new|change)\b.*\b(one|account|username)\b/) ||
@@ -581,6 +592,38 @@ module Games
           labels: ['account-created', 'load-failed', 'needs-human']
         }
       end
+    end
+
+    def handle_multi_account_creation_request(intent)
+      slugs = if intent[:game_slugs] == :all
+                account.agent_games.joins(:game).where(status: 'active').pluck('games.slug')
+              else
+                Array(intent[:game_slugs])
+              end
+      slugs = slugs.uniq.compact
+
+      if slugs.empty?
+        return {
+          reply: "hey! which game you wanna get on? we got #{active_games_list_text}",
+          labels: ['needs-game']
+        }
+      end
+
+      replies = []
+      labels = ['multi-account-creation']
+
+      slugs.each do |slug|
+        result = handle_account_creation_request(intent: :request_account_creation, game_slug: slug)
+        next unless result.is_a?(Hash)
+
+        replies << result[:reply] if result[:reply].present?
+        labels.concat(Array(result[:labels]))
+      end
+
+      {
+        reply: replies.presence&.join("\n\n") || "hit a snag setting up your accounts — flagged a teammate, they'll get you sorted shortly.",
+        labels: labels.uniq
+      }
     end
 
     GAME_SUFFIX_MAP = {

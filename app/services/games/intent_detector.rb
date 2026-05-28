@@ -117,7 +117,6 @@ module Games
       'ultrapanda' => 'ultra_panda',
       'ultra_panda' => 'ultra_panda',
       'ultra' => 'ultra_panda',
-      'up' => 'ultra_panda',
 
       # VBLink
       'v b link' => 'vblink',
@@ -165,7 +164,7 @@ module Games
       'game_room'     => ['gameroom', 'game room'],
       'cash_machine'  => ['cashmachine', 'cash machine'],
       'mr_all_in_one' => ['mrallinone', 'mr all in one', 'mr allinone', 'all in one'],
-      'ultra_panda'   => ['ultrapanda', 'ultra panda'],
+      'ultra_panda'   => ['ultrapanda', 'ultra panda', 'ultra_panda'],
       'vblink'        => ['vblink', 'v blink', 'v-blink'],
       'vegas_sweeps'  => ['vegassweeps', 'vegas sweeps']
     }.freeze
@@ -189,6 +188,8 @@ module Games
       /(?:(?:via|to|on|using)\s+)?(?:my\s+)?(?:chime|venmo|paypal|zelle)\s*(?:is\s+|tag\s+|handle\s+|:\s*)?([\$\@]?[a-zA-Z0-9_.@+]{3,50})/i,
       /send\s+(?:it\s+)?to\s+([\$\@][a-zA-Z0-9_]{3,30})/i
     ].freeze
+
+    GREETING_PATTERNS = /\A\s*(hey|hi|hello|yo|sup|what'?s?\s*up|wh?assup|howdy|hola)\b/i
 
     CREATE_ACCOUNT_PATTERNS = [
       /create\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:.+\s+)?(?:username|user|account|profile|login|it)/i,
@@ -299,7 +300,11 @@ module Games
         text = message_text.to_s
         Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
 
-        result = (if (create_account = detect_account_creation_request(text))
+        return { intent: :greeting } if text.strip.match?(GREETING_PATTERNS) && text.strip.split.size <= 5
+
+        result = (if (multi_game = detect_multi_game(text))
+                    multi_game
+                  elsif (create_account = detect_account_creation_request(text))
                     create_account
                   elsif (m = match_payment_method_pick(text))
                     raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
@@ -379,6 +384,27 @@ module Games
       end
 
       private
+
+      def detect_multi_game(text)
+        return nil if text.blank?
+        return nil unless match_any(text, CREATE_ACCOUNT_PATTERNS)
+
+        lower = text.to_s.downcase
+        if lower.match?(/\b(all|every|each)\s*(game|account|platform)s?\b/)
+          return { intent: :request_multi_account_creation, game_slugs: :all }
+        end
+
+        slugs = []
+        GAME_NAME_ALIASES.keys.sort_by { |k| -k.length }.each do |alias_name|
+          pattern = alias_name.split(/\s+/).map { |part| Regexp.escape(part) }.join('\s+')
+          slugs << GAME_NAME_ALIASES[alias_name] if lower.match?(/\b#{pattern}\b/)
+        end
+        slugs.uniq!
+
+        return nil if slugs.size < 2
+
+        { intent: :request_multi_account_creation, game_slugs: slugs }
+      end
 
       def detect_account_creation_request(text)
         begin
