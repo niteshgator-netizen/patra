@@ -2,7 +2,7 @@
 
 module Payments
   class ImapCheckJob < ApplicationJob
-    queue_as :scheduled_jobs
+    queue_as :low
     retry_on StandardError, wait: :polynomially_longer, attempts: 3
 
     MAX_CONTACTS_PER_RUN = 500
