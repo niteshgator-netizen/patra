@@ -68,6 +68,11 @@ module Payments
           subject = match.subject.to_s
           name_match = subject.match(/^(.+?)(?:\s+(?:sent|paid|just sent))/i)
           entry['email_sender_name'] = name_match[1].strip if name_match
+          # Fallback: if sender is generic ("You", "alerts@..."), try parsing subject for real name
+          if entry['email_sender_name'].blank? || entry['email_sender_name'].to_s.downcase.in?(%w[you alerts])
+            subject_name = subject.match(/^(.+?)\s+(?:just\s+)?sent\s+you/i)
+            entry['email_sender_name'] = subject_name[1].strip if subject_name
+          end
         rescue StandardError => e
           Rails.logger.warn("[EmailConfirmationService] email data extraction failed: #{e.message}")
         end
@@ -131,6 +136,12 @@ module Payments
         sender_pts = cfg['sender_match'].to_i if names_overlap?(email_sender, ocr_sender)
       elsif email_sender.present? && ocr_recipient.present?
         sender_pts = cfg['sender_match'].to_i if names_overlap?(email_sender, ocr_recipient)
+      end
+
+      # If email sender present and is the customer (not "You"), full sender points when email confirmed
+      if sender_pts.zero? && entry['email_sender_name'].present?
+        email_s = entry['email_sender_name'].to_s.downcase
+        sender_pts = cfg['sender_match'].to_i if email_s.present? && !%w[you alerts].include?(email_s) && entry['email_confirmed']
       end
 
       recipient_pts = 0

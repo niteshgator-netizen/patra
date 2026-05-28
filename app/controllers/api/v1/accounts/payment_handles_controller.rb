@@ -71,7 +71,7 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
 
         t1 = ledger_entry_timestamp(entry)
         t2 = ledger_entry_timestamp(other)
-        next unless t1 && t2 && (t1 - t2).abs < 300
+        next unless t1 && t2 && (t1 - t2).abs < 3600
 
         other['status'] = 'Duplicate'
         other['flag_reason'] = 'duplicate_ledger'
