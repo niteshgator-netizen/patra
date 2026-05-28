@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patra — One inbox. One AI. Every conversation.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--canvas:#0B0A0F;--surface:#13121A;--surface-2:#1A1926;--surface-3:#232133;--border:#1E1B29;--border-hi:#3B3554;--patra:#6E56CF;--patra-2:#8B5CF6;--patra-deep:#5B45B0;--white:#FFFFFF;--zinc-400:#A1A1AA;--zinc-500:#71717A;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--canvas);color:var(--white);font-family:'Inter',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.wrap{width:100%;max-width:1280px;margin:0 auto;padding:0 24px;}
+.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,black 40%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,black 40%,transparent 100%);}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1);}
+.reveal.show{opacity:1;transform:translateY(0);}
+.announce-wrap{display:flex;justify-content:center;padding-top:20px;position:relative;z-index:50;}
+.announce{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:6px 14px;font-size:13px;color:var(--zinc-400);cursor:pointer;transition:all .25s;}
+.announce:hover{border-color:var(--border-hi);background:var(--surface-2);}
+.announce .tag{color:var(--patra);font-weight:600;}
+.announce .arrow{color:var(--patra);transition:transform .25s;}
+.announce:hover .arrow{transform:translateX(3px);}
+nav{position:sticky;top:12px;z-index:40;margin-top:14px;}
+.nav-inner{height:60px;display:flex;align-items:center;justify-content:space-between;background:rgba(19,18,26,0.6);backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;padding:0 12px 0 20px;}
+.logo{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk';font-weight:700;font-size:19px;letter-spacing:-.02em;}
+.logo-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--patra),var(--patra-deep));display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;color:#fff;font-size:16px;box-shadow:0 0 16px rgba(110,86,207,0.4);}
+.nav-links{display:flex;gap:30px;}
+.nav-links a{color:var(--zinc-400);text-decoration:none;font-size:14px;transition:color .2s;}
+.nav-links a:hover{color:var(--white);}
+.nav-actions{display:flex;align-items:center;gap:10px;}
+.btn{font-family:'Inter';font-size:14px;font-weight:500;cursor:pointer;border:none;border-radius:10px;padding:9px 16px;transition:all .25s;text-decoration:none;display:inline-flex;align-items:center;gap:7px;}
+.btn-ghost{background:transparent;color:var(--zinc-400);}
+.btn-ghost:hover{color:var(--white);}
+.btn-primary{background:linear-gradient(180deg,var(--patra),var(--patra-deep));color:#fff;box-shadow:0 0 20px rgba(110,86,207,0.35),inset 0 1px 0 rgba(255,255,255,0.2);}
+.btn-primary:hover{filter:brightness(1.12);box-shadow:0 0 28px rgba(110,86,207,0.5),inset 0 1px 0 rgba(255,255,255,0.25);}
+.btn-secondary{background:var(--surface-2);color:#fff;border:1px solid var(--border);}
+.btn-secondary:hover{background:var(--surface-3);border-color:var(--border-hi);}
+.hero{position:relative;z-index:1;text-align:center;padding-top:90px;padding-bottom:80px;display:flex;flex-direction:column;align-items:center;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:6px 14px;font-size:12px;color:var(--patra-2);font-family:'JetBrains Mono';margin-bottom:28px;opacity:0;animation:rise .6s .05s forwards cubic-bezier(.16,1,.3,1);}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--patra);box-shadow:0 0 8px var(--patra);}
+.hero h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(40px,7vw,72px);line-height:1.05;letter-spacing:-.03em;max-width:900px;opacity:0;animation:rise .6s .1s forwards cubic-bezier(.16,1,.3,1);}
+.hero h1 .accent{background:linear-gradient(135deg,var(--patra),var(--patra-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.hero p{font-size:clamp(17px,2vw,20px);color:var(--zinc-400);max-width:640px;margin-top:24px;line-height:1.6;opacity:0;animation:rise .6s .25s forwards cubic-bezier(.16,1,.3,1);}
+.hero-cta{display:flex;gap:14px;margin-top:36px;flex-wrap:wrap;justify-content:center;opacity:0;animation:rise .6s .4s forwards cubic-bezier(.16,1,.3,1);}
+.hero-cta .btn{padding:13px 24px;font-size:15px;border-radius:12px;}
+.hero-visual{position:relative;margin-top:64px;width:100%;max-width:1020px;opacity:0;animation:riseScale .8s .55s forwards cubic-bezier(.16,1,.3,1);}
+.hero-glow{position:absolute;top:18%;left:50%;transform:translateX(-50%);width:640px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(110,86,207,0.22),transparent 70%);filter:blur(60px);z-index:0;pointer-events:none;}
+.dashboard{position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;box-shadow:0 40px 80px -20px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.05);}
+.dash-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.dash-dot{width:11px;height:11px;border-radius:50%;}
+.dash-dot.r{background:#ff5f57;}.dash-dot.y{background:#febc2e;}.dash-dot.g{background:#28c840;}
+.dash-url{margin-left:14px;font-family:'JetBrains Mono';font-size:12px;color:var(--zinc-500);}
+.dash-body{display:grid;grid-template-columns:210px 1fr;min-height:380px;}
+.dash-side{border-right:1px solid var(--border);padding:16px 12px;display:flex;flex-direction:column;gap:4px;}
+.dash-nav{padding:10px 12px;border-radius:9px;font-size:13px;color:var(--zinc-400);display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .2s;border:1px solid transparent;}
+.dash-nav:hover{background:var(--surface-2);color:#fff;}
+.dash-nav.active{background:var(--surface-2);color:#fff;border-color:var(--border);}
+.dash-nav .ic{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
+.dash-nav .ct{margin-left:auto;font-family:'JetBrains Mono';font-size:10px;color:var(--zinc-500);}
+.dash-main{padding:22px;position:relative;}
+.dash-view{display:none;animation:fadeIn .35s cubic-bezier(.16,1,.3,1);}
+.dash-view.active{display:block;}
+.dash-chat{display:flex;flex-direction:column;gap:12px;}
+.msg{max-width:74%;padding:11px 15px;border-radius:14px;font-size:13px;line-height:1.45;}
+.msg.in{background:var(--surface-2);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px;}
+.msg.out{background:linear-gradient(135deg,var(--patra),var(--patra-deep));align-self:flex-end;border-bottom-right-radius:4px;color:#fff;}
+.msg-meta{font-size:10px;color:var(--zinc-500);font-family:'JetBrains Mono';margin-top:4px;}
+.ai-pill{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-family:'JetBrains Mono';color:var(--patra-2);background:rgba(110,86,207,0.12);border:1px solid rgba(110,86,207,0.3);border-radius:100px;padding:3px 9px;align-self:flex-end;}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;}
+.stat{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.stat .v{font-family:'Space Grotesk';font-weight:700;font-size:26px;letter-spacing:-.02em;}
+.stat .v.p{color:var(--patra-2);}
+.stat .l{font-size:11px;color:var(--zinc-500);font-family:'JetBrains Mono';margin-top:2px;}
+.bars{display:flex;align-items:flex-end;gap:8px;height:90px;padding-top:10px;}
+.bar{flex:1;background:linear-gradient(180deg,var(--patra),var(--patra-deep));border-radius:4px 4px 0 0;opacity:.85;}
+.atrow{display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;}
+.atrow .av{width:32px;height:32px;border-radius:50%;background:var(--surface-3);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:'Space Grotesk';font-weight:600;color:var(--patra-2);flex-shrink:0;}
+.atrow .tx{font-size:13px;flex:1;}
+.atrow .tx .nm{font-weight:600;}
+.atrow .tx .pv{color:var(--zinc-500);font-size:12px;}
+.atrow .badge{font-size:10px;font-family:'JetBrains Mono';padding:3px 8px;border-radius:100px;}
+.badge.urgent{background:rgba(196,104,95,0.15);color:#C4685F;border:1px solid rgba(196,104,95,0.3);}
+.badge.wait{background:rgba(200,160,92,0.15);color:#C8A05C;border:1px solid rgba(200,160,92,0.3);}
+.rep{display:flex;flex-direction:column;gap:10px;}
+.rep-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:13px;}
+.rep-row .rl{color:var(--zinc-400);}
+.rep-row .rv{font-family:'JetBrains Mono';font-weight:500;}
+.rep-row .rv.up{color:#7B9D6F;}
+.marquee-sec{position:relative;z-index:1;padding:56px 0 24px;}
+.marquee-label{text-align:center;font-family:'JetBrains Mono';font-size:11px;letter-spacing:.2em;color:var(--zinc-500);text-transform:uppercase;margin-bottom:30px;}
+.marquee{overflow:hidden;mask-image:linear-gradient(90deg,transparent,black 10%,black 90%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,black 10%,black 90%,transparent);}
+.marquee-track{display:flex;gap:20px;width:max-content;animation:scroll 38s linear infinite;}
+.marquee:hover .marquee-track{animation-play-state:paused;}
+.chan-chip{display:inline-flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 18px;font-size:14px;color:var(--zinc-400);white-space:nowrap;font-weight:500;transition:all .25s;}
+.chan-chip:hover{border-color:var(--border-hi);color:#fff;}
+.chan-chip .cd{width:9px;height:9px;border-radius:50%;background:var(--patra-2);box-shadow:0 0 7px var(--patra-2);}
+.sec{position:relative;z-index:1;padding:110px 0;}
+.sec-head{text-align:center;max-width:660px;margin:0 auto 56px;}
+.sec-tag{font-family:'JetBrains Mono';font-size:12px;color:var(--patra-2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:16px;}
+.sec-head h2{font-family:'Space Grotesk';font-weight:600;font-size:clamp(28px,4vw,42px);letter-spacing:-.02em;line-height:1.1;}
+.sec-head p{color:var(--zinc-400);font-size:17px;margin-top:18px;line-height:1.6;}
+.bento{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.bento-card{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;overflow:hidden;transition:transform .25s,border-color .25s;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);}
+.bento-card:hover{transform:translateY(-4px);border-color:var(--border-hi);}
+.bento-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .3s;pointer-events:none;background:radial-gradient(400px circle at var(--mx,50%) var(--my,50%),rgba(110,86,207,0.12),transparent 40%);}
+.bento-card:hover::before{opacity:1;}
+.span2{grid-column:span 2;}
+.bento-icon{width:40px;height:40px;border-radius:11px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;margin-bottom:18px;color:var(--patra);font-size:18px;}
+.bento-card h3{font-family:'Space Grotesk';font-weight:600;font-size:19px;margin-bottom:9px;letter-spacing:-.01em;}
+.bento-card p{color:var(--zinc-400);font-size:14px;line-height:1.55;}
+.code-label{font-family:'JetBrains Mono';font-size:11px;color:var(--zinc-500);margin-top:18px;display:block;}
+.code-label .k{color:var(--patra-2);}
+.bento-visual{margin-top:20px;display:flex;flex-direction:column;gap:8px;}
+.mini-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--zinc-400);}
+.mini-row .cdot{width:8px;height:8px;border-radius:50%;background:#7B9D6F;box-shadow:0 0 6px #7B9D6F;flex-shrink:0;}
+.band{position:relative;z-index:1;}
+.band-box{background:linear-gradient(135deg,var(--surface),var(--surface-2));border:1px solid var(--border);border-radius:24px;padding:48px;display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);}
+.band-box h3{font-family:'Space Grotesk';font-weight:600;font-size:30px;letter-spacing:-.02em;line-height:1.15;margin-bottom:14px;}
+.band-box p{color:var(--zinc-400);font-size:16px;line-height:1.6;}
+.band-chat{display:flex;flex-direction:column;gap:10px;}
+.band-msg{padding:12px 15px;border-radius:13px;font-size:13px;line-height:1.45;}
+.band-msg.you{background:var(--surface-3);align-self:flex-start;border-bottom-left-radius:4px;max-width:88%;}
+.band-msg.team{background:linear-gradient(135deg,var(--patra),var(--patra-deep));color:#fff;align-self:flex-end;border-bottom-right-radius:4px;max-width:88%;}
+.process{display:grid;grid-template-columns:5fr 7fr;gap:60px;align-items:center;}
+.steps{display:flex;flex-direction:column;gap:8px;}
+.step{padding:20px 22px;border-radius:16px;cursor:pointer;border:1px solid transparent;transition:all .3s;}
+.step.active{background:var(--surface);border-color:var(--border);}
+.step-num{font-family:'JetBrains Mono';font-size:12px;color:var(--patra);margin-bottom:8px;}
+.step h4{font-family:'Space Grotesk';font-weight:600;font-size:18px;margin-bottom:6px;color:var(--zinc-400);transition:color .3s;}
+.step.active h4{color:#fff;}
+.step p{font-size:14px;color:var(--zinc-500);line-height:1.5;max-height:0;overflow:hidden;opacity:0;transition:all .35s;}
+.step.active p{max-height:100px;opacity:1;margin-top:4px;}
+.stage{background:var(--surface);border:1px solid var(--border);border-radius:20px;min-height:400px;padding:28px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);position:relative;overflow:hidden;}
+.stage-glow{position:absolute;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(110,86,207,0.15),transparent 70%);filter:blur(50px);}
+.stage-content{position:relative;z-index:1;text-align:center;transition:opacity .3s;}
+.stage-content .big{font-family:'Space Grotesk';font-weight:700;font-size:54px;background:linear-gradient(135deg,var(--patra),var(--patra-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em;}
+.stage-content .lbl{font-family:'JetBrains Mono';font-size:13px;color:var(--zinc-500);margin-top:8px;}
+.tsec{position:relative;z-index:1;padding:110px 0;overflow:hidden;}
+.trow{overflow:hidden;mask-image:linear-gradient(90deg,transparent,black 8%,black 92%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,black 8%,black 92%,transparent);margin-bottom:20px;}
+.ttrack{display:flex;gap:20px;width:max-content;}
+.ttrack.left{animation:scroll 60s linear infinite;}
+.ttrack.right{animation:scrollR 60s linear infinite;}
+.trow:hover .ttrack{animation-play-state:paused;}
+.tcard{width:360px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);}
+.tcard p{font-size:14px;line-height:1.6;color:#d4d4d8;}
+.tcard .who{display:flex;align-items:center;gap:11px;margin-top:18px;}
+.tavatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--surface-3),var(--surface-2));border:1px solid var(--border-hi);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:600;font-size:14px;color:var(--patra);flex-shrink:0;}
+.tname{font-size:13px;font-weight:600;}
+.trole{font-size:12px;color:var(--zinc-500);}
+.toggle{display:flex;justify-content:center;margin-bottom:44px;}
+.toggle-inner{position:relative;display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:4px;}
+.toggle-slider{position:absolute;top:4px;left:4px;height:calc(100% - 8px);width:calc(50% - 4px);background:var(--surface-3);border-radius:100px;transition:transform .35s cubic-bezier(.16,1,.3,1);z-index:0;}
+.toggle-slider.yr{transform:translateX(100%);}
+.toggle-btn{position:relative;z-index:1;padding:9px 26px;border-radius:100px;font-size:13px;color:var(--zinc-400);cursor:pointer;border:none;background:transparent;transition:color .25s;font-family:'Inter';}
+.toggle-btn.active{color:#fff;}
+.toggle-btn .save{font-size:10px;color:var(--patra-2);margin-left:5px;}
+.pricing{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1000px;margin:0 auto;}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,0.04);transition:transform .25s;}
+.pcard:hover{transform:translateY(-4px);}
+.pcard.feat{border-color:var(--patra);box-shadow:0 0 40px rgba(110,86,207,0.2),inset 0 1px 0 rgba(255,255,255,0.06);}
+.pcard.feat::before{content:'POPULAR';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--patra),var(--patra-deep));font-family:'JetBrains Mono';font-size:10px;letter-spacing:.1em;padding:4px 12px;border-radius:100px;font-weight:600;}
+.ptier{font-family:'Space Grotesk';font-weight:600;font-size:17px;margin-bottom:6px;}
+.pdesc{font-size:13px;color:var(--zinc-500);margin-bottom:22px;min-height:38px;}
+.pprice{font-family:'Space Grotesk';font-weight:700;font-size:44px;letter-spacing:-.02em;}
+.pprice span{font-size:15px;color:var(--zinc-500);font-weight:400;font-family:'Inter';}
+.pcard .btn{width:100%;justify-content:center;margin:24px 0;}
+.pfeat{list-style:none;display:flex;flex-direction:column;gap:12px;}
+.pfeat li{font-size:13px;color:var(--zinc-400);display:flex;align-items:center;gap:10px;}
+.pfeat .chk{color:var(--patra);font-weight:700;}
+.final{position:relative;z-index:1;}
+.final-box{background:var(--surface);border:1px solid var(--border-hi);border-radius:28px;padding:64px 40px;text-align:center;position:relative;overflow:hidden;box-shadow:0 0 60px rgba(110,86,207,0.12),inset 0 1px 0 rgba(255,255,255,0.05);}
+.final-glow{position:absolute;top:-50%;left:50%;transform:translateX(-50%);width:520px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(110,86,207,0.2),transparent 70%);filter:blur(60px);}
+.final-box h2{position:relative;z-index:1;font-family:'Space Grotesk';font-weight:700;font-size:clamp(30px,4.5vw,48px);letter-spacing:-.02em;line-height:1.1;max-width:620px;margin:0 auto;}
+.final-box p{position:relative;z-index:1;color:var(--zinc-400);font-size:17px;margin:18px auto 0;max-width:500px;}
+.final-form{position:relative;z-index:1;display:flex;gap:10px;max-width:440px;margin:32px auto 0;}
+.final-form input{flex:1;background:var(--canvas);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:#fff;font-family:'Inter';font-size:14px;outline:none;}
+.final-form input:focus{border-color:var(--patra);}
+.final-form .btn{padding:13px 22px;white-space:nowrap;}
+footer{position:relative;z-index:1;border-top:1px solid var(--border);margin-top:110px;padding:64px 0 40px;}
+.foot-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:32px;}
+.foot-brand .logo{margin-bottom:16px;}
+.foot-brand p{font-size:13px;color:var(--zinc-500);line-height:1.6;max-width:240px;}
+.foot-col h5{font-family:'Space Grotesk';font-size:13px;font-weight:600;margin-bottom:16px;color:#fff;}
+.foot-col a{display:block;font-size:13px;color:var(--zinc-500);text-decoration:none;margin-bottom:11px;transition:color .2s;}
+.foot-col a:hover{color:#fff;}
+.foot-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--border);}
+.foot-bottom p{font-size:12px;color:var(--zinc-500);font-family:'JetBrains Mono';}
+.foot-social{display:flex;gap:14px;}
+.foot-social a{width:34px;height:34px;border-radius:9px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--zinc-500);transition:all .25s;text-decoration:none;font-size:14px;}
+.foot-social a:hover{color:#fff;border-color:var(--border-hi);background:var(--surface-2);}
+@keyframes rise{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes riseScale{from{opacity:0;transform:translateY(24px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes scroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@keyframes scrollR{from{transform:translateX(-50%);}to{transform:translateX(0);}}
+@media(max-width:900px){.nav-links{display:none;}.bento{grid-template-columns:1fr;}.span2{grid-column:span 1;}.process{grid-template-columns:1fr;gap:32px;}.band-box{grid-template-columns:1fr;padding:32px;}.pricing{grid-template-columns:1fr;max-width:400px;}.foot-grid{grid-template-columns:1fr 1fr;}.dash-body{grid-template-columns:1fr;}.dash-side{display:none;}.sec,.tsec{padding:70px 0;}}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<div class="wrap">
+  <div class="announce-wrap">
+    <div class="announce"><span class="tag">New</span> Patra AI now connects 20+ channels in one inbox <span class="arrow">&rarr;</span></div>
+  </div>
+  <nav>
+    <div class="nav-inner">
+      <div class="logo"><span class="logo-mark">P</span> Patra</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#">Docs</a>
+      </div>
+      <div class="nav-actions">
+        <a href="https://www.patrahq.com/app/login" class="btn btn-ghost">Sign In</a>
+        <a href="https://www.patrahq.com/app/auth/signup" class="btn btn-primary">Sign Up</a>
+      </div>
+    </div>
+  </nav>
+</div>
+
+<section class="hero wrap">
+  <div class="hero-badge"><span class="dot"></span> AI-powered unified inbox for every business</div>
+  <h1 class="display">One inbox. One AI.<br><span class="accent">Every conversation.</span></h1>
+  <p>Patra brings all your channels into one place &mdash; where your own AI agent handles 90&ndash;95% of customer conversations automatically, day and night. Built for every business, in every industry.</p>
+  <div class="hero-cta">
+    <a href="https://www.patrahq.com/app/auth/signup" class="btn btn-primary">Sign Up &rarr;</a>
+    <a class="btn btn-secondary">Watch demo</a>
+  </div>
+  <div class="hero-visual">
+    <div class="hero-glow"></div>
+    <div class="dashboard">
+      <div class="dash-bar">
+        <span class="dash-dot r"></span><span class="dash-dot y"></span><span class="dash-dot g"></span>
+        <span class="dash-url mono">patrahq.com/inbox</span>
+      </div>
+      <div class="dash-body">
+        <div class="dash-side" id="dashSide">
+          <div class="dash-nav active" data-view="all"><span class="ic" style="background:var(--patra)"></span> All conversations <span class="ct">128</span></div>
+          <div class="dash-nav" data-view="ai"><span class="ic" style="background:#7B9D6F"></span> AI handling <span class="ct">119</span></div>
+          <div class="dash-nav" data-view="attention"><span class="ic" style="background:#C8A05C"></span> Needs attention <span class="ct">9</span></div>
+          <div class="dash-nav" data-view="analytics"><span class="ic" style="background:var(--patra-2)"></span> Analytics</div>
+          <div class="dash-nav" data-view="reports"><span class="ic" style="background:#6F8DAA"></span> Reports</div>
+        </div>
+        <div class="dash-main">
+          <div class="dash-view active" data-view="all">
+            <div class="dash-chat">
+              <div class="msg in">Hi! Do you have any availability this weekend?<div class="msg-meta">Jordan &middot; Instagram &middot; now</div></div>
+              <span class="ai-pill">&bull; Patra AI replying</span>
+              <div class="msg out">Hey Jordan! Yes &mdash; we've got openings Saturday afternoon and all day Sunday. Want me to book you in?</div>
+              <div class="msg in">Saturday 3pm works great</div>
+              <div class="msg out">Perfect, you're booked for Saturday at 3pm &#127881; I'll send a reminder the day before.</div>
+              <div class="msg in">amazing, thank you!<div class="msg-meta">resolved by AI &check;</div></div>
+            </div>
+          </div>
+          <div class="dash-view" data-view="ai">
+            <div class="rep">
+              <div class="rep-row"><span class="rl">Conversations handled by AI today</span><span class="rv up">119 / 128</span></div>
+              <div class="rep-row"><span class="rl">Auto-resolution rate</span><span class="rv up">93%</span></div>
+              <div class="rep-row"><span class="rl">Avg response time</span><span class="rv">2.4s</span></div>
+              <div class="rep-row"><span class="rl">Escalated to a human</span><span class="rv">9</span></div>
+              <div class="rep-row"><span class="rl">Languages detected</span><span class="rv">7</span></div>
+            </div>
+          </div>
+          <div class="dash-view" data-view="attention">
+            <div class="atrow"><div class="av">RB</div><div class="tx"><div class="nm">Riley B.</div><div class="pv">wants to speak to a manager&hellip;</div></div><span class="badge urgent">urgent</span></div>
+            <div class="atrow"><div class="av">SK</div><div class="tx"><div class="nm">Sam K.</div><div class="pv">refund request &mdash; needs approval</div></div><span class="badge wait">waiting</span></div>
+            <div class="atrow"><div class="av">MA</div><div class="tx"><div class="nm">Mia A.</div><div class="pv">complex question, low AI confidence</div></div><span class="badge wait">waiting</span></div>
+            <div class="atrow"><div class="av">TC</div><div class="tx"><div class="nm">Theo C.</div><div class="pv">VIP customer flagged for follow-up</div></div><span class="badge wait">waiting</span></div>
+          </div>
+          <div class="dash-view" data-view="analytics">
+            <div class="stat-grid">
+              <div class="stat"><div class="v p">93%</div><div class="l">handled by AI</div></div>
+              <div class="stat"><div class="v">2.4s</div><div class="l">avg response</div></div>
+              <div class="stat"><div class="v">1,284</div><div class="l">chats this week</div></div>
+              <div class="stat"><div class="v">7</div><div class="l">channels live</div></div>
+            </div>
+            <div class="bars">
+              <div class="bar" style="height:45%"></div><div class="bar" style="height:62%"></div><div class="bar" style="height:55%"></div><div class="bar" style="height:78%"></div><div class="bar" style="height:70%"></div><div class="bar" style="height:90%"></div><div class="bar" style="height:84%"></div>
+            </div>
+          </div>
+          <div class="dash-view" data-view="reports">
+            <div class="rep">
+              <div class="rep-row"><span class="rl">New customers this week</span><span class="rv up">+214</span></div>
+              <div class="rep-row"><span class="rl">Conversations by channel</span><span class="rv">Instagram 38%</span></div>
+              <div class="rep-row"><span class="rl">Busiest hour</span><span class="rv">7&ndash;8pm</span></div>
+              <div class="rep-row"><span class="rl">CSAT score</span><span class="rv up">4.8 / 5</span></div>
+              <div class="rep-row"><span class="rl">Repeat customer rate</span><span class="rv up">61%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="marquee-sec">
+  <div class="marquee-label">Connect every channel your customers use</div>
+  <div class="marquee"><div class="marquee-track" id="chanTrack"></div></div>
+</section>
+
+<section class="sec wrap" id="features">
+  <div class="sec-head reveal">
+    <div class="sec-tag">Features</div>
+    <h2 class="display">Everything in one place</h2>
+    <p>Stop switching between tabs. Patra unifies your channels, automates the busywork, and keeps you in control &mdash; whatever business you run.</p>
+  </div>
+  <div class="bento reveal" id="bento">
+    <div class="bento-card span2">
+      <div class="bento-icon">&#9671;</div>
+      <h3 class="display">Your own AI agent</h3>
+      <p>Patra AI is built into your inbox &mdash; and it's yours. Name it whatever you like, train it on your business, and it answers, resolves, and escalates exactly how you want. It sounds like a real person on your team.</p>
+      <div class="bento-visual">
+        <div class="mini-row"><span class="cdot"></span> Detects intent and replies in your tone</div>
+        <div class="mini-row"><span class="cdot"></span> Rename it &mdash; Patra, or anything you choose</div>
+      </div>
+    </div>
+    <div class="bento-card">
+      <div class="bento-icon">&#11041;</div>
+      <h3 class="display">Unified inbox</h3>
+      <p>Every channel, one thread per customer. Never lose context again.</p>
+      <span class="code-label mono"><span class="k">channels</span>: 20+ supported</span>
+    </div>
+    <div class="bento-card">
+      <div class="bento-icon">&#9889;</div>
+      <h3 class="display">Instant automation</h3>
+      <p>Bookings, FAQs, follow-ups, order updates &mdash; handled in seconds.</p>
+      <span class="code-label mono"><span class="k">avg_response</span>: 2.4s</span>
+    </div>
+    <div class="bento-card span2">
+      <div class="bento-icon">&#9638;</div>
+      <h3 class="display">Every channel connected</h3>
+      <p>Facebook Messenger, Instagram, WhatsApp, Telegram, SMS, email, live chat and more &mdash; connect once, manage everything from a single screen.</p>
+      <div class="bento-visual">
+        <div class="mini-row"><span class="cdot"></span> Facebook Messenger + Instagram + WhatsApp</div>
+        <div class="mini-row"><span class="cdot"></span> Telegram + SMS + Email + Live Chat</div>
+        <div class="mini-row"><span class="cdot"></span> One inbox, one AI, zero tab-switching</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band wrap">
+  <div class="band-box reveal">
+    <div>
+      <h3 class="display">If you can describe it, we can automate it</h3>
+      <p>These are just a few of the things Patra does out of the box. Tell our team what you want automated and how it should work &mdash; and we'll build it into your inbox. New features ship constantly, shaped by what businesses like yours actually ask for.</p>
+    </div>
+    <div class="band-chat">
+      <div class="band-msg you">"Can you auto-reply to booking requests and add them to my calendar?"</div>
+      <div class="band-msg team">Done &mdash; set up and live. Anything else you'd like automated?</div>
+      <div class="band-msg you">"Yes &mdash; tag every VIP and notify me instantly."</div>
+      <div class="band-msg team">On it. &check;</div>
+    </div>
+  </div>
+</section>
+
+<section class="sec wrap" id="how">
+  <div class="sec-head reveal">
+    <div class="sec-tag">How it works</div>
+    <h2 class="display">Live in under 5 minutes</h2>
+  </div>
+  <div class="process reveal">
+    <div class="steps" id="steps">
+      <div class="step active" data-stage="0">
+        <div class="step-num mono">STEP 01</div>
+        <h4 class="display">Connect your channels</h4>
+        <p>Link Facebook, WhatsApp, Instagram, SMS and more with one click each. No code, no developers.</p>
+      </div>
+      <div class="step" data-stage="1">
+        <div class="step-num mono">STEP 02</div>
+        <h4 class="display">Set up your AI agent</h4>
+        <p>Name it, give it your tone and your rules. Train it on your FAQs or let it learn as it goes.</p>
+      </div>
+      <div class="step" data-stage="2">
+        <div class="step-num mono">STEP 03</div>
+        <h4 class="display">Watch it handle conversations</h4>
+        <p>Your AI answers, books, follows up and escalates automatically. You step in only when it matters.</p>
+      </div>
+      <div class="step" data-stage="3">
+        <div class="step-num mono">STEP 04</div>
+        <h4 class="display">Scale without hiring</h4>
+        <p>Handle 10x the conversations with the same team. Patra grows with you.</p>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-glow"></div>
+      <div class="stage-content" id="stage">
+        <div class="big display">20+</div>
+        <div class="lbl mono">channels connected in one click</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tsec">
+  <div class="sec-head reveal wrap">
+    <div class="sec-tag">Testimonials</div>
+    <h2 class="display">Businesses love Patra</h2>
+    <p>From solo founders to teams handling thousands of conversations a day &mdash; across every industry.</p>
+  </div>
+  <div class="trow"><div class="ttrack left" id="trowA"></div></div>
+  <div class="trow"><div class="ttrack right" id="trowB"></div></div>
+</section>
+
+<section class="sec wrap" id="pricing">
+  <div class="sec-head reveal">
+    <div class="sec-tag">Pricing</div>
+    <h2 class="display">Simple, flat pricing</h2>
+    <p>No per-message fees. No surprises. Pay one flat rate, handle unlimited conversations.</p>
+  </div>
+  <div class="toggle reveal">
+    <div class="toggle-inner">
+      <div class="toggle-slider" id="slider"></div>
+      <button class="toggle-btn active" onclick="setBilling(this,'mo')">Monthly</button>
+      <button class="toggle-btn" onclick="setBilling(this,'yr')">Annual <span class="save">&minus;20%</span></button>
+    </div>
+  </div>
+  <div class="pricing reveal">
+    <div class="pcard">
+      <div class="ptier display">Starter</div>
+      <div class="pdesc">For solo businesses getting started.</div>
+      <div class="pprice">$<span class="amt" data-mo="99" data-yr="79">99</span><span>/mo</span></div>
+      <a href="https://www.patrahq.com/app/auth/signup" class="btn btn-secondary">Sign Up</a>
+      <ul class="pfeat">
+        <li><span class="chk">&check;</span> 2 channels</li>
+        <li><span class="chk">&check;</span> Your own AI agent</li>
+        <li><span class="chk">&check;</span> 1,000 conversations/mo</li>
+        <li><span class="chk">&check;</span> Unified inbox</li>
+      </ul>
+    </div>
+    <div class="pcard feat">
+      <div class="ptier display">Growth</div>
+      <div class="pdesc">For growing teams that need scale.</div>
+      <div class="pprice">$<span class="amt" data-mo="249" data-yr="199">249</span><span>/mo</span></div>
+      <a href="https://www.patrahq.com/app/auth/signup" class="btn btn-primary">Sign Up</a>
+      <ul class="pfeat">
+        <li><span class="chk">&check;</span> All channels</li>
+        <li><span class="chk">&check;</span> Unlimited conversations</li>
+        <li><span class="chk">&check;</span> Custom automations</li>
+        <li><span class="chk">&check;</span> Owner dashboard + analytics</li>
+        <li><span class="chk">&check;</span> Team roles + workflows</li>
+      </ul>
+    </div>
+    <div class="pcard">
+      <div class="ptier display">Enterprise</div>
+      <div class="pdesc">For multi-brand operations at scale.</div>
+      <div class="pprice">Custom</div>
+      <a class="btn btn-secondary">Contact us</a>
+      <ul class="pfeat">
+        <li><span class="chk">&check;</span> Everything in Growth</li>
+        <li><span class="chk">&check;</span> White-label option</li>
+        <li><span class="chk">&check;</span> Dedicated infrastructure</li>
+        <li><span class="chk">&check;</span> Priority support + SLA</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="final wrap">
+  <div class="final-box reveal">
+    <div class="final-glow"></div>
+    <h2 class="display">Ready to never miss a message again?</h2>
+    <p>Sign up today and go live in under 5 minutes.</p>
+    <div class="final-form">
+      <input type="email" placeholder="you@business.com">
+      <a href="https://www.patrahq.com/app/auth/signup" class="btn btn-primary">Sign Up</a>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <div class="foot-grid">
+    <div class="foot-brand">
+      <div class="logo"><span class="logo-mark">P</span> Patra</div>
+      <p>The AI-powered unified inbox for every customer conversation. Twilio + Stripe + Intercom in one box.</p>
+    </div>
+    <div class="foot-col"><h5>Product</h5><a href="#">Features</a><a href="#">Pricing</a><a href="#">Integrations</a><a href="#">Changelog</a></div>
+    <div class="foot-col"><h5>Company</h5><a href="#">About</a><a href="#">Blog</a><a href="#">Careers</a><a href="#">Contact</a></div>
+    <div class="foot-col"><h5>Resources</h5><a href="#">Docs</a><a href="#">API</a><a href="#">Support</a><a href="#">Status</a></div>
+    <div class="foot-col"><h5>Legal</h5><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Security</a></div>
+  </div>
+  <div class="foot-bottom">
+    <p>&copy; 2026 Patra &middot; patrahq.com</p>
+    <div class="foot-social"><a href="#">&#120143;</a><a href="#">in</a><a href="#">f</a></div>
+  </div>
+</footer>
+
+<script>
+const channels=['Facebook Messenger','Instagram','WhatsApp','Telegram','SMS','Email','Live Chat','TikTok','Viber','LINE','Discord','WeChat','Google Business','Web Widget','Voice','RCS'];
+const ct=document.getElementById('chanTrack');
+const chanHTML=channels.map(c=>'<span class="chan-chip"><span class="cd"></span>'+c+'</span>').join('');
+ct.innerHTML=chanHTML+chanHTML;
+
+document.querySelectorAll('.dash-nav').forEach(nav=>{
+  nav.addEventListener('click',()=>{
+    const v=nav.dataset.view;
+    document.querySelectorAll('.dash-nav').forEach(n=>n.classList.remove('active'));
+    nav.classList.add('active');
+    document.querySelectorAll('.dash-view').forEach(view=>{view.classList.toggle('active',view.dataset.view===v);});
+  });
+});
+
+const stages=[{big:'20+',lbl:'channels connected in one click'},{big:'90-95%',lbl:'of conversations handled by your AI'},{big:'2.4s',lbl:'average AI response time'},{big:'10x',lbl:'volume handled with the same team'}];
+const stageEl=document.getElementById('stage');
+document.querySelectorAll('.step').forEach(step=>{
+  step.addEventListener('click',()=>{
+    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+    step.classList.add('active');
+    const i=+step.dataset.stage;
+    stageEl.style.opacity=0;
+    setTimeout(()=>{stageEl.innerHTML='<div class="big display">'+stages[i].big+'</div><div class="lbl mono">'+stages[i].lbl+'</div>';stageEl.style.opacity=1;},200);
+  });
+});
+
+const testimonials=[
+  {q:"Patra AI handles 90-95% of our messages now. I went from answering chats at midnight to checking in once a day.",n:"Marcus R.",r:"Real estate agency"},
+  {q:"We connected Instagram, WhatsApp and Messenger in minutes. One inbox for everything changed how we work.",n:"Jenny L.",r:"E-commerce brand"},
+  {q:"I named our AI after our shop and trained it on our FAQs. Customers think they're talking to my team.",n:"David K.",r:"Online business"},
+  {q:"Setup took six minutes. It books appointments, answers questions, and only pings me when it actually matters.",n:"Aisha S.",r:"Salon & spa"},
+  {q:"It never sounds like a bot. That trust with our customers is everything, and Patra nails the tone.",n:"Tom M.",r:"Social gaming"},
+  {q:"We scaled from 2 to 8 agents' worth of volume without hiring anyone. The math just works.",n:"Rosa C.",r:"TikTok Shop seller"},
+  {q:"Asked their team to automate our order-status replies. It was live the next day. They build what you ask for.",n:"Priya N.",r:"Retail"},
+  {q:"Our response time went from hours to seconds. Customers notice, and our reviews show it.",n:"Carlos M.",r:"Restaurant group"},
+  {q:"The analytics finally show me what's actually happening across every channel in one view.",n:"Hannah W.",r:"Services business"},
+  {q:"Handles support in 7 languages automatically. We sell globally now without a bigger team.",n:"Yuki T.",r:"Online store"},
+  {q:"Needs-attention queue means nothing slips. The AI flags exactly what a human should see.",n:"Leon F.",r:"Bingo & social games"},
+  {q:"It quietly does the boring 90% so my team can focus on the conversations that grow the business.",n:"Grace O.",r:"Agency owner"}
+];
+function tcardHTML(t){
+  var init=t.n.split(' ').map(function(w){return w[0];}).join('').slice(0,2);
+  return '<div class="tcard"><p>"'+t.q+'"</p><div class="who"><div class="tavatar">'+init+'</div><div><div class="tname">'+t.n+'</div><div class="trole">'+t.r+'</div></div></div></div>';
+}
+var half=Math.ceil(testimonials.length/2);
+var rowA=testimonials.slice(0,half),rowB=testimonials.slice(half);
+var aHTML=rowA.map(tcardHTML).join(''),bHTML=rowB.map(tcardHTML).join('');
+document.getElementById('trowA').innerHTML=aHTML+aHTML;
+document.getElementById('trowB').innerHTML=bHTML+bHTML;
+
+function setBilling(btn,term){
+  document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('slider').classList.toggle('yr',term==='yr');
+  document.querySelectorAll('.amt').forEach(a=>{a.textContent=term==='mo'?a.dataset.mo:a.dataset.yr;});
+}
+
+var obs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('show');obs.unobserve(e.target);}});},{threshold:0.12});
+document.querySelectorAll('.reveal').forEach(function(el){obs.observe(el);});
+</script>
+</body>
+</html>
