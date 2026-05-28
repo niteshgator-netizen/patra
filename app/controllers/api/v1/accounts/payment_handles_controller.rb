@@ -61,8 +61,25 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
     end
 
     sorted = matched.sort_by { |entry| ledger_entry_timestamp(entry) || Time.at(0) }.reverse
+
+    sorted.each_with_index do |entry, idx|
+      next if entry['flag_reason'] == 'duplicate' || entry['status'] == 'Duplicate'
+
+      sorted[(idx + 1)..].each do |other|
+        next unless other['amount'].to_f == entry['amount'].to_f
+        next unless other['platform'].to_s == entry['platform'].to_s
+
+        t1 = ledger_entry_timestamp(entry)
+        t2 = ledger_entry_timestamp(other)
+        next unless t1 && t2 && (t1 - t2).abs < 300
+
+        other['status'] = 'Duplicate'
+        other['flag_reason'] = 'duplicate_ledger'
+      end
+    end
+
     sorted.each do |e|
-      breakdown = Payments::EmailConfirmationService.confidence_score(e)
+      breakdown = Payments::EmailConfirmationService.confidence_score(e, account: Current.account)
       e['confidence_score'] = breakdown['total']
       e['score_breakdown'] = breakdown
     end

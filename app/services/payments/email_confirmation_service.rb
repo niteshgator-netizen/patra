@@ -79,60 +79,108 @@ module Payments
       end
     end
 
-    def self.confidence_score(entry)
+    DEFAULT_SCORING_CONFIG = {
+      'screenshot_present' => 25,
+      'amount_match' => 25,
+      'sender_match' => 15,
+      'recipient_match' => 10,
+      'txn_id_present' => 10,
+      'email_confirmed' => 10,
+      'time_proximity' => 5,
+      'auto_load_threshold' => 80,
+      'escalate_threshold' => 40,
+      'decline_threshold' => 39
+    }.freeze
+
+    def self.scoring_config_for(account)
+      return DEFAULT_SCORING_CONFIG unless account
+
+      custom = account.custom_attributes&.dig('payment_scoring_config')
+      DEFAULT_SCORING_CONFIG.merge(custom || {})
+    end
+
+    def self.confidence_score(entry, account: nil)
+      cfg = scoring_config_for(account)
       zero_breakdown = {
         'total' => 0,
         'screenshot' => 0,
         'amount_match' => 0,
         'sender_match' => 0,
+        'recipient_match' => 0,
         'txn_id' => 0,
         'email_confirmed' => 0,
         'time_proximity' => 0
       }
       return zero_breakdown unless entry.is_a?(Hash)
 
-      screenshot_pts = entry['image_url'].present? ? 30 : 0
+      screenshot_pts = entry['image_url'].present? ? cfg['screenshot_present'].to_i : 0
 
       amount_pts = if entry['email_amount'].present? && entry['amount'].present? &&
                       entry['email_amount'].to_f == entry['amount'].to_f
-                     25
+                     cfg['amount_match'].to_i
                    else
                      0
                    end
 
+      email_sender = entry['email_sender_name'].to_s.downcase.strip
+      ocr_sender = entry['sender_name'].to_s.downcase.strip
+      ocr_recipient = entry['recipient_name'].to_s.downcase.strip
+
       sender_pts = 0
-      if entry['email_sender_name'].present? && entry['sender_name'].present?
-        sender_pts = 15 if entry['email_sender_name'].to_s.downcase.include?(entry['sender_name'].to_s.downcase.split.first)
-      elsif entry['email_sender_name'].present? && entry['recipient_name'].present?
-        sender_pts = 10 # partial — email has sender but screenshot only has recipient
+      if email_sender.present? && ocr_sender.present?
+        sender_pts = cfg['sender_match'].to_i if names_overlap?(email_sender, ocr_sender)
+      elsif email_sender.present? && ocr_recipient.present?
+        sender_pts = cfg['sender_match'].to_i if names_overlap?(email_sender, ocr_recipient)
       end
 
-      txn_pts = entry['transaction_id'].present? && entry['transaction_id'].to_s.length > 3 ? 15 : 0
-      email_pts = entry['email_confirmed'] == true ? 10 : 0
+      recipient_pts = 0
+      if entry['email_confirmed'] == true && email_sender.present? && ocr_recipient.present?
+        recipient_pts = cfg['recipient_match'].to_i if names_overlap?(email_sender, ocr_recipient) || entry['email_amount'].present?
+      end
+
+      txn_pts = entry['transaction_id'].present? && entry['transaction_id'].to_s.length > 3 ? cfg['txn_id_present'].to_i : 0
+      email_pts = entry['email_confirmed'] == true ? cfg['email_confirmed'].to_i : 0
 
       time_pts = 0
       if entry['image_received_at'].present? && entry['email_date'].present?
         begin
-          img_time = Time.parse(entry['image_received_at'])
-          email_time = Time.parse(entry['email_date'])
-          time_pts = 5 if (img_time - email_time).abs < 1800
+          img_time = Time.parse(entry['image_received_at'].to_s)
+          email_time = Time.parse(entry['email_date'].to_s)
+          time_pts = cfg['time_proximity'].to_i if (img_time - email_time).abs < 1800
         rescue StandardError
           # skip
         end
       end
 
-      score = screenshot_pts + amount_pts + sender_pts + txn_pts + email_pts + time_pts
+      score = screenshot_pts + amount_pts + sender_pts + recipient_pts + txn_pts + email_pts + time_pts
 
       {
         'total' => score.clamp(0, 100),
         'screenshot' => screenshot_pts,
         'amount_match' => amount_pts,
         'sender_match' => sender_pts,
+        'recipient_match' => recipient_pts,
         'txn_id' => txn_pts,
         'email_confirmed' => email_pts,
-        'time_proximity' => time_pts
+        'time_proximity' => time_pts,
+        'auto_load_threshold' => cfg['auto_load_threshold'].to_i,
+        'escalate_threshold' => cfg['escalate_threshold'].to_i,
+        'decline_threshold' => cfg['decline_threshold'].to_i
       }
     end
+
+    def self.names_overlap?(a, b)
+      return false if a.blank? || b.blank?
+
+      a_first = a.to_s.downcase.split(/\s+/).first
+      b_first = b.to_s.downcase.split(/\s+/).first
+      return true if a_first.present? && b.include?(a_first)
+      return true if b_first.present? && a.include?(b_first)
+
+      false
+    end
+
+    private_class_method :names_overlap?
 
     private
 
