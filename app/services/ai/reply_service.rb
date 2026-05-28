@@ -2141,8 +2141,8 @@ class Ai::ReplyService
   # Sidebar-friendly vault status (from `extracted_payment_status_bucket`).
   def finance_log_status_label(bucket)
     case bucket
-    when :confirmed then 'Confirmed'
-    when :pending then 'Pending'
+    when :confirmed then 'Screenshot Received'
+    when :pending then 'Screenshot Received'
     when :failed then 'Failed'
     else 'Unknown'
     end

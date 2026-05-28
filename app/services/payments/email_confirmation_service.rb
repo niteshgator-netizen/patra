@@ -50,7 +50,28 @@ module Payments
         entry['email_confirmed_at'] = Time.current.iso8601
         entry['email_match_source'] = 'imap_poll'
         entry['status_before_email_verify'] = entry['status']
-        entry['status'] = 'Verified'
+        entry['status'] = 'Email Verified'
+
+        # Extract and store email content for ledger display
+        begin
+          entry['email_subject'] = match.subject.to_s.encode('UTF-8', invalid: :replace, undef: :replace)[0, 200]
+          entry['email_from'] = match.from&.first.to_s[0, 100]
+          entry['email_date'] = match.date&.iso8601 rescue match.date.to_s
+          entry['email_body_snippet'] = match.body.to_s.encode('UTF-8', invalid: :replace, undef: :replace)[0, 500]
+
+          # Extract amount from email body/subject
+          email_text = "#{match.subject} #{match.body}".to_s
+          amount_match = email_text.match(/\$[\d,]+\.?\d{0,2}/)
+          entry['email_amount'] = amount_match[0].gsub(/[$,]/, '').to_f if amount_match
+
+          # Extract sender name from email subject
+          subject = match.subject.to_s
+          name_match = subject.match(/^(.+?)(?:\s+(?:sent|paid|just sent))/i)
+          entry['email_sender_name'] = name_match[1].strip if name_match
+        rescue StandardError => e
+          Rails.logger.warn("[EmailConfirmationService] email data extraction failed: #{e.message}")
+        end
+
         true
       else
         entry['email_check_attempts'] = entry['email_check_attempts'].to_i + 1
