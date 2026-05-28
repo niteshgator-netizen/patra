@@ -559,11 +559,21 @@ const exportLedger = handle => {
 };
 
 const loadScoringConfig = () => {
+  console.log(
+    '[ScoringSettings] loaded raw:',
+    JSON.stringify(
+      currentAccount.value?.custom_attributes?.payment_scoring_config
+    )
+  );
+
   const saved =
     currentAccount.value?.custom_attributes?.payment_scoring_config || {};
   const isNested = saved.default && typeof saved.default === 'object';
 
   scoringFullConfig.value = { default: { ...DEFAULT_SCORING_CONFIG } };
+  platformEnabled.value = Object.fromEntries(
+    NON_DEFAULT_SCORING_PLATFORMS.map(platformId => [platformId, false])
+  );
 
   if (isNested) {
     scoringFullConfig.value.default = {
@@ -589,9 +599,6 @@ const loadScoringConfig = () => {
       ...DEFAULT_SCORING_CONFIG,
       ...parseNumericConfig(flatConfig),
     };
-    NON_DEFAULT_SCORING_PLATFORMS.forEach(platformId => {
-      platformEnabled.value[platformId] = false;
-    });
   }
 
   customRules.value = Array.isArray(saved.custom_rules)
@@ -626,7 +633,9 @@ const saveScoringConfig = async () => {
       }
     });
 
-    await updateAccount({ custom_attributes: { payment_scoring_config } });
+    const payload = { custom_attributes: { payment_scoring_config } };
+    console.log('[ScoringSettings] saving:', JSON.stringify(payload));
+    await updateAccount(payload);
     useAlert(t('PAYMENT_HANDLES.SCORING_SAVED'));
   } catch {
     useAlert(t('PAYMENT_HANDLES.ERROR_GENERIC'));

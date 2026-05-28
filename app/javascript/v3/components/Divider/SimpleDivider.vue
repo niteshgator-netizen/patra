@@ -7,21 +7,22 @@ export default {
     },
     bg: {
       type: String,
-      default: 'bg-white dark:bg-n-solid-2',
+      default: 'bg-patra-surface',
     },
   },
 };
 </script>
 
 <template>
-  <div class="relative my-4 section-separator">
-    <div class="absolute inset-0 flex items-center" aria-hidden="true">
-      <div class="w-full border-t border-n-strong" />
-    </div>
-    <div v-if="label" class="relative flex justify-center text-sm">
-      <span class="px-2 text-n-slate-10" :class="bg">
-        {{ label }}
-      </span>
-    </div>
+  <div
+    class="flex items-center gap-3.5 my-5 text-zinc-500 font-mono text-[11px] tracking-[0.18em] uppercase"
+  >
+    <div
+      class="flex-1 h-px bg-gradient-to-r from-transparent via-patra-border-hi to-transparent"
+    />
+    <span v-if="label" :class="bg">{{ label }}</span>
+    <div
+      class="flex-1 h-px bg-gradient-to-l from-transparent via-patra-border-hi to-transparent"
+    />
   </div>
 </template>

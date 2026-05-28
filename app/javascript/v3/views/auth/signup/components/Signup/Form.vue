@@ -8,7 +8,6 @@ import { useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha';
 import FormInput from '../../../../../components/Form/Input.vue';
-import NextButton from 'dashboard/components-next/button/Button.vue';
 import PasswordRequirements from './PasswordRequirements.vue';
 import { isValidPassword } from 'shared/helpers/Validators';
 import GoogleOAuthButton from '../../../../../components/GoogleOauth/Button.vue';
@@ -122,6 +121,7 @@ const onCaptchaError = () => {
     <form class="space-y-3" @submit.prevent="submit">
       <FormInput
         v-model="credentials.email"
+        variant="patra"
         type="email"
         name="email_address"
         :class="{ error: v$.credentials.email.$error }"
@@ -134,6 +134,7 @@ const onCaptchaError = () => {
       <div class="relative">
         <FormInput
           v-model="credentials.password"
+          variant="patra"
           type="password"
           name="password"
           :class="{ error: v$.credentials.password.$error }"
@@ -171,21 +172,20 @@ const onCaptchaError = () => {
         @challenge-expired="onCaptchaError"
         @closed="onCaptchaError"
       />
-      <NextButton
-        lg
+      <button
         type="submit"
         data-testid="submit_button"
-        class="w-full font-medium"
-        :label="$t('REGISTER.SUBMIT')"
+        class="relative w-full bg-gradient-to-b from-patra to-patra-deep text-white font-medium text-[15px] rounded-xl px-4 py-3.5 mt-1.5 cursor-pointer transition-all shadow-patra-glow hover:shadow-patra-glow-hover hover:brightness-110 hover:-translate-y-px inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
         :disabled="isSignupInProgress || !isFormValid"
-        :is-loading="isSignupInProgress"
-      />
+      >
+        {{ $t('REGISTER.SUBMIT') }}
+      </button>
     </form>
     <GoogleOAuthButton v-if="showGoogleOAuth" class="mt-3">
       {{ $t('REGISTER.OAUTH.GOOGLE_SIGNUP') }}
     </GoogleOAuthButton>
     <p
-      class="text-sm mt-5 mb-0 text-n-slate-11 [&>a]:text-n-blue-10 [&>a]:font-medium [&>a]:hover:text-n-blue-11"
+      class="text-sm mt-5 mb-0 text-zinc-400 [&>a]:text-patra-light [&>a]:font-medium [&>a]:hover:text-white"
       v-html="termsLink"
     />
   </div>

@@ -114,12 +114,17 @@ class Api::V1::AccountsController < Api::BaseController
   def custom_attributes_params
     attrs = params.permit(:industry, :company_size, :timezone, :referral_source, :user_role).to_h.stringify_keys
 
-    nested = params.permit(custom_attributes: { payment_scoring_config: {} })[:custom_attributes]
-    if nested&.dig('payment_scoring_config').present?
-      attrs['payment_scoring_config'] = nested['payment_scoring_config'].stringify_keys
+    scoring_config = params.dig(:custom_attributes, :payment_scoring_config)
+    if scoring_config.present?
+      attrs['payment_scoring_config'] = normalize_payment_scoring_config(scoring_config)
     end
 
     attrs
+  end
+
+  def normalize_payment_scoring_config(config)
+    hash = config.is_a?(ActionController::Parameters) ? config.permit!.to_h : config.to_h
+    hash.deep_stringify_keys
   end
 
   def settings_params

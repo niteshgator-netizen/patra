@@ -5,8 +5,9 @@ import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha';
-import NextButton from 'dashboard/components-next/button/Button.vue';
 import { resendConfirmation } from '../../../api/auth';
+import Spinner from 'shared/components/Spinner.vue';
+import AuthNavBar from '../../../components/Auth/AuthNavBar.vue';
 
 const props = defineProps({
   email: {
@@ -69,42 +70,73 @@ const onCaptchaError = () => {
 </script>
 
 <template>
-  <main
-    class="flex flex-col w-full min-h-screen py-20 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
+  <div
+    class="relative min-h-screen flex flex-col bg-patra-canvas text-white font-sans overflow-x-hidden dark"
   >
-    <section
-      class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
+    <div
+      class="fixed inset-0 z-0 pointer-events-none bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_90%_60%_at_50%_30%,black_35%,transparent_100%)]"
+    />
+    <div
+      class="fixed top-[-15%] left-1/2 -translate-x-1/2 w-[1100px] h-[700px] z-0 pointer-events-none rounded-full blur-[80px] bg-[radial-gradient(circle_at_30%_30%,rgba(110,86,207,0.22),transparent_55%),radial-gradient(circle_at_70%_60%,rgba(139,92,246,0.14),transparent_55%)] animate-patra-mesh"
+    />
+
+    <AuthNavBar />
+
+    <main
+      class="flex-1 flex items-center justify-center px-5 py-12 relative z-10"
     >
-      <div class="mb-6">
-        <h2 class="text-2xl font-semibold text-n-slate-12">
-          {{ $t('REGISTER.VERIFY_EMAIL.TITLE') }}
-        </h2>
-        <p class="mt-2 text-sm text-n-slate-11">
-          {{ $t('REGISTER.VERIFY_EMAIL.DESCRIPTION', { email }) }}
-        </p>
+      <div
+        class="w-full max-w-[440px] relative bg-patra-surface/55 backdrop-blur-xl border border-patra-border-hi rounded-3xl p-10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)] animate-card-in"
+      >
+        <div class="flex flex-col items-start mb-8">
+          <div
+            class="w-[46px] h-[46px] rounded-[13px] bg-gradient-to-br from-patra to-patra-deep flex items-center justify-center font-display font-bold text-white text-2xl mb-5 animate-patra-pulse"
+          >
+            {{ $t('PATRA_AUTH.BRAND_INITIAL') }}
+          </div>
+          <h1
+            class="font-display font-semibold text-[26px] tracking-tight leading-snug mb-2"
+          >
+            {{ $t('PATRA_AUTH.VERIFY_EMAIL.HEADING') }}
+          </h1>
+          <p class="text-zinc-400 text-sm leading-relaxed">
+            {{ $t('PATRA_AUTH.VERIFY_EMAIL.SUBHEAD') }}
+          </p>
+          <p class="mt-3 text-sm text-zinc-400">
+            {{ $t('REGISTER.VERIFY_EMAIL.DESCRIPTION', { email }) }}
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <VueHcaptcha
+            v-if="globalConfig.hCaptchaSiteKey"
+            ref="hCaptcha"
+            size="invisible"
+            :sitekey="globalConfig.hCaptchaSiteKey"
+            @verify="onCaptchaVerified"
+            @error="onCaptchaError"
+            @expired="onCaptchaError"
+            @challenge-expired="onCaptchaError"
+            @closed="onCaptchaError"
+          />
+          <button
+            type="button"
+            data-testid="resend_email_button"
+            class="relative w-full bg-gradient-to-b from-patra to-patra-deep text-white font-medium text-[15px] rounded-xl px-4 py-3.5 mt-1.5 cursor-pointer transition-all shadow-patra-glow hover:shadow-patra-glow-hover hover:brightness-110 hover:-translate-y-px inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            :disabled="isResendingEmail"
+            @click="handleResendEmail"
+          >
+            <Spinner v-if="isResendingEmail" color-scheme="primary" size="" />
+            {{ $t('REGISTER.VERIFY_EMAIL.RESEND') }}
+          </button>
+        </div>
       </div>
-      <div class="space-y-4">
-        <VueHcaptcha
-          v-if="globalConfig.hCaptchaSiteKey"
-          ref="hCaptcha"
-          size="invisible"
-          :sitekey="globalConfig.hCaptchaSiteKey"
-          @verify="onCaptchaVerified"
-          @error="onCaptchaError"
-          @expired="onCaptchaError"
-          @challenge-expired="onCaptchaError"
-          @closed="onCaptchaError"
-        />
-        <NextButton
-          lg
-          type="button"
-          data-testid="resend_email_button"
-          class="w-full"
-          :label="$t('REGISTER.VERIFY_EMAIL.RESEND')"
-          :is-loading="isResendingEmail"
-          @click="handleResendEmail"
-        />
-      </div>
-    </section>
-  </main>
+    </main>
+
+    <div
+      class="text-center py-6 text-[11px] text-zinc-500 font-mono tracking-wider relative z-10"
+    >
+      {{ $t('PATRA_AUTH.FOOTER') }}
+    </div>
+  </div>
 </template>

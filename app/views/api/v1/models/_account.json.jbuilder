@@ -12,6 +12,9 @@ if resource.custom_attributes.present?
     json.logo resource.custom_attributes['logo'] if resource.custom_attributes['logo'].present?
     json.referral_source resource.custom_attributes['referral_source'] if resource.custom_attributes['referral_source'].present?
     json.brand_info resource.custom_attributes['brand_info'] if resource.custom_attributes['brand_info'].present?
+    if resource.custom_attributes['payment_scoring_config'].present?
+      json.payment_scoring_config resource.custom_attributes['payment_scoring_config']
+    end
     json.onboarding_step resource.onboarding_step if resource.onboarding_step.present?
     json.marked_for_deletion_at resource.custom_attributes['marked_for_deletion_at'] if resource.custom_attributes['marked_for_deletion_at'].present?
     if resource.custom_attributes['marked_for_deletion_reason'].present?
