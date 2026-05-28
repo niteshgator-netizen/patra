@@ -79,6 +79,45 @@ module Payments
       end
     end
 
+    def self.confidence_score(entry)
+      score = 0
+      return score unless entry.is_a?(Hash)
+
+      # Screenshot exists (30 points)
+      score += 30 if entry['image_url'].present?
+
+      # Amount match between screenshot and email (25 points)
+      if entry['email_amount'].present? && entry['amount'].present?
+        score += 25 if entry['email_amount'].to_f == entry['amount'].to_f
+      end
+
+      # Sender name match (15 points)
+      if entry['email_sender_name'].present? && entry['sender_name'].present?
+        score += 15 if entry['email_sender_name'].to_s.downcase.include?(entry['sender_name'].to_s.downcase.split.first)
+      elsif entry['email_sender_name'].present? && entry['recipient_name'].present?
+        score += 10 # partial — email has sender but screenshot only has recipient
+      end
+
+      # Transaction ID present (15 points)
+      score += 15 if entry['transaction_id'].present? && entry['transaction_id'].to_s.length > 3
+
+      # Email confirmed (10 points)
+      score += 10 if entry['email_confirmed'] == true
+
+      # Time proximity — screenshot and email within 30 min (5 points)
+      if entry['image_received_at'].present? && entry['email_date'].present?
+        begin
+          img_time = Time.parse(entry['image_received_at'])
+          email_time = Time.parse(entry['email_date'])
+          score += 5 if (img_time - email_time).abs < 1800
+        rescue StandardError
+          # skip
+        end
+      end
+
+      score.clamp(0, 100)
+    end
+
     private
 
     def finance_logs
