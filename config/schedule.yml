@@ -152,7 +152,7 @@ channels_email_poll_job:
 payments_imap_check_job:
   cron: '*/5 * * * *'
   class: 'Payments::ImapCheckJob'
-  queue: scheduled_jobs
+  queue: low
 
 # Every hour — backup page health checks
 backup_health_check_job:

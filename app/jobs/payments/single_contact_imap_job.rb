@@ -2,7 +2,7 @@
 
 module Payments
   class SingleContactImapJob < ApplicationJob
-    queue_as :default
+    queue_as :low
     retry_on StandardError, wait: 10.seconds, attempts: 2
 
     def perform(contact_id, account_id)
