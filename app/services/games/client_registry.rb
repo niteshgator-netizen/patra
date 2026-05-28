@@ -26,8 +26,10 @@ module Games
       # Cluster 2 — Laravel panels (auth: JWT Bearer + session cookie)
       'mafia'         => 'Games::Mafia::Client',
       'game_room'     => 'Games::GameRoom::Client',
+      'gameroom'      => 'Games::GameRoom::Client',
       'cash_machine'  => 'Games::CashMachine::Client',
       'mr_all_in_one' => 'Games::MrAllInOne::Client',
+      'mrallinone'    => 'Games::MrAllInOne::Client',
       'ultra_panda'   => 'Games::UltraPanda::Client',
       'vblink'        => 'Games::Vblink::Client',
       'vegas_sweeps'  => 'Games::VegasSweeps::Client'
