@@ -717,6 +717,33 @@ class Ai::ReplyService
             end
           end
 
+          # Score-based auto-action after payment is processed
+          if grok_injection.blank? && result.is_a?(Hash) && result[:payment] && result[:log_entry]
+            entry = result[:log_entry]
+            score_acct = acct || Account.find_by(id: account_id)
+            breakdown = Payments::EmailConfirmationService.confidence_score(entry, account: score_acct)
+            score = breakdown['total'].to_i
+            cfg = Payments::EmailConfirmationService.scoring_config_for(score_acct)
+            auto_load_threshold = cfg['auto_load_threshold'].to_i
+            escalate_threshold = cfg['escalate_threshold'].to_i
+
+            if entry['email_confirmed'] == true && score >= auto_load_threshold
+              platform = entry['platform'].to_s
+              amount = entry['amount']
+              grok_injection = "PAYMENT VERIFIED (score #{score}/100, email confirmed). The #{platform} payment of $#{amount} is verified. Tell the customer their payment is confirmed and you're loading it now. Be casual and excited, max 2 lines."
+              add_conversation_labels!(%w[payment-verified auto-load])
+              Rails.logger.info("[ReplyService] SCORE_ACTION=auto_load score=#{score} threshold=#{auto_load_threshold} contact=#{contact_id}")
+            elsif score >= escalate_threshold
+              grok_injection = "PAYMENT PENDING REVIEW (score #{score}/100). Screenshot received, processing. Tell the customer you got their payment screenshot and you're verifying it now — should be confirmed shortly. Max 2 lines, casual tone."
+              add_conversation_labels!(%w[payment-pending cashier-review])
+              Rails.logger.info("[ReplyService] SCORE_ACTION=escalate score=#{score} threshold=#{escalate_threshold} contact=#{contact_id}")
+            else
+              grok_injection = "PAYMENT LOW CONFIDENCE (score #{score}/100). The screenshot couldn't be fully verified. Ask the customer to resend a clearer screenshot showing the full payment receipt with all details visible. Be polite, max 2 lines."
+              add_conversation_labels!(%w[payment-unclear])
+              Rails.logger.info("[ReplyService] SCORE_ACTION=decline score=#{score} contact=#{contact_id}")
+            end
+          end
+
           @grok_payment_injection = grok_injection.presence || [
             "Customer just sent a payment screenshot: $#{payment[:amount]} via #{payment[:platform]}.",
             'Confirm receipt naturally, ask for their game username if not on file, and offer the correct bonus per the rules ($5+ deposit = 20-40% bonus based on loyalty tier).'
