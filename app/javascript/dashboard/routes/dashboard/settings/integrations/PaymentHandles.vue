@@ -15,12 +15,64 @@ import {
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import paymentHandlesApi from 'dashboard/api/paymentHandles';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { useStore } from 'dashboard/composables/store';
 
 defineOptions({
   name: 'PaymentHandlesSettings',
 });
 
 const { t } = useI18n();
+const store = useStore();
+const { currentAccount, updateAccount } = useAccount();
+
+const DEFAULT_SCORING_CONFIG = {
+  screenshot_present: 25,
+  amount_match: 25,
+  sender_match: 15,
+  recipient_match: 10,
+  txn_id_present: 10,
+  email_confirmed: 10,
+  time_proximity: 5,
+  auto_load_threshold: 80,
+  escalate_threshold: 40,
+  decline_threshold: 39,
+};
+
+const SCORING_WEIGHT_FIELDS = [
+  { key: 'screenshot_present', labelKey: 'PAYMENT_HANDLES.SCORING_SCREENSHOT' },
+  { key: 'amount_match', labelKey: 'PAYMENT_HANDLES.SCORING_AMOUNT' },
+  { key: 'sender_match', labelKey: 'PAYMENT_HANDLES.SCORING_SENDER' },
+  { key: 'recipient_match', labelKey: 'PAYMENT_HANDLES.SCORING_RECIPIENT' },
+  { key: 'txn_id_present', labelKey: 'PAYMENT_HANDLES.SCORING_TXN' },
+  { key: 'email_confirmed', labelKey: 'PAYMENT_HANDLES.SCORING_EMAIL' },
+  { key: 'time_proximity', labelKey: 'PAYMENT_HANDLES.SCORING_TIME' },
+];
+
+const SCORING_THRESHOLD_FIELDS = [
+  {
+    key: 'auto_load_threshold',
+    labelKey: 'PAYMENT_HANDLES.SCORING_AUTO_LOAD',
+    prefix: '≥',
+    inputClass: 'border-green-500/40 focus:ring-green-500/30',
+  },
+  {
+    key: 'escalate_threshold',
+    labelKey: 'PAYMENT_HANDLES.SCORING_ESCALATE',
+    prefix: '≥',
+    inputClass: 'border-amber-500/40 focus:ring-amber-500/30',
+  },
+  {
+    key: 'decline_threshold',
+    labelKey: 'PAYMENT_HANDLES.SCORING_DECLINE',
+    prefix: '<',
+    inputClass: 'border-red-500/40 focus:ring-red-500/30',
+  },
+];
+
+const scoringSettingsOpen = ref(false);
+const scoringConfig = ref({ ...DEFAULT_SCORING_CONFIG });
+const scoringSaving = ref(false);
 
 const PLATFORMS = ['cashapp', 'chime', 'paypal', 'venmo', 'zelle'];
 const STATUSES = ['active', 'failed', 'disabled'];
@@ -386,6 +438,35 @@ const exportLedger = handle => {
   URL.revokeObjectURL(url);
 };
 
+const loadScoringConfig = () => {
+  const saved =
+    currentAccount.value?.custom_attributes?.payment_scoring_config || {};
+  scoringConfig.value = {
+    ...DEFAULT_SCORING_CONFIG,
+    ...Object.fromEntries(
+      Object.entries(saved).map(([key, value]) => [key, Number(value)])
+    ),
+  };
+};
+
+const saveScoringConfig = async () => {
+  scoringSaving.value = true;
+  try {
+    const payment_scoring_config = Object.fromEntries(
+      Object.entries(scoringConfig.value).map(([key, value]) => [
+        key,
+        Number(value),
+      ])
+    );
+    await updateAccount({ custom_attributes: { payment_scoring_config } });
+    useAlert(t('PAYMENT_HANDLES.SCORING_SAVED'));
+  } catch {
+    useAlert(t('PAYMENT_HANDLES.ERROR_GENERIC'));
+  } finally {
+    scoringSaving.value = false;
+  }
+};
+
 const loadHandles = async () => {
   isLoading.value = true;
   try {
@@ -534,8 +615,14 @@ watch(
   }
 );
 
-onMounted(() => {
+onMounted(async () => {
+  await store.dispatch('accounts/get', { silent: true });
+  loadScoringConfig();
   loadHandles();
+});
+
+watch(currentAccount, () => {
+  loadScoringConfig();
 });
 </script>
 
@@ -547,6 +634,111 @@ onMounted(() => {
     :no-records-message="t('PAYMENT_HANDLES.EMPTY')"
   >
     <template #header>
+      <div
+        class="mb-4 overflow-hidden rounded-xl border border-[#DDD8F5] bg-n-solid-1"
+      >
+        <button
+          type="button"
+          class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F0EDFF]/40"
+          @click="scoringSettingsOpen = !scoringSettingsOpen"
+        >
+          <span
+            class="text-sm font-semibold text-[#4C3799] dark:text-[#DDD8F5]"
+          >
+            {{ t('PAYMENT_HANDLES.SCORING_TITLE') }}
+          </span>
+          <span
+            class="i-lucide-chevron-down size-4 text-n-slate-11 transition-transform"
+            :class="{ 'rotate-180': scoringSettingsOpen }"
+          />
+        </button>
+
+        <div
+          v-show="scoringSettingsOpen"
+          class="border-t border-[#DDD8F5] px-4 py-4"
+        >
+          <div class="grid gap-6 lg:grid-cols-2">
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+              >
+                {{ t('PAYMENT_HANDLES.SCORING_WEIGHTS_TITLE') }}
+              </h3>
+              <div class="overflow-hidden rounded-lg border border-n-weak">
+                <div
+                  class="grid grid-cols-[1fr_5rem] gap-2 border-b border-n-weak bg-n-alpha-2 px-3 py-2 text-[11px] font-medium text-n-slate-11"
+                >
+                  <span>{{ t('PAYMENT_HANDLES.SCORING_WEIGHTS_TITLE') }}</span>
+                  <span>{{ t('PAYMENT_HANDLES.SCORING_POINTS') }}</span>
+                </div>
+                <div
+                  v-for="field in SCORING_WEIGHT_FIELDS"
+                  :key="field.key"
+                  class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
+                >
+                  <span class="text-sm text-n-slate-12">{{
+                    t(field.labelKey)
+                  }}</span>
+                  <input
+                    v-model.number="scoringConfig[field.key]"
+                    type="number"
+                    min="0"
+                    max="100"
+                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+              >
+                {{ t('PAYMENT_HANDLES.SCORING_THRESHOLDS_TITLE') }}
+              </h3>
+              <div class="overflow-hidden rounded-lg border border-n-weak">
+                <div
+                  class="grid grid-cols-[1fr_5rem] gap-2 border-b border-n-weak bg-n-alpha-2 px-3 py-2 text-[11px] font-medium text-n-slate-11"
+                >
+                  <span>{{
+                    t('PAYMENT_HANDLES.SCORING_THRESHOLDS_TITLE')
+                  }}</span>
+                  <span>{{ t('PAYMENT_HANDLES.SCORING_THRESHOLD') }}</span>
+                </div>
+                <div
+                  v-for="field in SCORING_THRESHOLD_FIELDS"
+                  :key="field.key"
+                  class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
+                >
+                  <span class="text-sm text-n-slate-12">
+                    {{ field.prefix }}
+                    {{ t(field.labelKey) }}
+                  </span>
+                  <input
+                    v-model.number="scoringConfig[field.key]"
+                    type="number"
+                    min="0"
+                    max="100"
+                    class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+                    :class="field.inputClass"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex justify-end">
+            <Button
+              :label="t('PAYMENT_HANDLES.SCORING_SAVE')"
+              size="sm"
+              color="blue"
+              :is-loading="scoringSaving"
+              @click="saveScoringConfig"
+            />
+          </div>
+        </div>
+      </div>
+
       <BaseSettingsHeader
         v-model:search-query="searchQuery"
         :title="t('PAYMENT_HANDLES.TITLE')"

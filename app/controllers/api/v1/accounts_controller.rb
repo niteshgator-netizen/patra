@@ -112,7 +112,14 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def custom_attributes_params
-    params.permit(:industry, :company_size, :timezone, :referral_source, :user_role)
+    attrs = params.permit(:industry, :company_size, :timezone, :referral_source, :user_role).to_h.stringify_keys
+
+    nested = params.permit(custom_attributes: { payment_scoring_config: {} })[:custom_attributes]
+    if nested&.dig('payment_scoring_config').present?
+      attrs['payment_scoring_config'] = nested['payment_scoring_config'].stringify_keys
+    end
+
+    attrs
   end
 
   def settings_params
