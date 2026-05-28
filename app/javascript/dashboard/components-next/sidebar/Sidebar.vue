@@ -52,7 +52,6 @@ const { width: windowWidth } = useWindowSize();
 const isMobile = computed(() => windowWidth.value < 768);
 
 const accountId = useMapGetter('getCurrentAccountId');
-const conversationStats = useMapGetter('conversationStats/getStats');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
@@ -196,7 +195,6 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
-  store.dispatch('conversationStats/get', { status: 'open' });
   fetchChannelStatuses();
 });
 
@@ -272,14 +270,6 @@ const menuItems = computed(() => {
           activeOn: ['conversation_through_unattended'],
           label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
           to: accountScopedRoute('conversation_unattended'),
-        },
-        {
-          name: 'Resolved',
-          icon: 'i-lucide-check-circle',
-          activeOn: ['conversation_through_resolved'],
-          label: t('SIDEBAR.RESOLVED_CONVERSATIONS'),
-          to: accountScopedRoute('conversation_resolved'),
-          count: conversationStats.value.resolvedCount,
         },
         {
           name: 'Folders',

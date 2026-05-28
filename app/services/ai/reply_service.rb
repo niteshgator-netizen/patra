@@ -1149,17 +1149,12 @@ class Ai::ReplyService
       "[ReplyService] auto-logged deposit amount=#{payment[:amount]} platform=#{payment[:platform]} image_only=#{image_only}"
     )
 
-    # Instant IMAP verification — check email confirmation right after saving
+    # Instant IMAP verification — async so Bella replies immediately
     begin
-      if contact_id.present?
-        contact = Account.find_by(id: account_id)&.contacts&.find_by(id: contact_id)
-        if contact.present?
-          Payments::EmailConfirmationService.new(contact: contact).check_all
-          Rails.logger.info("[ReplyService] instant IMAP check fired contact=#{contact_id}")
-        end
-      end
+      Payments::SingleContactImapJob.set(wait: 5.seconds).perform_later(contact_id, account_id) if contact_id.present?
+      Rails.logger.info("[ReplyService] queued async IMAP check contact=#{contact_id}")
     rescue StandardError => e
-      Rails.logger.warn("[ReplyService] instant IMAP check failed contact=#{contact_id}: #{e.message}")
+      Rails.logger.warn("[ReplyService] IMAP enqueue failed contact=#{contact_id}: #{e.message}")
     end
 
     return { payment: payment, log_entry: log_entry } if image_only
