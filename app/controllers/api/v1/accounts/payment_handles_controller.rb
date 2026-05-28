@@ -38,9 +38,10 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
   private
 
   LEDGER_ENTRY_KEYS = %w[
-    amount platform sender_name sender_handle recipient_handle transaction_id
-    transaction_date transaction_time status confidence source image_received_at
-    email_confirmed flag_reason resolved_handle resolve_score note_or_memo
+    amount platform sender_name sender_handle recipient_handle recipient_name transaction_id
+    transaction_date transaction_time status confidence source image_received_at image_url
+    email_confirmed email_amount email_sender_name email_date flag_reason resolved_handle
+    resolve_score note_or_memo
   ].freeze
 
   def ledger_entries_for(payment_handle)
@@ -57,7 +58,9 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
       end
     end
 
-    matched.sort_by { |entry| ledger_entry_timestamp(entry) || Time.at(0) }.reverse.first(50)
+    sorted = matched.sort_by { |entry| ledger_entry_timestamp(entry) || Time.at(0) }.reverse
+    sorted.each { |e| e['confidence_score'] = Payments::EmailConfirmationService.confidence_score(e) }
+    sorted.first(50)
   end
 
   def ledger_entry_matches?(entry, normalized_handle, display_name_words)
