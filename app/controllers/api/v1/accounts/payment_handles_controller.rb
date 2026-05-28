@@ -38,10 +38,10 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
   private
 
   LEDGER_ENTRY_KEYS = %w[
-    amount platform sender_name sender_handle recipient_handle recipient_name transaction_id
+    amount platform sender_name sender_display sender_handle recipient_handle recipient_name transaction_id
     transaction_date transaction_time status confidence source image_received_at image_url
     email_confirmed email_amount email_sender_name email_date email_subject email_from
-    email_body_snippet flag_reason resolved_handle resolve_score note_or_memo
+    email_body_snippet flag_reason resolved_handle resolve_score note_or_memo score_breakdown
   ].freeze
 
   def ledger_entries_for(payment_handle)
@@ -54,12 +54,18 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
         entry = raw.is_a?(Hash) ? raw.stringify_keys : next
         next unless ledger_entry_matches?(entry, normalized_handle, display_name_words)
 
+        entry['sender_display'] = entry['sender_name'].presence || "#{contact.name} (FB)" if entry['sender_name'].blank? && contact.name.present?
+
         matched << entry.slice(*LEDGER_ENTRY_KEYS)
       end
     end
 
     sorted = matched.sort_by { |entry| ledger_entry_timestamp(entry) || Time.at(0) }.reverse
-    sorted.each { |e| e['confidence_score'] = Payments::EmailConfirmationService.confidence_score(e) }
+    sorted.each do |e|
+      breakdown = Payments::EmailConfirmationService.confidence_score(e)
+      e['confidence_score'] = breakdown['total']
+      e['score_breakdown'] = breakdown
+    end
     sorted.first(50)
   end
 
