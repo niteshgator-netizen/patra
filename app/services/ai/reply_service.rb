@@ -926,6 +926,25 @@ class Ai::ReplyService
 
     if acct
       resolved = Payments::HandleResolver.new(account: acct, ocr_result: payment).resolve
+
+      # Cross-platform fallback: if resolver found nothing, match recipient_name against all handles
+      if resolved.nil? || resolved[:score].to_i < 40
+        recip_name = payment[:recipient_name].to_s.downcase.strip
+        if recip_name.present?
+          acct.payment_handles.where(status: 'active').find_each do |ph|
+            ph_name = ph.display_name.to_s.downcase.strip
+            next if ph_name.blank?
+
+            if ph_name.include?(recip_name) || recip_name.include?(ph_name)
+              payment[:platform] = ph.platform
+              resolved = { handle: ph, score: 55, source: 'cross_platform_name' }
+              Rails.logger.info("[ReplyService] cross-platform name match: #{recip_name} → #{ph.handle} (#{ph.platform})")
+              break
+            end
+          end
+        end
+      end
+
       if resolved && resolved[:handle].platform.to_s.downcase != payment[:platform].to_s.downcase
         original_ocr_platform = payment[:platform].to_s
         Rails.logger.info("[ReplyService] PLATFORM_OVERRIDE ocr=#{original_ocr_platform} → db=#{resolved[:handle].platform} score=#{resolved[:score]} source=#{resolved[:source]} contact=#{contact_id}")
@@ -1289,8 +1308,15 @@ class Ai::ReplyService
   # cheaply returns is_payment:false for non-payment shots) than to silently
   # drop a real payment screenshot because FB labeled it oddly.
   def first_fb_image_url
-    match = @attachments.find { |a| a[:type] == 'image' || a[:type].to_s.empty? }
-    match && match[:url].to_s
+    match = @attachments.find do |a|
+      t = (a[:type] || a['type']).to_s
+      t == 'image' || t.empty?
+    end
+    return nil unless match
+
+    url = match[:url] || match['url']
+    payload_url = match.dig(:payload, :url) || match.dig('payload', 'url')
+    (url || payload_url).to_s.presence
   end
 
   def capture_routing_context_from_raw_slice(raw_slice)

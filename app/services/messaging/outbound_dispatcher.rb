@@ -15,6 +15,11 @@ module Messaging
       end
 
       provider = Messaging::BaseProvider.for(inbox)
+      original_len = text.to_s.length
+      if text.to_s.length > 2200
+        text = text.to_s[0, 2180] + "\n... (message trimmed)"
+        Rails.logger.warn("[OutboundDispatcher] truncated reply from #{original_len} to 2200 chars conv=#{conversation.id}")
+      end
       Rails.logger.info("[OutboundDispatcher] inbox=#{inbox.id} conv=#{conversation.id} provider=#{provider.class.name} text_len=#{text.to_s.length}")
 
       provider.send_message(
