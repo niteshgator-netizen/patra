@@ -1,4 +1,31 @@
 {
+  "PATRA_AUTH": {
+    "BRAND_INITIAL": "P",
+    "BRAND_NAME": "Patra",
+    "BRAND_DIAMOND": "◆",
+    "FOOTER": "© 2026 Patra · patrahq.com",
+    "THEME_TOGGLE_LABEL": "Toggle theme",
+    "LOGIN": {
+      "HEADING": "Welcome back to Patra",
+      "SUBHEAD": "Sign in to your inbox — every conversation, one place."
+    },
+    "SIGNUP": {
+      "HEADING": "Get started with Patra",
+      "SUBHEAD": "One inbox. One AI. Every conversation — go live in under 5 minutes."
+    },
+    "FORGOT": {
+      "HEADING": "Forgot your password?",
+      "SUBHEAD": "No problem. Enter your email and we'll send you a reset link."
+    },
+    "SET_PASSWORD": {
+      "HEADING": "Set a new password",
+      "SUBHEAD": "Choose a strong password to secure your account."
+    },
+    "VERIFY_EMAIL": {
+      "HEADING": "Check your inbox",
+      "SUBHEAD": "We've sent you a verification link. Click it to activate your account."
+    }
+  },
   "LOGIN": {
     "TITLE": "Login to Patra",
     "EMAIL": {

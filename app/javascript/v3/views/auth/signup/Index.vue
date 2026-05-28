@@ -2,9 +2,8 @@
 import { ref, computed, onBeforeMount } from 'vue';
 import { useStore } from 'vuex';
 import SignupForm from './components/Signup/Form.vue';
-import Testimonials from './components/Testimonials/Index.vue';
 import Spinner from 'shared/components/Spinner.vue';
-import signupBg from 'assets/images/auth/signup-bg.jpg';
+import AuthNavBar from '../../../components/Auth/AuthNavBar.vue';
 
 const store = useStore();
 
@@ -17,70 +16,64 @@ const isAChatwootInstance = computed(
 onBeforeMount(() => {
   isLoading.value = isAChatwootInstance.value;
 });
-
-const resizeContainers = () => {
-  isLoading.value = false;
-};
 </script>
 
 <template>
   <div
-    class="relative w-full h-full min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat p-4"
-    :style="{ backgroundImage: `url(${signupBg})` }"
+    class="relative min-h-screen flex flex-col bg-patra-canvas text-white font-sans overflow-x-hidden dark"
   >
     <div
-      class="absolute inset-0 bg-n-gray-12/60 dark:bg-n-gray-1/80 backdrop-blur-sm"
+      class="fixed inset-0 z-0 pointer-events-none bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_90%_60%_at_50%_30%,black_35%,transparent_100%)]"
     />
     <div
+      class="fixed top-[-15%] left-1/2 -translate-x-1/2 w-[1100px] h-[700px] z-0 pointer-events-none rounded-full blur-[80px] bg-[radial-gradient(circle_at_30%_30%,rgba(110,86,207,0.22),transparent_55%),radial-gradient(circle_at_70%_60%,rgba(139,92,246,0.14),transparent_55%)] animate-patra-mesh"
+    />
+
+    <AuthNavBar />
+
+    <main
       v-show="!isLoading"
-      class="relative flex max-w-[960px] bg-white dark:bg-n-solid-2 rounded-lg outline outline-1 outline-n-container shadow-sm"
-      :class="{ 'w-auto xl:w-full': isAChatwootInstance }"
+      class="flex-1 flex items-center justify-center px-5 py-12 relative z-10"
     >
-      <div class="flex-1 flex items-center justify-center py-10 px-10">
-        <div class="max-w-[420px] w-full">
-          <div class="mb-6">
-            <img
-              :src="globalConfig.logo"
-              :alt="globalConfig.installationName"
-              class="block w-auto h-7 dark:hidden"
-            />
-            <img
-              v-if="globalConfig.logoDark"
-              :src="globalConfig.logoDark"
-              :alt="globalConfig.installationName"
-              class="hidden w-auto h-7 dark:block"
-            />
-            <h2 class="mt-6 text-2xl font-semibold text-n-slate-12">
-              {{
-                isAChatwootInstance
-                  ? $t('REGISTER.GET_STARTED')
-                  : $t('REGISTER.TRY_WOOT')
-              }}
-            </h2>
-            <p class="mt-2 text-sm text-n-slate-11">
-              {{ $t('REGISTER.HAVE_AN_ACCOUNT') }}{{ ' '
-              }}<router-link
-                class="text-n-blue-10 font-medium hover:text-n-blue-11"
-                to="/app/login"
-              >
-                {{ $t('LOGIN.SUBMIT') }}
-              </router-link>
-            </p>
+      <div
+        class="w-full max-w-[440px] relative bg-patra-surface/55 backdrop-blur-xl border border-patra-border-hi rounded-3xl p-10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)] animate-card-in"
+      >
+        <div class="flex flex-col items-start mb-8">
+          <div
+            class="w-[46px] h-[46px] rounded-[13px] bg-gradient-to-br from-patra to-patra-deep flex items-center justify-center font-display font-bold text-white text-2xl mb-5 animate-patra-pulse"
+          >
+            {{ $t('PATRA_AUTH.BRAND_INITIAL') }}
           </div>
-          <SignupForm />
+          <h1
+            class="font-display font-semibold text-[26px] tracking-tight leading-snug mb-2"
+          >
+            {{ $t('PATRA_AUTH.SIGNUP.HEADING') }}
+          </h1>
+          <p class="text-zinc-400 text-sm leading-relaxed">
+            {{ $t('PATRA_AUTH.SIGNUP.SUBHEAD') }}
+          </p>
+          <p class="mt-3 text-sm text-zinc-400">
+            {{ $t('REGISTER.HAVE_AN_ACCOUNT') }}
+            <router-link class="text-link text-patra-light" to="/app/login">
+              {{ $t('LOGIN.SUBMIT') }}
+            </router-link>
+          </p>
         </div>
+        <SignupForm />
       </div>
-      <Testimonials
-        v-if="isAChatwootInstance"
-        class="flex-1 hidden xl:flex"
-        @resize-containers="resizeContainers"
-      />
-    </div>
+    </main>
+
     <div
       v-show="isLoading"
-      class="relative flex items-center justify-center w-full h-full"
+      class="flex-1 flex items-center justify-center relative z-10"
     >
       <Spinner color-scheme="primary" size="" />
+    </div>
+
+    <div
+      class="text-center py-6 text-[11px] text-zinc-500 font-mono tracking-wider relative z-10"
+    >
+      {{ $t('PATRA_AUTH.FOOTER') }}
     </div>
   </div>
 </template>

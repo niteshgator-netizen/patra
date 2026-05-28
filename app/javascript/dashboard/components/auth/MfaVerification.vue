@@ -227,6 +227,7 @@ const handleTryAnotherMethod = () => {
         <div v-if="verificationMethod === BACKUP">
           <FormInput
             v-model="backupCode"
+            variant="patra"
             name="backup_code"
             type="text"
             data-testid="backup_code_input"

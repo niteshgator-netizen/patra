@@ -39,9 +39,48 @@ const tailwindConfig = {
   theme: {
     extend: {
       fontFamily: {
-        sans: defaultSansFonts,
+        sans: ['Inter', 'system-ui', 'sans-serif'],
         inter: ['Inter', ...defaultSansFonts],
         interDisplay: ['InterDisplay', ...defaultSansFonts],
+        display: ['"Space Grotesk"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      colors: {
+        patra: {
+          DEFAULT: '#6E56CF',
+          light: '#8B5CF6',
+          deep: '#5B45B0',
+          canvas: '#0B0A0F',
+          surface: '#13121A',
+          'surface-2': '#1A1926',
+          'surface-3': '#232133',
+          border: '#1E1B29',
+          'border-hi': '#3B3554',
+        },
+      },
+      boxShadow: {
+        'patra-glow': '0 0 24px rgba(110,86,207,0.35)',
+        'patra-glow-hover': '0 0 36px rgba(110,86,207,0.55)',
+      },
+      animation: {
+        'patra-mesh': 'patra-mesh 16s ease-in-out infinite alternate',
+        'patra-pulse': 'patra-pulse 4s ease-in-out infinite',
+        'card-in': 'card-in 0.7s cubic-bezier(0.16,1,0.3,1)',
+      },
+      keyframes: {
+        'patra-mesh': {
+          '0%': { transform: 'translateX(-50%) scale(1) rotate(0deg)', opacity: '0.85' },
+          '50%': { transform: 'translateX(-52%) scale(1.06) rotate(4deg)', opacity: '1' },
+          '100%': { transform: 'translateX(-48%) scale(1.03) rotate(-3deg)', opacity: '0.9' },
+        },
+        'patra-pulse': {
+          '0%, 100%': { boxShadow: '0 0 24px rgba(110,86,207,0.5)' },
+          '50%': { boxShadow: '0 0 38px rgba(110,86,207,0.8)' },
+        },
+        'card-in': {
+          '0%': { opacity: '0', transform: 'translateY(20px) scale(0.97)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
       fontWeight: {
         420: '420',
