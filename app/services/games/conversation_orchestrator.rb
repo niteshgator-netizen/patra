@@ -986,7 +986,11 @@ module Games
 
         # Status must be confirmed/completed/verified (case-insensitive)
         status = log['status'].to_s.downcase
-        next unless %w[confirmed completed verified].include?(status)
+        # Accept "Email Verified", "Loaded"-eligible, and legacy confirmed/completed/verified
+        acceptable = %w[confirmed completed verified].include?(status) ||
+                     status.include?('verified') ||
+                     status == 'email verified'
+        next unless acceptable
 
         # CRITICAL: Reject flagged duplicates and anything with a flag_reason
         next if log['flag_reason'].to_s.strip.length > 0
@@ -1023,7 +1027,11 @@ module Games
         next unless log.is_a?(Hash)
 
         status = log['status'].to_s.downcase
-        next unless %w[confirmed completed verified].include?(status)
+        # Accept "Email Verified", "Loaded"-eligible, and legacy confirmed/completed/verified
+        acceptable = %w[confirmed completed verified].include?(status) ||
+                     status.include?('verified') ||
+                     status == 'email verified'
+        next unless acceptable
 
         # Reject flagged duplicates
         next if log['flag_reason'].to_s.strip.length > 0
