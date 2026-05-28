@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { picoSearch } from '@scmmishra/pico-search';
 
 import Button from 'dashboard/components-next/button/Button.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
 import {
   BaseTable,
   BaseTableRow,
@@ -33,9 +34,10 @@ const DEFAULT_SCORING_CONFIG = {
   recipient_match: 10,
   txn_id_present: 10,
   email_confirmed: 10,
-  note_present: 5,
+  note_match: 5,
   time_proximity: 5,
   time_proximity_minutes: 30,
+  time_match: 5,
   auto_load_threshold: 80,
   escalate_threshold: 40,
   decline_threshold: 39,
@@ -59,7 +61,7 @@ const SCORING_WEIGHT_FIELDS = [
   { key: 'recipient_match', labelKey: 'PAYMENT_HANDLES.SCORING_RECIPIENT' },
   { key: 'txn_id_present', labelKey: 'PAYMENT_HANDLES.SCORING_TXN' },
   { key: 'email_confirmed', labelKey: 'PAYMENT_HANDLES.SCORING_EMAIL' },
-  { key: 'note_present', labelKey: 'PAYMENT_HANDLES.SCORING_NOTE' },
+  { key: 'note_match', labelKey: 'PAYMENT_HANDLES.SCORING_NOTE' },
 ];
 
 const SCORING_THRESHOLD_FIELDS = [
@@ -89,23 +91,42 @@ const customRules = ref([]);
 const selectedScoringPlatform = ref('default');
 const scoringPlatformDraft = ref({ ...DEFAULT_SCORING_CONFIG });
 const scoringSaving = ref(false);
+const platformEnabled = ref({});
 
-const parseNumericConfig = raw =>
-  Object.fromEntries(
-    Object.entries(raw || {})
-      .filter(([key]) => SCORING_CONFIG_KEYS.includes(key))
-      .map(([key, value]) => [key, Number(value)])
-  );
+const NON_DEFAULT_SCORING_PLATFORMS = SCORING_PLATFORM_IDS.filter(
+  id => id !== 'default'
+);
+
+const parseNumericConfig = raw => {
+  const entries = Object.entries(raw || {})
+    .filter(([key]) => SCORING_CONFIG_KEYS.includes(key) || key === 'note_present')
+    .map(([key, value]) => {
+      const normalizedKey = key === 'note_present' ? 'note_match' : key;
+      return [normalizedKey, Number(value)];
+    });
+
+  return Object.fromEntries(entries);
+};
 
 const effectiveDefaultConfig = () => ({
   ...DEFAULT_SCORING_CONFIG,
   ...(scoringFullConfig.value.default || {}),
 });
 
-const isUsingDefault = computed(() => {
+const isPlatformInputsDisabled = computed(() => {
   if (selectedScoringPlatform.value === 'default') return false;
-  const override = scoringFullConfig.value[selectedScoringPlatform.value];
-  return !override || !Object.keys(override).length;
+  return !platformEnabled.value[selectedScoringPlatform.value];
+});
+
+const isCurrentPlatformEnabled = computed({
+  get() {
+    if (selectedScoringPlatform.value === 'default') return true;
+    return Boolean(platformEnabled.value[selectedScoringPlatform.value]);
+  },
+  set(enabled) {
+    if (selectedScoringPlatform.value === 'default') return;
+    onPlatformEnabledChange(selectedScoringPlatform.value, enabled);
+  },
 });
 
 const syncDraftFromPlatform = () => {
@@ -121,11 +142,27 @@ const syncDraftFromPlatform = () => {
     : { ...defaults };
 };
 
+const onPlatformEnabledChange = (platform, enabled) => {
+  platformEnabled.value = { ...platformEnabled.value, [platform]: enabled };
+
+  if (!enabled) {
+    delete scoringFullConfig.value[platform];
+    if (selectedScoringPlatform.value === platform) {
+      syncDraftFromPlatform();
+    }
+  }
+};
+
 const persistDraftToPlatform = () => {
   const draft = parseNumericConfig(scoringPlatformDraft.value);
 
   if (selectedScoringPlatform.value === 'default') {
     scoringFullConfig.value.default = draft;
+    return;
+  }
+
+  if (!platformEnabled.value[selectedScoringPlatform.value]) {
+    delete scoringFullConfig.value[selectedScoringPlatform.value];
     return;
   }
 
@@ -145,6 +182,7 @@ const persistDraftToPlatform = () => {
 };
 
 const onScoringInput = () => {
+  if (isPlatformInputsDisabled.value) return;
   persistDraftToPlatform();
 };
 
@@ -539,12 +577,21 @@ const loadScoringConfig = () => {
         );
       }
     });
+    NON_DEFAULT_SCORING_PLATFORMS.forEach(platformId => {
+      const override = scoringFullConfig.value[platformId];
+      platformEnabled.value[platformId] = Boolean(
+        override && Object.keys(override).length
+      );
+    });
   } else {
     const { custom_rules: _customRules, ...flatConfig } = saved;
     scoringFullConfig.value.default = {
       ...DEFAULT_SCORING_CONFIG,
       ...parseNumericConfig(flatConfig),
     };
+    NON_DEFAULT_SCORING_PLATFORMS.forEach(platformId => {
+      platformEnabled.value[platformId] = false;
+    });
   }
 
   customRules.value = Array.isArray(saved.custom_rules)
@@ -799,8 +846,22 @@ watch(selectedScoringPlatform, () => {
             </button>
           </div>
 
+          <div
+            v-if="selectedScoringPlatform !== 'default'"
+            class="mb-3 flex items-center gap-3"
+          >
+            <Switch v-model="isCurrentPlatformEnabled" />
+            <span class="text-sm text-n-slate-12">
+              {{
+                t('PAYMENT_HANDLES.SCORING_USE_CUSTOM', {
+                  platform: platformLabel(selectedScoringPlatform),
+                })
+              }}
+            </span>
+          </div>
+
           <p
-            v-if="isUsingDefault"
+            v-if="isPlatformInputsDisabled"
             class="mb-3 text-xs italic text-n-slate-11"
           >
             {{ t('PAYMENT_HANDLES.SCORING_USING_DEFAULT') }}
@@ -827,7 +888,11 @@ watch(selectedScoringPlatform, () => {
                 >
                   <span
                     class="text-sm"
-                    :class="isUsingDefault ? 'text-n-slate-10' : 'text-n-slate-12'"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10'
+                        : 'text-n-slate-12'
+                    "
                   >
                     {{ t(field.labelKey) }}
                   </span>
@@ -836,9 +901,10 @@ watch(selectedScoringPlatform, () => {
                     type="number"
                     min="0"
                     max="100"
+                    :disabled="isPlatformInputsDisabled"
                     class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
                     :class="
-                      isUsingDefault
+                      isPlatformInputsDisabled
                         ? 'text-n-slate-10 opacity-60'
                         : 'text-n-slate-12'
                     "
@@ -850,7 +916,11 @@ watch(selectedScoringPlatform, () => {
                 >
                   <span
                     class="text-sm"
-                    :class="isUsingDefault ? 'text-n-slate-10' : 'text-n-slate-12'"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10'
+                        : 'text-n-slate-12'
+                    "
                   >
                     {{ t('PAYMENT_HANDLES.SCORING_TIME') }}
                   </span>
@@ -863,9 +933,10 @@ watch(selectedScoringPlatform, () => {
                       type="number"
                       min="0"
                       max="100"
+                      :disabled="isPlatformInputsDisabled"
                       class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
                       :class="
-                        isUsingDefault
+                        isPlatformInputsDisabled
                           ? 'text-n-slate-10 opacity-60'
                           : 'text-n-slate-12'
                       "
@@ -881,9 +952,10 @@ watch(selectedScoringPlatform, () => {
                       type="number"
                       min="1"
                       max="1440"
+                      :disabled="isPlatformInputsDisabled"
                       class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
                       :class="
-                        isUsingDefault
+                        isPlatformInputsDisabled
                           ? 'text-n-slate-10 opacity-60'
                           : 'text-n-slate-12'
                       "
@@ -893,6 +965,34 @@ watch(selectedScoringPlatform, () => {
                       {{ t('PAYMENT_HANDLES.SCORING_TIME_MINUTES') }}
                     </span>
                   </div>
+                </div>
+                <div
+                  class="grid grid-cols-[1fr_5rem] items-center gap-2 px-3 py-2"
+                >
+                  <span
+                    class="text-sm"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10'
+                        : 'text-n-slate-12'
+                    "
+                  >
+                    {{ t('PAYMENT_HANDLES.SCORING_TIME_MATCH') }}
+                  </span>
+                  <input
+                    v-model.number="scoringPlatformDraft.time_match"
+                    type="number"
+                    min="0"
+                    max="100"
+                    :disabled="isPlatformInputsDisabled"
+                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10 opacity-60'
+                        : 'text-n-slate-12'
+                    "
+                    @input="onScoringInput"
+                  />
                 </div>
               </div>
             </div>
@@ -919,7 +1019,11 @@ watch(selectedScoringPlatform, () => {
                 >
                   <span
                     class="text-sm"
-                    :class="isUsingDefault ? 'text-n-slate-10' : 'text-n-slate-12'"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10'
+                        : 'text-n-slate-12'
+                    "
                   >
                     {{ field.prefix }}
                     {{ t(field.labelKey) }}
@@ -929,10 +1033,11 @@ watch(selectedScoringPlatform, () => {
                     type="number"
                     min="0"
                     max="100"
+                    :disabled="isPlatformInputsDisabled"
                     class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm"
                     :class="[
                       field.inputClass,
-                      isUsingDefault
+                      isPlatformInputsDisabled
                         ? 'text-n-slate-10 opacity-60'
                         : 'text-n-slate-12',
                     ]"
