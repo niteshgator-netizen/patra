@@ -1,106 +1,3 @@
-<template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
-    <div class="modal">
-      <header class="modal__head">
-        <div class="modal__title-wrap">
-          <div class="game-logo">{{ game.logo_emoji || '🎮' }}</div>
-          <div>
-            <h3 class="modal__title">{{ $t('GAMES.ACTIONS_MODAL.TITLE', { gameName: game.name }) }}</h3>
-            <div class="modal__subtitle">{{ game.domain }}</div>
-          </div>
-        </div>
-        <button class="modal__close" @click="$emit('close')">✕</button>
-      </header>
-
-      <div class="modal__body">
-        <div v-if="resultBanner" class="result-banner" :class="resultBanner.ok ? 'result-banner--ok' : 'result-banner--error'">
-          {{ resultBanner.message }}
-        </div>
-
-        <div class="field">
-          <label class="field__label">{{ $t('GAMES.ACTIONS_MODAL.USERNAME_LABEL') }}</label>
-          <input
-            v-model="username"
-            class="field__input"
-            :placeholder="$t('GAMES.ACTIONS_MODAL.USERNAME_PLACEHOLDER')"
-            @keyup.enter="onCheckBalance"
-          />
-        </div>
-
-        <div class="balance-row">
-          <button
-            class="btn btn--ghost"
-            :disabled="!username || isChecking"
-            @click="onCheckBalance"
-          >
-            {{ isChecking ? '…' : $t('GAMES.ACTIONS_MODAL.CHECK_BALANCE_BTN') }}
-          </button>
-          <button
-            type="button"
-            class="btn btn--secondary"
-            :disabled="!username || isCreating"
-            @click="onCreatePlayer"
-          >
-            {{ isCreating ? '…' : $t('GAMES.ACTIONS_MODAL.CREATE_PLAYER_BTN') }}
-          </button>
-          <button type="button" class="btn btn--secondary" :disabled="diagnosing" @click="runDiagnose">
-            {{ diagnosing ? '...' : 'Diagnose' }}
-          </button>
-          <span v-if="balance !== null" class="balance-result">
-            {{ $t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: balance }) }}
-          </span>
-        </div>
-
-        <div v-if="result" class="result-banner" :class="resultOk ? 'result-banner--ok' : 'result-banner--error'">
-          <pre class="diagnose-pre">{{ result }}</pre>
-        </div>
-
-        <div class="field">
-          <label class="field__label">{{ $t('GAMES.ACTIONS_MODAL.AMOUNT_LABEL') }}</label>
-          <input v-model.number="amount" class="field__input" type="number" min="0" step="0.01" placeholder="0.00" />
-        </div>
-
-        <div class="action-buttons">
-          <button
-            class="btn btn--primary"
-            :disabled="!canSubmit || isSubmitting"
-            @click="onLoad"
-          >
-            {{ isSubmitting && submitType === 'load' ? '…' : $t('GAMES.ACTIONS_MODAL.LOAD_BTN') }}
-          </button>
-          <button
-            class="btn btn--danger-solid"
-            :disabled="!canSubmit || isSubmitting"
-            @click="onCashout"
-          >
-            {{ isSubmitting && submitType === 'cashout' ? '…' : $t('GAMES.ACTIONS_MODAL.CASHOUT_BTN') }}
-          </button>
-        </div>
-
-        <div class="field">
-          <label class="field__label">{{ $t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_LABEL') }}</label>
-          <input
-            v-model="newPassword"
-            class="field__input"
-            type="text"
-            :placeholder="$t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_PLACEHOLDER')"
-          />
-        </div>
-
-        <div class="action-buttons action-buttons--reset">
-          <button
-            class="btn btn--secondary"
-            :disabled="!username || isResetting"
-            @click="onResetPassword"
-          >
-            {{ isResetting ? '…' : $t('GAMES.ACTIONS_MODAL.RESET_PASSWORD_BTN') }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script>
 import GamesAPI from '../../api/games';
 
@@ -110,7 +7,11 @@ const FASTAPI_NO_UNDERSCORE_SLUGS = ['vblink', 'ultra_panda'];
 function passwordFromUsername(username, gameSlug) {
   const name = username.toString().trim();
   if (!name) return '';
-  if (gameSlug && (CLUSTER_2_SLUGS.includes(gameSlug) || FASTAPI_NO_UNDERSCORE_SLUGS.includes(gameSlug))) {
+  if (
+    gameSlug &&
+    (CLUSTER_2_SLUGS.includes(gameSlug) ||
+      FASTAPI_NO_UNDERSCORE_SLUGS.includes(gameSlug))
+  ) {
     return name.replace(/[a-z]{2,3}$/i, '');
   }
   return name.split('_')[0] || name;
@@ -153,14 +54,25 @@ export default {
       this.resultBanner = null;
       this.result = '';
       try {
-        const response = await GamesAPI.checkPlayer(this.agentGame.id, this.username);
+        const response = await GamesAPI.checkPlayer(
+          this.agentGame.id,
+          this.username
+        );
         if (response.data.ok) {
           this.balance = response.data.balance;
         } else {
-          this.resultBanner = { ok: false, message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message };
+          this.resultBanner = {
+            ok: false,
+            message:
+              this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') +
+              response.data.message,
+          };
         }
       } catch (err) {
-        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Check failed' };
+        this.resultBanner = {
+          ok: false,
+          message: err.response?.data?.message || 'Check failed',
+        };
       } finally {
         this.isChecking = false;
       }
@@ -188,11 +100,16 @@ export default {
         } else {
           this.resultBanner = {
             ok: false,
-            message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message,
+            message:
+              this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') +
+              response.data.message,
           };
         }
       } catch (err) {
-        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Create failed' };
+        this.resultBanner = {
+          ok: false,
+          message: err.response?.data?.message || 'Create failed',
+        };
       } finally {
         this.isCreating = false;
       }
@@ -207,12 +124,17 @@ export default {
           `Agent ID: ${data.agent_id}`,
           `IP whitelist confirmed: ${data.ip_whitelist_confirmed}`,
           `Balance call: ${data.balance_call?.ok ? '✅' : '❌'} ${data.balance_call?.message || data.balance_call?.error || ''}`,
-          data.balance_call?.balance ? `Balance: $${data.balance_call.balance}` : ''
-        ].filter(Boolean).join('\n');
+          data.balance_call?.balance
+            ? `Balance: $${data.balance_call.balance}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join('\n');
         this.result = lines;
         this.resultOk = !!data.balance_call?.ok;
       } catch (e) {
-        this.result = 'Diagnose failed: ' + (e.response?.data?.error || e.message);
+        this.result =
+          'Diagnose failed: ' + (e.response?.data?.error || e.message);
         this.resultOk = false;
       } finally {
         this.diagnosing = false;
@@ -230,13 +152,27 @@ export default {
           amount: this.amount,
         });
         if (response.data.ok) {
-          this.resultBanner = { ok: true, message: this.$t('GAMES.ACTIONS_MODAL.LOAD_SUCCESS', { amount: this.amount, username: this.username }) };
+          this.resultBanner = {
+            ok: true,
+            message: this.$t('GAMES.ACTIONS_MODAL.LOAD_SUCCESS', {
+              amount: this.amount,
+              username: this.username,
+            }),
+          };
           this.amount = null;
         } else {
-          this.resultBanner = { ok: false, message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message };
+          this.resultBanner = {
+            ok: false,
+            message:
+              this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') +
+              response.data.message,
+          };
         }
       } catch (err) {
-        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Load failed' };
+        this.resultBanner = {
+          ok: false,
+          message: err.response?.data?.message || 'Load failed',
+        };
       } finally {
         this.isSubmitting = false;
         this.submitType = null;
@@ -244,7 +180,9 @@ export default {
     },
     async onCashout() {
       if (!this.canSubmit) return;
-      const confirmed = window.confirm(`Cashout $${this.amount} from ${this.username}?\n\nThis will withdraw real money from the player's game balance.`);
+      const confirmed = window.confirm(
+        `Cashout $${this.amount} from ${this.username}?\n\nThis will withdraw real money from the player's game balance.`
+      );
       if (!confirmed) return;
       this.isSubmitting = true;
       this.submitType = 'cashout';
@@ -256,13 +194,27 @@ export default {
           amount: this.amount,
         });
         if (response.data.ok) {
-          this.resultBanner = { ok: true, message: this.$t('GAMES.ACTIONS_MODAL.CASHOUT_SUCCESS', { amount: this.amount, username: this.username }) };
+          this.resultBanner = {
+            ok: true,
+            message: this.$t('GAMES.ACTIONS_MODAL.CASHOUT_SUCCESS', {
+              amount: this.amount,
+              username: this.username,
+            }),
+          };
           this.amount = null;
         } else {
-          this.resultBanner = { ok: false, message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message };
+          this.resultBanner = {
+            ok: false,
+            message:
+              this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') +
+              response.data.message,
+          };
         }
       } catch (err) {
-        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Cashout failed' };
+        this.resultBanner = {
+          ok: false,
+          message: err.response?.data?.message || 'Cashout failed',
+        };
       } finally {
         this.isSubmitting = false;
         this.submitType = null;
@@ -275,8 +227,12 @@ export default {
       this.result = '';
       try {
         const payload = { game_username: this.username.trim() };
-        if (this.newPassword.trim()) payload.new_password = this.newPassword.trim();
-        const response = await GamesAPI.resetPlayerPassword(this.agentGame.id, payload);
+        if (this.newPassword.trim())
+          payload.new_password = this.newPassword.trim();
+        const response = await GamesAPI.resetPlayerPassword(
+          this.agentGame.id,
+          payload
+        );
         if (response.data.ok) {
           this.resultBanner = {
             ok: true,
@@ -288,11 +244,16 @@ export default {
         } else {
           this.resultBanner = {
             ok: false,
-            message: this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') + response.data.message,
+            message:
+              this.$t('GAMES.ACTIONS_MODAL.ERROR_PREFIX') +
+              response.data.message,
           };
         }
       } catch (err) {
-        this.resultBanner = { ok: false, message: err.response?.data?.message || 'Reset failed' };
+        this.resultBanner = {
+          ok: false,
+          message: err.response?.data?.message || 'Reset failed',
+        };
       } finally {
         this.isResetting = false;
       }
@@ -301,111 +262,310 @@ export default {
 };
 </script>
 
+<template>
+  <div class="modal-backdrop" @click.self="$emit('close')">
+    <div class="modal">
+      <header class="modal__head">
+        <div class="modal__title-wrap">
+          <div class="game-logo">{{ game.logo_emoji || '🎮' }}</div>
+          <div>
+            <h3 class="modal__title">
+              {{ $t('GAMES.ACTIONS_MODAL.TITLE', { gameName: game.name }) }}
+            </h3>
+            <div class="modal__subtitle">{{ game.domain }}</div>
+          </div>
+        </div>
+        <button class="modal__close" @click="$emit('close')">
+          {{ $t('GAMES.ACTIONS.CLOSE_ICON') }}
+        </button>
+      </header>
+
+      <div class="modal__body">
+        <div
+          v-if="resultBanner"
+          class="result-banner"
+          :class="
+            resultBanner.ok ? 'result-banner--ok' : 'result-banner--error'
+          "
+        >
+          {{ resultBanner.message }}
+        </div>
+
+        <div class="field">
+          <label class="field__label">{{
+            $t('GAMES.ACTIONS_MODAL.USERNAME_LABEL')
+          }}</label>
+          <input
+            v-model="username"
+            class="field__input"
+            :placeholder="$t('GAMES.ACTIONS_MODAL.USERNAME_PLACEHOLDER')"
+            @keyup.enter="onCheckBalance"
+          />
+        </div>
+
+        <div class="balance-row">
+          <button
+            class="btn btn--ghost"
+            :disabled="!username || isChecking"
+            @click="onCheckBalance"
+          >
+            {{
+              isChecking
+                ? $t('GAMES.ACTIONS_MODAL.BUSY_ELLIPSIS')
+                : $t('GAMES.ACTIONS_MODAL.CHECK_BALANCE_BTN')
+            }}
+          </button>
+          <button
+            type="button"
+            class="btn btn--secondary"
+            :disabled="!username || isCreating"
+            @click="onCreatePlayer"
+          >
+            {{
+              isCreating
+                ? $t('GAMES.ACTIONS_MODAL.BUSY_ELLIPSIS')
+                : $t('GAMES.ACTIONS_MODAL.CREATE_PLAYER_BTN')
+            }}
+          </button>
+          <button
+            type="button"
+            class="btn btn--secondary"
+            :disabled="diagnosing"
+            @click="runDiagnose"
+          >
+            {{
+              diagnosing
+                ? $t('GAMES.ACTIONS_MODAL.DIAGNOSING_ELLIPSIS')
+                : $t('GAMES.ACTIONS_MODAL.DIAGNOSE_BTN')
+            }}
+          </button>
+          <span v-if="balance !== null" class="balance-result">
+            {{ $t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: balance }) }}
+          </span>
+        </div>
+
+        <div
+          v-if="result"
+          class="result-banner"
+          :class="resultOk ? 'result-banner--ok' : 'result-banner--error'"
+        >
+          <pre class="diagnose-pre">{{ result }}</pre>
+        </div>
+
+        <div class="field">
+          <label class="field__label">{{
+            $t('GAMES.ACTIONS_MODAL.AMOUNT_LABEL')
+          }}</label>
+          <input
+            v-model.number="amount"
+            class="field__input"
+            type="number"
+            min="0"
+            step="0.01"
+            :placeholder="$t('GAMES.ACTIONS_MODAL.AMOUNT_PLACEHOLDER')"
+          />
+        </div>
+
+        <div class="action-buttons">
+          <button
+            class="btn btn--primary"
+            :disabled="!canSubmit || isSubmitting"
+            @click="onLoad"
+          >
+            {{
+              isSubmitting && submitType === 'load'
+                ? $t('GAMES.ACTIONS_MODAL.BUSY_ELLIPSIS')
+                : $t('GAMES.ACTIONS_MODAL.LOAD_BTN')
+            }}
+          </button>
+          <button
+            class="btn btn--danger-solid"
+            :disabled="!canSubmit || isSubmitting"
+            @click="onCashout"
+          >
+            {{
+              isSubmitting && submitType === 'cashout'
+                ? $t('GAMES.ACTIONS_MODAL.BUSY_ELLIPSIS')
+                : $t('GAMES.ACTIONS_MODAL.CASHOUT_BTN')
+            }}
+          </button>
+        </div>
+
+        <div class="field">
+          <label class="field__label">{{
+            $t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_LABEL')
+          }}</label>
+          <input
+            v-model="newPassword"
+            class="field__input"
+            type="text"
+            :placeholder="$t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_PLACEHOLDER')"
+          />
+        </div>
+
+        <div class="action-buttons action-buttons--reset">
+          <button
+            class="btn btn--secondary"
+            :disabled="!username || isResetting"
+            @click="onResetPassword"
+          >
+            {{
+              isResetting
+                ? $t('GAMES.ACTIONS_MODAL.BUSY_ELLIPSIS')
+                : $t('GAMES.ACTIONS_MODAL.RESET_PASSWORD_BTN')
+            }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style lang="scss" scoped>
 .modal-backdrop {
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   background: rgba(11, 8, 23, 0.7);
   backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999; padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
 }
 
 .modal {
-  background: #16102B !important;
-  border: 1px solid #2D2356 !important;
+  background: #16102b !important;
+  border: 1px solid #2d2356 !important;
   border-radius: 16px;
-  width: 100%; max-width: 480px;
+  width: 100%;
+  max-width: 480px;
   max-height: 90vh;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  color: #F4F1FF !important;
+  color: #f4f1ff !important;
   font-family: 'Inter', sans-serif;
 
   &__head {
     padding: 18px 22px;
-    border-bottom: 1px solid #2D2356;
-    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #2d2356;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
 
-  &__title-wrap { display: flex; align-items: center; gap: 12px; }
+  &__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
   &__title {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 17px; font-weight: 700; margin: 0;
-    color: #F4F1FF !important;
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    color: #f4f1ff !important;
   }
   &__subtitle {
     font-size: 11px;
-    color: #6F6692 !important;
+    color: #6f6692 !important;
     font-family: 'JetBrains Mono', monospace;
     margin-top: 2px;
   }
 
   &__close {
     background: transparent !important;
-    border: 1px solid #2D2356 !important;
-    color: #A89FCC !important;
-    width: 30px; height: 30px;
+    border: 1px solid #2d2356 !important;
+    color: #a89fcc !important;
+    width: 30px;
+    height: 30px;
     border-radius: 7px;
     cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     padding: 0;
-    &:hover { color: #F4F1FF !important; border-color: #4A3A8A !important; }
+    &:hover {
+      color: #f4f1ff !important;
+      border-color: #4a3a8a !important;
+    }
   }
 
-  &__body { padding: 22px; overflow-y: auto; }
+  &__body {
+    padding: 22px;
+    overflow-y: auto;
+  }
 }
 
 .game-logo {
-  width: 38px; height: 38px;
+  width: 38px;
+  height: 38px;
   border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 18px;
-  background: #1F1740 !important;
-  border: 1px solid #2D2356 !important;
+  background: #1f1740 !important;
+  border: 1px solid #2d2356 !important;
 }
 
-.field { margin-bottom: 14px;
+.field {
+  margin-bottom: 14px;
 
   &__label {
-    display: block; font-size: 12px;
-    color: #A89FCC !important;
-    margin-bottom: 6px; font-weight: 500;
+    display: block;
+    font-size: 12px;
+    color: #a89fcc !important;
+    margin-bottom: 6px;
+    font-weight: 500;
   }
 
   &__input {
     width: 100%;
-    background: #1F1740 !important;
-    border: 1px solid #2D2356 !important;
+    background: #1f1740 !important;
+    border: 1px solid #2d2356 !important;
     border-radius: 8px !important;
     padding: 9px 12px !important;
-    color: #F4F1FF !important;
+    color: #f4f1ff !important;
     font-size: 13px !important;
     font-family: 'JetBrains Mono', monospace !important;
-    box-shadow: none !important; margin: 0 !important; height: auto !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    height: auto !important;
 
-    &::placeholder { color: #6F6692 !important; }
+    &::placeholder {
+      color: #6f6692 !important;
+    }
     &:focus {
-      outline: 2px solid #D4AF37 !important;
+      outline: 2px solid #d4af37 !important;
       border-color: transparent !important;
-      background: #1F1740 !important; box-shadow: none !important;
+      background: #1f1740 !important;
+      box-shadow: none !important;
     }
   }
 }
 
 .balance-row {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 14px; flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 
 .balance-result {
   font-size: 13px;
-  color: #4ADE80;
+  color: #4ade80;
   font-family: 'JetBrains Mono', monospace;
 }
 
 .action-buttons {
-  display: flex; gap: 8px; margin-top: 16px;
-  padding-top: 16px; border-top: 1px solid #2D2356;
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #2d2356;
 
   &--reset {
     margin-top: 8px;
@@ -423,12 +583,12 @@ export default {
   &--ok {
     background: rgba(74, 222, 128, 0.12) !important;
     border: 1px solid rgba(74, 222, 128, 0.3) !important;
-    color: #4ADE80 !important;
+    color: #4ade80 !important;
   }
   &--error {
     background: rgba(248, 113, 113, 0.12) !important;
     border: 1px solid rgba(248, 113, 113, 0.3) !important;
-    color: #F87171 !important;
+    color: #f87171 !important;
   }
 }
 
@@ -441,50 +601,65 @@ export default {
 
 .btn {
   font-family: 'Inter', sans-serif !important;
-  font-size: 13px !important; font-weight: 600 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
   padding: 9px 16px !important;
   border-radius: 8px !important;
-  border: 1px solid #2D2356 !important;
-  background: #1F1740 !important;
-  color: #F4F1FF !important;
-  cursor: pointer; transition: all 0.15s;
-  margin: 0 !important; height: auto !important;
+  border: 1px solid #2d2356 !important;
+  background: #1f1740 !important;
+  color: #f4f1ff !important;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin: 0 !important;
+  height: auto !important;
 
-  &:hover { border-color: #4A3A8A !important; background: #2D2356 !important; }
-  &:disabled { opacity: 0.5 !important; cursor: not-allowed; }
+  &:hover {
+    border-color: #4a3a8a !important;
+    background: #2d2356 !important;
+  }
+  &:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed;
+  }
 
   &--primary {
-    background: #D4AF37 !important;
-    color: #0B0817 !important;
-    border-color: #D4AF37 !important;
+    background: #d4af37 !important;
+    color: #0b0817 !important;
+    border-color: #d4af37 !important;
     flex: 1;
-    &:hover { background: #B8961F !important; border-color: #B8961F !important; }
+    &:hover {
+      background: #b8961f !important;
+      border-color: #b8961f !important;
+    }
   }
 
   &--ghost {
     background: transparent !important;
-    color: #A89FCC !important;
-    &:hover { color: #F4F1FF !important; border-color: #4A3A8A !important; }
+    color: #a89fcc !important;
+    &:hover {
+      color: #f4f1ff !important;
+      border-color: #4a3a8a !important;
+    }
   }
 
   &--danger-solid {
     background: rgba(248, 113, 113, 0.12) !important;
-    color: #F87171 !important;
+    color: #f87171 !important;
     border-color: rgba(248, 113, 113, 0.3) !important;
     flex: 1;
     &:hover {
       background: rgba(248, 113, 113, 0.18) !important;
-      border-color: #F87171 !important;
+      border-color: #f87171 !important;
     }
   }
 
   &--secondary {
     background: rgba(255, 255, 255, 0.06) !important;
-    color: #A89FCC !important;
-    border: 1px solid #2D2356 !important;
+    color: #a89fcc !important;
+    border: 1px solid #2d2356 !important;
     &:hover:not(:disabled) {
-      color: #F4F1FF !important;
-      border-color: #4A3A8A !important;
+      color: #f4f1ff !important;
+      border-color: #4a3a8a !important;
     }
   }
 }

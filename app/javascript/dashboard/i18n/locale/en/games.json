@@ -3,6 +3,9 @@
     "NAV_LABEL": "Games",
     "HEADER": "Game integrations",
     "DESCRIPTION": "Connect the social games platforms you operate. Bella will reference active games when customers ask, and route load/redeem actions through your stored API credentials.",
+    "BREADCRUMB_PREFIX": "SETTINGS / INTEGRATIONS / ",
+    "BREADCRUMB_CURRENT": "GAMES",
+    "TIP_ICON": "💡",
     "TIP_BANNER": "Your API keys are encrypted and isolated to your workspace — Patra never sees other operators' data.",
     "LOADING": "Loading games…",
     "STATS": {
@@ -24,7 +27,8 @@
       "SAVE": "Save changes",
       "CANCEL": "Cancel",
       "TEST_CONNECTION": "Test connection",
-      "DISCONNECT": "Disconnect"
+      "DISCONNECT": "Disconnect",
+      "CLOSE_ICON": "✕"
     },
     "ACTIONS_MODAL": {
       "TITLE": "Manage Players · {gameName}",
@@ -40,6 +44,10 @@
       "NEW_PASSWORD_PLACEHOLDER": "Leave blank to auto-generate",
       "LOAD_BTN": "Load",
       "CASHOUT_BTN": "Cashout",
+      "DIAGNOSE_BTN": "Diagnose",
+      "AMOUNT_PLACEHOLDER": "0.00",
+      "BUSY_ELLIPSIS": "…",
+      "DIAGNOSING_ELLIPSIS": "...",
       "BALANCE_RESULT": "Player balance: ${balance}",
       "LOAD_SUCCESS": "✓ Loaded ${amount} to {username}",
       "CASHOUT_SUCCESS": "✓ Cashed out ${amount} from {username}",
@@ -78,6 +86,10 @@
       "COPY_IPS": "Copy all IPs",
       "IPS_COPIED": "IPs copied to clipboard",
       "TESTING": "Testing…",
+      "SAVING": "…",
+      "TEST_OK": "✓ {message}",
+      "TEST_OK_WITH_BALANCE": "✓ {message} · Balance: ${balance}",
+      "TEST_FAIL": "✗ {message}",
       "IP_WHITELIST_HELP": "Required for API connection. Find this in your {gameName} agent panel.",
       "DISPLAY_NAME_LABEL": "Display name (optional)",
       "DISPLAY_NAME_HELP": "How Bella will refer to this game",
