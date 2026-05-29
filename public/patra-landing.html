@@ -24,8 +24,8 @@
   --mesh-1:rgba(110,86,207,0.12);--mesh-2:rgba(139,92,246,0.08);
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{background:var(--canvas);color:var(--text);font-family:'Inter',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .4s ease,color .4s ease;}
+html{scroll-behavior:smooth;overflow-x:hidden;}
+body{background:var(--canvas);color:var(--text);font-family:'Inter',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;max-width:100vw;transition:background .4s ease,color .4s ease;}
 .display{font-family:'Space Grotesk',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}
 .wrap{width:100%;max-width:1280px;margin:0 auto;padding:0 24px;}
@@ -415,6 +415,33 @@ footer{position:relative;z-index:1;border-top:1px solid var(--border);margin-top
 @media (prefers-reduced-motion: reduce){.hero-float,.mesh-bg{animation:none;}}
 @media(max-width:900px){.nav-links{display:none;}.bento{grid-template-columns:1fr;}.span2{grid-column:span 1;}.process{grid-template-columns:1fr;gap:32px;}.band-box{grid-template-columns:1fr;padding:32px;}.pricing{grid-template-columns:1fr;max-width:400px;}.counter-grid{grid-template-columns:1fr 1fr;}.foot-grid{grid-template-columns:1fr 1fr;}.dash-body{grid-template-columns:1fr;}.dash-side{display:none;}.sec,.tsec,.faq,.phone-sec,.hub-sec{padding:70px 0;}.hub-wrap,.sum-wrap,.notify-wrap{grid-template-columns:1fr;gap:40px;}.hub-copy,.sum-copy,.notify-copy{text-align:center;}.notify-copy .phone-feats li{justify-content:center;}.sum-stats{grid-template-columns:repeat(4,1fr);}.phone-overlap{position:relative;right:auto;bottom:auto;margin:-30px auto 0;}.devices{flex-direction:column;align-items:center;}.laptop{width:100%;}}
 @media(max-width:480px){.wrap{padding:0 16px;}.hero{padding-top:60px;}.hero-cta{flex-direction:column;width:100%;}.hero-cta .btn{width:100%;justify-content:center;}.counter-grid{grid-template-columns:1fr 1fr;gap:14px;}.counter-card{padding:18px;}.foot-grid{grid-template-columns:1fr;}.final-form{flex-direction:column;}.final-form .btn{width:100%;justify-content:center;}.phone{width:260px;}.tcard{width:290px;}.nav-inner{padding:0 10px 0 16px;}.nav-actions .btn-ghost{display:none;}.flow{grid-template-columns:1fr;gap:16px;}.flow-core::before,.flow-core::after{display:none;}.flow-col{flex-direction:row;flex-wrap:wrap;justify-content:center;}.notify-phone{width:280px;}.sum-stats{grid-template-columns:1fr 1fr;}}
+
+/* === MOBILE PERFORMANCE (fixes lag + sideways slide on phones) === */
+@media(max-width:900px){
+  /* Heavy blurred glows are GPU-expensive on phones — shrink + reduce blur drastically */
+  .mesh-bg{width:600px;height:400px;filter:blur(50px);animation:none;opacity:.5;}
+  .hero-glow,.final-glow,.device-glow,.phone-glow,.notify-glow,.hub-glow,.stage-glow{filter:blur(35px);opacity:.6;}
+  /* Stop the gentle float animations on mobile — they cause repaint jank */
+  .hero-float,.flow-chip,.flow-out-tag,.phone,.notify-phone{animation:none !important;}
+  /* Lighter nav blur */
+  .nav-inner{backdrop-filter:blur(8px);}
+  /* Belt-and-suspenders: nothing may exceed viewport width */
+  .marquee,.trow,.devices,.hub-visual,.dashboard,section,.wrap{max-width:100vw;}
+  .marquee-track,.ttrack{will-change:transform;}
+}
+@media(max-width:480px){
+  /* Kill almost all blur on small phones — biggest perf win */
+  .mesh-bg{filter:blur(40px);opacity:.4;}
+  .hero-glow,.final-glow,.device-glow,.phone-glow,.notify-glow,.hub-glow,.stage-glow{filter:blur(28px);opacity:.5;}
+  .tcard{width:260px;}
+}
+/* Laptop base sticks out 18% wider than screen on mobile -> sideways slide. Contain it. */
+@media(max-width:900px){
+  .laptop{width:88%;}
+  .laptop-base{width:104%;margin-left:-2%;}
+  .phone-overlap{width:200px;}
+  .device-glow{width:90%;}
+}
 </style>
 </head>
 <body>
