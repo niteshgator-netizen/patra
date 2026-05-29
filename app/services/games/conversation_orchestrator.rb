@@ -135,8 +135,20 @@ module Games
 
       requested_amount = intent[:amount].to_f
 
+      # No explicit amount ("load on juwa") — use the most recent confirmed
+      # unloaded payment's amount instead of defaulting to $0.
+      payment = nil
+      if requested_amount <= 0
+        fallback_payment = find_unloaded_confirmed_payment
+        if fallback_payment
+          requested_amount = fallback_payment[:amount].to_f
+          Rails.logger.info("[Orchestrator] amount-less load → using unloaded payment amount=#{requested_amount}")
+          payment = fallback_payment
+        end
+      end
+
       # PAYMENT GATE: must have confirmed payment matching this amount
-      payment = find_matching_confirmed_payment(requested_amount)
+      payment ||= find_matching_confirmed_payment(requested_amount)
 
       unless payment
         # No payment yet — ask for it. Bug 7 fix: pass the default active
