@@ -1,3 +1,19 @@
+<script>
+export default {
+  name: 'GameCard',
+  props: {
+    game: { type: Object, required: true },
+    agentGame: { type: Object, default: null },
+  },
+  emits: ['configure', 'toggle', 'managePlayers'],
+  computed: {
+    isActive() {
+      return this.agentGame?.status === 'active';
+    },
+  },
+};
+</script>
+
 <template>
   <div class="game-card" :class="{ 'is-active': isActive }">
     <div class="game-card__head">
@@ -15,7 +31,10 @@
       <span v-else class="pill pill--inactive">
         {{ $t('GAMES.STATUS.INACTIVE') }}
       </span>
-      <span v-if="isActive && agentGame && agentGame.api_configured" class="pill pill--api">
+      <span
+        v-if="isActive && agentGame && agentGame.api_configured"
+        class="pill pill--api"
+      >
         {{ $t('GAMES.STATUS.API_CONNECTED') }}
       </span>
       <span v-else-if="isActive && game.has_api" class="pill pill--pending">
@@ -31,31 +50,19 @@
         <button
           v-if="isActive && agentGame && agentGame.api_configured"
           class="btn btn--accent"
-          @click.stop="$emit('manage-players')"
+          @click.stop="$emit('managePlayers')"
         >
           {{ $t('GAMES.CARD_ACTIONS.MANAGE_PLAYERS') }}
         </button>
       </div>
-      <div class="toggle-switch" :class="{ on: isActive }" @click.stop="$emit('toggle')"></div>
+      <div
+        class="toggle-switch"
+        :class="{ on: isActive }"
+        @click.stop="$emit('toggle')"
+      />
     </div>
   </div>
 </template>
-
-<script>
-export default {
-  name: 'GameCard',
-  props: {
-    game: { type: Object, required: true },
-    agentGame: { type: Object, default: null },
-  },
-  emits: ['configure', 'toggle', 'manage-players'],
-  computed: {
-    isActive() {
-      return this.agentGame?.status === 'active';
-    },
-  },
-};
-</script>
 
 <style lang="scss" scoped>
 .game-card {
