@@ -1082,7 +1082,7 @@ module Games
         # TIGHTER WINDOW: 30 minutes, not 6 hours
         next if recorded && recorded < 30.minutes.ago
 
-        log_id = log['id'] || log['transaction_id'] || "#{log['amount']}_#{log['recorded_at']}"
+        log_id = log['id'].presence || log['transaction_id'].presence || log['image_url'].presence || "#{log['amount']}_#{log['recorded_at']}"
         next if payment_already_loaded?(log_id, amount, recorded)
 
         Rails.logger.info("[Orchestrator] found unloaded payment id=#{log_id} amount=#{amount}")
@@ -1113,7 +1113,7 @@ module Games
         logs.each do |entry|
           next unless entry.is_a?(Hash)
 
-          log_id = entry['id'] || entry['transaction_id'] || "#{entry['amount']}_#{entry['recorded_at']}"
+          log_id = entry['id'].presence || entry['transaction_id'].presence || entry['image_url'].presence || "#{entry['amount']}_#{entry['recorded_at']}"
           matches = log_id.to_s == payment_id.to_s ||
                     entry['transaction_id'].to_s == payment_id.to_s
           next unless matches
