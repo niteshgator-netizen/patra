@@ -11,7 +11,9 @@ module Games
       /top\s*up\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /deposit\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /load\s+(\d+(?:\.\d{1,2})?)\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
-      /(\d+(?:\.\d{1,2})?)\s*\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i
+      /(\d+(?:\.\d{1,2})?)\s*\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
+      # Amount-less: "load please on gameroom", "load it", "load on juwa", "load me up"
+      /\b(?:load|recharge|top\s*up)\b(?:\s+(?:me|it|please|up|now|my\s+account))*(?:\s+(?:on|to|for|in)\s+[a-z0-9_]{3,20})?/i
     ].freeze
 
     CASHOUT_PATTERNS = [
@@ -334,10 +336,10 @@ module Games
                       reload_amount: extract_reload(text)
                     }
                   elsif (m = match_any(text, LOAD_PATTERNS))
-                    amount = m[1].to_f
+                    amount = m[1] ? m[1].to_f : nil
                     # Some patterns capture username in group 2
                     captured_username = m[2] if m.size > 2 && m[2].present?
-                    Rails.logger.info("[IntentDetector] matched load amount=#{m[1]}")
+                    Rails.logger.info("[IntentDetector] matched load amount=#{m[1].inspect}")
                     {
                       intent: :load,
                       amount: amount,
