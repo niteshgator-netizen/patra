@@ -738,9 +738,18 @@ class Ai::ReplyService
               add_conversation_labels!(%w[payment-pending cashier-review])
               Rails.logger.info("[ReplyService] SCORE_ACTION=escalate score=#{score} threshold=#{escalate_threshold} contact=#{contact_id}")
             else
-              grok_injection = "PAYMENT LOW CONFIDENCE (score #{score}/100). The screenshot couldn't be fully verified. Ask the customer to resend a clearer screenshot showing the full payment receipt with all details visible. Be polite, max 2 lines."
-              add_conversation_labels!(%w[payment-unclear])
-              Rails.logger.info("[ReplyService] SCORE_ACTION=decline score=#{score} contact=#{contact_id}")
+              # Only decline-for-resend if email confirmation ALREADY ran and still low.
+              # On first pass (email not yet checked), escalate instead — the async IMAP
+              # job will re-score once the confirmation email arrives.
+              if entry['email_confirmed'] == true
+                grok_injection = "PAYMENT LOW CONFIDENCE (score #{score}/100, email already checked). Ask the customer to double-check they sent to the right handle and resend the receipt if needed. Be polite, max 2 lines."
+                add_conversation_labels!(%w[payment-unclear])
+                Rails.logger.info("[ReplyService] SCORE_ACTION=decline score=#{score} contact=#{contact_id}")
+              else
+                grok_injection = "PAYMENT RECEIVED (score #{score}/100, verifying with bank). Tell the customer you got their payment and you're confirming it now — should be done shortly. Never say the screenshot is blurry or ask them to resend. Max 2 lines, casual."
+                add_conversation_labels!(%w[payment-pending cashier-review])
+                Rails.logger.info("[ReplyService] SCORE_ACTION=pending_no_email score=#{score} contact=#{contact_id}")
+              end
             end
           end
 

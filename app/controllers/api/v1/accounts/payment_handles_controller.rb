@@ -80,6 +80,7 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
 
     sorted.each do |e|
       breakdown = Payments::EmailConfirmationService.confidence_score(e, account: Current.account)
+      Rails.logger.info("[Ledger] entry score=#{breakdown['total']} platform=#{e['platform']} keys=#{breakdown.keys.join(',')}")
       e['confidence_score'] = breakdown['total']
       e['score_breakdown'] = breakdown
     end
@@ -101,7 +102,7 @@ class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseContr
   end
 
   def ledger_entry_timestamp(entry)
-    raw = entry['image_received_at']
+    raw = entry['transaction_time'].presence || entry['transaction_date'].presence || entry['image_received_at']
     return raw if raw.is_a?(Time) || raw.is_a?(ActiveSupport::TimeWithZone)
 
     Time.zone.parse(raw.to_s)
