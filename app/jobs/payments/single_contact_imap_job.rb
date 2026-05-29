@@ -20,8 +20,8 @@ module Payments
 
     private
 
-    # After IMAP confirms, find a newly-verified payment that scores high enough
-    # and hasn't been announced/loaded yet. Fire a single Bella follow-up.
+    # After IMAP confirms, find a newly-verified payment that hasn't been announced/loaded yet.
+    # Branch on score: auto-load, escalate to cashier, or no action.
     def announce_verified_payment(account, contact)
       contact.reload
       logs = Array(contact.custom_attributes['patra_finance_logs'])
@@ -43,23 +43,51 @@ module Payments
           next false
         end
 
-        platform_cfg = Payments::EmailConfirmationService.scoring_config_for(account, platform: e['platform'].to_s)
-        score = Payments::EmailConfirmationService.confidence_score(e, account: account)['total'].to_i
-        score >= platform_cfg['auto_load_threshold'].to_i
+        true # take the most recent verified+unannounced payment; branch on score below
       end
 
       return unless target
 
+      platform_cfg = Payments::EmailConfirmationService.scoring_config_for(account, platform: target['platform'].to_s)
+      score = Payments::EmailConfirmationService.confidence_score(target, account: account)['total'].to_i
+      auto_load = platform_cfg['auto_load_threshold'].to_i
+      escalate = platform_cfg['escalate_threshold'].to_i
+
       # Mark announced FIRST so it never double-fires even if the rest raises
       mark_announced!(contact, target)
-
       amount = target['amount']
-      Rails.logger.info("[SingleContactImapJob] announcing verified payment amount=#{amount} contact=#{contact.id}")
-
       conv = account.conversations.where(contact_id: contact.id).order(last_activity_at: :desc).first
       return unless conv
 
-      Payments::AnnounceVerifiedPaymentJob.perform_later(account.id, contact.id, conv.display_id, amount)
+      if score >= auto_load
+        Rails.logger.info("[SingleContactImapJob] auto-load announce amount=#{amount} score=#{score} contact=#{contact.id}")
+        Payments::AnnounceVerifiedPaymentJob.perform_later(account.id, contact.id, conv.display_id, amount)
+      elsif score >= escalate
+        Rails.logger.info("[SingleContactImapJob] escalate-to-cashier amount=#{amount} score=#{score} contact=#{contact.id}")
+        # Tell the customer we're verifying
+        begin
+          Messaging::OutboundDispatcher.send(
+            inbox: conv.inbox,
+            conversation: conv,
+            text: "got your $#{amount} payment — verifying it now, a teammate will confirm shortly 🙏"
+          )
+        rescue StandardError => e
+          Rails.logger.error("[SingleContactImapJob] escalate customer msg failed: #{e.message}")
+        end
+        # Ping the cashier on Telegram
+        begin
+          Games::TelegramNotifier.human_escalation(
+            account: account,
+            contact: contact,
+            reason: "Payment $#{amount} (#{target['platform']}) scored #{score}, below auto-load #{auto_load} — needs manual approval",
+            conversation: conv
+          )
+        rescue StandardError => e
+          Rails.logger.error("[SingleContactImapJob] escalate telegram failed: #{e.message}")
+        end
+      else
+        Rails.logger.info("[SingleContactImapJob] below-escalate score=#{score} amount=#{amount} contact=#{contact.id} — no action")
+      end
     rescue StandardError => e
       Rails.logger.error("[SingleContactImapJob] announce failed contact=#{contact&.id} #{e.class}: #{e.message}")
     end
