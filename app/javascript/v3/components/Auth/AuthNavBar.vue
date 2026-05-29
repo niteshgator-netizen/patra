@@ -5,11 +5,11 @@ import AuthThemeToggle from './AuthThemeToggle.vue';
 <template>
   <div class="w-full max-w-[1280px] mx-auto px-6 sticky top-3 z-40 mt-3.5">
     <div
-      class="h-[60px] flex items-center justify-between bg-patra-surface/60 backdrop-blur-md border border-patra-border rounded-2xl px-3 pl-5 pr-3"
+      class="auth-nav-blur h-[60px] flex items-center justify-between bg-auth-nav-bg backdrop-blur-md border border-auth-border rounded-2xl px-3 pl-5 pr-3"
     >
       <a
         href="/"
-        class="flex items-center gap-2.5 font-display font-bold text-lg tracking-tight no-underline text-white"
+        class="flex items-center gap-2.5 font-display font-bold text-lg tracking-tight no-underline text-auth-text"
       >
         <span
           class="w-7 h-7 rounded-lg bg-gradient-to-br from-patra to-patra-deep flex items-center justify-center font-display font-bold text-white text-base shadow-patra-glow"

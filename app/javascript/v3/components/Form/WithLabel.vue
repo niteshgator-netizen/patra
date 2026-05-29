@@ -42,7 +42,7 @@ const isPatra = computed(() => props.variant === 'patra');
           :icon="icon"
           :class="
             isPatra
-              ? 'absolute left-3 z-10 text-zinc-500 w-5 h-5'
+              ? 'absolute left-3 z-10 text-auth-text-mute w-5 h-5'
               : 'absolute left-2 transform text-n-slate-9 w-5 h-5'
           "
         />
@@ -50,7 +50,7 @@ const isPatra = computed(() => props.variant === 'patra');
         <label
           v-if="label && isPatra"
           :for="name"
-          class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-zinc-500 font-mono uppercase tracking-wide pointer-events-none transition-all duration-200 peer-focus:top-2.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:text-patra-light peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-patra-light"
+          class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-auth-text-mute font-mono uppercase tracking-wide pointer-events-none transition-all duration-200 peer-focus:top-2.5 peer-focus:translate-y-0 peer-focus:text-[10px] peer-focus:text-patra-light peer-[:not(:placeholder-shown)]:top-2.5 peer-[:not(:placeholder-shown)]:translate-y-0 peer-[:not(:placeholder-shown)]:text-[10px] peer-[:not(:placeholder-shown)]:text-patra-light"
           :class="{
             'left-9': icon,
             'text-red-400 peer-focus:text-red-400': hasError,
@@ -74,7 +74,7 @@ const isPatra = computed(() => props.variant === 'patra');
       <div
         v-else-if="helpMessage || $slots.help"
         class="text-sm mt-1.5 ml-px leading-tight"
-        :class="isPatra ? 'text-zinc-500' : 'text-n-slate-10'"
+        :class="isPatra ? 'text-auth-text-mute' : 'text-n-slate-10'"
       >
         <slot name="help">
           {{ helpMessage }}
