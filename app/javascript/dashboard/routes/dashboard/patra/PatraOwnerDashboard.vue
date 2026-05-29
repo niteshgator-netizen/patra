@@ -413,8 +413,10 @@ onUnmounted(() => {
 
   position: relative;
   width: 100%;
-  min-height: 100%;
-  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--canvas);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
