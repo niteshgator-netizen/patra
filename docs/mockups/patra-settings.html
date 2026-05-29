@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patra — Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root[data-theme="dark"]{
+  --canvas:#050409;--surface:#0C0B12;--surface-2:#131119;--surface-3:#1B1925;--surface-4:#252233;
+  --border:#171520;--border-hi:#2E2940;
+  --patra:#6E56CF;--patra-2:#8B5CF6;--patra-3:#A78BFA;--patra-deep:#5B45B0;--patra-glow:rgba(110,86,207,0.55);
+  --text:#EDEDF2;--text-2:#A8A6B6;--text-3:#75727F;--text-4:#54515E;
+  --green:#3FB950;--amber:#E3A008;--red:#F85149;--blue:#58A6FF;
+  --inset:rgba(255,255,255,0.045);--shadow:0 24px 60px -20px rgba(0,0,0,.8);
+  --mesh-1:rgba(110,86,207,0.16);--mesh-2:rgba(139,92,246,0.10);--mesh-3:rgba(236,72,153,0.05);
+}
+:root[data-theme="light"]{
+  --canvas:#F6F5F9;--surface:#FFFFFF;--surface-2:#F1F0F6;--surface-3:#E9E7F1;--surface-4:#DEDBEB;
+  --border:#E7E5EF;--border-hi:#D3CFE3;
+  --patra:#6E56CF;--patra-2:#7C5FD8;--patra-3:#6E56CF;--patra-deep:#5B45B0;--patra-glow:rgba(110,86,207,0.28);
+  --text:#16151C;--text-2:#56546A;--text-3:#86849A;--text-4:#A8A6B8;
+  --green:#1A7F37;--amber:#9A6700;--red:#CF222E;--blue:#0969DA;
+  --inset:rgba(255,255,255,0.7);--shadow:0 24px 60px -20px rgba(80,60,140,.25);
+  --mesh-1:rgba(110,86,207,0.09);--mesh-2:rgba(139,92,246,0.06);--mesh-3:rgba(236,72,153,0.03);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--canvas);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;font-size:14px;transition:background .45s,color .45s;}
+.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;}
+::-webkit-scrollbar{width:8px;height:8px;}::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:8px;}::-webkit-scrollbar-thumb:hover{background:var(--border-hi);}
+
+#spotlight{position:fixed;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(110,86,207,.16),rgba(110,86,207,.04) 42%,transparent 66%);pointer-events:none;z-index:0;transform:translate(-50%,-50%);opacity:0;transition:opacity .5s;mix-blend-mode:screen;filter:blur(12px);}
+.mesh{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.mesh::before,.mesh::after{content:'';position:absolute;border-radius:50%;filter:blur(100px);}
+.mesh::before{top:-15%;right:-5%;width:700px;height:560px;background:radial-gradient(circle at 40% 40%,var(--mesh-1),transparent 60%),radial-gradient(circle at 70% 70%,var(--mesh-2),transparent 60%);animation:meshA 22s ease-in-out infinite alternate;}
+.mesh::after{bottom:-20%;left:10%;width:560px;height:500px;background:radial-gradient(circle at 50% 50%,var(--mesh-3),transparent 65%);animation:meshB 28s ease-in-out infinite alternate;}
+@keyframes meshA{0%{transform:translate(0,0) scale(1);}100%{transform:translate(-50px,40px) scale(1.12) rotate(8deg);}}
+@keyframes meshB{0%{transform:translate(0,0) scale(1);}100%{transform:translate(40px,-30px) scale(1.1);}}
+
+.app{display:grid;grid-template-columns:66px 224px 1fr;height:100vh;position:relative;z-index:1;}
+
+/* RAIL */
+.rail{background:linear-gradient(180deg,var(--surface),var(--canvas));border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:5px;position:relative;z-index:3;}
+.rail-logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--patra),var(--patra-deep));display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;color:#fff;font-size:21px;box-shadow:0 0 22px var(--patra-glow),inset 0 1px 0 rgba(255,255,255,.25);margin-bottom:14px;animation:logoPulse 4s ease-in-out infinite;cursor:pointer;}
+.rail-logo:hover{transform:scale(1.06) rotate(-3deg);}
+@keyframes logoPulse{0%,100%{box-shadow:0 0 22px var(--patra-glow),inset 0 1px 0 rgba(255,255,255,.25);}50%{box-shadow:0 0 38px var(--patra-glow),inset 0 1px 0 rgba(255,255,255,.3);}}
+.rail-item{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text-3);cursor:pointer;transition:all .25s cubic-bezier(.34,1.56,.64,1);position:relative;}
+.rail-item svg{width:21px;height:21px;transition:transform .25s;}
+.rail-item:hover{color:var(--text);background:var(--surface-2);transform:translateY(-2px);}
+.rail-item:hover svg{transform:scale(1.1);}
+.rail-item.active{color:#fff;background:linear-gradient(135deg,var(--patra),var(--patra-deep));box-shadow:0 6px 18px var(--patra-glow),inset 0 1px 0 rgba(255,255,255,.2);}
+.rail-item.active::before{content:'';position:absolute;left:-14px;top:50%;transform:translateY(-50%);width:3px;height:22px;background:linear-gradient(180deg,var(--patra-2),var(--patra-3));border-radius:0 3px 3px 0;box-shadow:0 0 8px var(--patra-glow);}
+.rail-badge{position:absolute;top:5px;right:5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);}
+.rail-spacer{flex:1;}
+.rail-ava{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6E56CF,#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:14px;cursor:pointer;border:2px solid var(--border-hi);position:relative;transition:all .2s;}
+.rail-ava:hover{transform:scale(1.08);box-shadow:0 0 16px var(--patra-glow);}
+.rail-ava .dot{position:absolute;bottom:-1px;right:-1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid var(--surface);}
+.tip{position:absolute;left:56px;background:var(--surface-4);color:var(--text);font-size:12px;font-weight:500;padding:6px 11px;border-radius:9px;white-space:nowrap;opacity:0;pointer-events:none;transition:all .2s;box-shadow:var(--shadow);z-index:60;border:1px solid var(--border-hi);}
+.rail-item:hover .tip{opacity:1;left:60px;}
+
+/* SETTINGS NAV */
+.snav{background:var(--surface);border-right:1px solid var(--border);padding:18px 12px;overflow-y:auto;position:relative;z-index:2;}
+.snav-title{font-family:'Space Grotesk';font-weight:600;font-size:17px;padding:0 8px;margin-bottom:16px;}
+.snav-group{font-size:10px;font-weight:600;color:var(--text-4);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono';padding:0 8px;margin:16px 0 7px;}
+.snav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;font-size:13px;color:var(--text-2);cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);margin-bottom:2px;}
+.snav-item svg{width:16px;height:16px;flex-shrink:0;}
+.snav-item:hover{background:var(--surface-2);color:var(--text);transform:translateX(2px);}
+.snav-item.active{background:linear-gradient(135deg,rgba(110,86,207,.16),rgba(139,92,246,.06));color:var(--patra-3);font-weight:500;box-shadow:inset 0 0 0 1px rgba(139,92,246,.25);}
+
+/* CONTENT */
+.main{overflow-y:auto;position:relative;z-index:1;padding:26px 32px 60px;}
+.sec-head{margin-bottom:22px;}
+.sec-head h1{font-family:'Space Grotesk';font-weight:600;font-size:23px;}
+.sec-head .sub{font-size:13px;color:var(--text-3);margin-top:4px;}
+.panel{display:none;max-width:760px;animation:fadeIn .3s;}
+.panel.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;}
+.card-t{font-family:'Space Grotesk';font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;margin-bottom:18px;}
+.card-t .dot{width:7px;height:7px;border-radius:50%;background:var(--patra-2);box-shadow:0 0 8px var(--patra-glow);}
+.fld{margin-bottom:16px;}
+.fld label{display:block;font-size:12.5px;color:var(--text-2);margin-bottom:6px;font-weight:500;}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--canvas);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-size:13px;outline:none;transition:all .25s;font-family:'Inter';}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--patra);box-shadow:0 0 0 3px rgba(110,86,207,.11);}
+.fld .hint{font-size:11px;color:var(--text-4);margin-top:5px;}
+.fld.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.persona-note{font-size:12.5px;color:var(--text-3);margin:-6px 0 14px;}
+.persona-note b{color:var(--patra-3);}
+.btn{font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;border:1px solid var(--border-hi);background:var(--surface-2);color:var(--text);cursor:pointer;transition:all .22s cubic-bezier(.34,1.56,.64,1);}
+.btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.3);border-color:var(--patra);}
+.btn.primary{background:linear-gradient(135deg,var(--patra),var(--patra-deep));border-color:transparent;color:#fff;box-shadow:0 4px 14px var(--patra-glow);}
+.btn.primary:hover{filter:brightness(1.12);}
+.btn.sm{padding:7px 13px;font-size:12px;}
+/* day pills */
+.days{display:flex;gap:7px;flex-wrap:wrap;}
+.day{padding:7px 13px;border-radius:9px;border:1px solid var(--border);font-size:12.5px;cursor:pointer;transition:all .2s cubic-bezier(.34,1.56,.64,1);color:var(--text-3);}
+.day:hover{border-color:var(--border-hi);transform:translateY(-2px);}
+.day.on{background:linear-gradient(135deg,var(--patra),var(--patra-deep));color:#fff;border-color:transparent;box-shadow:0 3px 10px var(--patra-glow);}
+/* toggle row */
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+.tog-row:last-child{border:none;}
+.tog-row .tr-l .tt{font-size:13.5px;font-weight:500;}
+.tog-row .tr-l .ts{font-size:11.5px;color:var(--text-3);margin-top:2px;}
+.sw{width:38px;height:22px;border-radius:12px;background:linear-gradient(135deg,var(--patra),var(--patra-2));position:relative;cursor:pointer;flex-shrink:0;box-shadow:0 0 12px var(--patra-glow);transition:all .3s;}
+.sw i{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:all .3s;}
+.sw.off{background:var(--surface-4);box-shadow:none;}
+.sw.off i{right:auto;left:2px;}
+/* keyword tag mapping */
+.kw-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:9px;align-items:center;}
+.kw-row input{background:var(--canvas);border:1px solid var(--border);border-radius:9px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;}
+.kw-row input:focus{border-color:var(--patra);}
+.kw-del{color:var(--red);font-size:12px;cursor:pointer;padding:6px 10px;border:1px solid rgba(248,81,73,.3);border-radius:8px;transition:all .2s;}
+.kw-del:hover{background:var(--red);color:#fff;}
+.kw-head{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;font-size:11px;color:var(--text-4);font-family:'JetBrains Mono';text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+/* table */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{font-size:11px;color:var(--text-4);text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono';text-align:left;padding:9px 10px;border-bottom:1px solid var(--border);font-weight:600;}
+.tbl td{font-size:13px;padding:12px 10px;border-bottom:1px solid var(--border);}
+.tbl tr:last-child td{border:none;}
+.tbl tr{transition:background .2s;}
+.tbl tbody tr:hover{background:var(--surface-2);}
+.pm-tag{display:inline-flex;align-items:center;gap:6px;font-weight:600;}
+.pm-ic{width:24px;height:16px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;}
+.st-active{font-size:11px;font-weight:600;color:var(--green);background:rgba(63,185,80,.16);padding:3px 9px;border-radius:20px;}
+.prio{font-family:'JetBrains Mono';font-weight:600;color:var(--patra-3);}
+.fc{font-family:'JetBrains Mono';}
+.fc.bad{color:var(--amber);}
+.ledger{font-size:11px;color:var(--patra-3);cursor:pointer;}
+.ledger:hover{text-decoration:underline;}
+/* canned responses */
+.cr{background:var(--canvas);border:1px solid var(--border);border-radius:13px;padding:16px;margin-bottom:12px;transition:all .25s;}
+.cr:hover{border-color:var(--border-hi);}
+.cr-top{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
+.cr-code{font-family:'JetBrains Mono';font-size:13px;font-weight:600;color:var(--patra-3);background:rgba(110,86,207,.14);padding:3px 10px;border-radius:7px;}
+.cr-code::before{content:'/';opacity:.6;}
+.cr-edit{margin-left:auto;font-size:11px;color:var(--text-3);cursor:pointer;}
+.cr-edit:hover{color:var(--patra-3);}
+.cr-body{font-size:12.5px;color:var(--text-2);line-height:1.55;max-height:72px;overflow:hidden;position:relative;}
+.cr-body.long::after{content:'';position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(transparent,var(--canvas));}
+/* list rows (agents/inboxes/labels) */
+.lrow{display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid var(--border);}
+.lrow:last-child{border:none;}
+.lrow .la{width:38px;height:38px;border-radius:50%;background-size:cover;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:13px;flex-shrink:0;}
+.lrow .li{flex:1;}
+.lrow .li .ln{font-size:13.5px;font-weight:500;}
+.lrow .li .le{font-size:11.5px;color:var(--text-3);font-family:'JetBrains Mono';}
+.role{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
+.role.admin{background:rgba(110,86,207,.16);color:var(--patra-3);}
+.role.agent{background:rgba(88,166,255,.16);color:var(--blue);}
+.verified{font-size:10px;color:var(--green);font-family:'JetBrains Mono';}
+.lbl-swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
+.chan-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.chan-ic svg{width:18px;height:18px;}
+.empty-card{text-align:center;padding:36px;color:var(--text-4);font-size:13px;}
+.empty-card .ec-ic{font-size:32px;margin-bottom:10px;opacity:.5;}
+.footer-meta{font-size:11px;color:var(--text-4);font-family:'JetBrains Mono';margin-top:20px;display:flex;gap:16px;}
+
+#dimmer{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:65;transition:opacity .25s;}
+.bright-ctl{position:fixed;bottom:16px;left:108px;display:flex;align-items:center;gap:9px;background:var(--surface-3);border:1px solid var(--border-hi);border-radius:11px;padding:0 12px;height:40px;z-index:70;box-shadow:var(--shadow);opacity:0;transform:translateX(-12px) scale(.96);pointer-events:none;transition:all .28s cubic-bezier(.34,1.56,.64,1);transform-origin:left center;}
+.bright-ctl.show{opacity:1;transform:translateX(0) scale(1);pointer-events:auto;}
+.bright-ctl svg{width:16px;height:16px;color:var(--text-3);}
+.bright-ctl input[type=range]{-webkit-appearance:none;appearance:none;width:90px;height:4px;border-radius:3px;background:linear-gradient(90deg,var(--patra),var(--patra-2));outline:none;cursor:pointer;}
+.bright-ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 8px var(--patra-glow);cursor:pointer;border:2px solid var(--patra);}
+.bright-val{font-size:11px;color:var(--text-3);min-width:32px;}
+.bright-toggle{position:fixed;bottom:16px;left:62px;width:40px;height:40px;border-radius:11px;background:var(--surface-3);border:1px solid var(--border-hi);color:var(--text-2);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:70;transition:all .25s cubic-bezier(.34,1.56,.64,1);}
+.bright-toggle:hover{color:var(--patra-3);transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.35);}
+.bright-toggle.active{color:var(--patra-3);background:rgba(110,86,207,.14);border-color:var(--patra);}
+.theme-fab{position:fixed;bottom:16px;left:13px;width:40px;height:40px;border-radius:11px;background:var(--surface-3);border:1px solid var(--border-hi);color:var(--text-2);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:70;transition:all .25s cubic-bezier(.34,1.56,.64,1);}
+.theme-fab:hover{color:var(--patra-3);transform:translateY(-3px) rotate(-12deg);box-shadow:0 8px 20px rgba(0,0,0,.35);}
+.theme-fab svg{width:18px;height:18px;}
+.theme-fab .moon{display:none;}
+:root[data-theme="dark"] .theme-fab .moon{display:block;}
+:root[data-theme="dark"] .theme-fab .sun{display:none;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;}}
+
+/* === MOTION BOOST (level-up pass) === */
+@keyframes mIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.card{position:relative;isolation:isolate;transition:transform .35s cubic-bezier(.34,1.56,.64,1),box-shadow .35s,border-color .25s;animation:mIn .5s cubic-bezier(.23,1,.32,1) backwards;}
+.card::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(260px circle at var(--gx,50%) var(--gy,50%),rgba(110,86,207,.15),transparent 70%);z-index:-1;}
+.card:hover::before{opacity:1;}
+.card:hover{transform:translateY(-4px) scale(1.008);box-shadow:0 18px 40px -14px rgba(0,0,0,.55),0 0 26px rgba(110,86,207,.18);border-color:var(--patra);}
+.kpi,.gcard,.sg,.rag,.gsum-card,.check-item,.ms,.cr,.rq,.vault-card{animation:mIn .5s cubic-bezier(.23,1,.32,1) backwards;}
+.btn:hover,.mbtn:hover,.gcard-btn:hover,.rq-btn:hover,.sp-add:hover,.save-btn:hover,.ops-btn:hover{transform:translateY(-2px) scale(1.02);}
+.lrow{transition:all .22s cubic-bezier(.34,1.56,.64,1);border-radius:10px;}
+.lrow:hover{background:var(--surface-2);transform:translateX(3px);padding-left:8px;}
+.cr:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.3);}
+</style>
+</head>
+<body>
+<div id="spotlight"></div>
+<div class="mesh"></div>
+<div class="app">
+
+  <!-- RAIL -->
+  <div class="rail">
+    <div class="rail-logo">P</div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="rail-badge">14</span><span class="tip">Inbox</span></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg><span class="tip">Owner Dashboard</span></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/></svg><span class="tip">Automations &amp; Flows</span></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="tip">Contacts &amp; Player Vault</span></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><span class="tip">Games &amp; Health</span></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"/></svg><span class="tip">Patra AI Training</span></div>
+    <div class="rail-spacer"></div>
+    <div class="rail-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="tip">Settings</span></div>
+    <div class="rail-ava">G<span class="dot"></span></div>
+  </div>
+
+  <!-- SETTINGS NAV -->
+  <div class="snav">
+    <div class="snav-title">Settings</div>
+    <div class="snav-item active" data-p="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Account Settings</div>
+    <div class="snav-item" data-p="agents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Agents</div>
+    <div class="snav-item" data-p="teams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-3-3.87M9 21v-2a4 4 0 0 1 3-3.87"/><circle cx="9" cy="7" r="4"/><circle cx="17" cy="7" r="3"/></svg>Teams</div>
+    <div class="snav-item" data-p="inboxes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inboxes</div>
+    <div class="snav-item" data-p="labels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.6 13.4L13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1"/></svg>Labels</div>
+    <div class="snav-item" data-p="automation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/></svg>Automation</div>
+    <div class="snav-item" data-p="canned"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16M4 6h16M4 18h10"/></svg>Canned Responses</div>
+    <div class="snav-item" data-p="payment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Payment Handles</div>
+    <div class="snav-item" data-p="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>Games</div>
+    <div class="snav-item" data-p="aitraining"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"/></svg>AI Training</div>
+    <div class="snav-item" data-p="notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>Notifications</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="main">
+
+    <!-- ACCOUNT -->
+    <div class="panel active" data-panel="account">
+      <div class="sec-head"><h1>Account Settings</h1><div class="sub">General configuration, business hours, and Patra business rules</div></div>
+      <div class="card">
+        <div class="card-t"><span class="dot"></span>General</div>
+        <div class="fld"><label>Account name</label><input value="patra"></div>
+        <div class="fld"><label>Site language</label><select><option>English (en)</option><option>Spanish</option></select></div>
+        <div class="fld"><label>Industry</label><select><option>Social Gaming</option><option>Real Estate</option><option>Retail</option><option>Hospitality</option></select></div>
+        <div class="persona-note">Your AI persona: <b>Patra AI</b></div>
+        <button class="btn primary">Update settings</button>
+      </div>
+      <div class="card">
+        <div class="card-t"><span class="dot"></span>Business hours</div>
+        <div class="persona-note">Patra AI uses these hours for after-hours auto-replies.</div>
+        <div class="fld row">
+          <div><label>Start</label><input value="09:00 AM"></div>
+          <div><label>End</label><input value="05:00 PM"></div>
+          <div><label>Timezone</label><select><option>America/New_York</option><option>America/Chicago</option><option>America/Los_Angeles</option></select></div>
+        </div>
+        <div class="fld"><label>Active days</label><div class="days"><span class="day on">Mon</span><span class="day on">Tue</span><span class="day on">Wed</span><span class="day on">Thu</span><span class="day on">Fri</span><span class="day">Sat</span><span class="day">Sun</span></div></div>
+        <button class="btn primary">Save Patra settings</button>
+      </div>
+      <div class="card">
+        <div class="card-t"><span class="dot"></span>Patra business settings</div>
+        <div class="fld"><label>Auto-resolve after (hours, 0 = off)</label><input value="24"></div>
+        <div class="fld"><label>Outbound webhook URL</label><input placeholder="https://…"><div class="hint">Patra POSTs conversation events here.</div></div>
+        <button class="btn sm" style="margin-bottom:16px">Test webhook</button>
+        <div class="fld"><label>Re-engagement — auto-message dormant players after (days)</label><input value="5"></div>
+        <div class="fld"><label>Re-engagement message template</label><textarea rows="2">hey! been a minute 🎮 got any new games you wanna try?</textarea></div>
+        <div class="fld"><label>Cashout approval threshold ($)</label><input value="500"><div class="hint">Cashouts above this need human approval — Patra AI never auto-pays them.</div></div>
+        <div class="tog-row"><div class="tr-l"><div class="tt">Enable round-robin assignment</div><div class="ts">Distribute new conversations evenly across agents</div></div><div class="sw"><i></i></div></div>
+        <div class="fld" style="margin-top:14px"><label>Max open conversations per agent</label><input value="1000"></div>
+      </div>
+      <div class="card">
+        <div class="card-t"><span class="dot"></span>SLA alerts</div>
+        <div class="persona-note">Telegram alerts when conversations exceed these limits.</div>
+        <div class="fld row" style="grid-template-columns:1fr 1fr">
+          <div><label>First response limit (min)</label><input value="5"></div>
+          <div><label>Resolution limit (min)</label><input value="60"></div>
+        </div>
+        <div class="tog-row"><div class="tr-l"><div class="tt">Enable SLA Telegram alerts</div><div class="ts">Ping the cashout group when an SLA is breached</div></div><div class="sw"><i></i></div></div>
+      </div>
+      <div class="card">
+        <div class="card-t"><span class="dot"></span>Keyword → tag mapping</div>
+        <div class="persona-note">Auto-tag conversations when incoming messages contain these keywords.</div>
+        <div class="kw-head"><span>Keyword</span><span>Tag</span><span></span></div>
+        <div id="kwRows">
+          <div class="kw-row"><input value="angry"><input value="angry-customer"><span class="kw-del">Remove</span></div>
+          <div class="kw-row"><input value="refund"><input value="refund-request"><span class="kw-del">Remove</span></div>
+          <div class="kw-row"><input value="not working"><input value="technical-issue"><span class="kw-del">Remove</span></div>
+        </div>
+        <button class="btn sm" id="addKw">+ Add row</button>
+        <div style="margin-top:18px"><button class="btn primary">Save Patra settings</button></div>
+      </div>
+      <div class="footer-meta"><span>Account ID: 2</span><span>v4.13.0</span></div>
+    </div>
+
+    <!-- AGENTS -->
+    <div class="panel" data-panel="agents">
+      <div class="sec-head"><h1>Agents</h1><div class="sub">Members of your support team who can view and respond to messages</div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="btn primary sm">+ Add Agent</button></div>
+        <div class="lrow"><div class="la" style="background:linear-gradient(135deg,#6E56CF,#8B5CF6)">MS</div><div class="li"><div class="ln">Mausam Sapkota</div><div class="le">kamhustle123@gmail.com</div></div><span class="role admin">Administrator</span><span class="verified">✓ Verified</span></div>
+        <div class="lrow"><div class="la" style="background:linear-gradient(135deg,#58A6FF,#0969DA)">G</div><div class="li"><div class="ln">Guyhh</div><div class="le">pagalspeed@gmail.com</div></div><span class="role agent">Agent</span><span class="verified">✓ Verified</span></div>
+      </div>
+    </div>
+
+    <!-- TEAMS -->
+    <div class="panel" data-panel="teams">
+      <div class="sec-head"><h1>Teams</h1><div class="sub">Organize agents into groups based on responsibilities</div></div>
+      <div class="card"><div class="empty-card"><div class="ec-ic">👥</div>No teams created yet.<br><button class="btn primary sm" style="margin-top:14px">+ Create new team</button></div></div>
+    </div>
+
+    <!-- INBOXES -->
+    <div class="panel" data-panel="inboxes">
+      <div class="sec-head"><h1>Inboxes</h1><div class="sub">Where you manage interactions for each channel</div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="btn primary sm">+ Add Inbox</button></div>
+        <div class="lrow"><div class="chan-ic" style="background:#0866FF"><svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 21v-7h2.3l.4-2.8h-2.7V9.4c0-.8.3-1.4 1.5-1.4h1.3V5.5s-1.1-.2-2.2-.2c-2.2 0-3.7 1.4-3.7 3.8v2.1H8.1V14h2.3v7z"/></svg></div><div class="li"><div class="ln">Football FANS PAGE</div><div class="le">Messenger</div></div></div>
+        <div class="lrow"><div class="chan-ic" style="background:#8B5CF6"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></div><div class="li"><div class="ln">Mausam Gang</div><div class="le">API Channel</div></div></div>
+      </div>
+    </div>
+
+    <!-- LABELS -->
+    <div class="panel" data-panel="labels">
+      <div class="sec-head"><h1>Labels</h1><div class="sub">Categorize and prioritize conversations</div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="btn primary sm">+ Add label</button></div>
+        <div class="lrow"><span class="lbl-swatch" style="background:#FF0A0A"></span><div class="li"><div class="ln">ai-off</div><div class="le">Turns Patra AI off for tagged conversations</div></div><span class="fc" style="color:var(--text-3)">#FF0A0A</span></div>
+      </div>
+    </div>
+
+    <!-- AUTOMATION -->
+    <div class="panel" data-panel="automation">
+      <div class="sec-head"><h1>Automation</h1><div class="sub">Streamline routine tasks like labeling and assignment</div></div>
+      <div class="card"><div class="empty-card"><div class="ec-ic">⚙️</div>No automation rules yet.<br><button class="btn primary sm" style="margin-top:14px">+ Create Automation</button></div></div>
+    </div>
+
+    <!-- CANNED -->
+    <div class="panel" data-panel="canned">
+      <div class="sec-head"><h1>Canned Responses</h1><div class="sub">Type <b>/</b> + shortcode to insert during a conversation</div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px"><button class="btn primary sm">+ Add canned response</button></div>
+        <div class="cr"><div class="cr-top"><span class="cr-code">ai_persona</span><span class="cr-edit">Edit</span></div><div class="cr-body">NAME: Patra AI · PERSONALITY: friendly, casual, like a real human agent</div></div>
+        <div class="cr"><div class="cr-top"><span class="cr-code">ai_training</span><span class="cr-edit">Edit</span></div><div class="cr-body long">BONUS RULES: Deposit under $5: no bonus · over $5: 20–40% by loyalty (new 20%, regular 25–30%, loyal 30–40%). USERNAME TRACKING: ask once, then reference naturally. Always check chat history for context. Always ask which game first, min deposit $5, first bonus 20%, max 2 lines, no bullets…</div></div>
+        <div class="cr"><div class="cr-top"><span class="cr-code">payment</span><span class="cr-edit">Edit</span></div><div class="cr-body">We have Cash App, Venmo, PayPal, Chime, Varo, and a BoltPay link for card/bank: https://boltpay.dev/kajimate</div></div>
+      </div>
+    </div>
+
+    <!-- PAYMENT HANDLES -->
+    <div class="panel" data-panel="payment">
+      <div class="sec-head"><h1>Payment Handles</h1><div class="sub">Payment tags per platform, rotation priority, and failover tracking</div></div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><span style="font-size:12px;color:var(--text-3)">6 handles</span><div style="display:flex;gap:9px"><button class="btn sm">⚙️ Scoring Settings</button><button class="btn primary sm">+ Add handle</button></div></div>
+        <table class="tbl">
+          <thead><tr><th>Platform</th><th>Tag / Username</th><th>Priority</th><th>Status</th><th>Fails</th><th>Ledger</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pm-tag"><span class="pm-ic" style="background:#00D632">CA</span>Cash App</span></td><td class="fc">sofiamann8</td><td class="prio">1</td><td><span class="st-active">Active</span></td><td class="fc bad">4</td><td><span class="ledger">View</span></td></tr>
+            <tr><td><span class="pm-tag"><span class="pm-ic" style="background:#00D632">CA</span>Cash App</span></td><td class="fc">shakariyonismack</td><td class="prio">2</td><td><span class="st-active">Active</span></td><td class="fc">0</td><td><span class="ledger">View</span></td></tr>
+            <tr><td><span class="pm-tag"><span class="pm-ic" style="background:#1EC677">CH</span>Chime</span></td><td class="fc">harry-wang-1</td><td class="prio">1</td><td><span class="st-active">Active</span></td><td class="fc">0</td><td><span class="ledger">View</span></td></tr>
+            <tr><td><span class="pm-tag"><span class="pm-ic" style="background:#1EC677">CH</span>Chime</span></td><td class="fc">kristopher-fernung</td><td class="prio">2</td><td><span class="st-active">Active</span></td><td class="fc">0</td><td><span class="ledger">View</span></td></tr>
+            <tr><td><span class="pm-tag"><span class="pm-ic" style="background:#0070BA">PP</span>PayPal</span></td><td class="fc">devpatel742</td><td class="prio">1</td><td><span class="st-active">Active</span></td><td class="fc">0</td><td><span class="ledger">View</span></td></tr>
+            <tr><td><span class="pm-tag"><span class="pm-ic" style="background:#3D95CE">VE</span>Venmo</span></td><td class="fc">kennethevans23s</td><td class="prio">1</td><td><span class="st-active">Active</span></td><td class="fc">0</td><td><span class="ledger">View</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GAMES (link) -->
+    <div class="panel" data-panel="games">
+      <div class="sec-head"><h1>Games</h1><div class="sub">Game integrations &amp; API credentials</div></div>
+      <div class="card"><div class="empty-card"><div class="ec-ic">🎮</div>14 games connected · managed on the <b>Games &amp; Health</b> page.<br><button class="btn primary sm" style="margin-top:14px">Open Games page</button></div></div>
+    </div>
+
+    <!-- AI TRAINING (link) -->
+    <div class="panel" data-panel="aitraining">
+      <div class="sec-head"><h1>AI Training</h1><div class="sub">Training data, review queue, secret phrases</div></div>
+      <div class="card"><div class="empty-card"><div class="ec-ic">✦</div>73,069 training pairs · managed on the <b>Patra AI Training</b> page.<br><button class="btn primary sm" style="margin-top:14px">Open AI Training</button></div></div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="panel" data-panel="notifications">
+      <div class="sec-head"><h1>Notifications</h1><div class="sub">Choose how Patra alerts you</div></div>
+      <div class="card">
+        <div class="tog-row"><div class="tr-l"><div class="tt">Telegram — cashout alerts</div><div class="ts">New cashout requests to the cashout group</div></div><div class="sw"><i></i></div></div>
+        <div class="tog-row"><div class="tr-l"><div class="tt">Telegram — SLA breaches</div><div class="ts">When a conversation exceeds its SLA</div></div><div class="sw"><i></i></div></div>
+        <div class="tog-row"><div class="tr-l"><div class="tt">Daily summary</div><div class="ts">End-of-day recap sent to Telegram</div></div><div class="sw"><i></i></div></div>
+        <div class="tog-row"><div class="tr-l"><div class="tt">Email — flagged for review</div><div class="ts">When Patra AI flags a conversation</div></div><div class="sw off"><i></i></div></div>
+        <div class="tog-row"><div class="tr-l"><div class="tt">Game health alerts</div><div class="ts">When a game integration degrades or fails</div></div><div class="sw"><i></i></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="dimmer"></div>
+<div class="theme-fab" id="themeFab">
+  <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+</div>
+<div class="bright-ctl" id="brightCtl">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  <input type="range" id="brightness" min="40" max="100" value="100">
+  <span class="bright-val mono" id="brightVal">100%</span>
+</div>
+<div class="bright-toggle" id="brightToggle" title="Display brightness">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 3v1M12 20v1M4.9 4.9l.7.7M18.4 18.4l.7.7M3 12h1M20 12h1M4.9 19.1l.7-.7M18.4 5.6l.7-.7"/></svg>
+</div>
+
+<script>
+// settings nav switching
+document.querySelectorAll('.snav-item').forEach(it=>it.addEventListener('click',()=>{
+  document.querySelectorAll('.snav-item').forEach(x=>x.classList.remove('active'));it.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===it.dataset.p));
+  document.querySelector('.main').scrollTop=0;
+}));
+// day pills
+document.querySelectorAll('.day').forEach(d=>d.addEventListener('click',()=>d.classList.toggle('on')));
+// toggles
+document.querySelectorAll('.sw').forEach(s=>s.addEventListener('click',()=>s.classList.toggle('off')));
+// keyword remove + add
+function wireKwDel(){document.querySelectorAll('.kw-del').forEach(d=>d.onclick=()=>d.closest('.kw-row').remove());}
+wireKwDel();
+document.getElementById('addKw').addEventListener('click',()=>{
+  const row=document.createElement('div');row.className='kw-row';
+  row.innerHTML='<input placeholder="keyword"><input placeholder="tag"><span class="kw-del">Remove</span>';
+  document.getElementById('kwRows').appendChild(row);wireKwDel();
+});
+// theme
+const root=document.documentElement;const saved=localStorage.getItem('patra-theme');if(saved)root.setAttribute('data-theme',saved);
+document.getElementById('themeFab').addEventListener('click',()=>{const n=root.getAttribute('data-theme')==='dark'?'light':'dark';root.setAttribute('data-theme',n);localStorage.setItem('patra-theme',n);});
+// brightness
+const dim=document.getElementById('dimmer'),br=document.getElementById('brightness'),bv=document.getElementById('brightVal');
+const savedBr=localStorage.getItem('patra-brightness');if(savedBr){br.value=savedBr;}
+function applyBright(){const v=+br.value;dim.style.opacity=((100-v)/100*0.6).toFixed(3);bv.textContent=v+'%';localStorage.setItem('patra-brightness',v);}
+br.addEventListener('input',applyBright);applyBright();
+const bt=document.getElementById('brightToggle'),bc=document.getElementById('brightCtl');
+bt.addEventListener('click',()=>{bc.classList.toggle('show');bt.classList.toggle('active');});
+document.addEventListener('click',e=>{if(!bc.contains(e.target)&&!bt.contains(e.target)){bc.classList.remove('show');bt.classList.remove('active');}});
+// spotlight
+const spot=document.getElementById('spotlight');
+document.addEventListener('mousemove',e=>{spot.style.left=e.clientX+'px';spot.style.top=e.clientY+'px';spot.style.opacity='1';});
+document.addEventListener('mouseleave',()=>spot.style.opacity='0');
+</script>
+
+<script>
+// === MOTION BOOST: cursor-follow glow (delegated, works for dynamic cards) + stagger ===
+document.addEventListener('mousemove',function(e){
+  if(!e.target.closest)return;
+  const c=e.target.closest('.card');
+  if(c){const r=c.getBoundingClientRect();c.style.setProperty('--gx',(e.clientX-r.left)+'px');c.style.setProperty('--gy',(e.clientY-r.top)+'px');}
+});
+window.addEventListener('load',function(){
+  document.querySelectorAll('.card').forEach((c,i)=>{c.style.animationDelay=(Math.min(i,8)*0.05)+'s';});
+  document.querySelectorAll('.kpi,.gcard,.sg,.rag,.gsum-card').forEach((c,i)=>{c.style.animationDelay=(Math.min(i,10)*0.04)+'s';});
+});
+</script>
+
+</body>
+</html>
