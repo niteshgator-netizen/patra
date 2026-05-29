@@ -249,9 +249,13 @@ const LEDGER_LABELS = {
   scoreScreenshot: '📷 Screenshot',
   scoreAmountMatch: '💰 Amount match',
   scoreSenderMatch: '👤 Sender match',
+  scoreRecipientMatch: '👤 Recipient match',
   scoreTxnId: '🔢 Txn ID',
   scoreEmailConfirmed: '📧 Email confirmed',
+  scoreNoteMatch: '📝 Note match',
   scoreTimeProximity: '⏱ Time proximity',
+  scoreTimeMatch: '⏱ Time match',
+  scoreCustomRules: '⚙️ Custom rules',
   sender: 'Sender',
   txnId: 'Txn ID',
   dateTime: 'Date & time',
@@ -279,14 +283,126 @@ const formatLedgerTime = raw => {
 };
 
 const formatScreenshotDateTime = entry => {
-  if (entry.image_received_at) return formatLedgerTime(entry.image_received_at);
-  const parts = [entry.transaction_date, entry.transaction_time].filter(
-    Boolean
-  );
-  return parts.length ? parts.join(' · ') : '—';
+  const screenshotDateTime =
+    entry.transaction_time || entry.transaction_date || entry.image_received_at;
+  if (!screenshotDateTime) return '—';
+  if (entry.transaction_time || entry.transaction_date) {
+    const parts = [entry.transaction_date, entry.transaction_time].filter(
+      Boolean
+    );
+    return parts.join(' · ');
+  }
+  return formatLedgerTime(screenshotDateTime);
 };
 
-const formatScoreComponent = (value, max) => `${value ?? 0}/${max}`;
+const SCORE_BREAKDOWN_THRESHOLD_KEYS = new Set([
+  'auto_load_threshold',
+  'escalate_threshold',
+  'decline_threshold',
+  'total',
+]);
+
+const SCORE_BREAKDOWN_META_KEYS = new Set([
+  ...SCORE_BREAKDOWN_THRESHOLD_KEYS,
+  'max',
+  'weights',
+  'platform_config',
+  'config',
+  'time_proximity_minutes',
+]);
+
+const SCORE_BREAKDOWN_ORDER = [
+  'screenshot',
+  'amount_match',
+  'sender_match',
+  'recipient_match',
+  'txn_id',
+  'email_confirmed',
+  'note_match',
+  'time_proximity',
+  'time_match',
+  'custom_rules',
+];
+
+const SCORE_BREAKDOWN_LABELS = {
+  screenshot: LEDGER_LABELS.scoreScreenshot,
+  amount_match: LEDGER_LABELS.scoreAmountMatch,
+  sender_match: LEDGER_LABELS.scoreSenderMatch,
+  recipient_match: LEDGER_LABELS.scoreRecipientMatch,
+  txn_id: LEDGER_LABELS.scoreTxnId,
+  email_confirmed: LEDGER_LABELS.scoreEmailConfirmed,
+  note_match: LEDGER_LABELS.scoreNoteMatch,
+  time_proximity: LEDGER_LABELS.scoreTimeProximity,
+  time_match: LEDGER_LABELS.scoreTimeMatch,
+  custom_rules: LEDGER_LABELS.scoreCustomRules,
+};
+
+const SCORE_BREAKDOWN_CONFIG_KEY_MAP = {
+  screenshot: 'screenshot_present',
+  txn_id: 'txn_id_present',
+};
+
+const getScoreComponentEarned = value => {
+  if (value == null) return 0;
+  if (Array.isArray(value)) {
+    return value.reduce(
+      (sum, rule) => sum + (Number(rule?.points ?? rule?.earned ?? rule) || 0),
+      0
+    );
+  }
+  if (typeof value === 'object') {
+    return Number(value.earned ?? value.points ?? value.score ?? 0) || 0;
+  }
+  return Number(value) || 0;
+};
+
+const getScoreComponentMax = (breakdown, key) => {
+  const value = breakdown[key];
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (value.max != null) return Number(value.max);
+  }
+
+  const maxConfig =
+    breakdown.max || breakdown.weights || breakdown.platform_config;
+  if (maxConfig && typeof maxConfig === 'object') {
+    const configKey = SCORE_BREAKDOWN_CONFIG_KEY_MAP[key] || key;
+    if (maxConfig[configKey] != null) return Number(maxConfig[configKey]);
+    if (maxConfig[key] != null) return Number(maxConfig[key]);
+  }
+
+  return null;
+};
+
+const formatScoreBreakdownValue = (earned, max) => {
+  if (max != null && !Number.isNaN(max)) return `${earned}/${max}`;
+  return String(earned);
+};
+
+const getScoreBreakdownRows = breakdown => {
+  if (!breakdown || typeof breakdown !== 'object') return [];
+
+  const keys = Object.keys(breakdown).filter(
+    key => !SCORE_BREAKDOWN_META_KEYS.has(key)
+  );
+
+  const sortIndex = key => {
+    const index = SCORE_BREAKDOWN_ORDER.indexOf(key);
+    return index === -1 ? SCORE_BREAKDOWN_ORDER.length : index;
+  };
+
+  return keys
+    .sort((a, b) => sortIndex(a) - sortIndex(b))
+    .map(key => {
+      const earned = getScoreComponentEarned(breakdown[key]);
+      const max = getScoreComponentMax(breakdown, key);
+      return {
+        key,
+        label: SCORE_BREAKDOWN_LABELS[key] || key.replace(/_/g, ' '),
+        earned,
+        display: formatScoreBreakdownValue(earned, max),
+      };
+    });
+};
 
 const mapLedgerEntry = (entry, index) => ({
   id: entry.transaction_id || entry.image_received_at || `ledger-${index}`,
@@ -1336,114 +1452,22 @@ watch(selectedScoringPlatform, () => {
                               <div class="font-semibold mb-2">
                                 {{ LEDGER_LABELS.scoreBreakdown }}
                               </div>
-                              <div class="flex justify-between mb-1">
-                                <span>{{ LEDGER_LABELS.scoreScreenshot }}</span>
+                              <div
+                                v-for="row in getScoreBreakdownRows(
+                                  event.score_breakdown
+                                )"
+                                :key="row.key"
+                                class="flex justify-between mb-1 last:mb-0"
+                              >
+                                <span>{{ row.label }}</span>
                                 <span
                                   :class="
-                                    event.score_breakdown.screenshot > 0
+                                    row.earned > 0
                                       ? 'text-green-600 font-semibold'
                                       : 'text-n-slate-10'
                                   "
                                 >
-                                  {{
-                                    formatScoreComponent(
-                                      event.score_breakdown.screenshot,
-                                      30
-                                    )
-                                  }}
-                                </span>
-                              </div>
-                              <div class="flex justify-between mb-1">
-                                <span>{{
-                                  LEDGER_LABELS.scoreAmountMatch
-                                }}</span>
-                                <span
-                                  :class="
-                                    event.score_breakdown.amount_match > 0
-                                      ? 'text-green-600 font-semibold'
-                                      : 'text-n-slate-10'
-                                  "
-                                >
-                                  {{
-                                    formatScoreComponent(
-                                      event.score_breakdown.amount_match,
-                                      25
-                                    )
-                                  }}
-                                </span>
-                              </div>
-                              <div class="flex justify-between mb-1">
-                                <span>{{
-                                  LEDGER_LABELS.scoreSenderMatch
-                                }}</span>
-                                <span
-                                  :class="
-                                    event.score_breakdown.sender_match > 0
-                                      ? 'text-green-600 font-semibold'
-                                      : 'text-n-slate-10'
-                                  "
-                                >
-                                  {{
-                                    formatScoreComponent(
-                                      event.score_breakdown.sender_match,
-                                      15
-                                    )
-                                  }}
-                                </span>
-                              </div>
-                              <div class="flex justify-between mb-1">
-                                <span>{{ LEDGER_LABELS.scoreTxnId }}</span>
-                                <span
-                                  :class="
-                                    event.score_breakdown.txn_id > 0
-                                      ? 'text-green-600 font-semibold'
-                                      : 'text-n-slate-10'
-                                  "
-                                >
-                                  {{
-                                    formatScoreComponent(
-                                      event.score_breakdown.txn_id,
-                                      15
-                                    )
-                                  }}
-                                </span>
-                              </div>
-                              <div class="flex justify-between mb-1">
-                                <span>{{
-                                  LEDGER_LABELS.scoreEmailConfirmed
-                                }}</span>
-                                <span
-                                  :class="
-                                    event.score_breakdown.email_confirmed > 0
-                                      ? 'text-green-600 font-semibold'
-                                      : 'text-n-slate-10'
-                                  "
-                                >
-                                  {{
-                                    formatScoreComponent(
-                                      event.score_breakdown.email_confirmed,
-                                      10
-                                    )
-                                  }}
-                                </span>
-                              </div>
-                              <div class="flex justify-between">
-                                <span>{{
-                                  LEDGER_LABELS.scoreTimeProximity
-                                }}</span>
-                                <span
-                                  :class="
-                                    event.score_breakdown.time_proximity > 0
-                                      ? 'text-green-600 font-semibold'
-                                      : 'text-n-slate-10'
-                                  "
-                                >
-                                  {{
-                                    formatScoreComponent(
-                                      event.score_breakdown.time_proximity,
-                                      5
-                                    )
-                                  }}
+                                  {{ row.display }}
                                 </span>
                               </div>
                             </div>
