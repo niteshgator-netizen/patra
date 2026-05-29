@@ -20,6 +20,13 @@ module Payments
         conversation: conv,
         text: msg
       )
+
+      # Remember we asked where to load, so their game-name reply triggers the load
+      attrs = conv.additional_attributes || {}
+      attrs['awaiting_load_amount'] = amount
+      attrs['awaiting_load_set_at'] = Time.current.iso8601
+      conv.update_columns(additional_attributes: attrs)
+
       Rails.logger.info("[AnnounceVerifiedPaymentJob] sent verified-ask contact=#{contact_id} amount=#{amount}")
     rescue StandardError => e
       Rails.logger.error("[AnnounceVerifiedPaymentJob] #{e.class}: #{e.message}")
