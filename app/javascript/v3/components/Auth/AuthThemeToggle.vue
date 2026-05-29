@@ -24,7 +24,7 @@ onMounted(() => {
 <template>
   <button
     type="button"
-    class="w-10 h-10 rounded-xl bg-patra-surface-2 border border-patra-border text-zinc-400 hover:text-white hover:border-patra-border-hi hover:bg-patra-surface-3 transition-all flex items-center justify-center"
+    class="w-10 h-10 rounded-xl bg-auth-surface-2 border border-auth-border text-auth-text-dim hover:text-auth-text hover:border-auth-border-hi hover:bg-auth-surface-3 transition-all flex items-center justify-center"
     :aria-label="$t('PATRA_AUTH.THEME_TOGGLE_LABEL')"
     @click="toggleTheme"
   >

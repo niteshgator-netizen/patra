@@ -67,7 +67,7 @@ const currentInputType = computed(() => {
 
 const inputClasses = computed(() =>
   isPatra.value
-    ? 'peer block w-full bg-patra-canvas/60 border border-patra-border rounded-xl px-3.5 pt-[18px] pb-2 text-sm text-white outline-none transition-all hover:border-patra-border-hi focus:border-patra focus:shadow-[0_0_0_4px_rgba(110,86,207,0.12)] appearance-none sm:leading-6'
+    ? 'peer block w-full bg-auth-input-bg border border-auth-border rounded-xl px-3.5 pt-[18px] pb-2 text-sm text-auth-text outline-none transition-all hover:border-auth-border-hi focus:border-patra focus:shadow-[0_0_0_4px_rgba(110,86,207,0.12)] appearance-none sm:leading-6'
     : 'block w-full border-none rounded-md shadow-sm bg-n-alpha-black2 appearance-none outline outline-1 focus:outline focus:outline-1 text-n-slate-12 placeholder:text-n-slate-10 sm:text-sm sm:leading-6 px-3 py-3'
 );
 
@@ -91,7 +91,7 @@ const spacingClasses = computed(() => {
 
 const toggleButtonClasses = computed(() =>
   isPatra.value
-    ? 'absolute inset-y-0 right-0 pr-3 text-zinc-400 hover:text-white'
+    ? 'absolute inset-y-0 right-0 pr-3 text-auth-text-dim hover:text-auth-text'
     : 'absolute inset-y-0 right-0 pr-3'
 );
 </script>

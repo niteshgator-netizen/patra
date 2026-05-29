@@ -33,7 +33,7 @@ export default {
   <div class="flex flex-col">
     <a
       :href="getGoogleAuthUrl()"
-      class="w-full bg-patra-surface-2 text-white border border-patra-border rounded-xl px-3.5 py-3 cursor-pointer text-sm font-medium flex items-center justify-center gap-2.5 transition-all hover:bg-patra-surface-3 hover:border-patra-border-hi hover:-translate-y-px no-underline"
+      class="w-full bg-auth-surface-2 text-auth-text border border-auth-border rounded-xl px-3.5 py-3 cursor-pointer text-sm font-medium flex items-center justify-center gap-2.5 transition-all hover:bg-auth-surface-3 hover:border-auth-border-hi hover:-translate-y-px no-underline"
     >
       <span class="i-logos-google-icon h-6" />
       <span>
