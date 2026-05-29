@@ -166,19 +166,20 @@ const persistDraftToPlatform = () => {
     return;
   }
 
-  const defaults = effectiveDefaultConfig();
-  const override = {};
-  SCORING_CONFIG_KEYS.forEach(key => {
-    if (draft[key] !== defaults[key]) {
-      override[key] = draft[key];
-    }
-  });
+  // Platform override is enabled — persist the FULL config explicitly so
+  // thresholds (auto_load/escalate/decline) always save, even when equal to default.
+  scoringFullConfig.value[selectedScoringPlatform.value] = { ...draft };
+};
 
-  if (!Object.keys(override).length) {
-    delete scoringFullConfig.value[selectedScoringPlatform.value];
-  } else {
-    scoringFullConfig.value[selectedScoringPlatform.value] = override;
-  }
+const showScoringOverrideIndicators = computed(
+  () =>
+    selectedScoringPlatform.value !== 'default' &&
+    Boolean(platformEnabled.value[selectedScoringPlatform.value])
+);
+
+const isScoringFieldCustom = key => {
+  const defaults = effectiveDefaultConfig();
+  return Number(scoringPlatformDraft.value[key]) !== Number(defaults[key]);
 };
 
 const onScoringInput = () => {
@@ -1021,20 +1022,37 @@ watch(selectedScoringPlatform, () => {
                   >
                     {{ t(field.labelKey) }}
                   </span>
-                  <input
-                    v-model.number="scoringPlatformDraft[field.key]"
-                    type="number"
-                    min="0"
-                    max="100"
-                    :disabled="isPlatformInputsDisabled"
-                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                    :class="
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10 opacity-60'
-                        : 'text-n-slate-12'
-                    "
-                    @input="onScoringInput"
-                  />
+                  <div class="flex flex-col items-end gap-0.5">
+                    <input
+                      v-model.number="scoringPlatformDraft[field.key]"
+                      type="number"
+                      min="0"
+                      max="100"
+                      :disabled="isPlatformInputsDisabled"
+                      class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                      :class="
+                        isPlatformInputsDisabled
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12'
+                      "
+                      @input="onScoringInput"
+                    />
+                    <span
+                      v-if="showScoringOverrideIndicators"
+                      class="text-[10px] leading-none"
+                      :class="
+                        isScoringFieldCustom(field.key)
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'text-n-slate-10'
+                      "
+                    >
+                      {{
+                        isScoringFieldCustom(field.key)
+                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                      }}
+                    </span>
+                  </div>
                 </div>
                 <div
                   class="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2"
@@ -1053,39 +1071,73 @@ watch(selectedScoringPlatform, () => {
                     <span class="text-xs text-n-slate-11">
                       {{ t('PAYMENT_HANDLES.SCORING_POINTS') }}:
                     </span>
-                    <input
-                      v-model.number="scoringPlatformDraft.time_proximity"
-                      type="number"
-                      min="0"
-                      max="100"
-                      :disabled="isPlatformInputsDisabled"
-                      class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                      :class="
-                        isPlatformInputsDisabled
-                          ? 'text-n-slate-10 opacity-60'
-                          : 'text-n-slate-12'
-                      "
-                      @input="onScoringInput"
-                    />
+                    <div class="flex flex-col items-end gap-0.5">
+                      <input
+                        v-model.number="scoringPlatformDraft.time_proximity"
+                        type="number"
+                        min="0"
+                        max="100"
+                        :disabled="isPlatformInputsDisabled"
+                        class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                        :class="
+                          isPlatformInputsDisabled
+                            ? 'text-n-slate-10 opacity-60'
+                            : 'text-n-slate-12'
+                        "
+                        @input="onScoringInput"
+                      />
+                      <span
+                        v-if="showScoringOverrideIndicators"
+                        class="text-[10px] leading-none"
+                        :class="
+                          isScoringFieldCustom('time_proximity')
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-n-slate-10'
+                        "
+                      >
+                        {{
+                          isScoringFieldCustom('time_proximity')
+                            ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                            : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                        }}
+                      </span>
+                    </div>
                     <span class="text-xs text-n-slate-11">
                       {{ t('PAYMENT_HANDLES.SCORING_TIME_WINDOW') }}:
                     </span>
-                    <input
-                      v-model.number="
-                        scoringPlatformDraft.time_proximity_minutes
-                      "
-                      type="number"
-                      min="1"
-                      max="1440"
-                      :disabled="isPlatformInputsDisabled"
-                      class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                      :class="
-                        isPlatformInputsDisabled
-                          ? 'text-n-slate-10 opacity-60'
-                          : 'text-n-slate-12'
-                      "
-                      @input="onScoringInput"
-                    />
+                    <div class="flex flex-col items-end gap-0.5">
+                      <input
+                        v-model.number="
+                          scoringPlatformDraft.time_proximity_minutes
+                        "
+                        type="number"
+                        min="1"
+                        max="1440"
+                        :disabled="isPlatformInputsDisabled"
+                        class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                        :class="
+                          isPlatformInputsDisabled
+                            ? 'text-n-slate-10 opacity-60'
+                            : 'text-n-slate-12'
+                        "
+                        @input="onScoringInput"
+                      />
+                      <span
+                        v-if="showScoringOverrideIndicators"
+                        class="text-[10px] leading-none"
+                        :class="
+                          isScoringFieldCustom('time_proximity_minutes')
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-n-slate-10'
+                        "
+                      >
+                        {{
+                          isScoringFieldCustom('time_proximity_minutes')
+                            ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                            : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                        }}
+                      </span>
+                    </div>
                     <span class="text-xs text-n-slate-11">
                       {{ t('PAYMENT_HANDLES.SCORING_TIME_MINUTES') }}
                     </span>
@@ -1104,20 +1156,37 @@ watch(selectedScoringPlatform, () => {
                   >
                     {{ t('PAYMENT_HANDLES.SCORING_TIME_MATCH') }}
                   </span>
-                  <input
-                    v-model.number="scoringPlatformDraft.time_match"
-                    type="number"
-                    min="0"
-                    max="100"
-                    :disabled="isPlatformInputsDisabled"
-                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                    :class="
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10 opacity-60'
-                        : 'text-n-slate-12'
-                    "
-                    @input="onScoringInput"
-                  />
+                  <div class="flex flex-col items-end gap-0.5">
+                    <input
+                      v-model.number="scoringPlatformDraft.time_match"
+                      type="number"
+                      min="0"
+                      max="100"
+                      :disabled="isPlatformInputsDisabled"
+                      class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                      :class="
+                        isPlatformInputsDisabled
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12'
+                      "
+                      @input="onScoringInput"
+                    />
+                    <span
+                      v-if="showScoringOverrideIndicators"
+                      class="text-[10px] leading-none"
+                      :class="
+                        isScoringFieldCustom('time_match')
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'text-n-slate-10'
+                      "
+                    >
+                      {{
+                        isScoringFieldCustom('time_match')
+                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1153,21 +1222,38 @@ watch(selectedScoringPlatform, () => {
                     {{ field.prefix }}
                     {{ t(field.labelKey) }}
                   </span>
-                  <input
-                    v-model.number="scoringPlatformDraft[field.key]"
-                    type="number"
-                    min="0"
-                    max="100"
-                    :disabled="isPlatformInputsDisabled"
-                    class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm"
-                    :class="[
-                      field.inputClass,
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10 opacity-60'
-                        : 'text-n-slate-12',
-                    ]"
-                    @input="onScoringInput"
-                  />
+                  <div class="flex flex-col items-end gap-0.5">
+                    <input
+                      v-model.number="scoringPlatformDraft[field.key]"
+                      type="number"
+                      min="0"
+                      max="100"
+                      :disabled="isPlatformInputsDisabled"
+                      class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm"
+                      :class="[
+                        field.inputClass,
+                        isPlatformInputsDisabled
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12',
+                      ]"
+                      @input="onScoringInput"
+                    />
+                    <span
+                      v-if="showScoringOverrideIndicators"
+                      class="text-[10px] leading-none"
+                      :class="
+                        isScoringFieldCustom(field.key)
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'text-n-slate-10'
+                      "
+                    >
+                      {{
+                        isScoringFieldCustom(field.key)
+                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                      }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

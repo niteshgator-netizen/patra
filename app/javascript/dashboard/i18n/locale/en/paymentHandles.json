@@ -97,6 +97,8 @@
     "SCORING_DECLINE": "❌ Decline",
     "SCORING_POINTS": "Points",
     "SCORING_THRESHOLD": "Threshold",
+    "SCORING_FIELD_CUSTOM": "custom",
+    "SCORING_FIELD_DEFAULT": "= default",
     "ERROR_GENERIC": "Something went wrong. Try again.",
     "VALIDATION_ERROR_PREFIX": "Please fix the following:"
   }
