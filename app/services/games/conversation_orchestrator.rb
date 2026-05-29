@@ -59,6 +59,29 @@ module Games
 
       return nil if probe_text.blank?
 
+      # Load-on-answer: if we just asked "where to load?" and the customer named
+      # a game, treat it as a load for the verified amount we stored.
+      awaiting_amount = conversation&.additional_attributes&.dig('awaiting_load_amount')
+      if awaiting_amount.present?
+        answered_game = Games::IntentDetector.detect_game(latest_text)
+        set_at = conversation.additional_attributes['awaiting_load_set_at']
+        fresh = set_at.blank? || (Time.parse(set_at) > 30.minutes.ago rescue true)
+        if answered_game.present? && fresh
+          Rails.logger.info("[Orchestrator] load-on-answer: game=#{answered_game} amount=#{awaiting_amount}")
+          # Clear the flag so it fires once
+          attrs = conversation.additional_attributes.dup
+          attrs.delete('awaiting_load_amount')
+          attrs.delete('awaiting_load_set_at')
+          conversation.update_columns(additional_attributes: attrs)
+          return handle_load_intent({
+            intent: :load,
+            amount: awaiting_amount.to_f,
+            game_slug: answered_game,
+            game_username: nil
+          })
+        end
+      end
+
       # First check latest message alone — this is what the customer just asked NOW
       latest_intent = Games::IntentDetector.detect(latest_text)
 
