@@ -258,7 +258,7 @@ module Games
         )
 
         if result[:ok]
-          mark_payment_loaded(payment[:id])
+          mark_payment_loaded(payment[:id], game_slug: ag.game.slug, game_username: username)
           return {
             reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
             labels: ['auto-load', 'new-account-created']
@@ -270,7 +270,7 @@ module Games
       store_game_username(ag.game.slug, username)
 
       if result[:ok]
-        mark_payment_loaded(payment[:id])
+        mark_payment_loaded(payment[:id], game_slug: ag.game.slug, game_username: username)
         {
           reply: "loaded $#{requested_amount} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
@@ -464,7 +464,7 @@ module Games
         )
 
         if result[:ok]
-          mark_payment_loaded(recent_payment[:id])
+          mark_payment_loaded(recent_payment[:id], game_slug: ag.game.slug, game_username: username)
           return {
             reply: "created your account! username: #{username}, password: #{password} (save this!) — loaded $#{recent_payment[:amount]} 🎰",
             labels: ['auto-load', 'new-account-created']
@@ -475,7 +475,7 @@ module Games
       store_game_username(ag.game.slug, username)
 
       if result[:ok]
-        mark_payment_loaded(recent_payment[:id])
+        mark_payment_loaded(recent_payment[:id], game_slug: ag.game.slug, game_username: username)
         {
           reply: "loaded $#{recent_payment[:amount]} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
@@ -608,7 +608,7 @@ module Games
       )
 
       if result[:ok]
-        mark_payment_loaded(recent_payment[:id])
+        mark_payment_loaded(recent_payment[:id], game_slug: ag.game.slug, game_username: auto_username)
         {
           reply: "all set! username: #{auto_username}, password: #{generated_password} (save this!) — loaded $#{recent_payment[:amount]} 🎰 good luck!",
           labels: ['auto-load', 'new-account-created']
@@ -1106,7 +1106,7 @@ module Games
       false
     end
 
-    def mark_payment_loaded(payment_id)
+    def mark_payment_loaded(payment_id, game_slug: nil, game_username: nil)
       logs = (contact.custom_attributes || {})['patra_finance_logs']
       if logs.is_a?(Array)
         modified = false
@@ -1121,6 +1121,8 @@ module Games
           entry['status'] = 'Loaded'
           entry['game_load_success'] = true
           entry['loaded_at'] = Time.current.iso8601
+          entry['loaded_game_slug'] = game_slug if game_slug.present?
+          entry['loaded_game_username'] = game_username if game_username.present?
           modified = true
           break
         end
@@ -1133,7 +1135,7 @@ module Games
         end
       end
 
-      Rails.logger.info("[Orchestrator] payment #{payment_id} marked loaded")
+      Rails.logger.info("[Orchestrator] payment #{payment_id} marked loaded game=#{game_slug} user=#{game_username}")
     end
 
     def parse_amount(val)
