@@ -57,10 +57,11 @@ module Payments
           entry['email_subject'] = match.subject.to_s.encode('UTF-8', invalid: :replace, undef: :replace)[0, 200]
           entry['email_from'] = match.from&.first.to_s[0, 100]
           entry['email_date'] = match.date&.iso8601 rescue match.date.to_s
-          entry['email_body_snippet'] = match.body.to_s.encode('UTF-8', invalid: :replace, undef: :replace)[0, 500]
+          body_full = full_email_body(match)
+          entry['email_body_snippet'] = body_full.encode('UTF-8', invalid: :replace, undef: :replace)[0, 500]
 
           # Extract amount from email body/subject
-          email_text = "#{match.subject} #{match.body}".to_s
+          email_text = "#{match.subject} #{body_full}".to_s
           amount_match = email_text.match(/\$[\d,]+\.?\d{0,2}/)
           entry['email_amount'] = amount_match[0].gsub(/[$,]/, '').to_f if amount_match
 
@@ -72,6 +73,11 @@ module Payments
           if entry['email_sender_name'].blank? || entry['email_sender_name'].to_s.downcase.in?(%w[you alerts])
             subject_name = subject.match(/^(.+?)\s+(?:just\s+)?sent\s+you/i)
             entry['email_sender_name'] = subject_name[1].strip if subject_name
+          end
+          # Body fallback: Chime says "received $X from <Name> for <note>"
+          if entry['email_sender_name'].blank? || entry['email_sender_name'].to_s.downcase.in?(%w[you alerts])
+            body_sender = body_full.match(/from\s+([A-Z][a-zA-Z.]+(?:\s+[A-Z][a-zA-Z.]*){0,2})\s+for\b/)
+            entry['email_sender_name'] = body_sender[1].strip if body_sender
           end
         rescue StandardError => e
           Rails.logger.warn("[EmailConfirmationService] email data extraction failed: #{e.message}")
@@ -238,6 +244,24 @@ module Payments
     private_class_method :names_overlap?
 
     private
+
+    def full_email_body(mail)
+      parts = []
+      begin
+        if mail.multipart?
+          parts << mail.text_part&.decoded if mail.text_part
+          parts << mail.html_part&.decoded if mail.html_part
+        end
+      rescue StandardError
+        # fall through to body
+      end
+      parts << mail.body.decoded rescue parts << mail.body.to_s
+      raw = parts.compact.join(' ')
+      # strip HTML tags so note/sender text is matchable as plain text
+      raw.gsub(/<[^>]+>/, ' ').gsub(/&[a-z]+;/i, ' ').gsub(/\s+/, ' ').strip
+    rescue StandardError
+      mail.body.to_s
+    end
 
     def finance_logs
       Array(@contact.custom_attributes&.dig('patra_finance_logs')).map do |raw|
