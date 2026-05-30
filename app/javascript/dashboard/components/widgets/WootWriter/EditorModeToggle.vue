@@ -113,7 +113,8 @@ const translateValue = computed(() => {
   --pt-border: #171520;
 
   gap: 4px;
-  border: none;
+  border: 1px solid transparent;
+  border-color: #171520 !important;
   border-radius: 0;
   background: transparent;
 }
@@ -127,19 +128,25 @@ const translateValue = computed(() => {
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+  border: 1px solid transparent;
+  border-color: transparent !important;
 }
 
 .patra-composer-tab.is-active {
   color: var(--pt-text);
   background: var(--pt-surface-2);
+  border-color: #6e56cf !important;
 }
 
 .patra-composer-tab.is-note.is-active {
   background: rgba(227, 160, 8, 0.15);
   color: var(--pt-amber);
+  border-color: #171520 !important;
 }
 
 .patra-composer-tab-chip {
   display: none;
+  border: 1px solid transparent;
+  border-color: #171520 !important;
 }
 </style>
