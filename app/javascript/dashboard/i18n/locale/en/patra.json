@@ -120,7 +120,12 @@
     },
     "CONVERSATION": {
       "PIN": "Pin conversation",
+      "PIN_SHORT": "Pin",
       "UNPIN": "Unpin conversation",
+      "UNPIN_SHORT": "Unpin",
+      "TAKE_OVER": "Take over",
+      "AI_ACTIVE": "Patra AI — AI Active",
+      "AI_PAUSED": "Human — AI Paused",
       "PIN_ERROR": "Could not update pin",
       "SUMMARY": "Summary",
       "SUMMARY_LOADING": "Generating summary…",

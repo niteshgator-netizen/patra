@@ -224,96 +224,96 @@ const togglePin = async () => {
     useAlert(t('PATRA.CONVERSATION.PIN_ERROR'));
   }
 };
+
+const aiToggleLabel = computed(() =>
+  aiOff.value
+    ? t('PATRA.CONVERSATION.AI_PAUSED')
+    : t('PATRA.CONVERSATION.AI_ACTIVE')
+);
+
+const pinButtonLabel = computed(() =>
+  isPinned.value
+    ? t('PATRA.CONVERSATION.UNPIN_SHORT')
+    : t('PATRA.CONVERSATION.PIN_SHORT')
+);
 </script>
 
 <template>
-  <div
-    ref="conversationHeader"
-    class="flex flex-col gap-3 items-center justify-between flex-1 w-full min-w-0 xl:flex-row px-3 pt-3 pb-2 h-24 xl:h-12"
-  >
-    <div
-      class="flex items-center justify-start w-full xl:w-auto max-w-full min-w-0 xl:flex-1"
-    >
+  <div ref="conversationHeader" class="patra-conv-head">
+    <div class="patra-conv-head-l">
       <BackButton
         v-if="showBackButton"
         :back-url="backButtonUrl"
-        class="ltr:mr-2 rtl:ml-2"
+        class="patra-conv-head-back ltr:mr-1 rtl:ml-1"
       />
       <Avatar
         :name="currentContact.name"
         :src="currentContact.thumbnail"
-        :size="32"
+        :size="42"
         :status="avatarPresenceStatus"
         hide-offline-status
         rounded-full
+        class="patra-conv-head-avatar"
       />
-      <div
-        class="flex flex-col items-start min-w-0 ml-2 overflow-hidden rtl:ml-0 rtl:mr-2"
-      >
-        <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
-          <span
-            class="text-base font-semibold truncate leading-tight text-n-slate-12"
-          >
+      <div class="patra-conv-head-info min-w-0">
+        <div class="patra-conv-head-name">
+          <span class="patra-conv-head-name-text truncate">
             {{ currentContact.name }}
           </span>
           <fluent-icon
             v-if="!isHMACVerified"
             v-tooltip="$t('CONVERSATION.UNVERIFIED_SESSION')"
             size="14"
-            class="text-n-amber-10 my-0 mx-0 min-w-[14px] flex-shrink-0"
+            class="patra-conv-head-warn shrink-0"
             icon="warning"
           />
-        </div>
-        <!-- Patra: active status (under contact name) -->
-        <div
-          v-if="contactPresence.last_active"
-          class="text-xs leading-tight"
-          :class="
-            contactPresence.online
-              ? 'text-[var(--patra-green)]'
-              : 'text-n-slate-11'
-          "
-        >
-          {{ contactPresence.last_active }}
-        </div>
-        <!-- Patra: inbox + conversation id (one line; inbox name once, id de-emphasized) -->
-        <div
-          class="flex items-center gap-1 overflow-hidden text-xs conversation--header--actions text-n-slate-11 text-ellipsis whitespace-nowrap max-w-full"
-        >
-          <span class="truncate shrink min-w-0">
-            {{ channelIcon }} {{ inboxDisplayName }}
-          </span>
-          <span class="text-n-slate-10 shrink-0" aria-hidden="true">•</span>
           <button
             type="button"
-            class="shrink-0 text-[11px] font-normal leading-none text-n-slate-10 hover:text-n-slate-11 !p-0 cursor-pointer tabular-nums"
+            class="patra-conv-head-cnum shrink-0"
+            :title="$t('CONVERSATION.HEADER.COPY_ID_SUCCESS')"
             @click="copyConversationId"
           >
             #{{ chat.id }}
           </button>
+        </div>
+        <div class="patra-conv-head-sub">
+          <span
+            v-if="contactPresence.last_active"
+            class="patra-conv-head-live"
+            :class="{ 'is-online': contactPresence.online }"
+          >
+            <span v-if="contactPresence.online" class="patra-conv-head-pip" />
+            {{ contactPresence.last_active }}
+          </span>
+          <template v-if="contactPresence.last_active">
+            <span class="patra-conv-head-sep" aria-hidden="true">·</span>
+          </template>
+          <span class="truncate">
+            {{ channelIcon }} {{ inboxDisplayName }}
+          </span>
           <template v-if="isSnoozed">
-            <span class="text-n-slate-10 shrink-0" aria-hidden="true">•</span>
-            <span class="truncate font-medium text-n-amber-10 shrink min-w-0">
+            <span class="patra-conv-head-sep" aria-hidden="true">·</span>
+            <span class="patra-conv-head-snooze truncate">
               {{ snoozedDisplayText }}
             </span>
           </template>
         </div>
       </div>
     </div>
-    <div
-      class="flex flex-row items-center justify-start xl:justify-end flex-shrink-0 gap-2 w-full xl:w-auto header-actions-wrap relative overflow-visible"
-    >
+
+    <div class="patra-conv-head-r">
       <SLACardLabel
         v-if="hasSlaPolicyId"
         :chat="chat"
         show-extended-info
         :parent-width="width"
-        class="hidden md:flex"
+        class="patra-conv-head-sla hidden md:flex"
       />
-      <div class="relative">
+
+      <div class="patra-conv-head-util relative">
         <button
           type="button"
-          class="inline-flex items-center justify-center size-8 rounded-full border border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+          class="patra-conv-head-icon-btn"
           :title="$t('PATRA.MESSAGE_SEARCH.TITLE')"
           :aria-label="$t('PATRA.MESSAGE_SEARCH.TITLE')"
           @click="showMessageSearch = !showMessageSearch"
@@ -326,9 +326,10 @@ const togglePin = async () => {
           @close="showMessageSearch = false"
         />
       </div>
+
       <button
         type="button"
-        class="inline-flex items-center justify-center size-8 rounded-full border border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
+        class="patra-conv-head-icon-btn"
         :title="$t('PATRA.INFO_PANEL.TITLE')"
         :aria-label="$t('PATRA.INFO_PANEL.TITLE')"
         @click="showInfoPanel = true"
@@ -340,13 +341,32 @@ const togglePin = async () => {
         :show="showInfoPanel"
         @close="showInfoPanel = false"
       />
-      <!-- Patra: pin -->
+
       <button
         type="button"
-        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
-        :class="
-          isPinned ? 'bg-n-amber-9/15 text-n-amber-11 border-n-amber-9/30' : ''
-        "
+        class="patra-conv-head-ai-toggle"
+        :class="{ 'is-off': aiOff }"
+        :title="aiToggleLabel"
+        :aria-label="aiToggleLabel"
+        @click="toggleAiOff"
+      >
+        <span class="patra-conv-head-ai-spark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"
+            />
+          </svg>
+        </span>
+        {{ aiToggleLabel }}
+        <span class="patra-conv-head-ai-sw" aria-hidden="true">
+          <i />
+        </span>
+      </button>
+
+      <button
+        type="button"
+        class="patra-conv-head-btn"
+        :class="{ 'is-pinned': isPinned }"
         :title="
           isPinned
             ? $t('PATRA.CONVERSATION.UNPIN')
@@ -359,36 +379,430 @@ const togglePin = async () => {
         "
         @click="togglePin"
       >
-        📌
-        {{
-          isPinned
-            ? $t('PATRA.CONVERSATION.UNPIN')
-            : $t('PATRA.CONVERSATION.PIN')
-        }}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+        {{ pinButtonLabel }}
       </button>
-      <!-- Patra: AI status / pause toggle -->
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap"
-        :class="
-          aiOff
-            ? 'bg-[var(--patra-red-soft)] text-[var(--patra-red)] border-[var(--patra-red)]'
-            : 'bg-[var(--patra-green-soft)] text-[var(--patra-green)] border-[var(--patra-green)]'
-        "
-        @click="toggleAiOff"
-      >
-        {{ aiOff ? '👤 Human — AI Paused' : '🤖 Patra AI — AI Active' }}
-      </button>
-      <!-- Patra: human take-over (adds ai-off + focuses reply editor) -->
+
       <button
         v-if="!aiOff"
         type="button"
-        class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap bg-[var(--patra-amber-soft)] text-[var(--patra-amber)] border-[var(--patra-amber)]"
+        class="patra-conv-head-btn"
+        :title="$t('PATRA.CONVERSATION.TAKE_OVER')"
+        :aria-label="$t('PATRA.CONVERSATION.TAKE_OVER')"
         @click="takeOver"
       >
-        Take over
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M20 8v6M23 11h-6" />
+        </svg>
+        {{ $t('PATRA.CONVERSATION.TAKE_OVER') }}
       </button>
+
       <MoreActions :conversation-id="currentChat.id" />
     </div>
   </div>
 </template>
+
+<style scoped>
+.patra-conv-head {
+  --ph-surface: #0c0b12;
+  --ph-surface-2: #131119;
+  --ph-surface-3: #1b1925;
+  --ph-surface-4: #252233;
+  --ph-border: #171520;
+  --ph-border-hi: #2e2940;
+  --ph-patra: #6e56cf;
+  --ph-patra-2: #8b5cf6;
+  --ph-patra-3: #a78bfa;
+  --ph-patra-deep: #5b45b0;
+  --ph-patra-glow: rgba(110, 86, 207, 0.55);
+  --ph-text: #ededf2;
+  --ph-text-2: #a8a6b6;
+  --ph-text-3: #75727f;
+  --ph-text-4: #54515e;
+  --ph-green: #3fb950;
+  --ph-amber: #e3a008;
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 13px 22px;
+  border-bottom: 1px solid var(--ph-border);
+  background: color-mix(in srgb, var(--ph-surface) 75%, transparent);
+  backdrop-filter: blur(16px);
+  position: relative;
+  z-index: 5;
+}
+
+@media (min-width: 1280px) {
+  .patra-conv-head {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    min-height: 68px;
+  }
+}
+
+.patra-conv-head-l {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.patra-conv-head-back {
+  flex-shrink: 0;
+}
+
+.patra-conv-head-avatar {
+  flex-shrink: 0;
+}
+
+.patra-conv-head-info {
+  overflow: hidden;
+}
+
+.patra-conv-head-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--ph-text);
+  line-height: 1.25;
+}
+
+.patra-conv-head-name-text {
+  min-width: 0;
+}
+
+.patra-conv-head-warn {
+  color: var(--ph-amber);
+}
+
+.patra-conv-head-cnum {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ph-text-4);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s;
+}
+
+.patra-conv-head-cnum:hover {
+  color: var(--ph-text-3);
+}
+
+.patra-conv-head-sub {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ph-text-3);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.patra-conv-head-sep {
+  color: var(--ph-text-4);
+  flex-shrink: 0;
+}
+
+.patra-conv-head-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  color: var(--ph-text-3);
+}
+
+.patra-conv-head-live.is-online {
+  color: var(--ph-green);
+}
+
+.patra-conv-head-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ph-green);
+  box-shadow: 0 0 6px var(--ph-green);
+  animation: patra-head-pip 2s infinite;
+}
+
+@keyframes patra-head-pip {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.patra-conv-head-snooze {
+  color: var(--ph-amber);
+  font-weight: 500;
+}
+
+.patra-conv-head-r {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+@media (min-width: 1280px) {
+  .patra-conv-head-r {
+    justify-content: flex-end;
+    width: auto;
+  }
+}
+
+.patra-conv-head-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--ph-border);
+  background: var(--ph-surface-2);
+  color: var(--ph-text-2);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.patra-conv-head-icon-btn:hover {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--ph-patra), var(--ph-patra-deep));
+  box-shadow: 0 4px 12px var(--ph-patra-glow);
+}
+
+.patra-conv-head-ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ph-patra-3);
+  background: linear-gradient(
+    135deg,
+    rgba(110, 86, 207, 0.16),
+    rgba(139, 92, 246, 0.06)
+  );
+  border: 1px solid rgba(139, 92, 246, 0.32);
+  border-radius: 10px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+
+.patra-conv-head-ai-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px var(--ph-patra-glow);
+  border-color: var(--ph-patra);
+}
+
+.patra-conv-head-ai-toggle.is-off {
+  color: var(--ph-text-3);
+  background: var(--ph-surface-2);
+  border-color: var(--ph-border);
+}
+
+.patra-conv-head-ai-toggle.is-off:hover {
+  border-color: var(--ph-border-hi);
+  box-shadow: none;
+  transform: none;
+}
+
+.patra-conv-head-ai-spark svg {
+  width: 14px;
+  height: 14px;
+  animation: patra-head-spark 3s ease-in-out infinite;
+}
+
+@keyframes patra-head-spark {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+
+.patra-conv-head-ai-sw {
+  width: 30px;
+  height: 17px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--ph-patra), var(--ph-patra-2));
+  position: relative;
+  transition: all 0.3s;
+  box-shadow: 0 0 10px var(--ph-patra-glow);
+  flex-shrink: 0;
+}
+
+.patra-conv-head-ai-sw i {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fff;
+  transition: all 0.3s;
+}
+
+.patra-conv-head-ai-toggle.is-off .patra-conv-head-ai-sw {
+  background: var(--ph-surface-4);
+  box-shadow: none;
+}
+
+.patra-conv-head-ai-toggle.is-off .patra-conv-head-ai-sw i {
+  right: auto;
+  left: 2px;
+}
+
+.patra-conv-head-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--ph-border);
+  background: var(--ph-surface-2);
+  color: var(--ph-text);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  white-space: nowrap;
+}
+
+.patra-conv-head-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.patra-conv-head-btn:hover {
+  border-color: var(--ph-border-hi);
+  background: var(--ph-surface-3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+.patra-conv-head-btn:active {
+  transform: translateY(0);
+}
+
+.patra-conv-head-btn.is-pinned {
+  border-color: rgba(227, 160, 8, 0.35);
+  background: rgba(227, 160, 8, 0.12);
+  color: var(--ph-amber);
+}
+
+.patra-conv-head-r :deep(.resolve-actions) {
+  flex-shrink: 0;
+}
+
+.patra-conv-head-r :deep(.resolve-actions > div:first-child) {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.patra-conv-head-r :deep(.resolve-actions button) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 14px !important;
+  border-radius: 10px !important;
+  border: 1px solid transparent !important;
+  background: linear-gradient(
+    135deg,
+    var(--ph-patra),
+    var(--ph-patra-deep)
+  ) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px var(--ph-patra-glow) !important;
+  min-height: unset !important;
+  height: auto !important;
+  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1) !important;
+}
+
+.patra-conv-head-r :deep(.resolve-actions button:hover) {
+  filter: brightness(1.12);
+  box-shadow: 0 7px 22px var(--ph-patra-glow) !important;
+  transform: translateY(-2px);
+}
+
+.patra-conv-head-r :deep(.resolve-actions button svg) {
+  width: 15px;
+  height: 15px;
+}
+
+.patra-conv-head-r :deep(.actions--container > button:last-of-type),
+.patra-conv-head-r :deep(.actions--container > div > button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--ph-border);
+  background: var(--ph-surface-2);
+  color: var(--ph-text-2);
+}
+
+.patra-conv-head-r :deep(.actions--container > button:last-of-type:hover),
+.patra-conv-head-r :deep(.actions--container > div > button:hover) {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--ph-patra), var(--ph-patra-deep));
+  box-shadow: 0 4px 12px var(--ph-patra-glow);
+}
+</style>
