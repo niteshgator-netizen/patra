@@ -130,7 +130,8 @@ const isRead = computed(() => {
 });
 
 const statusToShow = computed(() => {
-  if (isRead.value || contentAttributes.value?.read_at) return MESSAGE_STATUS.READ;
+  if (isRead.value || contentAttributes.value?.read_at)
+    return MESSAGE_STATUS.READ;
   if (isDelivered.value) return MESSAGE_STATUS.DELIVERED;
   if (isSent.value) return MESSAGE_STATUS.SENT;
 
@@ -161,23 +162,31 @@ const patraReadLabel = computed(() => {
 </script>
 
 <template>
-  <div class="text-xs flex items-center gap-1.5">
+  <div class="text-xs patra-conv-msg-meta flex items-center gap-1.5">
     <div class="inline">
       <time v-tooltip.top="exactTimestamp" class="inline cursor-default">
         {{ readableTime }}
       </time>
     </div>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
-    <span
-      v-if="patraReadLabel"
-      class="text-xs"
-      :class="patraReadLabel.class"
-    >
+    <span v-if="patraReadLabel" class="text-xs" :class="patraReadLabel.class">
       {{ patraReadLabel.text }}
     </span>
-    <MessageStatus
-      v-else-if="showStatusIndicator"
-      :status="statusToShow"
-    />
+    <MessageStatus v-else-if="showStatusIndicator" :status="statusToShow" />
   </div>
 </template>
+
+<style scoped>
+.patra-conv-msg-meta {
+  --pm-text-4: #54515e;
+  --pm-blue: #58a6ff;
+
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--pm-text-4);
+}
+
+.patra-conv-msg-meta time {
+  cursor: default;
+}
+</style>

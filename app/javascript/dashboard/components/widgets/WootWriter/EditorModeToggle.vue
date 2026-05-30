@@ -69,21 +69,29 @@ const translateValue = computed(() => {
 
 <template>
   <button
-    class="flex items-center w-auto h-8 p-1 transition-all border rounded-full bg-n-alpha-2 group relative duration-300 ease-in-out z-0 active:scale-[0.995] active:duration-75"
+    class="patra-composer-tabs flex items-center w-auto h-8 p-1 transition-all relative duration-300 ease-in-out z-0 active:scale-[0.995] active:duration-75"
     :disabled="disabled || isReplyRestricted"
     :class="{
       'cursor-not-allowed': disabled || isReplyRestricted,
     }"
     @click="$emit('toggleMode')"
   >
-    <div ref="wootEditorReplyMode" class="flex items-center gap-1 px-2 z-20">
+    <div
+      ref="wootEditorReplyMode"
+      class="patra-composer-tab flex items-center gap-1 px-3 z-20"
+      :class="{ 'is-active': !isPrivate }"
+    >
       {{ $t('CONVERSATION.REPLYBOX.REPLY') }}
     </div>
-    <div ref="wootEditorPrivateMode" class="flex items-center gap-1 px-2 z-20">
+    <div
+      ref="wootEditorPrivateMode"
+      class="patra-composer-tab flex items-center gap-1 px-3 z-20"
+      :class="{ 'is-active': isPrivate, 'is-note': isPrivate }"
+    >
       {{ $t('CONVERSATION.REPLYBOX.PRIVATE_NOTE') }}
     </div>
     <div
-      class="absolute shadow-sm rounded-full h-6 w-[var(--chip-width)] ease-in-out translate-x-[var(--translate-x)] rtl:translate-x-[var(--rtl-translate-x)] bg-n-solid-1"
+      class="patra-composer-tab-chip absolute shadow-sm rounded-lg h-6 w-[var(--chip-width)] ease-in-out translate-x-[var(--translate-x)] rtl:translate-x-[var(--rtl-translate-x)]"
       :class="{
         'transition-all duration-300': !disabled && !isReplyRestricted,
       }"
@@ -95,3 +103,43 @@ const translateValue = computed(() => {
     />
   </button>
 </template>
+
+<style scoped>
+.patra-composer-tabs {
+  --pt-surface-2: #131119;
+  --pt-text-3: #75727f;
+  --pt-text: #ededf2;
+  --pt-amber: #e3a008;
+  --pt-border: #171520;
+
+  gap: 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.patra-composer-tab {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 8px;
+  color: var(--pt-text-3);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.patra-composer-tab.is-active {
+  color: var(--pt-text);
+  background: var(--pt-surface-2);
+}
+
+.patra-composer-tab.is-note.is-active {
+  background: rgba(227, 160, 8, 0.15);
+  color: var(--pt-amber);
+}
+
+.patra-composer-tab-chip {
+  display: none;
+}
+</style>

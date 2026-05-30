@@ -163,7 +163,7 @@ const getInReplyToMessage = parentMessage => {
 </script>
 
 <template>
-  <ul class="px-4 bg-n-surface-1">
+  <ul class="patra-conv-thread">
     <slot name="beforeAll" />
     <template v-for="(message, index) in allMessages" :key="message.id">
       <slot
@@ -184,3 +184,20 @@ const getInReplyToMessage = parentMessage => {
     <slot name="after" />
   </ul>
 </template>
+
+<style scoped>
+.patra-conv-thread {
+  --pt-canvas: #050409;
+  --pt-border: #171520;
+
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  margin: 0;
+  list-style: none;
+  background: transparent;
+}
+</style>

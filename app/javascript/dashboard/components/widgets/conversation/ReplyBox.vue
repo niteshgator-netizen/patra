@@ -1263,7 +1263,11 @@ export default {
 
 <template>
   <ReplyBoxBanner :message="message" :is-on-private-note="isOnPrivateNote" />
-  <div ref="replyEditor" class="reply-box" :class="replyBoxClass">
+  <div
+    ref="replyEditor"
+    class="reply-box patra-conv-composer"
+    :class="replyBoxClass"
+  >
     <ReplyTopPanel
       :mode="replyType"
       :conversation-id="conversationId"
@@ -1296,7 +1300,10 @@ export default {
       leave-from-class="opacity-100 translate-y-0 scale-100"
       leave-to-class="opacity-0 translate-y-2 scale-[0.98]"
     >
-      <div :key="copilot.editorTransitionKey.value" class="reply-box__top">
+      <div
+        :key="copilot.editorTransitionKey.value"
+        class="reply-box__top patra-conv-composer-box"
+      >
         <ReplyToMessage
           v-if="shouldShowReplyToMessage"
           :message="inReplyTo"
@@ -1488,42 +1495,102 @@ export default {
   </div>
 </template>
 
-<style lang="scss" scoped>
-.send-button {
-  @apply mb-0;
+<style scoped>
+.patra-conv-composer {
+  --pc-surface: #0c0b12;
+  --pc-canvas: #050409;
+  --pc-border: #171520;
+  --pc-patra: #6e56cf;
+  --pc-patra-glow: rgba(110, 86, 207, 0.55);
+  --pc-amber: #e3a008;
+
+  position: relative;
+  margin: 0 22px 14px;
+  border: 1px solid var(--pc-border);
+  border-radius: 13px;
+  background: var(--pc-canvas);
+  transition:
+    border-color 0.25s,
+    box-shadow 0.25s;
 }
 
-.reply-box {
-  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1;
-
-  &.is-private {
-    @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;
-  }
+.patra-conv-composer.is-focused,
+.patra-conv-composer:has(.ProseMirror-focused) {
+  border-color: var(--pc-patra);
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
 }
 
-.send-button {
-  @apply mb-0;
+.patra-conv-composer.is-private {
+  background: rgba(227, 160, 8, 0.08);
+  border-color: rgba(227, 160, 8, 0.22);
 }
 
-.reply-box__top {
-  @apply relative py-0 px-3 -mt-px;
+.patra-conv-composer-box {
+  position: relative;
+  padding: 0;
+  margin-top: 0;
+}
+
+.patra-conv-composer :deep(.reply-box__top) {
+  padding: 0;
+}
+
+.patra-conv-composer :deep(.input) {
+  padding: 12px 14px;
+  min-height: 44px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #ededf2;
+}
+
+.patra-conv-composer :deep(.ProseMirror) {
+  color: #ededf2;
+}
+
+.patra-conv-composer :deep(.ProseMirror p.is-editor-empty:first-child::before) {
+  color: #54515e;
 }
 
 .emoji-dialog {
-  @apply top-[unset] -bottom-10 ltr:-left-80 ltr:right-[unset] rtl:left-[unset] rtl:-right-80;
+  top: unset;
+  bottom: -2.5rem;
+  left: -20rem;
+  right: unset;
+}
 
-  &::before {
-    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.08));
-    @apply ltr:-right-4 bottom-2 rtl:-left-4 ltr:rotate-[270deg] rtl:rotate-[90deg];
-  }
+.emoji-dialog::before {
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.08));
+  right: -1rem;
+  bottom: 0.5rem;
+  transform: rotate(270deg);
+}
+
+:dir(rtl) .emoji-dialog {
+  left: unset;
+  right: -20rem;
+}
+
+:dir(rtl) .emoji-dialog::before {
+  left: -1rem;
+  right: auto;
+  transform: rotate(90deg);
 }
 
 .emoji-dialog--expanded {
-  @apply left-[unset] bottom-0 absolute z-[100];
+  position: absolute;
+  z-index: 100;
+  left: unset;
+  bottom: 0;
+}
 
-  &::before {
-    transform: rotate(0deg);
-    @apply ltr:left-1 rtl:right-1 -bottom-2;
-  }
+.emoji-dialog--expanded::before {
+  transform: rotate(0deg);
+  left: 0.25rem;
+  bottom: -0.5rem;
+}
+
+:dir(rtl) .emoji-dialog--expanded::before {
+  right: 0.25rem;
+  left: auto;
 }
 </style>
