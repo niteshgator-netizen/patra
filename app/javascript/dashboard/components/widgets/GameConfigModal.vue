@@ -143,24 +143,22 @@ export default {
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
+  <div class="overlay show" @click.self="$emit('close')">
     <div class="modal">
-      <header class="modal__head">
-        <div class="modal__title-wrap">
-          <div class="game-logo">{{ game.logo_emoji || '🎮' }}</div>
-          <div>
-            <h3 class="modal__title">
-              {{ $t('GAMES.MODAL.TITLE', { gameName: game.name }) }}
-            </h3>
-            <div class="modal__subtitle">{{ game.domain }}</div>
+      <div class="modal-h">
+        <div class="mic">{{ game.logo_emoji || '🎮' }}</div>
+        <div class="mt">
+          <div class="mn">
+            {{ $t('GAMES.MODAL.TITLE', { gameName: game.name }) }}
           </div>
+          <div class="md">{{ game.domain }}</div>
         </div>
-        <button type="button" class="modal__close" @click="$emit('close')">
+        <button type="button" class="modal-x" @click="$emit('close')">
           {{ $t('GAMES.ACTIONS.CLOSE_ICON') }}
         </button>
-      </header>
+      </div>
 
-      <div class="modal__body">
+      <div class="modal-body">
         <div
           v-if="testResult"
           class="test-result"
@@ -182,423 +180,451 @@ export default {
         </div>
         <div v-if="errorMessage" class="error-banner">{{ errorMessage }}</div>
 
-        <div v-if="game.has_api" class="section">
-          <h4 class="section__title">
-            {{ $t('GAMES.MODAL.CREDENTIALS_TAB') }}
-          </h4>
+        <template v-if="game.has_api">
+          <div class="msec-label">{{ $t('GAMES.MODAL.CREDENTIALS_TAB') }}</div>
           <div
             v-for="field in normalizedCredentialFields"
             :key="field.name"
-            class="field"
+            class="mfield"
           >
-            <label class="field__label">{{ field.label }}</label>
+            <label>{{ field.label }}</label>
             <input
               v-model="credentials[field.name]"
               :type="field.type === 'password' ? 'password' : 'text'"
-              class="field__input"
               :placeholder="field.label"
             />
-            <div v-if="field.help" class="field__hint">{{ field.help }}</div>
+            <div v-if="field.help" class="hint">{{ field.help }}</div>
           </div>
 
-          <div class="field">
-            <label class="field__label">{{
-              $t('GAMES.MODAL.IP_WHITELIST_REQUIRED')
-            }}</label>
-            <ul class="field__hint">
-              <li v-for="ip in providerIps" :key="ip">{{ ip }}</li>
-            </ul>
-            <button
-              type="button"
-              class="modal__btn modal__btn--secondary"
-              @click="copyProviderIps"
-            >
+          <div class="msec-label">
+            {{ $t('GAMES.MODAL.IP_WHITELIST_REQUIRED') }}
+          </div>
+          <div class="hint ip-hint">
+            {{ $t('GAMES.MODAL.IP_WHITELIST_HELP', { gameName: game.name }) }}
+          </div>
+          <div class="iplist">
+            <div v-for="ip in providerIps" :key="ip" class="iprow">
+              {{ ip }}
+            </div>
+            <button type="button" class="ipcopy" @click="copyProviderIps">
               {{ $t('GAMES.MODAL.COPY_IPS') }}
             </button>
           </div>
+          <div
+            class="ipcheck"
+            :class="{ on: ipWhitelistConfirmed }"
+            role="button"
+            tabindex="0"
+            @click="ipWhitelistConfirmed = !ipWhitelistConfirmed"
+            @keydown.enter="ipWhitelistConfirmed = !ipWhitelistConfirmed"
+          >
+            <span class="cb">{{ $t('GAMES.ACTIONS.CHECK_ICON') }}</span>
+            {{ $t('GAMES.MODAL.IP_WHITELIST_LABEL', { gameName: game.name }) }}
+          </div>
 
-          <div class="checkbox-row">
-            <input
-              id="ip-whitelist"
-              v-model="ipWhitelistConfirmed"
-              type="checkbox"
-            />
-            <label for="ip-whitelist">
-              {{
-                $t('GAMES.MODAL.IP_WHITELIST_LABEL', { gameName: game.name })
-              }}
-            </label>
+          <div class="msec-label">{{ $t('GAMES.MODAL.LIMITS_TAB') }}</div>
+          <div class="m3">
+            <div class="mfield">
+              <label>{{ $t('GAMES.MODAL.LOW_BALANCE_THRESHOLD_LABEL') }}</label>
+              <input
+                v-model="credentials.low_balance_threshold"
+                type="number"
+                min="0"
+                step="1"
+                :placeholder="
+                  $t('GAMES.MODAL.LOW_BALANCE_THRESHOLD_PLACEHOLDER')
+                "
+              />
+            </div>
+            <div class="mfield">
+              <label>{{ $t('GAMES.MODAL.MAX_LOAD_AMOUNT_LABEL') }}</label>
+              <input
+                v-model="credentials.max_load_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                :placeholder="$t('GAMES.MODAL.MAX_LOAD_AMOUNT_PLACEHOLDER')"
+              />
+            </div>
+            <div class="mfield">
+              <label>{{ $t('GAMES.MODAL.MAX_CASHOUT_AMOUNT_LABEL') }}</label>
+              <input
+                v-model="credentials.max_cashout_amount"
+                type="number"
+                min="0"
+                step="0.01"
+                :placeholder="$t('GAMES.MODAL.MAX_CASHOUT_AMOUNT_PLACEHOLDER')"
+              />
+            </div>
           </div>
-        </div>
-
-        <div v-if="game.has_api" class="section">
-          <h4 class="section__title">{{ $t('GAMES.MODAL.LIMITS_TAB') }}</h4>
-          <div class="field">
-            <label class="field__label">{{
-              $t('GAMES.MODAL.LOW_BALANCE_THRESHOLD_LABEL')
-            }}</label>
-            <input
-              v-model="credentials.low_balance_threshold"
-              type="number"
-              min="0"
-              step="1"
-              class="field__input"
-              :placeholder="$t('GAMES.MODAL.LOW_BALANCE_THRESHOLD_PLACEHOLDER')"
-            />
-          </div>
-          <div class="field">
-            <label class="field__label">{{
-              $t('GAMES.MODAL.MAX_LOAD_AMOUNT_LABEL')
-            }}</label>
-            <input
-              v-model="credentials.max_load_amount"
-              type="number"
-              min="0"
-              step="0.01"
-              class="field__input"
-              :placeholder="$t('GAMES.MODAL.MAX_LOAD_AMOUNT_PLACEHOLDER')"
-            />
-          </div>
-          <div class="field">
-            <label class="field__label">{{
-              $t('GAMES.MODAL.MAX_CASHOUT_AMOUNT_LABEL')
-            }}</label>
-            <input
-              v-model="credentials.max_cashout_amount"
-              type="number"
-              min="0"
-              step="0.01"
-              class="field__input"
-              :placeholder="$t('GAMES.MODAL.MAX_CASHOUT_AMOUNT_PLACEHOLDER')"
-            />
-          </div>
-        </div>
+        </template>
       </div>
 
-      <footer class="modal__foot">
+      <div class="modal-foot">
         <button
           v-if="agentGame"
           type="button"
-          class="btn btn--danger"
+          class="mbtn danger left"
           @click="disconnect"
         >
           {{ $t('GAMES.ACTIONS.DISCONNECT') }}
         </button>
-        <div class="modal__foot-right">
-          <button
-            v-if="supportsTestConnection"
-            type="button"
-            class="btn btn--ghost"
-            :disabled="isTesting"
-            @click="testConnection"
-          >
-            {{
-              isTesting
-                ? $t('GAMES.MODAL.TESTING')
-                : $t('GAMES.ACTIONS.TEST_CONNECTION')
-            }}
-          </button>
-          <button type="button" class="btn" @click="$emit('close')">
-            {{ $t('GAMES.ACTIONS.CANCEL') }}
-          </button>
-          <button
-            type="button"
-            class="btn btn--primary"
-            :disabled="isSaving"
-            @click="save"
-          >
-            {{ isSaving ? $t('GAMES.MODAL.SAVING') : $t('GAMES.ACTIONS.SAVE') }}
-          </button>
-        </div>
-      </footer>
+        <button
+          v-if="supportsTestConnection"
+          type="button"
+          class="mbtn test"
+          :disabled="isTesting"
+          @click="testConnection"
+        >
+          {{
+            isTesting
+              ? $t('GAMES.MODAL.TESTING')
+              : $t('GAMES.ACTIONS.TEST_CONNECTION')
+          }}
+        </button>
+        <button
+          type="button"
+          class="mbtn primary"
+          :disabled="isSaving"
+          @click="save"
+        >
+          {{ isSaving ? $t('GAMES.MODAL.SAVING') : $t('GAMES.ACTIONS.SAVE') }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.modal-backdrop {
+.overlay {
+  --canvas: #050409;
+  --surface: #0c0b12;
+  --surface-2: #131119;
+  --surface-3: #1b1925;
+  --surface-4: #252233;
+  --border: #171520;
+  --border-hi: #2e2940;
+  --patra: #6e56cf;
+  --patra-deep: #5b45b0;
+  --patra-3: #a78bfa;
+  --patra-glow: rgba(110, 86, 207, 0.55);
+  --text: #ededf2;
+  --text-2: #a8a6b6;
+  --text-3: #75727f;
+  --text-4: #54515e;
+  --green: #3fb950;
+  --red: #f85149;
+  --blue: #58a6ff;
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+
   position: fixed;
   inset: 0;
-  background: rgba(11, 8, 23, 0.7);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
   padding: 20px;
 }
 
 .modal {
-  background: #16102b !important;
-  border: 1px solid #2d2356 !important;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 540px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: #f4f1ff !important;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 18px;
+  width: 480px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  color: var(--text);
   font-family: 'Inter', sans-serif;
+}
 
-  &__head {
-    padding: 20px 24px;
-    border-bottom: 1px solid #2d2356;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+.modal-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 2;
 
-  &__title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  &__title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-    color: #f4f1ff !important;
-  }
-
-  &__subtitle {
-    font-size: 12px;
-    color: #6f6692 !important;
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 2px;
-  }
-
-  &__close {
-    background: transparent !important;
-    border: 1px solid #2d2356 !important;
-    color: #a89fcc !important;
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
+  .mic {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: var(--surface-3);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
+    font-size: 21px;
+    border: 1px solid var(--border-hi);
+  }
 
-    &:hover {
-      color: #f4f1ff !important;
-      border-color: #4a3a8a !important;
+  .mt {
+    flex: 1;
+    min-width: 0;
+
+    .mn {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      font-size: 16px;
     }
-  }
 
-  &__body {
-    padding: 24px;
-    overflow-y: auto;
-  }
-
-  &__foot {
-    padding: 16px 24px;
-    border-top: 1px solid #2d2356;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  &__foot-right {
-    display: flex;
-    gap: 8px;
-    margin-left: auto;
+    .md {
+      font-size: 12px;
+      color: var(--text-3);
+      font-family: 'JetBrains Mono', monospace;
+    }
   }
 }
 
-.game-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+.modal-x {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  background: #1f1740 !important;
-  border: 1px solid #2d2356 !important;
-}
+  transition: all 0.2s;
+  padding: 0;
 
-.section {
-  margin-bottom: 24px;
-
-  &__title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #6f6692 !important;
-    margin-bottom: 12px;
-    font-weight: 600;
+  &:hover {
+    color: #fff;
+    background: var(--red);
+    border-color: transparent;
+    transform: rotate(90deg);
   }
 }
 
-.field {
-  margin-bottom: 14px;
+.modal-body {
+  padding: 20px;
+}
 
-  &__label {
+.msec-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+  margin: 18px 0 11px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+.mfield {
+  margin-bottom: 13px;
+
+  label {
     display: block;
     font-size: 12px;
-    color: #a89fcc !important;
-    margin-bottom: 6px;
-    font-weight: 500;
+    color: var(--text-2);
+    margin-bottom: 5px;
   }
 
-  &__input {
+  input {
     width: 100%;
-    background: #1f1740 !important;
-    border: 1px solid #2d2356 !important;
-    border-radius: 8px !important;
-    padding: 9px 12px !important;
-    color: #f4f1ff !important;
-    font-size: 13px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    height: auto !important;
-
-    &::placeholder {
-      color: #6f6692 !important;
-    }
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: all 0.25s;
+    font-family: 'JetBrains Mono', monospace;
 
     &:focus {
-      outline: 2px solid #d4af37 !important;
-      border-color: transparent !important;
-      background: #1f1740 !important;
-      box-shadow: none !important;
+      border-color: var(--patra);
+      box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
     }
   }
 
-  &__textarea {
-    font-family: 'Inter', sans-serif !important;
-    resize: vertical;
-    min-height: 70px;
-  }
-
-  &__hint {
+  .hint {
     font-size: 11px;
-    color: #6f6692 !important;
+    color: var(--text-4);
     margin-top: 4px;
   }
 }
 
-.checkbox-row {
+.ip-hint {
+  margin-bottom: 8px;
+}
+
+.iplist {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.iprow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  background: #1f1740 !important;
-  border: 1px solid #2d2356 !important;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #f4f1ff !important;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  padding: 4px 0;
+  color: var(--text-2);
+}
 
-  input[type='checkbox'] {
-    cursor: pointer;
-    width: 16px;
-    height: 16px;
-    accent-color: #d4af37;
-    margin: 0 !important;
+.ipcopy {
+  font-size: 11px;
+  color: var(--patra-3);
+  cursor: pointer;
+  margin-top: 8px;
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.ipcheck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-top: 12px;
+  cursor: pointer;
+
+  .cb {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border-hi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+    transition: all 0.2s;
     flex-shrink: 0;
   }
 
-  label {
-    cursor: pointer;
-    color: #f4f1ff !important;
-    margin: 0 !important;
-    font-weight: 400;
-    line-height: 1.4;
+  &.on .cb {
+    background: linear-gradient(135deg, var(--green), #2a7f37);
+    border-color: transparent;
+    color: #fff;
   }
 }
 
-.error-banner {
-  background: rgba(248, 113, 113, 0.12) !important;
-  border: 1px solid rgba(248, 113, 113, 0.3) !important;
-  color: #f87171 !important;
-  padding: 10px 14px;
-  border-radius: 8px;
+.m3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 9px;
+
+  .mfield {
+    margin-bottom: 0;
+  }
+}
+
+.modal-foot {
+  display: flex;
+  gap: 9px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+
+  .left {
+    margin-right: auto;
+  }
+}
+
+.mbtn {
   font-size: 13px;
-  margin-bottom: 16px;
-}
-
-.btn {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  padding: 9px 16px !important;
-  border-radius: 8px !important;
-  border: 1px solid #2d2356 !important;
-  background: #1f1740 !important;
-  color: #f4f1ff !important;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-hi);
+  background: var(--surface-2);
+  color: var(--text);
   cursor: pointer;
-  transition: all 0.15s;
-  margin: 0 !important;
-  height: auto !important;
+  transition: all 0.22s;
+  font-family: 'Inter', sans-serif;
 
-  &:hover {
-    border-color: #4a3a8a !important;
-    background: #2d2356 !important;
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
   }
 
-  &--primary {
-    background: #d4af37 !important;
-    color: #0b0817 !important;
-    border-color: #d4af37 !important;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
-    &:hover {
-      background: #b8961f !important;
-      border-color: #b8961f !important;
-    }
+  &.primary {
+    background: linear-gradient(135deg, var(--patra), var(--patra-deep));
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 3px 12px var(--patra-glow);
 
-    &:disabled {
-      opacity: 0.6 !important;
-      cursor: not-allowed;
+    &:hover:not(:disabled) {
+      filter: brightness(1.12);
     }
   }
 
-  &--danger {
-    color: #f87171 !important;
-    border-color: rgba(248, 113, 113, 0.3) !important;
-    background: transparent !important;
+  &.danger {
+    color: var(--red);
+    border-color: rgba(248, 81, 73, 0.3);
 
     &:hover {
-      background: rgba(248, 113, 113, 0.12) !important;
+      background: var(--red);
+      color: #fff;
+      border-color: transparent;
     }
+  }
+
+  &.test {
+    color: var(--blue);
+    border-color: rgba(88, 166, 255, 0.3);
   }
 }
 
 .test-result {
-  padding: 10px 14px !important;
+  padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
   margin-bottom: 16px;
   font-family: 'JetBrains Mono', monospace;
 
   &--ok {
-    background: rgba(74, 222, 128, 0.12) !important;
-    border: 1px solid rgba(74, 222, 128, 0.3) !important;
-    color: #4ade80 !important;
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    color: var(--green);
   }
 
   &--error {
-    background: rgba(248, 113, 113, 0.12) !important;
-    border: 1px solid rgba(248, 113, 113, 0.3) !important;
-    color: #f87171 !important;
+    background: rgba(248, 81, 73, 0.12);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    color: var(--red);
   }
 }
 
-.btn--ghost {
-  background: transparent !important;
-  border: 1px solid #2d2356 !important;
-  color: #a89fcc !important;
-
-  &:hover {
-    color: #f4f1ff !important;
-    border-color: #4a3a8a !important;
-  }
+.error-banner {
+  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  color: var(--red);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
 }
 </style>
