@@ -156,40 +156,29 @@ export default {
 
 <template>
   <div class="relative">
-    <div class="flex justify-between">
-      <div class="flex justify-between w-full mb-1">
-        <div>
-          <p v-if="watchersList.length" class="m-0 text-sm total-watchers">
-            <Spinner v-if="watchersUiFlas.isFetching" size="tiny" />
-            {{ totalWatchersText }}
-          </p>
-          <p v-else class="m-0 text-sm text-n-slate-10">
-            {{ $t('CONVERSATION_PARTICIPANTS.NO_PARTICIPANTS_TEXT') }}
-          </p>
-        </div>
-        <NextButton
-          v-tooltip.left="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
-          slate
-          ghost
-          sm
-          icon="i-lucide-settings"
-          class="relative -top-1"
-          :title="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
-          @click="onOpenDropdown"
-        />
-      </div>
+    <div class="participants">
+      <span class="part-ava">{{
+        (currentUser.name || 'Y').charAt(0).toUpperCase()
+      }}</span>
+      <span class="part-txt">
+        <Spinner v-if="watchersUiFlas.isFetching" size="tiny" />
+        {{
+          watchersList.length
+            ? totalWatchersText
+            : $t('CONVERSATION_PARTICIPANTS.NO_PARTICIPANTS_TEXT')
+        }}
+      </span>
+      <button
+        type="button"
+        class="part-add"
+        :title="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
+        @click="onOpenDropdown"
+      >
+        +
+      </button>
     </div>
-    <div class="flex items-center justify-between">
-      <ThumbnailGroup
-        :more-thumbnails-text="moreThumbnailsText"
-        :show-more-thumbnails-count="showMoreThumbs"
-        :users-list="thumbnailList"
-      />
-      <p v-if="isUserWatching" class="m-0 text-sm text-n-slate-10">
-        {{ $t('CONVERSATION_PARTICIPANTS.YOU_ARE_WATCHING') }}
-      </p>
+    <div v-if="!isUserWatching && watchersList.length" class="mt-2">
       <NextButton
-        v-else
         link
         xs
         icon="i-lucide-arrow-right"
@@ -198,6 +187,15 @@ export default {
         @click="onSelfAssign"
       />
     </div>
+    <div v-else-if="isUserWatching" class="mt-2 text-xs text-[var(--text-3)]">
+      {{ $t('CONVERSATION_PARTICIPANTS.YOU_ARE_WATCHING') }}
+    </div>
+    <ThumbnailGroup
+      class="mt-2"
+      :more-thumbnails-text="moreThumbnailsText"
+      :show-more-thumbnails-count="showMoreThumbs"
+      :users-list="thumbnailList"
+    />
     <div
       v-on-clickaway="
         () => {

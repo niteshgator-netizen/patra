@@ -305,10 +305,7 @@ const evenClass = [
       </template>
     </Draggable>
 
-    <p
-      v-if="!displayedElements.length && emptyStateMessage"
-      class="p-3 text-center"
-    >
+    <p v-if="!displayedElements.length && emptyStateMessage" class="empty-note">
       {{ emptyStateMessage }}
     </p>
     <!-- Show more and show less buttons show it if the combinedElements length is greater than 5 -->

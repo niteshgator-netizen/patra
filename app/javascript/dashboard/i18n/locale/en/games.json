@@ -58,6 +58,7 @@
     },
     "QUICK_ACTIONS": {
       "TITLE": "Quick Actions",
+      "LIVE_HINT": "live game ops",
       "GAME": "Game",
       "CREATE": "Create",
       "REDEEM": "Redeem",

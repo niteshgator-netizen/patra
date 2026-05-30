@@ -130,15 +130,10 @@ onMounted(() => {
 
 <template>
   <div v-if="!uiFlags.isFetching" class="">
-    <div v-if="!previousConversations.length" class="no-label-message px-4 p-3">
-      <span>
-        {{ $t('CONTACT_PANEL.CONVERSATIONS.NO_RECORDS_FOUND') }}
-      </span>
+    <div v-if="!previousConversations.length" class="empty-note">
+      {{ $t('CONTACT_PANEL.CONVERSATIONS.NO_RECORDS_FOUND') }}
     </div>
-    <div
-      v-else
-      class="contact-conversation--list [&>.conversation:last-child]:!border-b-0 [&>.conversation:last-child:hover]:!border-b-0 [&>.conversation:last-child]:!rounded-b-lg"
-    >
+    <div v-else class="contact-conversation--list">
       <ConversationCard
         v-for="conversation in previousConversations"
         :key="conversation.id"
@@ -179,7 +174,18 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-.no-label-message {
-  @apply text-n-slate-11 mb-4;
+.contact-conversation--list :deep(.conversation) {
+  padding: 10px;
+  border: 1px solid var(--border, #171520);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.22s;
+}
+
+.contact-conversation--list :deep(.conversation:hover) {
+  border-color: #6e56cf;
+  background: #131119;
+  transform: translateX(3px);
 }
 </style>

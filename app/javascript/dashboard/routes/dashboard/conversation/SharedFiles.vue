@@ -183,53 +183,43 @@ const displayTime = attachment => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5 p-2">
+  <div class="flex flex-col gap-4">
     <div v-if="!attachmentsLoaded" class="flex justify-center p-3">
       <Spinner class="size-5" />
     </div>
     <p
       v-else-if="!mediaAttachments.length && !fileAttachments.length"
-      class="p-3 text-sm text-center text-n-slate-11"
+      class="empty-note"
     >
       {{ t('CONVERSATION_SIDEBAR.SHARED_FILES.EMPTY') }}
     </p>
 
-    <section v-if="mediaAttachments.length" class="flex flex-col gap-2.5">
-      <header class="flex items-center justify-between px-0.5">
-        <h4
-          class="text-xs font-semibold tracking-wider uppercase text-n-slate-11"
-        >
+    <section v-if="mediaAttachments.length">
+      <header class="att-head">
+        <span>
           {{ t('CONVERSATION_SIDEBAR.SHARED_FILES.MEDIA_HEADING') }}
-          <span
-            class="ms-1 font-medium tracking-normal normal-case text-n-slate-10"
-          >
-            {{ mediaAttachments.length }}
-          </span>
-        </h4>
-        <NextButton
+          · {{ mediaAttachments.length }}
+        </span>
+        <button
           v-if="mediaOverflow > 0"
-          ghost
-          slate
-          xs
-          trailing-icon
-          :icon="
-            showAllMedia ? 'i-lucide-chevron-up' : 'i-lucide-chevron-right'
-          "
-          :label="
+          type="button"
+          class="view-all"
+          @click="showAllMedia = !showAllMedia"
+        >
+          {{
             showAllMedia
               ? t('CONVERSATION_SIDEBAR.SHARED_FILES.SHOW_LESS')
               : t('CONVERSATION_SIDEBAR.SHARED_FILES.VIEW_ALL')
-          "
-          @click="showAllMedia = !showAllMedia"
-        />
+          }}
+        </button>
       </header>
-      <div class="grid grid-cols-3 gap-2">
+      <div class="att-grid">
         <div
           v-for="(attachment, index) in visibleMedia"
           :key="attachment.id"
           role="button"
           tabindex="0"
-          class="relative w-full overflow-hidden transition-all duration-200 rounded-lg cursor-pointer aspect-square bg-n-slate-3 shadow-sm hover:shadow-md hover:-translate-y-px group focus:outline-none focus-visible:ring-2 focus-visible:ring-n-blue-9"
+          class="att-thumb group"
           @click="onTileActivate(attachment, index)"
           @keydown.enter="onTileActivate(attachment, index)"
           @keydown.space.prevent="onTileActivate(attachment, index)"
@@ -321,9 +311,9 @@ const displayTime = attachment => {
 
           <div
             v-if="isOverflowTile(index)"
-            class="absolute inset-0 flex items-center justify-center bg-n-slate-5"
+            class="absolute inset-0 flex items-center justify-center more"
           >
-            <span class="text-base font-semibold text-n-slate-12">
+            <span>
               {{
                 t('CONVERSATION_SIDEBAR.SHARED_FILES.MORE_COUNT', {
                   count: mediaOverflow,

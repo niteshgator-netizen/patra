@@ -30,7 +30,6 @@ const loading = ref(false);
 const actionType = ref(null);
 const resultText = ref('');
 const resultOk = ref(false);
-const balance = ref(null);
 
 const selectedAgentGame = computed(
   () => agentGamesBySlug.value[selectedSlug.value]
@@ -75,15 +74,16 @@ const onCheckBalance = async () => {
   if (!requireAgentGame()) return;
   loading.value = true;
   actionType.value = 'balance';
-  balance.value = null;
   try {
     const { data } = await GamesAPI.checkPlayer(
       selectedAgentGame.value.id,
       username.value.trim()
     );
     if (data.ok) {
-      balance.value = data.balance;
-      setResult(true, t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: data.balance }));
+      setResult(
+        true,
+        t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: data.balance })
+      );
     } else {
       setResult(false, data.message);
     }
@@ -105,7 +105,10 @@ const onCreate = async () => {
     });
     if (data.ok) {
       const pwd = data.password ? ` password: ${data.password}` : '';
-      setResult(true, `${t('GAMES.QUICK_ACTIONS.CREATE_SUCCESS')} ${username.value}${pwd}`);
+      setResult(
+        true,
+        `${t('GAMES.QUICK_ACTIONS.CREATE_SUCCESS')} ${username.value}${pwd}`
+      );
     } else {
       setResult(false, data.message);
     }
@@ -202,92 +205,107 @@ onMounted(loadAgentGames);
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 pt-3 mt-3 border-t border-n-weak">
-    <p class="text-xs font-semibold uppercase tracking-wide text-n-slate-11">
-      {{ $t('GAMES.QUICK_ACTIONS.TITLE') }}
-    </p>
-
-    <label class="flex flex-col gap-1">
-      <span class="text-xs text-n-slate-11">{{ $t('GAMES.QUICK_ACTIONS.GAME') }}</span>
-      <select
-        v-model="selectedSlug"
-        class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1.5 text-sm text-n-slate-12"
-      >
-        <option v-for="game in LAUNCH_GAMES" :key="game.slug" :value="game.slug">
+  <div>
+    <div class="ops-field">
+      <label>{{ $t('GAMES.QUICK_ACTIONS.GAME') }}</label>
+      <select v-model="selectedSlug" class="ops-select">
+        <option
+          v-for="game in LAUNCH_GAMES"
+          :key="game.slug"
+          :value="game.slug"
+        >
           {{ game.name }}
         </option>
       </select>
-    </label>
+    </div>
 
-    <label class="flex flex-col gap-1">
-      <span class="text-xs text-n-slate-11">{{ $t('GAMES.ACTIONS_MODAL.USERNAME_LABEL') }}</span>
+    <div class="ops-field">
+      <label>{{ $t('GAMES.ACTIONS_MODAL.USERNAME_LABEL') }}</label>
       <input
         v-model="username"
         type="text"
-        class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1.5 text-sm text-n-slate-12"
         :placeholder="$t('GAMES.ACTIONS_MODAL.USERNAME_PLACEHOLDER')"
       />
-    </label>
+    </div>
 
-    <label class="flex flex-col gap-1">
-      <span class="text-xs text-n-slate-11">{{ $t('GAMES.ACTIONS_MODAL.AMOUNT_LABEL') }}</span>
+    <div class="ops-field">
+      <label>{{ $t('GAMES.ACTIONS_MODAL.AMOUNT_LABEL') }}</label>
       <input
         v-model.number="amount"
         type="number"
         min="0"
         step="0.01"
-        class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-2 py-1.5 text-sm text-n-slate-12"
-        placeholder="0.00"
+        placeholder=""
       />
-    </label>
+    </div>
 
-    <div class="flex flex-wrap gap-2">
+    <div class="ops-btns">
       <button
         type="button"
-        class="rounded-lg border border-n-weak px-2 py-1 text-xs font-medium text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-50"
+        class="ops-btn check"
         :disabled="loading"
         @click="onCheckBalance"
       >
-        {{ actionType === 'balance' && loading ? '…' : $t('GAMES.ACTIONS_MODAL.CHECK_BALANCE_BTN') }}
+        {{
+          actionType === 'balance' && loading
+            ? '…'
+            : $t('GAMES.ACTIONS_MODAL.CHECK_BALANCE_BTN')
+        }}
       </button>
       <button
         type="button"
-        class="rounded-lg border border-n-weak px-2 py-1 text-xs font-medium text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-50"
+        class="ops-btn"
         :disabled="loading"
         @click="onCreate"
       >
-        {{ actionType === 'create' && loading ? '…' : $t('GAMES.QUICK_ACTIONS.CREATE') }}
+        {{
+          actionType === 'create' && loading
+            ? '…'
+            : $t('GAMES.QUICK_ACTIONS.CREATE')
+        }}
       </button>
       <button
         type="button"
-        class="rounded-lg bg-n-brand px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
+        class="ops-btn load"
         :disabled="loading || !canSubmitAmount"
         @click="onLoad"
       >
-        {{ actionType === 'load' && loading ? '…' : $t('GAMES.ACTIONS_MODAL.LOAD_BTN') }}
+        {{
+          actionType === 'load' && loading
+            ? '…'
+            : $t('GAMES.ACTIONS_MODAL.LOAD_BTN')
+        }}
       </button>
       <button
         type="button"
-        class="rounded-lg border border-n-ruby-9 px-2 py-1 text-xs font-medium text-n-ruby-11 hover:bg-n-alpha-2 disabled:opacity-50"
+        class="ops-btn redeem"
         :disabled="loading || !canSubmitAmount"
         @click="onRedeem"
       >
-        {{ actionType === 'redeem' && loading ? '…' : $t('GAMES.QUICK_ACTIONS.REDEEM') }}
+        {{
+          actionType === 'redeem' && loading
+            ? '…'
+            : $t('GAMES.QUICK_ACTIONS.REDEEM')
+        }}
       </button>
       <button
         type="button"
-        class="rounded-lg border border-n-weak px-2 py-1 text-xs font-medium text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-50"
+        class="ops-btn"
         :disabled="loading"
         @click="onResetPassword"
       >
-        {{ actionType === 'reset' && loading ? '…' : $t('GAMES.QUICK_ACTIONS.RESET') }}
+        {{
+          actionType === 'reset' && loading
+            ? '…'
+            : $t('GAMES.QUICK_ACTIONS.RESET')
+        }}
       </button>
     </div>
 
     <p
       v-if="resultText"
-      class="rounded-lg px-2 py-1.5 text-xs"
-      :class="resultOk ? 'bg-n-teal-3 text-n-teal-11' : 'bg-n-ruby-3 text-n-ruby-11'"
+      class="mt-2 rounded-lg px-2 py-1.5 text-xs"
+      :class="resultOk ? 'text-[var(--green)]' : 'text-[var(--red)]'"
     >
       {{ resultText }}
     </p>
