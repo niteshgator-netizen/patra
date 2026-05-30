@@ -1506,7 +1506,7 @@ export default {
 
   position: relative;
   margin: 0 22px 14px;
-  border: 1px solid var(--pc-border);
+  border: 1px solid #171520 !important;
   border-radius: 13px;
   background: var(--pc-canvas);
   transition:
@@ -1516,7 +1516,7 @@ export default {
 
 .patra-conv-composer.is-focused,
 .patra-conv-composer:has(.ProseMirror-focused) {
-  border-color: var(--pc-patra);
+  border-color: #6e56cf !important;
   box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
 }
 
