@@ -289,6 +289,17 @@ const formatLedgerTime = raw => {
   }
 };
 
+const safeDynamicTime = value => {
+  if (!value) return '—';
+  try {
+    const d = typeof value === 'string' ? parseISO(value) : new Date(value);
+    if (!d || Number.isNaN(d.getTime())) return '—';
+    return dynamicTime(value);
+  } catch {
+    return '—';
+  }
+};
+
 const formatScreenshotDateTime = entry => {
   const screenshotDateTime =
     entry.transaction_time || entry.transaction_date || entry.image_received_at;
@@ -1446,11 +1457,7 @@ watch(selectedScoringPlatform, () => {
                 </BaseTableCell>
                 <BaseTableCell>
                   <span class="text-body-main text-n-slate-11 text-sm">
-                    {{
-                      row.last_failure_at
-                        ? dynamicTime(row.last_failure_at)
-                        : '-'
-                    }}
+                    {{ safeDynamicTime(row.last_failure_at) }}
                   </span>
                 </BaseTableCell>
                 <BaseTableCell align="end">
