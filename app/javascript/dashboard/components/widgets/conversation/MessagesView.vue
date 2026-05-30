@@ -490,7 +490,7 @@ export default {
     />
     <MessageList
       ref="conversationPanelRef"
-      class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 pb-4 max-md:pb-36"
+      class="conversation-panel patra-conv-thread-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 max-md:pb-36"
       :current-user-id="currentUserId"
       :first-unread-id="unReadMessages[0]?.id"
       :is-an-email-channel="isAnEmailChannel"
@@ -530,7 +530,7 @@ export default {
       </template>
     </MessageList>
     <div
-      class="flex relative flex-col bg-n-surface-1 max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:border-t max-md:border-n-weak max-md:shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+      class="patra-conv-composer-wrap flex relative flex-col max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:border-t max-md:border-n-weak max-md:shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
     >
       <div
         v-if="isContactTyping"
@@ -575,3 +575,14 @@ export default {
     </div>
   </div>
 </template>
+
+<style scoped>
+.patra-conv-thread-panel {
+  background: transparent;
+}
+
+.patra-conv-composer-wrap {
+  background: color-mix(in srgb, #0c0b12 80%, transparent);
+  backdrop-filter: blur(14px);
+}
+</style>

@@ -17,7 +17,12 @@ import ScheduleMessagePopover from '../conversation/ScheduleMessagePopover.vue';
 
 export default {
   name: 'ReplyBottomPanel',
-  components: { NextButton, FileUpload, VideoCallButton, ScheduleMessagePopover },
+  components: {
+    NextButton,
+    FileUpload,
+    VideoCallButton,
+    ScheduleMessagePopover,
+  },
   mixins: [inboxMixin],
   props: {
     isNote: {
@@ -301,8 +306,8 @@ export default {
 </script>
 
 <template>
-  <div class="flex justify-between p-3" :class="wrapClass">
-    <div class="left-wrap">
+  <div class="patra-composer-bar flex justify-between" :class="wrapClass">
+    <div class="patra-composer-tools left-wrap">
       <NextButton
         v-if="!isEditorDisabled"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_EMOJI_ICON')"
@@ -421,7 +426,7 @@ export default {
         @click="toggleInsertArticle"
       />
     </div>
-    <div class="right-wrap relative">
+    <div class="patra-composer-right right-wrap relative">
       <ScheduleMessagePopover
         :show="showSchedulePopover"
         :conversation-id="conversationId"
@@ -444,29 +449,126 @@ export default {
         sm
         :color="isNote ? 'amber' : 'blue'"
         :disabled="isSendDisabled"
-        class="flex-shrink-0"
+        class="patra-composer-send flex-shrink-0"
         @click="onSend"
       />
     </div>
   </div>
 </template>
 
-<style lang="scss" scoped>
-.left-wrap {
-  @apply items-center flex gap-2;
+<style scoped>
+.patra-composer-bar {
+  --pb-surface-2: #131119;
+  --pb-surface-3: #1b1925;
+  --pb-border: #171520;
+  --pb-text-2: #a8a6b6;
+  --pb-text-3: #75727f;
+  --pb-text-4: #54515e;
+  --pb-patra: #6e56cf;
+  --pb-patra-deep: #5b45b0;
+  --pb-patra-3: #a78bfa;
+  --pb-patra-glow: rgba(110, 86, 207, 0.55);
+
+  align-items: center;
+  padding: 7px 12px;
+  border-top: 1px solid var(--pb-border);
 }
 
-.right-wrap {
-  @apply flex;
+.patra-composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
-::v-deep .file-uploads {
-  label {
-    @apply cursor-pointer;
-  }
+.patra-composer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-  &:hover button {
-    @apply enabled:bg-n-slate-9/20;
-  }
+.patra-composer-bar :deep(.left-wrap) {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.patra-composer-bar :deep(.patra-composer-tools button) {
+  width: 31px;
+  height: 31px;
+  min-width: 31px;
+  min-height: 31px;
+  border-radius: 8px;
+  color: var(--pb-text-3);
+  background: transparent;
+  border: none;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.patra-composer-bar :deep(.patra-composer-tools button:hover:not(:disabled)) {
+  color: #ededf2;
+  background: var(--pb-surface-2);
+  transform: translateY(-2px);
+}
+
+.patra-composer-bar
+  :deep(.patra-composer-right > button:not(.patra-composer-send)) {
+  width: 31px;
+  height: 31px;
+  min-width: 31px;
+  min-height: 31px;
+  border-radius: 8px;
+  color: var(--pb-text-3);
+  background: transparent;
+  border: none;
+}
+
+.patra-composer-bar
+  :deep(
+    .patra-composer-right
+      > button:not(.patra-composer-send):hover:not(:disabled)
+  ) {
+  color: #ededf2;
+  background: var(--pb-surface-2);
+  transform: translateY(-2px);
+}
+
+.patra-composer-bar :deep(.patra-composer-send) {
+  width: auto;
+  min-width: unset;
+  min-height: unset;
+  height: auto;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--pb-patra), var(--pb-patra-deep));
+  color: #fff;
+  border: none;
+  box-shadow: 0 3px 12px var(--pb-patra-glow);
+  transform: none;
+}
+
+.patra-composer-bar :deep(.patra-composer-send:hover:not(:disabled)) {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--pb-patra-glow);
+}
+
+.patra-composer-bar :deep(.patra-composer-send:disabled) {
+  opacity: 0.45;
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.patra-composer-bar.is-note-mode :deep(.patra-composer-send) {
+  background: rgba(227, 160, 8, 0.18);
+  color: #e3a008;
+  border: 1px solid rgba(227, 160, 8, 0.35);
+  box-shadow: none;
+}
+
+.patra-composer-bar :deep(.file-uploads label) {
+  cursor: pointer;
 }
 </style>

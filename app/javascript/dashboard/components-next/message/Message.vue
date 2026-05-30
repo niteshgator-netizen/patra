@@ -411,7 +411,8 @@ const contextMenuEnabledOptions = computed(() => {
       !props.private &&
       props.inboxSupportsReplyTo.outgoing &&
       !isFailedOrProcessingValue,
-    pin: isBubble.value && !isMessageDeleted.value && !isFailedOrProcessingValue,
+    pin:
+      isBubble.value && !isMessageDeleted.value && !isFailedOrProcessingValue,
   };
 });
 
@@ -515,20 +516,20 @@ const avatarTooltip = computed(() => {
   return `${t('CONVERSATION.SENT_BY')} ${avatarInfo.value.name}`;
 });
 
-const setupHighlightTimer = () => {
-  if (Number(route.query.messageId) !== Number(props.id)) {
-    return;
-  }
-
-  triggerHighlight();
-};
-
 const triggerHighlight = () => {
   showBackgroundHighlight.value = true;
   const HIGHLIGHT_TIMER = 1000;
   useTimeoutFn(() => {
     showBackgroundHighlight.value = false;
   }, HIGHLIGHT_TIMER);
+};
+
+const setupHighlightTimer = () => {
+  if (Number(route.query.messageId) !== Number(props.id)) {
+    return;
+  }
+
+  triggerHighlight();
 };
 
 const onHighlightMessage = ({ messageId }) => {
@@ -561,13 +562,21 @@ provideMessageContext({
   <div
     v-if="shouldRenderMessage"
     :id="`message${props.id}`"
-    class="flex w-full mb-2 message-bubble-container group/message relative"
+    class="flex patra-conv-msg message-bubble-container group/message relative"
     :data-message-id="props.id"
+    :data-patra-orientation="orientation"
+    :data-patra-variant="variant"
     :class="[
       flexOrientationClass,
       {
         'group-with-next': shouldGroupWithNext,
         'bg-n-alpha-1': showBackgroundHighlight,
+        'patra-conv-msg--out': orientation === ORIENTATION.RIGHT,
+        'patra-conv-msg--in': orientation === ORIENTATION.LEFT,
+        'patra-conv-msg--ai':
+          variant === MESSAGE_VARIANTS.BOT ||
+          variant === MESSAGE_VARIANTS.TEMPLATE,
+        'patra-conv-msg--center': variant === MESSAGE_VARIANTS.ACTIVITY,
       },
     ]"
   >
@@ -593,7 +602,7 @@ provideMessageContext({
         v-tooltip.left-end="avatarTooltip"
         class="[grid-area:avatar] flex items-end"
       >
-        <Avatar v-bind="avatarInfo" :size="24" />
+        <Avatar v-bind="avatarInfo" :size="31" class="patra-conv-msg-avatar" />
       </div>
       <div
         class="[grid-area:bubble] relative flex"
@@ -638,14 +647,59 @@ provideMessageContext({
   </div>
 </template>
 
-<style lang="scss">
-.group-with-next + .message-bubble-container {
-  .left-bubble {
-    @apply ltr:rounded-tl-sm rtl:rounded-tr-sm;
+<style scoped>
+.patra-conv-msg {
+  --pm-patra: #6e56cf;
+  --pm-patra-2: #8b5cf6;
+  --pm-patra-glow: rgba(110, 86, 207, 0.55);
+
+  max-width: 75%;
+  gap: 10px;
+  margin-bottom: 0;
+  animation: patra-msg-in 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.patra-conv-msg--out {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.patra-conv-msg--in {
+  align-self: flex-start;
+}
+
+.patra-conv-msg--center {
+  max-width: 100%;
+  width: 100%;
+}
+
+.patra-conv-msg :deep(.patra-conv-msg-avatar) {
+  align-self: flex-end;
+}
+
+.patra-conv-msg--ai :deep(.patra-conv-msg-avatar) {
+  box-shadow: 0 0 12px var(--pm-patra-glow);
+}
+
+@keyframes patra-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
   }
 
-  .right-bubble {
-    @apply ltr:rounded-tr-sm rtl:rounded-tl-sm;
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
+}
+
+:deep(.group-with-next + .patra-conv-msg) .left-bubble {
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
+}
+
+:deep(.group-with-next + .patra-conv-msg) .right-bubble {
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
 }
 </style>
