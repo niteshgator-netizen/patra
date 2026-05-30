@@ -340,5 +340,5 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-@import './conversation-sidebar-patra.scss';
+@import 'dashboard/components/widgets/conversation/conversation-sidebar-patra.scss';
 </style>
