@@ -1529,6 +1529,30 @@ export default {
   position: relative;
   padding: 0;
   margin-top: 0;
+  border-color: #171520 !important;
+}
+
+/* Patra mockup border overrides — beat Chatwoot n-weak rgb(28,32,36) defaults */
+:global(.patra-conv-composer-wrap) {
+  border-color: #171520 !important;
+}
+
+.patra-conv-composer,
+.patra-conv-composer-box,
+.patra-conv-composer :deep(.patra-composer-tabs-row),
+.patra-conv-composer :deep(.patra-composer-tabs),
+.patra-conv-composer :deep(.patra-composer-tab),
+.patra-conv-composer :deep(.patra-composer-tab-chip),
+.patra-conv-composer :deep(.patra-composer-bar) {
+  border-color: #171520 !important;
+}
+
+.patra-conv-composer :deep(.patra-composer-bar) {
+  border-top-color: #171520 !important;
+}
+
+.patra-conv-composer :deep(.patra-composer-tab.is-active:not(.is-note)) {
+  border-color: #6e56cf !important;
 }
 
 .patra-conv-composer :deep(.reply-box__top) {

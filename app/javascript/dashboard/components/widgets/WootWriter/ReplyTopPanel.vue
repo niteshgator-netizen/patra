@@ -198,5 +198,6 @@ export default {
 <style scoped>
 .patra-composer-tabs-row {
   margin-bottom: 9px;
+  border-color: #171520 !important;
 }
 </style>
