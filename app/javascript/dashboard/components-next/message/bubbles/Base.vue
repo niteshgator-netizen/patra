@@ -203,6 +203,13 @@ const replyToPreview = computed(() => {
   transform: none;
 }
 
+.patra-conv-bubble--activity,
+.patra-conv-bubble--activity span,
+:deep(.patra-conv-bubble--activity),
+:deep(.patra-conv-bubble--activity span) {
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+}
+
 .patra-conv-bubble--error {
   background: rgba(248, 81, 73, 0.12);
   border: 1px solid rgba(248, 81, 73, 0.35);
