@@ -1302,10 +1302,10 @@ module Games
       handle_str = handle_text.to_s.strip
       platform_str = platform.to_s.strip.downcase
       already_has_platform = platform_str.present? && handle_str.downcase.include?(platform_str)
-
       suffix = (platform_str.present? && !already_has_platform) ? " on #{platform_str}" : ''
-
-      "got it! send $#{amount} to #{handle_str}#{suffix}, then drop the screenshot here 📸 — i'll load it on #{game_name} as soon as it confirms."
+      amount_f = amount.to_f
+      amount_str = amount_f > 0 ? "$#{format('%g', amount_f)} " : ''
+      "got it! send #{amount_str}to #{handle_str}#{suffix}, then drop the screenshot here 📸 — i'll load it on #{game_name} as soon as it confirms."
     end
 
     def honest_failure_reply(result, amount, game_name)
