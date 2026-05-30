@@ -236,6 +236,7 @@ const selectedRow = ref(null);
 const editingId = ref(null);
 const expandedLedgerId = ref(null);
 const ledgerData = ref({});
+const expandedLedgerRows = ref({});
 const ledgerLoading = ref({});
 const showScreenshotModal = ref(false);
 const showEmailModal = ref(false);
@@ -569,35 +570,83 @@ const scoreTextClass = score => {
   return 'text-red-700 dark:text-red-400';
 };
 
-const ledgerPaymentStatusClass = status => {
-  const normalized = String(status || '').toLowerCase();
-  if (normalized.includes('loaded')) {
-    return 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30';
+const ledgerStatusSummary = event => {
+  const status = String(event.status || '').toLowerCase();
+  const flag = String(event.raw?.flag_reason || '').toLowerCase();
+  const game = event.raw?.loaded_game_slug;
+  const user = event.raw?.loaded_game_username;
+
+  if (status.includes('loaded')) {
+    return {
+      color: 'green',
+      label: 'LOADED',
+      reason:
+        game && user
+          ? `Loaded to ${user} on ${game}`
+          : 'Loaded to game',
+    };
   }
-  if (normalized.includes('email verified')) {
-    return 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30';
+  if (flag.includes('duplicate')) {
+    return {
+      color: 'red',
+      label: 'DUPLICATE',
+      reason: 'Same screenshot already loaded — blocked',
+    };
   }
-  if (normalized.includes('email received')) {
-    return 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border border-purple-500/30';
+  if (flag.includes('mismatch')) {
+    return {
+      color: 'red',
+      label: 'MISMATCH',
+      reason: 'Recipient did not match the handle',
+    };
   }
-  if (normalized.includes('screenshot received')) {
-    return 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30';
+  if (status.includes('verified')) {
+    return {
+      color: 'amber',
+      label: 'AWAITING GAME',
+      reason: 'Verified — waiting for customer to pick a game',
+    };
   }
-  return 'bg-n-slate-4 text-n-slate-11 border border-n-weak';
+  if (status.includes('screenshot received')) {
+    return {
+      color: 'amber',
+      label: 'CHECKING',
+      reason: 'Screenshot received — verifying with bank email',
+    };
+  }
+  return {
+    color: 'slate',
+    label: event.status || 'PENDING',
+    reason: '',
+  };
 };
 
-const ledgerCardBorderClass = event => {
-  const status = String(event.status || '').toLowerCase();
-  if (status.includes('loaded')) return 'border-l-4 border-l-blue-500';
-  if (status.includes('email verified')) return 'border-l-4 border-l-green-500';
-  if (
-    status.includes('email received') ||
-    (event.email.confirmed && !event.screenshot.imageUrl)
-  ) {
-    return 'border-l-4 border-l-purple-500';
-  }
-  return 'border-l-4 border-l-amber-400';
+const stripColorClass = color =>
+  ({
+    green: 'border-l-green-500',
+    amber: 'border-l-amber-400',
+    red: 'border-l-red-500',
+    blue: 'border-l-blue-500',
+    slate: 'border-l-n-slate-6',
+  }[color] || 'border-l-n-slate-6');
+
+const stripBadgeClass = color =>
+  ({
+    green: 'bg-green-500/15 text-green-700 dark:text-green-400',
+    amber: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+    red: 'bg-red-500/15 text-red-700 dark:text-red-400',
+    blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+    slate: 'bg-n-slate-4 text-n-slate-11',
+  }[color] || 'bg-n-slate-4 text-n-slate-11');
+
+const toggleLedgerRow = id => {
+  expandedLedgerRows.value = {
+    ...expandedLedgerRows.value,
+    [id]: !expandedLedgerRows.value[id],
+  };
 };
+
+const isLedgerRowExpanded = id => Boolean(expandedLedgerRows.value[id]);
 
 const emailAmountMatches = event =>
   event.raw?.email_amount != null &&
@@ -1484,89 +1533,110 @@ watch(selectedScoringPlatform, () => {
                       v-for="event in getPaymentEvents(row)"
                       :key="event.id"
                       class="overflow-hidden rounded-xl border border-[#DDD8F5] bg-n-solid-1"
-                      :class="ledgerCardBorderClass(event)"
+                      :class="[
+                        'border-l-4',
+                        stripColorClass(ledgerStatusSummary(event).color),
+                      ]"
                     >
-                      <!-- Card header -->
-                      <div
-                        class="flex flex-wrap items-center justify-between gap-3 border-b border-[#DDD8F5] bg-n-alpha-2 px-4 py-3"
+                      <!-- Collapsed strip header -->
+                      <button
+                        type="button"
+                        class="flex w-full items-start justify-between gap-3 border-b border-[#DDD8F5] bg-n-alpha-2 px-4 py-3 text-left transition-colors hover:bg-n-alpha-3"
+                        @click="toggleLedgerRow(event.id)"
                       >
-                        <div class="flex flex-wrap items-center gap-3">
-                          <span
-                            class="text-xl font-bold tabular-nums text-n-slate-12"
-                          >
-                            {{ formatLedgerAmount(event.amount) }}
-                          </span>
-                          <span
-                            class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize"
-                            :class="platformBadgeClass(event.platform)"
-                          >
-                            {{ platformLabel(event.platform) }}
-                          </span>
-                          <span class="text-xs text-n-slate-11">
-                            {{ event.headerTime }}
-                          </span>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex min-w-0 flex-1 flex-col gap-1">
                           <div
-                            class="relative group flex items-center gap-2 min-w-[100px]"
+                            class="flex flex-wrap items-center gap-3"
                           >
                             <span
-                              class="text-[11px] font-medium text-n-slate-11"
+                              class="text-xl font-bold tabular-nums text-n-slate-12"
                             >
-                              {{ LEDGER_LABELS.score }}
+                              {{ formatLedgerAmount(event.amount) }}
                             </span>
-                            <div
-                              class="h-1.5 w-16 overflow-hidden rounded-full bg-n-slate-4"
-                            >
-                              <div
-                                v-if="event.score != null"
-                                class="h-full rounded-full"
-                                :class="scoreBarClass(event.score)"
-                                :style="{ width: `${event.score}%` }"
-                              />
-                            </div>
                             <span
-                              class="text-xs font-semibold tabular-nums"
-                              :class="scoreTextClass(event.score)"
+                              class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize"
+                              :class="platformBadgeClass(event.platform)"
                             >
-                              {{ event.score ?? '—' }}
+                              {{ platformLabel(event.platform) }}
                             </span>
                             <div
-                              v-if="event.score_breakdown"
-                              class="absolute z-10 hidden group-hover:block right-0 top-full mt-1 w-56 rounded-lg border border-n-weak bg-n-solid-1 p-3 shadow-lg text-xs"
+                              class="relative group flex items-center gap-2 min-w-[100px]"
                             >
-                              <div class="font-semibold mb-2">
-                                {{ LEDGER_LABELS.scoreBreakdown }}
-                              </div>
-                              <div
-                                v-for="row in getScoreBreakdownRows(
-                                  event.score_breakdown
-                                )"
-                                :key="row.key"
-                                class="flex justify-between mb-1 last:mb-0"
+                              <span
+                                class="text-[11px] font-medium text-n-slate-11"
                               >
-                                <span>{{ row.label }}</span>
-                                <span
-                                  :class="
-                                    row.earned > 0
-                                      ? 'text-green-600 font-semibold'
-                                      : 'text-n-slate-10'
-                                  "
+                                {{ LEDGER_LABELS.score }}
+                              </span>
+                              <div
+                                class="h-1.5 w-16 overflow-hidden rounded-full bg-n-slate-4"
+                              >
+                                <div
+                                  v-if="event.score != null"
+                                  class="h-full rounded-full"
+                                  :class="scoreBarClass(event.score)"
+                                  :style="{ width: `${event.score}%` }"
+                                />
+                              </div>
+                              <span
+                                class="text-xs font-semibold tabular-nums"
+                                :class="scoreTextClass(event.score)"
+                              >
+                                {{ event.score ?? '—' }}
+                              </span>
+                              <div
+                                v-if="event.score_breakdown"
+                                class="absolute z-10 hidden group-hover:block right-0 top-full mt-1 w-56 rounded-lg border border-n-weak bg-n-solid-1 p-3 shadow-lg text-xs"
+                              >
+                                <div class="font-semibold mb-2">
+                                  {{ LEDGER_LABELS.scoreBreakdown }}
+                                </div>
+                                <div
+                                  v-for="breakdownRow in getScoreBreakdownRows(
+                                    event.score_breakdown
+                                  )"
+                                  :key="breakdownRow.key"
+                                  class="flex justify-between mb-1 last:mb-0"
                                 >
-                                  {{ row.display }}
-                                </span>
+                                  <span>{{ breakdownRow.label }}</span>
+                                  <span
+                                    :class="
+                                      breakdownRow.earned > 0
+                                        ? 'text-green-600 font-semibold'
+                                        : 'text-n-slate-10'
+                                    "
+                                  >
+                                    {{ breakdownRow.display }}
+                                  </span>
+                                </div>
                               </div>
                             </div>
+                            <span
+                              class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                              :class="
+                                stripBadgeClass(
+                                  ledgerStatusSummary(event).color
+                                )
+                              "
+                            >
+                              {{ ledgerStatusSummary(event).label }}
+                            </span>
                           </div>
-                          <span
-                            class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium"
-                            :class="ledgerPaymentStatusClass(event.status)"
+                          <p
+                            v-if="ledgerStatusSummary(event).reason"
+                            class="m-0 truncate text-xs text-n-slate-11"
                           >
-                            {{ event.status }}
-                          </span>
+                            {{ ledgerStatusSummary(event).reason }}
+                          </p>
                         </div>
-                      </div>
+                        <span
+                          class="shrink-0 pt-1 text-n-slate-11"
+                          aria-hidden="true"
+                        >
+                          {{ isLedgerRowExpanded(event.id) ? '▾' : '▸' }}
+                        </span>
+                      </button>
 
+                      <div v-show="isLedgerRowExpanded(event.id)">
                       <!-- Screenshot row -->
                       <div
                         class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/20 px-4 py-3 text-xs dark:bg-[#6E56CF]/5"
@@ -1667,6 +1737,7 @@ watch(selectedScoringPlatform, () => {
                         class="px-4 py-3 text-xs text-n-slate-11 bg-n-alpha-2"
                       >
                         {{ LEDGER_LABELS.awaitingEmail }}
+                      </div>
                       </div>
                     </article>
                   </div>
