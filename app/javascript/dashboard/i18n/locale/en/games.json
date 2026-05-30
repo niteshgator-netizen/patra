@@ -2,7 +2,7 @@
   "GAMES": {
     "NAV_LABEL": "Games",
     "HEADER": "Game integrations",
-    "DESCRIPTION": "Connect the social games platforms you operate. Bella will reference active games when customers ask, and route load/redeem actions through your stored API credentials.",
+    "DESCRIPTION": "Connect the social game platforms you operate. Patra AI will reference active games when customers ask, and route load/redeem actions through your stored API credentials.",
     "BREADCRUMB_PREFIX": "SETTINGS / INTEGRATIONS / ",
     "BREADCRUMB_CURRENT": "GAMES",
     "TIP_ICON": "💡",
@@ -28,7 +28,8 @@
       "CANCEL": "Cancel",
       "TEST_CONNECTION": "Test connection",
       "DISCONNECT": "Disconnect",
-      "CLOSE_ICON": "✕"
+      "CLOSE_ICON": "✕",
+      "CHECK_ICON": "✓"
     },
     "ACTIONS_MODAL": {
       "TITLE": "Manage Players · {gameName}",
@@ -92,7 +93,7 @@
       "TEST_FAIL": "✗ {message}",
       "IP_WHITELIST_HELP": "Required for API connection. Find this in your {gameName} agent panel.",
       "DISPLAY_NAME_LABEL": "Display name (optional)",
-      "DISPLAY_NAME_HELP": "How Bella will refer to this game",
+      "DISPLAY_NAME_HELP": "How Patra AI will refer to this game",
       "NOTES_LABEL": "Notes (private)",
       "DELETE_CONFIRM": "Are you sure you want to disconnect {gameName}? Your credentials will be deleted."
     },

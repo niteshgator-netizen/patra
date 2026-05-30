@@ -263,24 +263,22 @@ export default {
 </script>
 
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
+  <div class="overlay show" @click.self="$emit('close')">
     <div class="modal">
-      <header class="modal__head">
-        <div class="modal__title-wrap">
-          <div class="game-logo">{{ game.logo_emoji || '🎮' }}</div>
-          <div>
-            <h3 class="modal__title">
-              {{ $t('GAMES.ACTIONS_MODAL.TITLE', { gameName: game.name }) }}
-            </h3>
-            <div class="modal__subtitle">{{ game.domain }}</div>
+      <div class="modal-h">
+        <div class="mic">{{ game.logo_emoji || '🎮' }}</div>
+        <div class="mt">
+          <div class="mn">
+            {{ $t('GAMES.ACTIONS_MODAL.TITLE', { gameName: game.name }) }}
           </div>
+          <div class="md">{{ game.domain }}</div>
         </div>
-        <button class="modal__close" @click="$emit('close')">
+        <button type="button" class="modal-x" @click="$emit('close')">
           {{ $t('GAMES.ACTIONS.CLOSE_ICON') }}
         </button>
-      </header>
+      </div>
 
-      <div class="modal__body">
+      <div class="modal-body">
         <div
           v-if="resultBanner"
           class="result-banner"
@@ -291,21 +289,19 @@ export default {
           {{ resultBanner.message }}
         </div>
 
-        <div class="field">
-          <label class="field__label">{{
-            $t('GAMES.ACTIONS_MODAL.USERNAME_LABEL')
-          }}</label>
+        <div class="mfield">
+          <label>{{ $t('GAMES.ACTIONS_MODAL.USERNAME_LABEL') }}</label>
           <input
             v-model="username"
-            class="field__input"
             :placeholder="$t('GAMES.ACTIONS_MODAL.USERNAME_PLACEHOLDER')"
             @keyup.enter="onCheckBalance"
           />
         </div>
 
-        <div class="balance-row">
+        <div class="mp-ops mp-ops--top">
           <button
-            class="btn btn--ghost"
+            type="button"
+            class="mbtn ops-check"
             :disabled="!username || isChecking"
             @click="onCheckBalance"
           >
@@ -317,7 +313,7 @@ export default {
           </button>
           <button
             type="button"
-            class="btn btn--secondary"
+            class="mbtn"
             :disabled="!username || isCreating"
             @click="onCreatePlayer"
           >
@@ -329,7 +325,7 @@ export default {
           </button>
           <button
             type="button"
-            class="btn btn--secondary"
+            class="mbtn ops-diag full"
             :disabled="diagnosing"
             @click="runDiagnose"
           >
@@ -339,26 +335,24 @@ export default {
                 : $t('GAMES.ACTIONS_MODAL.DIAGNOSE_BTN')
             }}
           </button>
-          <span v-if="balance !== null" class="balance-result">
-            {{ $t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: balance }) }}
-          </span>
         </div>
+
+        <span v-if="balance !== null" class="balance-result">
+          {{ $t('GAMES.ACTIONS_MODAL.BALANCE_RESULT', { balance: balance }) }}
+        </span>
 
         <div
           v-if="result"
-          class="result-banner"
+          class="result-banner diagnose-block"
           :class="resultOk ? 'result-banner--ok' : 'result-banner--error'"
         >
           <pre class="diagnose-pre">{{ result }}</pre>
         </div>
 
-        <div class="field">
-          <label class="field__label">{{
-            $t('GAMES.ACTIONS_MODAL.AMOUNT_LABEL')
-          }}</label>
+        <div class="mfield">
+          <label>{{ $t('GAMES.ACTIONS_MODAL.AMOUNT_LABEL') }}</label>
           <input
             v-model.number="amount"
-            class="field__input"
             type="number"
             min="0"
             step="0.01"
@@ -366,9 +360,10 @@ export default {
           />
         </div>
 
-        <div class="action-buttons">
+        <div class="mp-ops">
           <button
-            class="btn btn--primary"
+            type="button"
+            class="mbtn ops-load"
             :disabled="!canSubmit || isSubmitting"
             @click="onLoad"
           >
@@ -379,7 +374,8 @@ export default {
             }}
           </button>
           <button
-            class="btn btn--danger-solid"
+            type="button"
+            class="mbtn ops-cash"
             :disabled="!canSubmit || isSubmitting"
             @click="onCashout"
           >
@@ -391,21 +387,19 @@ export default {
           </button>
         </div>
 
-        <div class="field">
-          <label class="field__label">{{
-            $t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_LABEL')
-          }}</label>
+        <div class="mfield mfield--spaced">
+          <label>{{ $t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_LABEL') }}</label>
           <input
             v-model="newPassword"
-            class="field__input"
             type="text"
             :placeholder="$t('GAMES.ACTIONS_MODAL.NEW_PASSWORD_PLACEHOLDER')"
           />
         </div>
 
-        <div class="action-buttons action-buttons--reset">
+        <div class="mp-ops">
           <button
-            class="btn btn--secondary"
+            type="button"
+            class="mbtn full"
             :disabled="!username || isResetting"
             @click="onResetPassword"
           >
@@ -422,174 +416,245 @@ export default {
 </template>
 
 <style lang="scss" scoped>
-.modal-backdrop {
+.overlay {
+  --canvas: #050409;
+  --surface: #0c0b12;
+  --surface-2: #131119;
+  --surface-3: #1b1925;
+  --border: #171520;
+  --border-hi: #2e2940;
+  --patra: #6e56cf;
+  --patra-deep: #5b45b0;
+  --patra-3: #a78bfa;
+  --text: #ededf2;
+  --text-2: #a8a6b6;
+  --text-3: #75727f;
+  --text-4: #54515e;
+  --green: #3fb950;
+  --amber: #e3a008;
+  --red: #f85149;
+  --blue: #58a6ff;
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+
   position: fixed;
   inset: 0;
-  background: rgba(11, 8, 23, 0.7);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
   padding: 20px;
 }
 
 .modal {
-  background: #16102b !important;
-  border: 1px solid #2d2356 !important;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: #f4f1ff !important;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 18px;
+  width: 480px;
+  max-width: 92vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  color: var(--text);
   font-family: 'Inter', sans-serif;
+}
 
-  &__head {
-    padding: 18px 22px;
-    border-bottom: 1px solid #2d2356;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+.modal-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 2;
 
-  &__title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  &__title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 17px;
-    font-weight: 700;
-    margin: 0;
-    color: #f4f1ff !important;
-  }
-  &__subtitle {
-    font-size: 11px;
-    color: #6f6692 !important;
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 2px;
-  }
-
-  &__close {
-    background: transparent !important;
-    border: 1px solid #2d2356 !important;
-    color: #a89fcc !important;
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
-    cursor: pointer;
+  .mic {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: var(--surface-3);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0;
-    &:hover {
-      color: #f4f1ff !important;
-      border-color: #4a3a8a !important;
-    }
+    font-size: 21px;
+    border: 1px solid var(--border-hi);
   }
 
-  &__body {
-    padding: 22px;
-    overflow-y: auto;
+  .mt {
+    flex: 1;
+    min-width: 0;
+
+    .mn {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .md {
+      font-size: 12px;
+      color: var(--text-3);
+      font-family: 'JetBrains Mono', monospace;
+    }
   }
 }
 
-.game-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
+.modal-x {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  background: #1f1740 !important;
-  border: 1px solid #2d2356 !important;
+  transition: all 0.2s;
+  padding: 0;
+
+  &:hover {
+    color: #fff;
+    background: var(--red);
+    border-color: transparent;
+    transform: rotate(90deg);
+  }
 }
 
-.field {
-  margin-bottom: 14px;
+.modal-body {
+  padding: 20px;
+}
 
-  &__label {
+.mfield {
+  margin-bottom: 13px;
+
+  label {
     display: block;
     font-size: 12px;
-    color: #a89fcc !important;
-    margin-bottom: 6px;
-    font-weight: 500;
+    color: var(--text-2);
+    margin-bottom: 5px;
   }
 
-  &__input {
+  input {
     width: 100%;
-    background: #1f1740 !important;
-    border: 1px solid #2d2356 !important;
-    border-radius: 8px !important;
-    padding: 9px 12px !important;
-    color: #f4f1ff !important;
-    font-size: 13px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    box-shadow: none !important;
-    margin: 0 !important;
-    height: auto !important;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: all 0.25s;
+    font-family: 'JetBrains Mono', monospace;
 
-    &::placeholder {
-      color: #6f6692 !important;
-    }
     &:focus {
-      outline: 2px solid #d4af37 !important;
-      border-color: transparent !important;
-      background: #1f1740 !important;
-      box-shadow: none !important;
+      border-color: var(--patra);
+      box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
     }
+  }
+
+  &--spaced {
+    margin-top: 14px;
   }
 }
 
-.balance-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.mp-ops {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 6px;
   margin-bottom: 14px;
-  flex-wrap: wrap;
+
+  &--top {
+    margin-bottom: 8px;
+  }
+
+  .mbtn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .full {
+    grid-column: 1 / -1;
+  }
+}
+
+.mbtn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-hi);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.22s;
+  font-family: 'Inter', sans-serif;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.ops-load {
+    background: linear-gradient(135deg, var(--green), #2a7f37);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  &.ops-cash {
+    background: linear-gradient(135deg, var(--amber), #b8860b);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  &.ops-check {
+    color: var(--blue);
+    border-color: rgba(88, 166, 255, 0.35);
+  }
+
+  &.ops-diag {
+    color: var(--patra-3);
+    border-color: rgba(167, 139, 250, 0.4);
+  }
 }
 
 .balance-result {
+  display: block;
   font-size: 13px;
-  color: #4ade80;
+  color: var(--green);
   font-family: 'JetBrains Mono', monospace;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #2d2356;
-
-  &--reset {
-    margin-top: 8px;
-    padding-top: 0;
-    border-top: none;
-  }
+  margin-bottom: 14px;
 }
 
 .result-banner {
-  padding: 10px 14px !important;
+  padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
   margin-bottom: 16px;
 
   &--ok {
-    background: rgba(74, 222, 128, 0.12) !important;
-    border: 1px solid rgba(74, 222, 128, 0.3) !important;
-    color: #4ade80 !important;
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+    color: var(--green);
   }
+
   &--error {
-    background: rgba(248, 113, 113, 0.12) !important;
-    border: 1px solid rgba(248, 113, 113, 0.3) !important;
-    color: #f87171 !important;
+    background: rgba(248, 81, 73, 0.12);
+    border: 1px solid rgba(248, 81, 73, 0.3);
+    color: var(--red);
   }
+}
+
+.diagnose-block {
+  margin-bottom: 14px;
 }
 
 .diagnose-pre {
@@ -597,70 +662,6 @@ export default {
   margin: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
-}
-
-.btn {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  padding: 9px 16px !important;
-  border-radius: 8px !important;
-  border: 1px solid #2d2356 !important;
-  background: #1f1740 !important;
-  color: #f4f1ff !important;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin: 0 !important;
-  height: auto !important;
-
-  &:hover {
-    border-color: #4a3a8a !important;
-    background: #2d2356 !important;
-  }
-  &:disabled {
-    opacity: 0.5 !important;
-    cursor: not-allowed;
-  }
-
-  &--primary {
-    background: #d4af37 !important;
-    color: #0b0817 !important;
-    border-color: #d4af37 !important;
-    flex: 1;
-    &:hover {
-      background: #b8961f !important;
-      border-color: #b8961f !important;
-    }
-  }
-
-  &--ghost {
-    background: transparent !important;
-    color: #a89fcc !important;
-    &:hover {
-      color: #f4f1ff !important;
-      border-color: #4a3a8a !important;
-    }
-  }
-
-  &--danger-solid {
-    background: rgba(248, 113, 113, 0.12) !important;
-    color: #f87171 !important;
-    border-color: rgba(248, 113, 113, 0.3) !important;
-    flex: 1;
-    &:hover {
-      background: rgba(248, 113, 113, 0.18) !important;
-      border-color: #f87171 !important;
-    }
-  }
-
-  &--secondary {
-    background: rgba(255, 255, 255, 0.06) !important;
-    color: #a89fcc !important;
-    border: 1px solid #2d2356 !important;
-    &:hover:not(:disabled) {
-      color: #f4f1ff !important;
-      border-color: #4a3a8a !important;
-    }
-  }
+  color: inherit;
 }
 </style>
