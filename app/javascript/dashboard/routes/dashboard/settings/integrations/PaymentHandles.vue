@@ -278,9 +278,14 @@ const formatLedgerTime = raw => {
   if (!raw) return '—';
   try {
     const date = typeof raw === 'string' ? parseISO(raw) : new Date(raw);
+    // parseISO/new Date can return an Invalid Date without throwing —
+    // guard before format() or it raises RangeError and crashes the ledger.
+    if (!date || Number.isNaN(date.getTime())) {
+      return typeof raw === 'string' ? raw : '—';
+    }
     return format(date, 'MMM d, yyyy h:mm a');
   } catch {
-    return '—';
+    return typeof raw === 'string' ? raw : '—';
   }
 };
 
