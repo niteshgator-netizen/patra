@@ -1,10 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 
 import ContactListHeaderWrapper from 'dashboard/components-next/Contacts/ContactsHeader/ContactListHeaderWrapper.vue';
 import ContactsActiveFiltersPreview from 'dashboard/components-next/Contacts/ContactsHeader/components/ContactsActiveFiltersPreview.vue';
-import PaginationFooter from 'dashboard/components-next/pagination/PaginationFooter.vue';
 import ContactsLoadMore from 'dashboard/components-next/Contacts/ContactsLoadMore.vue';
 
 const props = defineProps({
@@ -34,7 +34,9 @@ const emit = defineEmits([
   'loadMore',
 ]);
 
+const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 
 const contactListHeaderWrapper = ref(null);
 
@@ -59,6 +61,36 @@ const showActiveFiltersPreview = computed(() => {
   );
 });
 
+const totalPages = computed(() =>
+  Math.ceil(props.totalItems / props.itemsPerPage)
+);
+
+const startItem = computed(
+  () => (props.currentPage - 1) * props.itemsPerPage + 1
+);
+
+const endItem = computed(() =>
+  Math.min(startItem.value + props.itemsPerPage - 1, props.totalItems)
+);
+
+const pageNumbers = computed(() => {
+  const pages = [];
+  const max = Math.min(totalPages.value, 5);
+  let start = Math.max(1, props.currentPage - 2);
+  const end = Math.min(totalPages.value, start + max - 1);
+  start = Math.max(1, end - max + 1);
+  for (let i = start; i <= end; i += 1) pages.push(i);
+  return pages;
+});
+
+const showingLabel = computed(() =>
+  t('CONTACTS_LAYOUT.PAGINATION_FOOTER.SHOWING', {
+    startItem: startItem.value,
+    endItem: endItem.value,
+    totalItems: props.totalItems,
+  })
+);
+
 const updateCurrentPage = page => {
   emit('update:currentPage', page);
 };
@@ -74,57 +106,123 @@ const showLoadMore = computed(() => {
 const showPagination = computed(() => {
   return !props.useInfiniteScroll && props.showPaginationFooter;
 });
+
+const goToFilterTab = viewName => {
+  if (route.name === viewName) return;
+  router.push({
+    name: viewName,
+    params: { accountId: route.params.accountId },
+    query: { page: 1 },
+  });
+};
+
+const goToTaggedTab = () => {
+  router.push({
+    name: 'contacts_dashboard_labels_index',
+    params: {
+      accountId: route.params.accountId,
+      label: 'ai-off',
+    },
+    query: { page: 1 },
+  });
+};
+
+const isTabActive = name => route.name === name;
 </script>
 
 <template>
-  <section
-    class="flex w-full h-full gap-4 overflow-hidden justify-evenly bg-n-surface-1"
-  >
-    <div class="flex flex-col w-full h-full transition-all duration-300">
-      <ContactListHeaderWrapper
-        ref="contactListHeaderWrapper"
-        :show-search="isNotSegmentView && !isActiveView"
-        :search-value="searchValue"
-        :active-sort="activeSort"
-        :active-ordering="activeOrdering"
-        :header-title="headerTitle"
-        :active-segment="activeSegment"
-        :segments-id="segmentsId"
-        :has-applied-filters="hasAppliedFilters"
-        :is-label-view="isLabelView"
-        :is-active-view="isActiveView"
-        @update:sort="emit('update:sort', $event)"
-        @search="emit('search', $event)"
-        @apply-filter="emit('applyFilter', $event)"
-        @clear-filters="emit('clearFilters')"
-      />
-      <main class="flex-1 overflow-y-auto px-6">
-        <div class="w-full mx-auto max-w-5xl">
-          <ContactsActiveFiltersPreview
-            v-if="showActiveFiltersPreview"
-            :active-segment="activeSegment"
-            class="mb-1"
-            @clear-filters="emit('clearFilters')"
-            @open-filter="openFilter"
-          />
-          <slot name="default" />
-          <ContactsLoadMore
-            v-if="showLoadMore"
-            :is-loading="isLoadingMore"
-            @load-more="emit('loadMore')"
-          />
-        </div>
-      </main>
-      <footer v-if="showPagination" class="sticky bottom-0 z-0">
-        <PaginationFooter
-          current-page-info="CONTACTS_LAYOUT.PAGINATION_FOOTER.SHOWING"
-          :current-page="currentPage"
-          :total-items="totalItems"
-          class="max-w-[67rem]"
-          :items-per-page="itemsPerPage"
-          @update:current-page="updateCurrentPage"
-        />
-      </footer>
+  <div class="list">
+    <ContactListHeaderWrapper
+      ref="contactListHeaderWrapper"
+      :show-search="isNotSegmentView && !isActiveView"
+      :search-value="searchValue"
+      :active-sort="activeSort"
+      :active-ordering="activeOrdering"
+      :header-title="headerTitle"
+      :total-items="totalItems"
+      :active-segment="activeSegment"
+      :segments-id="segmentsId"
+      :has-applied-filters="hasAppliedFilters"
+      :is-label-view="isLabelView"
+      :is-active-view="isActiveView"
+      @update:sort="emit('update:sort', $event)"
+      @search="emit('search', $event)"
+      @apply-filter="emit('applyFilter', $event)"
+      @clear-filters="emit('clearFilters')"
+    />
+    <div v-if="isNotSegmentView && !isActiveView" class="subnav-wrap">
+      <div class="subnav">
+        <button
+          type="button"
+          :class="{ active: isTabActive('contacts_dashboard_index') }"
+          @click="goToFilterTab('contacts_dashboard_index')"
+        >
+          {{ t('CONTACTS_LAYOUT.FILTER_TABS.ALL') }}
+        </button>
+        <button
+          type="button"
+          :class="{ active: isTabActive('contacts_dashboard_active') }"
+          @click="goToFilterTab('contacts_dashboard_active')"
+        >
+          {{ t('CONTACTS_LAYOUT.FILTER_TABS.ACTIVE') }}
+        </button>
+        <button
+          type="button"
+          :class="{
+            active:
+              isTabActive('contacts_dashboard_labels_index') &&
+              route.params.label === 'ai-off',
+          }"
+          @click="goToTaggedTab"
+        >
+          {{ t('CONTACTS_LAYOUT.FILTER_TABS.TAGGED') }}
+          <span class="lbl-dot" />
+          {{ t('CONTACTS_LAYOUT.FILTER_TABS.AI_OFF') }}
+        </button>
+      </div>
     </div>
-  </section>
+    <div class="contacts">
+      <ContactsActiveFiltersPreview
+        v-if="showActiveFiltersPreview"
+        :active-segment="activeSegment"
+        class="filters-preview"
+        @clear-filters="emit('clearFilters')"
+        @open-filter="openFilter"
+      />
+      <slot name="default" />
+      <ContactsLoadMore
+        v-if="showLoadMore"
+        :is-loading="isLoadingMore"
+        @load-more="emit('loadMore')"
+      />
+    </div>
+    <div v-if="showPagination" class="list-foot">
+      <span>{{ showingLabel }}</span>
+      <div class="pager">
+        <button
+          type="button"
+          :disabled="currentPage <= 1"
+          @click="updateCurrentPage(currentPage - 1)"
+        >
+          {{ t('CONTACTS_LAYOUT.PAGER.PREV') }}
+        </button>
+        <button
+          v-for="page in pageNumbers"
+          :key="page"
+          type="button"
+          :class="{ active: page === currentPage }"
+          @click="updateCurrentPage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          type="button"
+          :disabled="currentPage >= totalPages"
+          @click="updateCurrentPage(currentPage + 1)"
+        >
+          {{ t('CONTACTS_LAYOUT.PAGER.NEXT') }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>

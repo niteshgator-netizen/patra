@@ -303,6 +303,7 @@
       "SEARCH_TITLE": "Search contacts",
       "ACTIVE_TITLE": "Active contacts",
       "SEARCH_PLACEHOLDER": "Search...",
+      "SEARCH_PLACEHOLDER_PATRA": "Search players, game username, phone…",
       "MESSAGE_BUTTON": "Message",
       "SEND_MESSAGE": "Send message",
       "BLOCK_CONTACT": "Block contact",
@@ -386,7 +387,46 @@
       }
     },
     "PAGINATION_FOOTER": {
-      "SHOWING": "Showing {startItem} - {endItem} of {totalItems} contact | Showing {startItem} - {endItem} of {totalItems} contacts"
+      "SHOWING": "Showing {startItem}–{endItem} of {totalItems} contact | Showing {startItem}–{endItem} of {totalItems} contacts"
+    },
+    "DETAIL_EMPTY": "Select a contact from the list to view their profile, Player Vault, and activity.",
+    "META_SEPARATOR": "·",
+    "FILTER_TABS": {
+      "ALL": "All Contacts",
+      "ACTIVE": "Active",
+      "TAGGED": "Tagged",
+      "AI_OFF": "ai-off"
+    },
+    "LIST": {
+      "VIP": "VIP",
+      "ARROW": "›",
+      "EXPAND_OPEN": "▾",
+      "EXPAND_CLOSED": "▸"
+    },
+    "PAGER": {
+      "PREV": "‹",
+      "NEXT": "›"
+    },
+    "PLAYER_VAULT": {
+      "TITLE": "Player Vault",
+      "GAMES_COUNT": "{count} games",
+      "EMPTY": "No player vault data yet. It fills in as the customer chats (deposits, platform, payment method).",
+      "USER": "User",
+      "PASS": "Pass",
+      "ACTIVE": "active",
+      "COPY": "⧉"
+    },
+    "PROFILE": {
+      "TITLE": "Player profile",
+      "ENGAGED": "Engaged",
+      "LIFECYCLE": "Lifecycle stage",
+      "LOYALTY_TIER": "Loyalty tier",
+      "PREFERRED_PLATFORM": "Preferred platform",
+      "TOTAL_DEPOSITS": "Total deposits",
+      "TOTAL_CASHOUTS": "Total cashouts",
+      "COUNTRY": "Country",
+      "VAULT_CURSOR_ID": "Vault cursor ID",
+      "LAST_DEPOSIT": "Last deposit"
     },
     "FILTER": {
       "NAME": "Name",
@@ -572,7 +612,7 @@
         "WROTE": "wrote",
         "YOU": "You",
         "SAVE": "Save note",
-        "ADD_NOTE": "Add contact note",
+        "ADD_NOTE": "+ Add contact note",
         "EXPAND": "Expand",
         "COLLAPSE": "Collapse",
         "NO_NOTES": "No notes, you can add notes from the contact details page.",

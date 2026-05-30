@@ -1,13 +1,12 @@
 <script setup>
-import { computed, useSlots, ref } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { vOnClickOutside } from '@vueuse/components';
+import { dynamicTime } from 'shared/helpers/timeHelper';
 
-import Button from 'dashboard/components-next/button/Button.vue';
-import Breadcrumb from 'dashboard/components-next/breadcrumb/Breadcrumb.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
+import ContactLabels from 'dashboard/components-next/Contacts/ContactLabels/ContactLabels.vue';
 
 const props = defineProps({
   selectedContact: {
@@ -20,170 +19,153 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['goToContactsList', 'toggleBlock']);
+const emit = defineEmits(['toggleBlock']);
 
 const { t } = useI18n();
-const slots = useSlots();
 const route = useRoute();
-
-const isContactSidebarOpen = ref(false);
 
 const contactId = computed(() => route.params.contactId);
 
-const selectedContactName = computed(() => {
-  return props.selectedContact?.name;
+const selectedContactName = computed(() => props.selectedContact?.name);
+
+const isContactBlocked = computed(() => props.selectedContact?.blocked);
+
+const createdAt = computed(() => {
+  const raw = props.selectedContact?.createdAt;
+  return raw ? dynamicTime(raw) : '';
 });
 
-const breadcrumbItems = computed(() => {
-  const items = [
-    {
-      label: t('CONTACTS_LAYOUT.HEADER.BREADCRUMB.CONTACTS'),
-      link: '#',
-    },
-  ];
-  if (props.selectedContact) {
-    items.push({
-      label: selectedContactName.value,
-    });
-  }
-  return items;
+const lastActivityAt = computed(() => {
+  const raw = props.selectedContact?.lastActivityAt;
+  return raw ? dynamicTime(raw) : '';
 });
 
-const isContactBlocked = computed(() => {
-  return props.selectedContact?.blocked;
+const preferredGame = computed(() => {
+  const platform =
+    props.selectedContact?.customAttributes?.preferred_platform ||
+    props.selectedContact?.customAttributes?.preferredPlatform;
+  if (!platform) return '';
+  return String(platform)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
 });
 
-const handleBreadcrumbClick = () => {
-  emit('goToContactsList');
-};
+const lifecycleStage = computed(() => {
+  const tier = props.selectedContact?.customAttributes?.loyalty_tier;
+  if (tier) return String(tier);
+  return t('CONTACTS_LAYOUT.PROFILE.ENGAGED');
+});
 
 const toggleBlock = () => {
   emit('toggleBlock', isContactBlocked.value);
 };
-
-const handleConversationSidebarToggle = () => {
-  isContactSidebarOpen.value = !isContactSidebarOpen.value;
-};
-
-const closeMobileSidebar = () => {
-  if (!isContactSidebarOpen.value) return;
-  isContactSidebarOpen.value = false;
-};
 </script>
 
 <template>
-  <section
-    class="flex w-full h-full overflow-hidden justify-evenly bg-n-surface-1"
-  >
-    <div
-      class="flex flex-col w-full h-full transition-all duration-300 ltr:2xl:ml-56 rtl:2xl:mr-56"
-    >
-      <header class="sticky top-0 z-10 px-6 3xl:px-0">
-        <div class="w-full mx-auto max-w-[40.625rem]">
-          <div
-            class="flex flex-col xs:flex-row items-start xs:items-center justify-between w-full py-7 gap-2"
-          >
-            <Breadcrumb
-              :items="breadcrumbItems"
-              @click="handleBreadcrumbClick"
-            />
-            <div class="flex items-center gap-2">
-              <Button
-                :label="
-                  !isContactBlocked
-                    ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
-                    : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
-                "
-                size="sm"
-                slate
-                :is-loading="isUpdating"
-                :disabled="isUpdating"
-                @click="toggleBlock"
-              />
-              <VoiceCallButton
-                :phone="selectedContact?.phoneNumber"
-                :contact-id="contactId"
-                :label="$t('CONTACT_PANEL.CALL')"
-                size="sm"
-              />
-              <ComposeConversation :contact-id="contactId">
-                <template #trigger>
-                  <Button
-                    :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
-                    size="sm"
-                  />
-                </template>
-              </ComposeConversation>
-            </div>
+  <div class="detail">
+    <div v-if="selectedContact?.id" class="det-hero">
+      <div class="det-hero-top">
+        <div
+          class="det-ava"
+          :style="
+            selectedContact.thumbnail
+              ? { backgroundImage: `url(${selectedContact.thumbnail})` }
+              : {}
+          "
+        >
+          <span v-if="!selectedContact.thumbnail">{{
+            (selectedContactName || '?').charAt(0).toUpperCase()
+          }}</span>
+        </div>
+        <div class="det-id">
+          <div class="dn display">{{ selectedContactName }}</div>
+          <div v-if="selectedContact.identifier" class="duid mono">
+            {{ selectedContact.identifier }}
+          </div>
+          <div class="dmeta">
+            {{ t('CONTACTS_LAYOUT.DETAILS.CREATED_AT', { date: createdAt }) }}
+            {{ t('CONTACTS_LAYOUT.META_SEPARATOR') }}
+            {{
+              t('CONTACTS_LAYOUT.DETAILS.LAST_ACTIVITY', {
+                date: lastActivityAt,
+              })
+            }}
+          </div>
+          <div class="det-tags">
+            <span class="tag engaged">{{ lifecycleStage }}</span>
+            <span v-if="preferredGame" class="tag game">{{
+              preferredGame
+            }}</span>
+            <ContactLabels :contact-id="selectedContact.id" />
           </div>
         </div>
-      </header>
-      <main class="flex-1 px-6 overflow-y-auto 3xl:px-px">
-        <div class="w-full py-4 mx-auto max-w-[40.625rem]">
-          <slot name="default" />
+        <div class="det-actions">
+          <button
+            type="button"
+            class="btn danger"
+            :disabled="isUpdating"
+            @click="toggleBlock"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M4.9 4.9l14.2 14.2" />
+            </svg>
+            {{
+              !isContactBlocked
+                ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
+                : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
+            }}
+          </button>
+          <VoiceCallButton
+            :phone="selectedContact?.phoneNumber"
+            :contact-id="contactId"
+            :label="$t('CONTACT_PANEL.CALL')"
+            size="sm"
+            class="patra-voice-btn"
+          />
+          <ComposeConversation :contact-id="contactId">
+            <template #trigger>
+              <button type="button" class="btn primary">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  />
+                </svg>
+                {{ $t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE') }}
+              </button>
+            </template>
+          </ComposeConversation>
         </div>
-      </main>
-    </div>
-
-    <!-- Desktop sidebar -->
-    <div
-      v-if="slots.sidebar"
-      class="hidden lg:block overflow-y-auto justify-end min-w-52 w-full py-6 max-w-md border-l border-n-weak bg-n-solid-2"
-    >
-      <slot name="sidebar" />
-    </div>
-
-    <!-- Mobile sidebar container -->
-    <div
-      v-if="slots.sidebar"
-      class="lg:hidden fixed top-0 ltr:right-0 rtl:left-0 h-full z-50 flex justify-end transition-all duration-200 ease-in-out"
-      :class="isContactSidebarOpen ? 'w-full' : 'w-16'"
-    >
-      <!-- Toggle button -->
-      <div
-        v-on-click-outside="[
-          closeMobileSidebar,
-          { ignore: ['#contact-sidebar-content'] },
-        ]"
-        class="flex items-start p-1 w-fit h-fit relative order-1 xs:top-24 top-28 transition-all bg-n-solid-2 border border-n-weak duration-500 ease-in-out"
-        :class="[
-          isContactSidebarOpen
-            ? 'justify-end ltr:rounded-l-full rtl:rounded-r-full ltr:rounded-r-none rtl:rounded-l-none'
-            : 'justify-center rounded-full ltr:mr-6 rtl:ml-6',
-        ]"
-      >
-        <Button
-          ghost
-          slate
-          sm
-          class="!rounded-full rtl:rotate-180"
-          :class="{ 'bg-n-alpha-2': isContactSidebarOpen }"
-          :icon="
-            isContactSidebarOpen
-              ? 'i-lucide-panel-right-close'
-              : 'i-lucide-panel-right-open'
-          "
-          data-contact-sidebar-toggle
-          @click="handleConversationSidebarToggle"
-        />
       </div>
-
-      <Transition
-        enter-active-class="transition-transform duration-200 ease-in-out"
-        leave-active-class="transition-transform duration-200 ease-in-out"
-        enter-from-class="ltr:translate-x-full rtl:-translate-x-full"
-        enter-to-class="ltr:translate-x-0 rtl:-translate-x-0"
-        leave-from-class="ltr:translate-x-0 rtl:-translate-x-0"
-        leave-to-class="ltr:translate-x-full rtl:-translate-x-full"
-      >
-        <div
-          v-if="isContactSidebarOpen"
-          id="contact-sidebar-content"
-          class="order-2 w-[85%] sm:w-[50%] bg-n-solid-2 ltr:border-l rtl:border-r border-n-weak overflow-y-auto py-6 shadow-lg"
-        >
-          <slot name="sidebar" />
-        </div>
-      </Transition>
     </div>
-  </section>
+    <div class="det-body">
+      <slot name="default" />
+    </div>
+  </div>
 </template>
+
+<style scoped>
+:deep(.patra-voice-btn button) {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+:deep(.det-tags .flex) {
+  display: contents;
+}
+</style>

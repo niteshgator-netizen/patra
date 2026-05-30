@@ -1,7 +1,4 @@
 <script setup>
-import Button from 'dashboard/components-next/button/Button.vue';
-import Input from 'dashboard/components-next/input/Input.vue';
-import Icon from 'dashboard/components-next/icon/Icon.vue';
 import ContactSortMenu from './components/ContactSortMenu.vue';
 import ContactMoreActions from './components/ContactMoreActions.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
@@ -11,6 +8,7 @@ defineProps({
   searchValue: { type: String, default: '' },
   headerTitle: { type: String, required: true },
   buttonLabel: { type: String, default: '' },
+  totalItems: { type: Number, default: 0 },
   activeSort: { type: String, default: 'last_activity_at' },
   activeOrdering: { type: String, default: '' },
   isSegmentsView: { type: Boolean, default: false },
@@ -32,94 +30,162 @@ const emit = defineEmits([
 </script>
 
 <template>
-  <header class="sticky top-0 z-10 px-6">
-    <div
-      class="flex items-start sm:items-center justify-between w-full py-6 gap-2 mx-auto max-w-5xl"
-    >
-      <span class="text-xl font-medium truncate text-n-slate-12">
+  <div class="list-head">
+    <div class="list-head-top">
+      <div class="list-title display">
         {{ headerTitle }}
-      </span>
-      <div class="flex items-center flex-col sm:flex-row flex-shrink-0 gap-4">
-        <div v-if="showSearch" class="flex items-center gap-2 w-full">
-          <Input
-            :model-value="searchValue"
-            type="search"
-            :placeholder="$t('CONTACTS_LAYOUT.HEADER.SEARCH_PLACEHOLDER')"
-            :custom-input-class="[
-              'h-8 [&:not(.focus)]:!border-transparent bg-n-alpha-2 dark:bg-n-solid-1 ltr:!pl-8 !py-1 rtl:!pr-8',
-            ]"
-            class="w-full"
-            @input="emit('search', $event.target.value)"
+        <span v-if="totalItems" class="count">{{ totalItems }}</span>
+      </div>
+      <div class="list-head-actions">
+        <div v-if="!isLabelView && !isActiveView" class="icon-btn-wrap">
+          <button
+            id="toggleContactsFilterButton"
+            type="button"
+            class="icon-btn"
+            :title="
+              isSegmentsView
+                ? $t('CONTACTS_LAYOUT.FILTER.EDIT_SEGMENT')
+                : $t('CONTACTS_LAYOUT.FILTER.TITLE')
+            "
+            @click="emit('filter')"
           >
-            <template #prefix>
-              <Icon
-                icon="i-lucide-search"
-                class="absolute -translate-y-1/2 text-n-slate-11 size-4 top-1/2 ltr:left-2 rtl:right-2"
-              />
-            </template>
-          </Input>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 6h18M7 12h10M11 18h2" />
+            </svg>
+            <span
+              v-if="hasActiveFilters && !isSegmentsView"
+              class="filter-dot"
+            />
+          </button>
+          <slot name="filter" />
         </div>
-        <div class="flex items-center flex-shrink-0 gap-4">
-          <div class="flex items-center gap-2">
-            <div v-if="!isLabelView && !isActiveView" class="relative">
-              <Button
-                id="toggleContactsFilterButton"
-                :icon="
-                  isSegmentsView ? 'i-lucide-pen-line' : 'i-lucide-list-filter'
-                "
-                color="slate"
-                size="sm"
-                class="relative w-8"
-                variant="ghost"
-                @click="emit('filter')"
-              >
-                <div
-                  v-if="hasActiveFilters && !isSegmentsView"
-                  class="absolute top-0 right-0 w-2 h-2 rounded-full bg-n-brand"
-                />
-              </Button>
-              <slot name="filter" />
-            </div>
-            <Button
-              v-if="
-                hasActiveFilters &&
-                !isSegmentsView &&
-                !isLabelView &&
-                !isActiveView
-              "
-              icon="i-lucide-save"
-              color="slate"
-              size="sm"
-              variant="ghost"
-              @click="emit('createSegment')"
+        <ContactMoreActions
+          class="patra-more-actions"
+          @add="emit('add')"
+          @import="emit('import')"
+          @export="emit('export')"
+        />
+        <ContactSortMenu
+          :active-sort="activeSort"
+          :active-ordering="activeOrdering"
+          class="patra-sort-menu"
+          @update:sort="emit('update:sort', $event)"
+        />
+        <button
+          v-if="
+            hasActiveFilters && !isSegmentsView && !isLabelView && !isActiveView
+          "
+          type="button"
+          class="icon-btn"
+          @click="emit('createSegment')"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
             />
-            <Button
-              v-if="isSegmentsView && !isLabelView && !isActiveView"
-              icon="i-lucide-trash"
-              color="slate"
-              size="sm"
-              variant="ghost"
-              @click="emit('deleteSegment')"
-            />
-            <ContactSortMenu
-              :active-sort="activeSort"
-              :active-ordering="activeOrdering"
-              @update:sort="emit('update:sort', $event)"
-            />
-            <ContactMoreActions
-              @add="emit('add')"
-              @import="emit('import')"
-              @export="emit('export')"
-            />
-          </div>
-          <div class="w-px h-4 bg-n-strong" />
-          <ComposeConversation>
-            <template #trigger>
-              <Button :label="buttonLabel" size="sm" />
-            </template>
-          </ComposeConversation>
-        </div>
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+        </button>
+        <button
+          v-if="isSegmentsView && !isLabelView && !isActiveView"
+          type="button"
+          class="icon-btn danger"
+          @click="emit('deleteSegment')"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          </svg>
+        </button>
       </div>
     </div>
-  </header>
+    <div v-if="showSearch" class="search">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="M21 21l-4.35-4.35" />
+      </svg>
+      <input
+        :value="searchValue"
+        type="search"
+        :placeholder="$t('CONTACTS_LAYOUT.HEADER.SEARCH_PLACEHOLDER_PATRA')"
+        @input="emit('search', $event.target.value)"
+      />
+    </div>
+    <div class="list-head-compose">
+      <ComposeConversation>
+        <template #trigger>
+          <button type="button" class="btn primary">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+              />
+            </svg>
+            {{ buttonLabel }}
+          </button>
+        </template>
+      </ComposeConversation>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.patra-more-actions :deep(button),
+.patra-sort-menu :deep(button) {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.filter-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--patra-2);
+}
+
+.icon-btn-wrap {
+  position: relative;
+}
+
+.list-head-compose {
+  padding: 0 16px 10px;
+}
+
+.list-head-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+</style>

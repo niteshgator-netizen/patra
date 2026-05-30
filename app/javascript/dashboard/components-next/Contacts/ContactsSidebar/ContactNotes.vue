@@ -55,21 +55,23 @@ useKeyboardEvents(keyboardEvents);
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 py-6">
+  <div class="notes-tab">
+    <span class="add-link">{{
+      t('CONTACTS_LAYOUT.SIDEBAR.NOTES.ADD_NOTE')
+    }}</span>
     <Editor
       v-model="state.message"
       :placeholder="t('CONTACTS_LAYOUT.SIDEBAR.NOTES.PLACEHOLDER')"
       focus-on-mount
-      class="[&>div]:!border-transparent [&>div]:px-4 [&>div]:py-4 px-6"
+      class="notes-editor"
     >
       <template #actions>
-        <div class="flex items-center gap-3">
+        <div class="notes-actions">
           <Button
             variant="link"
             color="blue"
             size="sm"
             :label="t('CONTACTS_LAYOUT.SIDEBAR.NOTES.SAVE')"
-            class="hover:no-underline"
             :is-loading="isCreatingNote"
             :disabled="!state.message || isCreatingNote"
             @click="onAdd(state.message)"
@@ -77,25 +79,57 @@ useKeyboardEvents(keyboardEvents);
         </div>
       </template>
     </Editor>
-    <div
-      v-if="isFetchingNotes"
-      class="flex items-center justify-center py-10 text-n-slate-11"
-    >
+    <div v-if="isFetchingNotes" class="tab-loading">
       <Spinner />
     </div>
-    <div v-else-if="notes.length > 0">
+    <div v-else-if="notes.length > 0" class="notes-list">
       <ContactNoteItem
         v-for="note in notes"
         :key="note.id"
-        class="mx-6 py-4"
         :note="note"
         :written-by="getWrittenBy(note)"
         allow-delete
         @delete="onDelete"
       />
     </div>
-    <p v-else class="px-6 py-6 text-sm leading-6 text-center text-n-slate-11">
+    <p v-else class="empty-note">
       {{ t('CONTACTS_LAYOUT.SIDEBAR.NOTES.EMPTY_STATE') }}
     </p>
   </div>
 </template>
+
+<style scoped>
+.notes-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.add-link {
+  font-size: 12.5px;
+  color: var(--patra-3, #a78bfa);
+  cursor: pointer;
+  margin-bottom: 0;
+  display: inline-block;
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.add-link:hover {
+  text-decoration: underline;
+}
+
+.tab-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+</style>

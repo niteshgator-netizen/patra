@@ -468,74 +468,91 @@ onMounted(async () => {
     );
   }
 });
+
+const spotlightRef = ref(null);
+
+const onSpotlightMove = e => {
+  const el = spotlightRef.value;
+  if (!el) return;
+  el.style.left = `${e.clientX}px`;
+  el.style.top = `${e.clientY}px`;
+  el.style.opacity = '1';
+};
+
+const onSpotlightLeave = () => {
+  const el = spotlightRef.value;
+  if (el) el.style.opacity = '0';
+};
 </script>
 
 <template>
   <div
-    class="flex flex-col justify-between flex-1 h-full m-0 overflow-auto bg-n-surface-1"
+    class="contacts-wrap"
+    @mousemove="onSpotlightMove"
+    @mouseleave="onSpotlightLeave"
   >
-    <ContactsListLayout
-      :search-value="searchValue"
-      :header-title="headerTitle"
-      :current-page="currentPage"
-      :total-items="totalItems"
-      :show-pagination-footer="!isFetchingList && hasContacts && !isSearchView"
-      :active-sort="sortState.activeSort"
-      :active-ordering="sortState.activeOrdering"
-      :active-segment="activeSegment"
-      :segments-id="activeSegmentId"
-      :is-fetching-list="isFetchingList"
-      :has-applied-filters="hasAppliedFilters"
-      :use-infinite-scroll="isSearchView"
-      :has-more="hasMore"
-      :is-loading-more="isLoadingMore"
-      @update:current-page="onPageChange"
-      @search="
-        value => searchContacts(value, 1, false, { clearSelection: false })
-      "
-      @update:sort="handleSort"
-      @apply-filter="fetchSavedOrAppliedFilteredContact"
-      @clear-filters="fetchContacts"
-      @load-more="loadMoreSearchResults"
-    >
-      <div
-        v-if="isFetchingList && !(isSearchView && hasContacts)"
-        class="flex items-center justify-center py-10 text-n-slate-11"
+    <div id="spotlight" ref="spotlightRef" />
+    <div class="mesh" />
+    <div class="contacts-app">
+      <ContactsListLayout
+        :search-value="searchValue"
+        :header-title="headerTitle"
+        :current-page="currentPage"
+        :total-items="totalItems"
+        :show-pagination-footer="
+          !isFetchingList && hasContacts && !isSearchView
+        "
+        :active-sort="sortState.activeSort"
+        :active-ordering="sortState.activeOrdering"
+        :active-segment="activeSegment"
+        :segments-id="activeSegmentId"
+        :is-fetching-list="isFetchingList"
+        :has-applied-filters="hasAppliedFilters"
+        :use-infinite-scroll="isSearchView"
+        :has-more="hasMore"
+        :is-loading-more="isLoadingMore"
+        @update:current-page="onPageChange"
+        @search="
+          value => searchContacts(value, 1, false, { clearSelection: false })
+        "
+        @update:sort="handleSort"
+        @apply-filter="fetchSavedOrAppliedFilteredContact"
+        @clear-filters="fetchContacts"
+        @load-more="loadMoreSearchResults"
       >
-        <Spinner />
-      </div>
-
-      <template v-else>
-        <ContactsBulkActionBar
-          v-if="hasSelection"
-          :visible-contact-ids="visibleContactIds"
-          :selected-contact-ids="selectedContactIds"
-          :is-loading="isBulkActionLoading"
-          @toggle-all="toggleSelectAll"
-          @clear-selection="clearSelection"
-          @assign-labels="assignLabels"
-          @delete-selected="openBulkDeleteDialog"
-        />
-        <ContactEmptyState
-          v-if="showEmptyStateLayout"
-          class="pt-14"
-          :title="t('CONTACTS_LAYOUT.EMPTY_STATE.TITLE')"
-          :subtitle="t('CONTACTS_LAYOUT.EMPTY_STATE.SUBTITLE')"
-          :button-label="t('CONTACTS_LAYOUT.EMPTY_STATE.BUTTON_LABEL')"
-          @create="createContact"
-        />
-
         <div
-          v-else-if="showEmptyText"
-          class="flex items-center justify-center py-10"
+          v-if="isFetchingList && !(isSearchView && hasContacts)"
+          class="list-loading"
         >
-          <span class="text-base text-n-slate-11">
-            {{ emptyStateMessage }}
-          </span>
+          <Spinner />
         </div>
 
-        <div v-else class="flex flex-col gap-4 pt-4 pb-6">
+        <template v-else>
+          <ContactsBulkActionBar
+            v-if="hasSelection"
+            :visible-contact-ids="visibleContactIds"
+            :selected-contact-ids="selectedContactIds"
+            :is-loading="isBulkActionLoading"
+            @toggle-all="toggleSelectAll"
+            @clear-selection="clearSelection"
+            @assign-labels="assignLabels"
+            @delete-selected="openBulkDeleteDialog"
+          />
+          <ContactEmptyState
+            v-if="showEmptyStateLayout"
+            class="list-empty-state"
+            :title="t('CONTACTS_LAYOUT.EMPTY_STATE.TITLE')"
+            :subtitle="t('CONTACTS_LAYOUT.EMPTY_STATE.SUBTITLE')"
+            :button-label="t('CONTACTS_LAYOUT.EMPTY_STATE.BUTTON_LABEL')"
+            @create="createContact"
+          />
+
+          <div v-else-if="showEmptyText" class="list-empty-text">
+            <span>{{ emptyStateMessage }}</span>
+          </div>
+
           <ContactsList
+            v-else
             :contacts="contacts"
             :selected-contact-ids="selectedContactIds"
             @toggle-contact="toggleContactSelection"
@@ -550,8 +567,18 @@ onMounted(async () => {
             :is-loading="isBulkActionLoading"
             @confirm="deleteContacts"
           />
+        </template>
+      </ContactsListLayout>
+
+      <div class="detail detail-empty">
+        <div class="empty-note">
+          {{ t('CONTACTS_LAYOUT.DETAIL_EMPTY') }}
         </div>
-      </template>
-    </ContactsListLayout>
+      </div>
+    </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+@import './contacts-patra.scss';
+</style>
