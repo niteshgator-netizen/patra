@@ -1,13 +1,16 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 
+import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import ContactBlacklistAPI from 'dashboard/api/contactBlacklist';
 import GameActionsAPI from 'dashboard/api/gameActions';
 import PlayerBonusesAPI from 'dashboard/api/playerBonuses';
+import { useUISettings } from 'dashboard/composables/useUISettings';
 
 const props = defineProps({
   contact: {
@@ -22,6 +25,7 @@ const props = defineProps({
 
 const { t } = useI18n();
 const store = useStore();
+const { uiSettings, updateUISettings } = useUISettings();
 
 const bonuses = ref([]);
 const cashouts = ref([]);
@@ -31,6 +35,11 @@ const savingBlacklist = ref(false);
 const agentNotes = ref('');
 const savingNotes = ref(false);
 const notesUpdatedAt = ref(null);
+const profileOpen = computed({
+  get: () => uiSettings.value.is_player_profile_open ?? true,
+  set: val => updateUISettings({ is_player_profile_open: val }),
+});
+const vaultOpen = ref(true);
 
 const attrs = computed(() => {
   const raw = props.contact?.custom_attributes;
@@ -43,13 +52,11 @@ const paymentStatusPill = computed(() => props.contact?.payment_status || null);
 const paymentPillClass = computed(() => {
   const color = paymentStatusPill.value?.color;
   const map = {
-    green:
-      'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30',
-    blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30',
-    yellow:
-      'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30',
+    green: 'tag engaged',
+    blue: 'tag ai',
+    yellow: 'tag',
   };
-  return map[color] || '';
+  return map[color] || 'tag';
 });
 
 const PREDEFINED_ATTR_KEYS = new Set([
@@ -94,18 +101,6 @@ function formatProfileFieldValue(key, value) {
   return typeof value === 'object' ? JSON.stringify(value) : String(value);
 }
 
-const tierClass = computed(() => {
-  const tier = (attrs.value.loyalty_tier || '').toString().toLowerCase();
-  const map = {
-    vip: 'bg-amber-100 text-amber-950 dark:bg-amber-900/40 dark:text-amber-100',
-    loyal: 'bg-violet-100 text-violet-950 dark:bg-violet-900/40 dark:text-violet-100',
-    regular: 'bg-teal-100 text-teal-950 dark:bg-teal-900/40 dark:text-teal-100',
-    casual: 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100',
-    new: 'bg-n-alpha-2 text-n-slate-12',
-  };
-  return map[tier] || 'bg-n-alpha-2 text-n-slate-12';
-});
-
 function formatMoney(val) {
   const n = Number.parseFloat(val);
   if (Number.isNaN(n)) return '—';
@@ -127,6 +122,41 @@ function formatDate(val) {
   });
 }
 
+function humanizeGame(slug) {
+  if (!slug) return slug;
+  return String(slug)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function gameEmoji(slug) {
+  const map = {
+    game_vault: '🎰',
+    juwa: '🐉',
+    juwa_2: '🐉',
+    ultra_panda: '🐼',
+    vegas_sweeps: '🎲',
+    milky_way: '🌌',
+    fire_kirin: '🔥',
+    panda_master: '🐼',
+    game_room: '🎮',
+  };
+  return map[slug] || '🎮';
+}
+
+function maskPassword(password) {
+  if (!password) return '—';
+  const str = String(password);
+  if (str.length <= 3) return '•••';
+  return `•••••••${str.slice(-3)}`;
+}
+
+async function copyValue(value) {
+  if (!value) return;
+  await copyTextToClipboard(String(value));
+  useAlert(t('CONTACT_PANEL.COPY_SUCCESSFUL'));
+}
+
 const rows = computed(() => [
   {
     key: 'game_username',
@@ -137,12 +167,6 @@ const rows = computed(() => [
     key: 'preferred_platform',
     label: t('PLAYER_PROFILE.FIELDS.PREFERRED_PLATFORM'),
     value: attrs.value.preferred_platform,
-  },
-  {
-    key: 'loyalty_tier',
-    label: t('PLAYER_PROFILE.FIELDS.LOYALTY_TIER'),
-    value: attrs.value.loyalty_tier,
-    highlight: true,
   },
   {
     key: 'deposit_count',
@@ -156,16 +180,19 @@ const rows = computed(() => [
     key: 'total_deposits',
     label: t('PLAYER_PROFILE.FIELDS.TOTAL_DEPOSITS'),
     value: formatMoney(attrs.value.total_deposits),
+    mono: true,
   },
   {
     key: 'total_cashouts',
     label: t('PLAYER_PROFILE.FIELDS.TOTAL_CASHOUTS'),
     value: formatMoney(attrs.value.total_cashouts),
+    mono: true,
   },
   {
     key: 'last_deposit_amount',
     label: t('PLAYER_PROFILE.FIELDS.LAST_DEPOSIT_AMOUNT'),
     value: formatMoney(attrs.value.last_deposit_amount),
+    mono: true,
   },
   {
     key: 'last_deposit_date',
@@ -176,16 +203,6 @@ const rows = computed(() => [
     key: 'last_cashout_date',
     label: t('PLAYER_PROFILE.FIELDS.LAST_CASHOUT_DATE'),
     value: formatDate(attrs.value.last_cashout_date),
-  },
-  {
-    key: 'last_cashout_intent_date',
-    label: t('PLAYER_PROFILE.FIELDS.LAST_CASHOUT_INTENT'),
-    value: formatDate(attrs.value.last_cashout_intent_date),
-  },
-  {
-    key: 'preferred_payment_method',
-    label: t('PLAYER_PROFILE.FIELDS.PREFERRED_PAYMENT'),
-    value: attrs.value.preferred_payment_method,
   },
   {
     key: 'preferred_bonus_percentage',
@@ -200,12 +217,6 @@ const rows = computed(() => [
     key: 'first_contact_date',
     label: t('PLAYER_PROFILE.FIELDS.FIRST_CONTACT'),
     value: formatDate(attrs.value.first_contact_date),
-  },
-  {
-    key: 'notes',
-    label: t('PLAYER_PROFILE.FIELDS.NOTES'),
-    value: attrs.value.notes,
-    multiline: true,
   },
 ]);
 
@@ -267,7 +278,7 @@ function financeLogSortTs(entry) {
 const financeLogsSorted = computed(() => {
   const raw = coerceFinanceLogs(attrs.value.patra_finance_logs);
   return [...raw.entries()]
-    .sort(([_ia, a], [ib, b]) => {
+    .sort(([ia, a], [ib, b]) => {
       const tb = financeLogSortTs(b);
       const ta = financeLogSortTs(a);
       if (tb !== ta) return tb - ta;
@@ -284,7 +295,8 @@ function isFinanceFlagged(entry) {
 
 function financeMemoLine(entry) {
   const raw = entry.note_or_memo;
-  if (raw != null && String(raw).trim() !== '') return { type: 'memo', text: String(raw) };
+  if (raw != null && String(raw).trim() !== '')
+    return { type: 'memo', text: String(raw) };
   if (!isFinanceFlagged(entry)) return null;
   if (entry.flag_reason === 'recipient_mismatch') {
     const handle = entry.our_handle_name;
@@ -297,7 +309,10 @@ function financeMemoLine(entry) {
       };
     }
   }
-  return { type: 'flag', text: t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.BONUS_NOT_APPLIED') };
+  return {
+    type: 'flag',
+    text: t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.BONUS_NOT_APPLIED'),
+  };
 }
 
 const financeLogsIndexed = computed(() =>
@@ -305,8 +320,8 @@ const financeLogsIndexed = computed(() =>
 );
 
 const financeLogsVisibleRows = computed(() => {
-  const rows = financeLogsIndexed.value;
-  const sliced = financeLogsExpanded.value ? rows : rows.slice(0, 5);
+  const list = financeLogsIndexed.value;
+  const sliced = financeLogsExpanded.value ? list : list.slice(0, 5);
   return sliced.map((row, visibleIdx) => {
     const prev = visibleIdx > 0 ? sliced[visibleIdx - 1].entry : null;
     const sameTxAsAbove =
@@ -356,54 +371,42 @@ watch(
   }
 );
 
-function financeSenderName(entry) {
-  return (entry.sender_name ?? entry.sender ?? '—').toString();
-}
-
-function financeRecipientName(entry) {
-  return (entry.recipient_name ?? entry.recipient ?? '—').toString();
-}
-
 function financeStatusPill(entry) {
   const fr = entry.flag_reason;
   if (fr === 'duplicate') {
     return {
       text: t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.STATUS_DUPLICATE'),
-      class:
-        'bg-n-ruby-9/15 text-n-ruby-11 dark:bg-n-ruby-9/25 dark:text-n-ruby-11',
+      class: 'tag',
     };
   }
   if (fr === 'recipient_mismatch') {
     return {
       text: t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.STATUS_WRONG_RECIPIENT'),
-      class:
-        'bg-n-ruby-9/15 text-n-ruby-11 dark:bg-n-ruby-9/25 dark:text-n-ruby-11',
+      class: 'tag',
     };
   }
   if (fr === 'stale') {
     return {
       text: t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.STATUS_STALE'),
-      class:
-        'bg-n-amber-9/15 text-n-amber-11 dark:bg-n-amber-9/25 dark:text-n-amber-11',
+      class: 'tag',
     };
   }
   if (entry.kind === 'deposit') {
     return {
       text: t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.STATUS_CONFIRMED'),
-      class:
-        'bg-n-teal-9/15 text-n-teal-11 dark:bg-n-teal-9/25 dark:text-n-teal-11',
+      class: 'tag engaged',
     };
   }
   const kind = (entry.kind || '—').toString();
   return {
     text: kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : '—',
-    class: 'bg-n-alpha-2 text-n-slate-12',
+    class: 'tag',
   };
 }
 
-const isEmpty = computed(() => displayRows.value.length === 0);
-
-const isBlacklisted = computed(() => attrs.value.blacklisted === true || attrs.value.blacklisted === 'true');
+const isBlacklisted = computed(
+  () => attrs.value.blacklisted === true || attrs.value.blacklisted === 'true'
+);
 
 const gameCredentials = computed(() => {
   const creds = [];
@@ -414,11 +417,6 @@ const gameCredentials = computed(() => {
     if (password) creds.push({ game, username: value, password });
   });
   return creds;
-});
-
-const referredByName = computed(() => {
-  const id = attrs.value.referred_by_contact_id;
-  return id ? `#${id}` : '';
 });
 
 const paymentMethodDisplay = computed(() => {
@@ -432,36 +430,9 @@ const paymentMethodDisplay = computed(() => {
   return icons[method] || attrs.value.preferred_payment_method || '';
 });
 
-const depositSummary = computed(() => {
-  const total = Number.parseFloat(attrs.value.total_deposits) || 0;
-  const count = Number.parseInt(attrs.value.deposit_count, 10) || loads.value.length;
-  return { total, count };
-});
+const lifecycleStage = computed(() => attrs.value.lifecycle_stage || '');
 
-const cashoutSummary = computed(() => {
-  const total = Number.parseFloat(attrs.value.total_cashouts) || 0;
-  return { total, count: cashouts.value.length };
-});
-
-const netSummary = computed(
-  () => depositSummary.value.total - cashoutSummary.value.total
-);
-
-const socialLinks = computed(() => {
-  const links = [];
-  const fb = attrs.value.facebook_profile || attrs.value.profile_url;
-  if (fb && !isPsidFacebookUrl(fb)) {
-    links.push({ type: 'facebook', url: fb, icon: 'i-lucide-facebook' });
-  }
-  if (attrs.value.instagram_profile) {
-    links.push({
-      type: 'instagram',
-      url: attrs.value.instagram_profile,
-      icon: 'i-lucide-instagram',
-    });
-  }
-  return links;
-});
+const loyaltyTier = computed(() => attrs.value.loyalty_tier || '');
 
 async function loadExtras() {
   if (!props.contact?.id) return;
@@ -469,19 +440,27 @@ async function loadExtras() {
   agentNotes.value = attrs.value.agent_notes || attrs.value.notes || '';
   notesUpdatedAt.value = attrs.value.agent_notes_updated_at || null;
   try {
-    const { data: bonusData } = await PlayerBonusesAPI.forContact(props.contact.id);
+    const { data: bonusData } = await PlayerBonusesAPI.forContact(
+      props.contact.id
+    );
     bonuses.value = bonusData || [];
   } catch {
     bonuses.value = [];
   }
   try {
-    const { data: cashoutData } = await GameActionsAPI.forContact(props.contact.id, 'cashout');
+    const { data: cashoutData } = await GameActionsAPI.forContact(
+      props.contact.id,
+      'cashout'
+    );
     cashouts.value = cashoutData || [];
   } catch {
     cashouts.value = [];
   }
   try {
-    const { data: loadData } = await GameActionsAPI.forContact(props.contact.id, 'load');
+    const { data: loadData } = await GameActionsAPI.forContact(
+      props.contact.id,
+      'load'
+    );
     loads.value = loadData || [];
   } catch {
     loads.value = [];
@@ -536,321 +515,278 @@ async function sendCredentials(cred) {
   });
 }
 
+const toggleProfile = () => {
+  profileOpen.value = !profileOpen.value;
+};
+
+const toggleVault = () => {
+  vaultOpen.value = !vaultOpen.value;
+};
+
 onMounted(loadExtras);
 watch(() => props.contact?.id, loadExtras);
 </script>
 
 <template>
-  <div class="rounded-lg border border-n-weak bg-n-solid-1 p-3 text-sm">
-    <div
-      v-if="paymentStatusPill?.label"
-      class="mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-      :class="paymentPillClass"
+  <div>
+    <AccordionItem
+      patra
+      :title="$t('CONVERSATION_SIDEBAR.ACCORDION.PLAYER_PROFILE')"
+      :is-open="profileOpen"
+      compact
+      @toggle="toggleProfile"
     >
-      <span v-if="paymentStatusPill.icon">{{ paymentStatusPill.icon }}</span>
-      <span>{{ paymentStatusPill.label }}</span>
-    </div>
-    <div class="mb-3 flex flex-wrap items-center gap-2">
-      <label class="flex items-center gap-2 text-xs text-n-slate-12">
-        <input
-          type="checkbox"
-          :checked="isBlacklisted"
-          @change="toggleBlacklist"
-        />
-        {{ $t('BLACKLIST.TOGGLE') }}
-      </label>
+      <div v-if="paymentStatusPill?.label" class="mb-3">
+        <span class="tag" :class="paymentPillClass">{{
+          paymentStatusPill.label
+        }}</span>
+      </div>
+      <div class="field">
+        <span class="k">{{ $t('BLACKLIST.TOGGLE') }}</span>
+        <span class="v">
+          <button
+            type="button"
+            class="mini-sw"
+            :class="{ off: !isBlacklisted }"
+            :disabled="savingBlacklist"
+            @click="toggleBlacklist"
+          >
+            <i />
+          </button>
+        </span>
+      </div>
       <input
         v-if="isBlacklisted || blacklistReason"
         v-model="blacklistReason"
         type="text"
-        class="min-w-0 flex-1 rounded border border-n-weak bg-n-solid-2 px-2 py-1 text-xs"
+        class="agent-notes mb-2"
         :placeholder="$t('BLACKLIST.REASON')"
       />
-    </div>
-    <div
-      v-if="depositSummary.total || cashoutSummary.total"
-      class="mb-3 grid grid-cols-3 gap-2 rounded-lg border border-n-weak bg-n-alpha-1 p-2 text-xs"
-    >
-      <div>
-        <p class="text-n-slate-11">{{ $t('PLAYER_PROFILE.TOTAL_LOADED') }}</p>
-        <p class="font-semibold text-n-slate-12">
-          {{ formatMoney(depositSummary.total) }}
-          <span class="font-normal text-n-slate-11">({{ depositSummary.count }})</span>
-        </p>
+      <div v-if="paymentMethodDisplay" class="field">
+        <span class="k">{{
+          $t('PLAYER_PROFILE.FIELDS.PREFERRED_PAYMENT')
+        }}</span>
+        <span class="v">{{ paymentMethodDisplay }}</span>
       </div>
-      <div>
-        <p class="text-n-slate-11">{{ $t('PLAYER_PROFILE.TOTAL_CASHED_OUT') }}</p>
-        <p class="font-semibold text-n-slate-12">
-          {{ formatMoney(cashoutSummary.total) }}
-          <span class="font-normal text-n-slate-11">({{ cashoutSummary.count }})</span>
-        </p>
+      <div class="sub-label">{{ $t('PLAYER_PROFILE.TIER_BADGE') }}</div>
+      <div v-if="lifecycleStage" class="field">
+        <span class="k">{{ $t('PLAYER_PROFILE.LIFECYCLE') }}</span>
+        <span class="v">
+          <span class="tag engaged">{{ lifecycleStage }}</span>
+        </span>
       </div>
-      <div>
-        <p class="text-n-slate-11">{{ $t('PLAYER_PROFILE.NET') }}</p>
-        <p
-          class="font-semibold"
-          :class="netSummary >= 0 ? 'text-green-600' : 'text-red-500'"
-        >
-          {{ netSummary >= 0 ? '+' : '' }}{{ formatMoney(netSummary) }}
-        </p>
+      <div v-if="loyaltyTier" class="field">
+        <span class="k">{{ $t('PLAYER_PROFILE.FIELDS.LOYALTY_TIER') }}</span>
+        <span class="v">
+          <span class="tag new">{{ loyaltyTier }}</span>
+        </span>
       </div>
-    </div>
-    <div v-if="paymentMethodDisplay" class="mb-3 flex items-center gap-2 text-xs">
-      <span class="text-n-slate-11">{{ $t('PLAYER_PROFILE.FIELDS.PREFERRED_PAYMENT') }}:</span>
-      <span class="font-medium text-n-slate-12">{{ paymentMethodDisplay }}</span>
-    </div>
-    <div v-if="socialLinks.length" class="mb-3 flex gap-2">
-      <a
-        v-for="link in socialLinks"
-        :key="link.type"
-        :href="link.url"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="flex size-8 items-center justify-center rounded-lg border border-n-weak bg-n-alpha-1 text-n-slate-12 hover:bg-n-alpha-2"
+      <div
+        v-for="row in displayRows.filter(r =>
+          [
+            'total_deposits',
+            'total_cashouts',
+            'last_deposit_amount',
+            'last_deposit_date',
+          ].includes(r.key)
+        )"
+        :key="row.key"
+        class="field"
       >
-        <i :class="[link.icon, 'size-4']" />
-      </a>
-    </div>
-    <div
-      v-if="attrs.loyalty_tier"
-      class="mb-3 flex items-center justify-between gap-2"
-    >
-      <span class="text-xs font-medium uppercase tracking-wide text-n-slate-11">
-        {{ $t('PLAYER_PROFILE.TIER_BADGE') }}
-      </span>
-      <span
-        class="rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize"
-        :class="tierClass"
+        <span class="k">{{ row.label }}</span>
+        <span class="v" :class="{ mono: row.mono }">{{ row.value }}</span>
+      </div>
+      <div
+        v-if="financeLogsTotal > 0"
+        class="mt-3 pt-3 border-t border-[var(--border)]"
       >
-        {{ attrs.loyalty_tier }}
-      </span>
-    </div>
-    <div
-      v-if="financeLogsTotal > 0"
-      :class="attrs.loyalty_tier ? 'mb-3 border-t border-n-weak pt-3' : 'mb-3'"
-    >
-      <div class="mb-2 flex items-start justify-between gap-2">
-        <span class="text-xs font-semibold text-n-slate-12">
+        <div class="ctx-label mb-2">
           {{ $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.SECTION_TITLE') }}
-        </span>
-        <span class="shrink-0 text-[0.625rem] leading-tight text-n-slate-11">
-          {{ $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.CLICK_FULL') }}
-        </span>
-      </div>
-      <div class="space-y-2">
-        <div
-          v-for="row in financeLogsVisibleRows"
-          :key="financeRowDomKey(row)"
-          class="flex gap-3 p-2"
-          :class="
-            isFinanceFlagged(row.entry)
-              ? 'rounded-none border-l-2 border-l-[#E24B4A] bg-[rgba(226,75,74,0.04)]'
-              : 'rounded-lg'
-          "
-        >
-          <button
-            type="button"
-            class="relative h-[100px] w-[72px] shrink-0 cursor-pointer overflow-hidden rounded-md border-[0.5px] border-n-weak bg-n-solid-2 text-left outline-none ring-n-brand transition-shadow focus-visible:ring-2"
-            :disabled="!(row.entry.image_thumb_url || row.entry.image_url)"
-            @click="openFinanceFullImage(row.entry)"
+        </div>
+        <div class="space-y-2">
+          <div
+            v-for="row in financeLogsVisibleRows"
+            :key="financeRowDomKey(row)"
+            class="flex gap-3 p-2 rounded-lg border border-[var(--border)]"
           >
-            <img
-              v-if="!thumbErrored(row) && (row.entry.image_thumb_url || row.entry.image_url)"
-              :src="row.entry.image_thumb_url || row.entry.image_url"
-              alt=""
-              class="h-full w-full object-cover"
-              @error="onThumbError(row)"
-            />
-            <div
-              v-else
-              class="flex h-full w-full flex-col items-center justify-center gap-1 bg-n-solid-2 px-1 text-center"
+            <button
+              type="button"
+              class="att-thumb shrink-0 !aspect-auto h-[72px] w-[56px]"
+              :disabled="!(row.entry.image_thumb_url || row.entry.image_url)"
+              @click="openFinanceFullImage(row.entry)"
             >
-              <i class="i-lucide-image size-5 text-n-slate-11" />
-              <span class="text-[0.625rem] font-medium leading-tight text-n-slate-11">
-                {{ $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.SCREENSHOT') }}
-              </span>
-            </div>
-          </button>
-          <div class="min-w-0 flex-1 space-y-1 text-xs text-n-slate-12">
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span class="font-bold text-n-slate-12">
-                {{ formatMoney(row.entry.amount) }}
-              </span>
-              <span
-                v-if="row.entry.platform"
-                class="rounded-full bg-n-alpha-2 px-2 py-0.5 text-[0.625rem] font-medium capitalize text-n-slate-12"
-              >
-                {{ row.entry.platform }}
-              </span>
-              <span
-                class="rounded-full px-2 py-0.5 text-[0.625rem] font-medium"
-                :class="financeStatusPill(row.entry).class"
-              >
-                {{ financeStatusPill(row.entry).text }}
-              </span>
-            </div>
-            <div class="flex min-w-0 items-start gap-1 text-n-slate-11">
-              <i class="i-lucide-arrow-right mt-0.5 size-3.5 shrink-0 text-n-slate-10" />
-              <span class="min-w-0 break-words">
-                <span>{{ $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.FROM_PREFIX') }}</span>
-                {{ ' ' }}
-                <span class="text-n-slate-12">{{ financeSenderName(row.entry) }}</span>
-                {{ ' → ' }}
-                <span
-                  :class="
-                    row.entry.flag_reason === 'recipient_mismatch'
-                      ? 'font-medium text-[#E24B4A]'
-                      : 'text-n-slate-12'
-                  "
-                >{{ financeRecipientName(row.entry) }}</span>
-              </span>
-            </div>
-            <div class="flex min-w-0 items-start gap-1">
-              <i class="i-lucide-hash mt-0.5 size-3.5 shrink-0 text-n-slate-10" />
-              <span class="min-w-0 break-all text-n-slate-12">
-                {{ row.entry.transaction_id || '—' }}
-                <span
-                  v-if="row.sameTxAsAbove"
-                  class="font-medium text-[#E24B4A]"
-                >{{ $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.SAME_AS_ABOVE') }}</span>
-              </span>
-            </div>
-            <div class="flex items-start gap-1 text-n-slate-11">
-              <i class="i-lucide-calendar mt-0.5 size-3.5 shrink-0 text-n-slate-10" />
-              <span>
-                <template v-if="row.entry.transaction_date || row.entry.transaction_time">
-                  {{ row.entry.transaction_date || '' }}<template
-                    v-if="row.entry.transaction_date && row.entry.transaction_time"
-                  > · </template>{{ row.entry.transaction_time || '' }}
-                </template>
-                <template v-else>—</template>
-              </span>
-            </div>
-            <div
-              v-if="row.memoLine"
-              class="flex min-w-0 items-start gap-1"
-            >
-              <i
-                v-if="row.memoLine.type === 'memo'"
-                class="i-lucide-message-square mt-0.5 size-3.5 shrink-0 text-n-slate-10"
+              <img
+                v-if="
+                  !thumbErrored(row) &&
+                  (row.entry.image_thumb_url || row.entry.image_url)
+                "
+                :src="row.entry.image_thumb_url || row.entry.image_url"
+                alt=""
+                class="h-full w-full object-cover"
+                @error="onThumbError(row)"
               />
-              <i
-                v-else
-                class="i-lucide-ban mt-0.5 size-3.5 shrink-0 text-n-slate-10"
-              />
-              <span class="min-w-0 break-words text-n-slate-12">{{
-                row.memoLine.text
+              <span v-else class="text-lg">{{
+                $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.SCREENSHOT')
               }}</span>
+            </button>
+            <div class="min-w-0 flex-1 text-xs">
+              <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                <span class="font-bold">{{
+                  formatMoney(row.entry.amount)
+                }}</span>
+                <span :class="financeStatusPill(row.entry).class">
+                  {{ financeStatusPill(row.entry).text }}
+                </span>
+              </div>
+              <p v-if="row.memoLine" class="text-[var(--text-3)] m-0">
+                {{ row.memoLine.text }}
+              </p>
             </div>
           </div>
         </div>
-      </div>
-      <Button
-        v-if="financeLogsTotal > 5"
-        class="mt-2 w-full"
-        xs
-        slate
-        outline
-        :label="
-          financeLogsExpanded
-            ? $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.SHOW_RECENT')
-            : $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.VIEW_ALL', {
-                count: financeLogsTotal,
-              })
-        "
-        @click="financeLogsExpanded = !financeLogsExpanded"
-      />
-    </div>
-    <p
-      v-if="isEmpty"
-      class="m-0 text-n-slate-11"
-    >
-      {{ $t('PLAYER_PROFILE.EMPTY') }}
-    </p>
-    <dl v-else class="m-0 space-y-2">
-      <div v-if="attrs.lifecycle_stage" class="min-w-0">
-        <dt class="text-xs font-medium text-n-slate-11">{{ $t('PLAYER_PROFILE.LIFECYCLE') }}</dt>
-        <dd class="m-0 capitalize text-n-slate-12">{{ attrs.lifecycle_stage }}</dd>
-      </div>
-      <div v-if="referredByName" class="min-w-0">
-        <dt class="text-xs font-medium text-n-slate-11">{{ $t('PLAYER_PROFILE.REFERRED_BY') }}</dt>
-        <dd class="m-0 text-n-slate-12">{{ referredByName }}</dd>
-      </div>
-      <div
-        v-for="row in displayRows"
-        :key="row.key"
-        class="min-w-0"
-      >
-        <dt class="text-xs font-medium text-n-slate-11">
-          {{ row.label }}
-        </dt>
-        <dd
-          class="m-0 break-words text-n-slate-12"
-          :class="row.multiline ? 'whitespace-pre-wrap' : ''"
-        >
-          {{ row.value }}
-        </dd>
-      </div>
-    </dl>
-    <div v-if="gameCredentials.length" class="mt-3 border-t border-n-weak pt-3 space-y-2">
-      <p class="text-xs font-semibold text-n-slate-12">Vault</p>
-      <div
-        v-for="cred in gameCredentials"
-        :key="cred.game"
-        class="flex items-center justify-between gap-2 text-xs"
-      >
-        <span class="truncate text-n-slate-11">{{ cred.game }}: {{ cred.username }}</span>
         <Button
+          v-if="financeLogsTotal > 5"
+          class="mt-2 w-full"
           xs
-          :label="$t('PLAYER_PROFILE.SEND_CREDENTIALS')"
-          @click="sendCredentials(cred)"
+          slate
+          outline
+          :label="
+            financeLogsExpanded
+              ? $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.SHOW_RECENT')
+              : $t('PLAYER_PROFILE.PAYMENT_SCREENSHOTS.VIEW_ALL', {
+                  count: financeLogsTotal,
+                })
+          "
+          @click="financeLogsExpanded = !financeLogsExpanded"
         />
       </div>
-    </div>
-    <div v-if="bonuses.length" class="mt-3 border-t border-n-weak pt-3">
-      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.BONUS_HISTORY') }}</p>
-      <ul class="space-y-1 text-xs text-n-slate-11">
-        <li v-for="bonus in bonuses.slice(0, 5)" :key="bonus.id">
-          ${{ bonus.amount }} — {{ bonus.reason || bonus.game_slug }}
-        </li>
-      </ul>
-    </div>
-    <div v-if="loads.length" class="mt-3 border-t border-n-weak pt-3">
-      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.LOAD_HISTORY') }}</p>
-      <ul class="space-y-1 text-xs text-n-slate-11">
-        <li v-for="load in loads.slice(0, 10)" :key="load.id">
-          {{ formatDate(load.created_at) }} · {{ load.game_slug || load.game_username }} ·
-          {{ formatMoney(load.amount) }} · {{ load.status }}
-        </li>
-      </ul>
-    </div>
-    <div v-if="cashouts.length" class="mt-3 border-t border-n-weak pt-3">
-      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.CASHOUT_HISTORY') }}</p>
-      <ul class="space-y-1 text-xs text-n-slate-11">
-        <li v-for="cashout in cashouts.slice(0, 10)" :key="cashout.id">
-          {{ formatDate(cashout.created_at) }} · {{ cashout.game_slug || cashout.game_username }} ·
-          {{ formatMoney(cashout.amount) }} · {{ cashout.status }}
-        </li>
-      </ul>
-    </div>
-    <div class="mt-3 border-t border-n-weak pt-3">
-      <p class="mb-2 text-xs font-semibold text-n-slate-12">{{ $t('PLAYER_PROFILE.AGENT_NOTES') }}</p>
+      <div
+        v-if="bonuses.length"
+        class="mt-3 pt-3 border-t border-[var(--border)]"
+      >
+        <div class="sub-label">{{ $t('PLAYER_PROFILE.BONUS_HISTORY') }}</div>
+        <ul class="m-0 p-0 list-none text-xs text-[var(--text-3)] space-y-1">
+          <li v-for="bonus in bonuses.slice(0, 5)" :key="bonus.id">
+            {{ formatMoney(bonus.amount) }} —
+            {{ bonus.reason || bonus.game_slug }}
+          </li>
+        </ul>
+      </div>
+      <div
+        v-if="loads.length"
+        class="mt-3 pt-3 border-t border-[var(--border)]"
+      >
+        <div class="sub-label">{{ $t('PLAYER_PROFILE.LOAD_HISTORY') }}</div>
+        <ul class="m-0 p-0 list-none text-xs text-[var(--text-3)] space-y-1">
+          <li v-for="load in loads.slice(0, 10)" :key="load.id">
+            {{ formatDate(load.created_at) }} ·
+            {{ load.game_slug || load.game_username }} ·
+            {{ formatMoney(load.amount) }}
+          </li>
+        </ul>
+      </div>
+      <div
+        v-if="cashouts.length"
+        class="mt-3 pt-3 border-t border-[var(--border)]"
+      >
+        <div class="sub-label">{{ $t('PLAYER_PROFILE.CASHOUT_HISTORY') }}</div>
+        <ul class="m-0 p-0 list-none text-xs text-[var(--text-3)] space-y-1">
+          <li v-for="cashout in cashouts.slice(0, 10)" :key="cashout.id">
+            {{ formatDate(cashout.created_at) }} ·
+            {{ cashout.game_slug || cashout.game_username }} ·
+            {{ formatMoney(cashout.amount) }}
+          </li>
+        </ul>
+      </div>
+    </AccordionItem>
+
+    <AccordionItem patra :is-open="vaultOpen" compact @toggle="toggleVault">
+      <template #title>
+        {{ $t('CONTACTS_LAYOUT.PLAYER_VAULT.TITLE') }}
+        <span v-if="gameCredentials.length" class="acc-badge">
+          {{
+            $t('CONTACTS_LAYOUT.PLAYER_VAULT.GAMES_COUNT', {
+              count: gameCredentials.length,
+            })
+          }}
+        </span>
+      </template>
+      <template v-if="gameCredentials.length">
+        <div
+          v-for="cred in gameCredentials"
+          :key="cred.game"
+          class="vault-card"
+        >
+          <div class="vault-game">
+            <span class="vg-ic">{{ gameEmoji(cred.game) }}</span>
+            {{ humanizeGame(cred.game) }}
+          </div>
+          <div class="vault-cred">
+            <span class="vc-k">{{
+              $t('CONTACTS_LAYOUT.PLAYER_VAULT.USER')
+            }}</span>
+            <span class="vc-v">{{ cred.username }}</span>
+            <button
+              type="button"
+              class="vc-copy"
+              :aria-label="$t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY')"
+              @click="copyValue(cred.username)"
+            >
+              {{ $t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY') }}
+            </button>
+          </div>
+          <div class="vault-cred">
+            <span class="vc-k">{{
+              $t('CONTACTS_LAYOUT.PLAYER_VAULT.PASS')
+            }}</span>
+            <span class="vc-v">{{ maskPassword(cred.password) }}</span>
+            <button
+              type="button"
+              class="vc-copy"
+              :aria-label="$t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY')"
+              @click="copyValue(cred.password)"
+            >
+              {{ $t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY') }}
+            </button>
+          </div>
+          <button
+            v-if="conversationId"
+            type="button"
+            class="add-link mt-2"
+            @click="sendCredentials(cred)"
+          >
+            {{ $t('PLAYER_PROFILE.SEND_CREDENTIALS') }}
+          </button>
+        </div>
+      </template>
+      <div v-else class="empty-note">
+        {{ $t('CONTACTS_LAYOUT.PLAYER_VAULT.EMPTY') }}
+      </div>
+    </AccordionItem>
+
+    <div class="ctx-section">
+      <div class="ctx-label">{{ $t('PLAYER_PROFILE.AGENT_NOTES') }}</div>
       <textarea
         v-model="agentNotes"
+        class="agent-notes"
         rows="3"
-        class="w-full rounded-lg border border-n-weak bg-n-solid-2 px-2 py-1.5 text-xs text-n-slate-12"
         :placeholder="$t('PLAYER_PROFILE.AGENT_NOTES_PLACEHOLDER')"
       />
-      <p v-if="notesUpdatedAt" class="mt-1 text-[10px] text-n-slate-11">
-        {{ $t('PLAYER_PROFILE.AGENT_NOTES_UPDATED', { time: formatDate(notesUpdatedAt) }) }}
+      <p v-if="notesUpdatedAt" class="mt-1 text-[10px] text-[var(--text-3)]">
+        {{
+          $t('PLAYER_PROFILE.AGENT_NOTES_UPDATED', {
+            time: formatDate(notesUpdatedAt),
+          })
+        }}
       </p>
-      <Button
-        class="mt-2"
-        xs
-        :label="$t('PATRA.SETTINGS.SAVE')"
-        :is-loading="savingNotes"
+      <button
+        type="button"
+        class="save-btn"
+        :disabled="savingNotes"
         @click="saveAgentNotes"
-      />
+      >
+        {{ savingNotes ? '…' : $t('PATRA.SETTINGS.SAVE') }}
+      </button>
     </div>
   </div>
 </template>

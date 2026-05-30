@@ -203,12 +203,18 @@ const togglePin = async () => {
   if (!id) return;
   try {
     const { data } = await PatraConversationsAPI.togglePin(id);
-    const chat = currentChat.value?.id ? { ...currentChat.value } : { ...props.chat };
+    const chat = currentChat.value?.id
+      ? { ...currentChat.value }
+      : { ...props.chat };
     const now = Math.floor(Date.now() / 1000);
     store.commit(types.UPDATE_CONVERSATION, {
       ...chat,
       id,
-      updated_at: Math.max(Number(data.updated_at) || 0, Number(chat.updated_at) || 0, now),
+      updated_at: Math.max(
+        Number(data.updated_at) || 0,
+        Number(chat.updated_at) || 0,
+        now
+      ),
       additional_attributes: {
         ...(chat.additional_attributes || {}),
         pinned: Boolean(data.pinned),
@@ -338,12 +344,27 @@ const togglePin = async () => {
       <button
         type="button"
         class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap border-n-weak text-n-slate-11 hover:bg-n-alpha-2"
-        :class="isPinned ? 'bg-n-amber-9/15 text-n-amber-11 border-n-amber-9/30' : ''"
-        :title="isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN')"
-        :aria-label="isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN')"
+        :class="
+          isPinned ? 'bg-n-amber-9/15 text-n-amber-11 border-n-amber-9/30' : ''
+        "
+        :title="
+          isPinned
+            ? $t('PATRA.CONVERSATION.UNPIN')
+            : $t('PATRA.CONVERSATION.PIN')
+        "
+        :aria-label="
+          isPinned
+            ? $t('PATRA.CONVERSATION.UNPIN')
+            : $t('PATRA.CONVERSATION.PIN')
+        "
         @click="togglePin"
       >
-        📌 {{ isPinned ? $t('PATRA.CONVERSATION.UNPIN') : $t('PATRA.CONVERSATION.PIN') }}
+        📌
+        {{
+          isPinned
+            ? $t('PATRA.CONVERSATION.UNPIN')
+            : $t('PATRA.CONVERSATION.PIN')
+        }}
       </button>
       <!-- Patra: AI status / pause toggle -->
       <button
@@ -356,7 +377,7 @@ const togglePin = async () => {
         "
         @click="toggleAiOff"
       >
-        {{ aiOff ? '👤 Human — AI Paused' : '🤖 Bella — AI Active' }}
+        {{ aiOff ? '👤 Human — AI Paused' : '🤖 Patra AI — AI Active' }}
       </button>
       <!-- Patra: human take-over (adds ai-off + focuses reply editor) -->
       <button

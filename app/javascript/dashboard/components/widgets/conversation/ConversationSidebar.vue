@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import ContactPanel from 'dashboard/routes/dashboard/conversation/ContactPanel.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useWindowSize } from '@vueuse/core';
@@ -15,6 +15,7 @@ defineProps({
 
 const { uiSettings, updateUISettings } = useUISettings();
 const { width: windowWidth } = useWindowSize();
+const spotlightRef = ref(null);
 
 const activeTab = computed(() => {
   const { is_contact_sidebar_open: isContactSidebarOpen } = uiSettings.value;
@@ -37,6 +38,29 @@ const closeContactPanel = () => {
     });
   }
 };
+
+const onSpotlightMove = e => {
+  const el = spotlightRef.value;
+  if (!el) return;
+  el.style.left = `${e.clientX}px`;
+  el.style.top = `${e.clientY}px`;
+  el.style.opacity = '1';
+};
+
+const onSpotlightLeave = () => {
+  const el = spotlightRef.value;
+  if (el) el.style.opacity = '0';
+};
+
+onMounted(() => {
+  document.addEventListener('mousemove', onSpotlightMove);
+  document.addEventListener('mouseleave', onSpotlightLeave);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', onSpotlightMove);
+  document.removeEventListener('mouseleave', onSpotlightLeave);
+});
 </script>
 
 <template>
@@ -51,7 +75,7 @@ const closeContactPanel = () => {
         ],
       },
     ]"
-    class="bg-n-surface-2 h-full overflow-hidden flex flex-col fixed top-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out ltr:right-0 rtl:left-0 md:static md:w-[320px] md:min-w-[320px] ltr:border-l rtl:border-r border-n-weak 2xl:min-w-[360px] 2xl:w-[360px] shadow-lg md:shadow-none"
+    class="ctx conv-sidebar-patra h-full overflow-hidden flex flex-col fixed top-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out ltr:right-0 rtl:left-0 md:static md:w-[360px] md:min-w-[360px] ltr:border-l rtl:border-r border-n-weak shadow-lg md:shadow-none"
     :class="[
       {
         'md:flex': activeTab === 0,
@@ -59,7 +83,8 @@ const closeContactPanel = () => {
       },
     ]"
   >
-    <div class="flex flex-1 overflow-auto">
+    <div id="spotlight" ref="spotlightRef" aria-hidden="true" />
+    <div class="flex flex-1 overflow-auto min-h-0">
       <ContactPanel
         v-show="activeTab === 0"
         :conversation-id="currentChat.id"
@@ -68,3 +93,7 @@ const closeContactPanel = () => {
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+@import './conversation-sidebar-patra.scss';
+</style>

@@ -6,7 +6,6 @@ import { useStore } from 'dashboard/composables/store';
 import { CONVERSATION_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { useTrack } from 'dashboard/composables';
 
-import NextButton from 'dashboard/components-next/button/Button.vue';
 import MacroPreview from './MacroPreview.vue';
 
 const props = defineProps({
@@ -52,32 +51,22 @@ const closeMacroPreview = () => {
 </script>
 
 <template>
-  <div
-    class="relative flex items-center justify-between leading-4 rounded-md h-10 pl-3 pr-2"
-    :class="showPreview ? 'cursor-default' : 'drag-handle cursor-grab'"
-  >
-    <span
-      class="overflow-hidden whitespace-nowrap text-ellipsis font-medium text-n-slate-12"
-    >
-      {{ macro.name }}
-    </span>
-    <div class="flex items-center gap-1 justify-end">
-      <NextButton
-        v-tooltip.left-start="$t('MACROS.EXECUTE.PREVIEW')"
-        icon="i-lucide-info"
-        slate
-        faded
-        xs
-        @click="toggleMacroPreview"
-      />
-      <NextButton
-        v-tooltip.left-start="$t('MACROS.EXECUTE.BUTTON_TOOLTIP')"
-        icon="i-lucide-play"
-        slate
-        faded
-        xs
-        :is-loading="isExecuting"
+  <div class="macro-row relative drag-handle">
+    <span class="min-w-0 truncate">{{ macro.name }}</span>
+    <div class="flex items-center gap-1 shrink-0">
+      <button
+        type="button"
+        class="run"
+        :disabled="isExecuting"
         @click="executeMacro(macro)"
+      >
+        {{ isExecuting ? '…' : $t('MACROS.EXECUTE.BUTTON_TOOLTIP') }}
+      </button>
+      <button
+        type="button"
+        class="vc-copy"
+        :aria-label="$t('MACROS.EXECUTE.PREVIEW')"
+        @click="toggleMacroPreview"
       />
     </div>
     <transition name="menu-slide">

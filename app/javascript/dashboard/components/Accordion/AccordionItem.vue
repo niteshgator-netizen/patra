@@ -1,11 +1,11 @@
 <script setup>
-import EmojiOrIcon from 'shared/components/EmojiOrIcon.vue';
 import { defineEmits } from 'vue';
+import EmojiOrIcon from 'shared/components/EmojiOrIcon.vue';
 
 defineProps({
   title: {
     type: String,
-    required: true,
+    default: '',
   },
   compact: {
     type: Boolean,
@@ -23,6 +23,10 @@ defineProps({
     type: Boolean,
     default: true,
   },
+  patra: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['toggle']);
@@ -33,7 +37,32 @@ const onToggle = () => {
 </script>
 
 <template>
-  <div class="text-sm">
+  <div v-if="patra" class="acc" :data-open="isOpen ? '1' : '0'">
+    <button type="button" class="acc-h drag-handle" @click.stop="onToggle">
+      <span class="flex items-center gap-2 min-w-0">
+        <slot name="title">
+          {{ title }}
+        </slot>
+      </span>
+      <div class="flex items-center gap-2 shrink-0">
+        <slot name="button" />
+        <svg
+          class="chev"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </div>
+    </button>
+    <div class="acc-body">
+      <slot />
+    </div>
+  </div>
+  <div v-else class="text-sm">
     <button
       class="flex items-center select-none w-full rounded-lg bg-n-slate-2 outline outline-1 outline-n-weak m-0 cursor-grab justify-between py-2 px-4 drag-handle"
       :class="{ 'rounded-bl-none rounded-br-none': isOpen }"
