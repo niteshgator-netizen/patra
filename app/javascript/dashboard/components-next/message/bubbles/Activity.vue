@@ -30,7 +30,7 @@ const readableTime = computed(() =>
   width: 100%;
   justify-content: center;
   position: relative;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
   font-size: 11px;
   color: #54515e;
 }
@@ -51,5 +51,6 @@ const readableTime = computed(() =>
   padding: 0 12px;
   position: relative;
   z-index: 1;
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
 }
 </style>
