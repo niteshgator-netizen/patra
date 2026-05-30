@@ -471,7 +471,7 @@ export default {
 
   align-items: center;
   padding: 7px 12px;
-  border-top: 1px solid var(--pb-border);
+  border-top: 1px solid #171520 !important;
 }
 
 .patra-composer-tools {
