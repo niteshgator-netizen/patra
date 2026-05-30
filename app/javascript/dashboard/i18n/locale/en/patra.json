@@ -162,7 +162,7 @@
     },
     "SETTINGS": {
       "BUSINESS_HOURS_TITLE": "Business hours",
-      "BUSINESS_HOURS_NOTE": "Bella uses these hours for after-hours auto-replies (wiring pending).",
+      "BUSINESS_HOURS_NOTE": "Patra AI uses these hours for after-hours auto-replies (wiring pending).",
       "REENGAGE_TITLE": "Re-engagement",
       "REENGAGE_NOTE": "Auto-message dormant customers after this many days (log-only for now).",
       "START": "Start",

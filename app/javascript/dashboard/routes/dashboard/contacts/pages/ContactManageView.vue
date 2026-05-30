@@ -6,9 +6,9 @@ import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useRoute, useRouter } from 'vue-router';
 
 import ContactsDetailsLayout from 'dashboard/components-next/Contacts/ContactsDetailsLayout.vue';
+import PatraContactsCompactList from 'dashboard/components-next/Contacts/PatraContactsCompactList.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ContactDetails from 'dashboard/components-next/Contacts/Pages/ContactDetails.vue';
-import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
 import ContactNotes from 'dashboard/components-next/Contacts/ContactsSidebar/ContactNotes.vue';
 import ContactHistory from 'dashboard/components-next/Contacts/ContactsSidebar/ContactHistory.vue';
 import ContactMerge from 'dashboard/components-next/Contacts/ContactsSidebar/ContactMerge.vue';
@@ -23,6 +23,7 @@ const uiFlags = useMapGetter('contacts/getUIFlags');
 
 const activeTab = ref('attributes');
 const contactMergeRef = ref(null);
+const spotlightRef = ref(null);
 
 const isFetchingItem = computed(() => uiFlags.value.isFetchingItem);
 const isMergingContact = computed(() => uiFlags.value.isMerging);
@@ -43,17 +44,6 @@ const CONTACT_TABS_OPTIONS = [
   { key: 'MERGE', value: 'merge' },
 ];
 
-const tabs = computed(() => {
-  return CONTACT_TABS_OPTIONS.map(tab => ({
-    label: t(`CONTACTS_LAYOUT.SIDEBAR.TABS.${tab.key}`),
-    value: tab.value,
-  }));
-});
-
-const activeTabIndex = computed(() => {
-  return CONTACT_TABS_OPTIONS.findIndex(v => v.value === activeTab.value);
-});
-
 const goToContactsList = () => {
   if (window.history.state?.back || window.history.length > 1) {
     router.back();
@@ -72,8 +62,8 @@ const fetchActiveContact = async () => {
   }
 };
 
-const handleTabChange = tab => {
-  activeTab.value = tab.value;
+const handleTabChange = tabValue => {
+  activeTab.value = tabValue;
 };
 
 const fetchContactNotes = () => {
@@ -117,6 +107,19 @@ const toggleContactBlock = async isBlocked => {
   }
 };
 
+const onSpotlightMove = e => {
+  const el = spotlightRef.value;
+  if (!el) return;
+  el.style.left = `${e.clientX}px`;
+  el.style.top = `${e.clientY}px`;
+  el.style.opacity = '1';
+};
+
+const onSpotlightLeave = () => {
+  const el = spotlightRef.value;
+  if (el) el.style.opacity = '0';
+};
+
 onMounted(() => {
   fetchActiveContact();
   fetchContactNotes();
@@ -127,59 +130,83 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex flex-col justify-between flex-1 h-full m-0 overflow-auto bg-n-surface-1"
+    class="contacts-wrap"
+    @mousemove="onSpotlightMove"
+    @mouseleave="onSpotlightLeave"
   >
-    <ContactsDetailsLayout
-      :button-label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
-      :selected-contact="selectedContact"
-      is-detail-view
-      :show-pagination-footer="false"
-      :is-updating="isUpdatingContact"
-      @go-to-contacts-list="goToContactsList"
-      @toggle-block="toggleContactBlock"
-    >
-      <div
-        v-if="showSpinner"
-        class="flex items-center justify-center py-10 text-n-slate-11"
-      >
-        <Spinner />
-      </div>
-      <ContactDetails
-        v-else-if="selectedContact"
+    <div id="spotlight" ref="spotlightRef" />
+    <div class="mesh" />
+    <div class="contacts-app">
+      <PatraContactsCompactList :active-contact-id="route.params.contactId" />
+
+      <ContactsDetailsLayout
         :selected-contact="selectedContact"
-        @go-to-contacts-list="goToContactsList"
-      />
-      <template #sidebar>
-        <div class="px-6">
-          <TabBar
-            :tabs="tabs"
-            :initial-active-tab="activeTabIndex"
-            class="w-full [&>button]:w-full bg-n-alpha-black2"
-            @tab-changed="handleTabChange"
-          />
-        </div>
-        <div
-          v-if="isFetchingItem"
-          class="flex items-center justify-center py-10 text-n-slate-11"
-        >
+        :is-updating="isUpdatingContact"
+        @toggle-block="toggleContactBlock"
+      >
+        <div v-if="showSpinner" class="detail-loading">
           <Spinner />
         </div>
-        <template v-else>
-          <ContactCustomAttributes
-            v-if="activeTab === 'attributes'"
-            :selected-contact="selectedContact"
-          />
-          <ContactNotes v-if="activeTab === 'notes'" />
-          <ContactHistory v-if="activeTab === 'history'" />
-          <ContactMerge
-            v-if="activeTab === 'merge'"
-            ref="contactMergeRef"
-            :selected-contact="selectedContact"
-            @go-to-contacts-list="goToContactsList"
-            @reset-tab="handleTabChange(CONTACT_TABS_OPTIONS[0])"
-          />
-        </template>
-      </template>
-    </ContactsDetailsLayout>
+        <ContactDetails
+          v-else-if="selectedContact"
+          :selected-contact="selectedContact"
+          @go-to-contacts-list="goToContactsList"
+        >
+          <template #tabs>
+            <div class="card full">
+              <div class="dtabs">
+                <button
+                  v-for="tab in CONTACT_TABS_OPTIONS"
+                  :key="tab.value"
+                  type="button"
+                  class="dtab"
+                  :class="{ active: activeTab === tab.value }"
+                  @click="handleTabChange(tab.value)"
+                >
+                  {{ t(`CONTACTS_LAYOUT.SIDEBAR.TABS.${tab.key}`) }}
+                </button>
+              </div>
+              <div
+                class="tabpane"
+                :class="{ active: activeTab === 'attributes' }"
+              >
+                <ContactCustomAttributes
+                  v-if="activeTab === 'attributes'"
+                  :selected-contact="selectedContact"
+                />
+              </div>
+              <div
+                class="tabpane"
+                :class="{ active: activeTab === 'history' }"
+              >
+                <ContactHistory v-if="activeTab === 'history'" />
+              </div>
+              <div
+                class="tabpane"
+                :class="{ active: activeTab === 'notes' }"
+              >
+                <ContactNotes v-if="activeTab === 'notes'" />
+              </div>
+              <div
+                class="tabpane"
+                :class="{ active: activeTab === 'merge' }"
+              >
+                <ContactMerge
+                  v-if="activeTab === 'merge'"
+                  ref="contactMergeRef"
+                  :selected-contact="selectedContact"
+                  @go-to-contacts-list="goToContactsList"
+                  @reset-tab="handleTabChange(CONTACT_TABS_OPTIONS[0].value)"
+                />
+              </div>
+            </div>
+          </template>
+        </ContactDetails>
+      </ContactsDetailsLayout>
+    </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+@import './contacts-patra.scss';
+</style>
