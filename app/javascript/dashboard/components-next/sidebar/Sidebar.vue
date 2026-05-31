@@ -425,8 +425,9 @@ const menuItems = computed(() => {
     // only the sidebar link is removed.
     {
       name: 'Settings',
-      label: t('SIDEBAR.SETTINGS'),
+      label: t('PATRA.SETTINGS.NAV_TITLE'),
       icon: 'i-lucide-bolt',
+      navVariant: 'snav',
       children: [
         {
           name: 'Settings Account Settings',
@@ -533,7 +534,7 @@ const menuItems = computed(() => {
         },
         {
           name: 'Settings AI Training',
-          label: 'AI Training',
+          label: t('PATRA.SETTINGS.NAV_AI_TRAINING'),
           icon: 'i-lucide-brain',
           to: accountScopedRoute('patra_ai_training'),
           activeOn: ['patra_ai_training'],
