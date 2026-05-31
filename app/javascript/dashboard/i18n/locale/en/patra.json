@@ -197,6 +197,9 @@
       "EMPTY_ICON_INBOXES": "📥",
       "EMPTY_ICON_LABELS": "🏷️",
       "EMPTY_ICON_CANNED": "💬",
+      "EMPTY_ICON_AUTOMATION": "⚙️",
+      "NAV_TITLE": "Settings",
+      "NAV_AI_TRAINING": "AI Training",
       "DAYS": {
         "MON": "Mon",
         "TUE": "Tue",

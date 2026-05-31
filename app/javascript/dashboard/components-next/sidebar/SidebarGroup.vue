@@ -18,6 +18,7 @@ const props = defineProps({
   activeOn: { type: Array, default: () => [] },
   children: { type: Array, default: undefined },
   getterKeys: { type: Object, default: () => ({}) },
+  navVariant: { type: String, default: null },
 });
 
 const {
@@ -259,46 +260,133 @@ watch(
     </template>
     <!-- Expanded State -->
     <template v-else>
-      <SidebarGroupHeader
-        :icon
-        :name
-        :label
-        :to
-        :getter-keys="getterKeys"
-        :is-active="isActive"
-        :has-active-child="hasActiveChild"
-        :expandable="hasChildren"
-        :is-expanded="isExpanded"
-        @toggle="toggleTrigger"
-      />
-      <ul
-        v-if="hasChildren"
-        v-show="isExpanded || hasActiveChild"
-        class="grid m-0 list-none sidebar-group-children min-w-0"
-      >
-        <template v-for="child in children" :key="child.name">
-          <SidebarSubGroup
-            v-if="child.children"
-            :label="child.label"
-            :icon="child.icon"
-            :children="child.children"
-            :is-expanded="isExpanded"
-            :active-child="activeChild"
-          />
-          <SidebarGroupLeaf
-            v-else-if="isAllowed(child.to)"
-            v-show="isExpanded || activeChild?.name === child.name"
-            v-bind="child"
-            :active="activeChild?.name === child.name"
-          />
-        </template>
-      </ul>
-      <ul v-else-if="isExpandable && isExpanded">
-        <SidebarGroupEmptyLeaf />
-      </ul>
+      <div v-if="navVariant === 'snav'" class="snav-group">
+        <div class="snav-title">{{ label }}</div>
+        <ul class="snav-list">
+          <template v-for="child in children" :key="child.name">
+            <Policy
+              v-if="child.to && isAllowed(child.to)"
+              :permissions="resolvePermissions(child.to)"
+              :feature-flag="resolveFeatureFlag(child.to)"
+              as="li"
+              class="list-none"
+            >
+              <router-link
+                :to="child.to"
+                class="snav-item"
+                :class="{ active: activeChild?.name === child.name }"
+              >
+                <Icon v-if="child.icon" :icon="child.icon" />
+                <span>{{ child.label }}</span>
+              </router-link>
+            </Policy>
+          </template>
+        </ul>
+      </div>
+      <template v-else>
+        <SidebarGroupHeader
+          :icon
+          :name
+          :label
+          :to
+          :getter-keys="getterKeys"
+          :is-active="isActive"
+          :has-active-child="hasActiveChild"
+          :expandable="hasChildren"
+          :is-expanded="isExpanded"
+          @toggle="toggleTrigger"
+        />
+        <ul
+          v-if="hasChildren"
+          v-show="isExpanded || hasActiveChild"
+          class="grid m-0 list-none sidebar-group-children min-w-0"
+        >
+          <template v-for="child in children" :key="child.name">
+            <SidebarSubGroup
+              v-if="child.children"
+              :label="child.label"
+              :icon="child.icon"
+              :children="child.children"
+              :is-expanded="isExpanded"
+              :active-child="activeChild"
+            />
+            <SidebarGroupLeaf
+              v-else-if="isAllowed(child.to)"
+              v-show="isExpanded || activeChild?.name === child.name"
+              v-bind="child"
+              :active="activeChild?.name === child.name"
+            />
+          </template>
+        </ul>
+        <ul v-else-if="isExpandable && isExpanded">
+          <SidebarGroupEmptyLeaf />
+        </ul>
+      </template>
     </template>
   </Policy>
 </template>
+
+<style scoped>
+.snav-group {
+  margin: 0 -4px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  background: var(--surface, #0c0b12);
+}
+
+.snav-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  padding: 0 8px;
+  margin-bottom: 12px;
+  color: var(--text, #ededf2);
+}
+
+.snav-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.snav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--text-2, #a8a6b6);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-decoration: none;
+}
+
+.snav-item :deep(svg) {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.snav-item:hover {
+  background: var(--surface-2, #131119);
+  color: var(--text, #ededf2);
+  transform: translateX(2px);
+}
+
+.snav-item.active {
+  background: linear-gradient(
+    135deg,
+    rgba(110, 86, 207, 0.16),
+    rgba(139, 92, 246, 0.06)
+  );
+  color: var(--patra-3, #a78bfa);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.25);
+}
+</style>
 
 <style>
 .sidebar-group-children .child-item::before {
