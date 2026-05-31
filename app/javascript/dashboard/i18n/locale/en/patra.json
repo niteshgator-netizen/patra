@@ -192,6 +192,10 @@
       "SAVED": "Patra settings saved",
       "SAVE_ERROR": "Could not save Patra settings",
       "LOADING": "Loading…",
+      "EMPTY_ICON_AGENTS": "👤",
+      "EMPTY_ICON_TEAMS": "👥",
+      "EMPTY_ICON_INBOXES": "📥",
+      "EMPTY_ICON_LABELS": "🏷️",
       "DAYS": {
         "MON": "Mon",
         "TUE": "Tue",
