@@ -233,6 +233,8 @@ onMounted(() => {
   --red: #f85149;
 
   position: relative;
+  width: 100%;
+  height: 100%;
   min-height: 100%;
   margin-left: -24px;
   margin-right: -24px;
@@ -245,6 +247,9 @@ onMounted(() => {
 .pat-page-main {
   position: relative;
   z-index: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
 }
 
 .pat-page-wrap :deep(.text-heading-1),

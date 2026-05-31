@@ -25,7 +25,9 @@ watch(
   <div class="pat-page-wrap">
     <div class="pat-page-main">
       <div class="flex w-full h-full min-h-0">
-        <section class="flex flex-1 h-full px-0 overflow-hidden bg-n-surface-1">
+        <section
+          class="pat-captain-shell flex flex-1 h-full px-0 overflow-hidden"
+        >
           <router-view />
         </section>
       </div>
@@ -64,6 +66,14 @@ watch(
 .pat-page-main {
   position: relative;
   z-index: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.pat-captain-shell {
+  background: #050409 !important;
+  color: #ededf2;
 }
 
 .pat-page-wrap :deep(.text-heading-1),

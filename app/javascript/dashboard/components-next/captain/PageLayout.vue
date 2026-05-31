@@ -115,7 +115,9 @@ const handleCreateAssistant = () => {
 </script>
 
 <template>
-  <section class="flex flex-col w-full h-full overflow-hidden bg-n-surface-1">
+  <section
+    class="pat-captain-page-layout flex flex-col w-full h-full overflow-hidden"
+  >
     <header class="sticky top-0 z-10 px-6">
       <div class="w-full max-w-5xl mx-auto">
         <div
@@ -236,3 +238,36 @@ const handleCreateAssistant = () => {
     <CreateAssistantDialog ref="createAssistantDialogRef" type="create" />
   </section>
 </template>
+
+<style scoped>
+.pat-captain-page-layout {
+  background: #050409;
+  color: #ededf2;
+}
+
+.pat-captain-page-layout :deep(.text-n-slate-12) {
+  color: #ededf2 !important;
+}
+
+.pat-captain-page-layout :deep(.text-n-slate-11) {
+  color: #a8a6b6 !important;
+}
+
+.pat-captain-page-layout :deep(.bg-n-surface-1),
+.pat-captain-page-layout :deep(.bg-n-solid-1),
+.pat-captain-page-layout :deep(.bg-n-solid-2),
+.pat-captain-page-layout :deep(.bg-n-slate-3) {
+  background: #0c0b12 !important;
+}
+
+.pat-captain-page-layout :deep(.border-n-weak),
+.pat-captain-page-layout :deep(.bg-n-weak) {
+  border-color: #171520 !important;
+  background-color: #171520 !important;
+}
+
+.pat-captain-page-layout :deep(.group-hover\:bg-n-slate-3:hover),
+.pat-captain-page-layout :deep(.hover\:bg-n-slate-3:hover) {
+  background: #1b1925 !important;
+}
+</style>
