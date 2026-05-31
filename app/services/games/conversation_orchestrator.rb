@@ -1079,8 +1079,8 @@ module Games
 
         time_str = log['recorded_at'] || log['image_received_at'] || log['transaction_time']
         recorded = parse_time(time_str)
-        # TIGHTER WINDOW: 30 minutes, not 6 hours
-        next if recorded && recorded < 30.minutes.ago
+        # Customers send payment screenshots up to ~48h after paying
+        next if recorded && recorded < 48.hours.ago
 
         log_id = log['id'].presence || log['transaction_id'].presence || log['image_url'].presence || "#{log['amount']}_#{log['recorded_at']}"
         next if payment_already_loaded?(log_id, amount, recorded)
