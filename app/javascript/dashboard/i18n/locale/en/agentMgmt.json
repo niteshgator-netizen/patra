@@ -1,9 +1,9 @@
 {
   "AGENT_MGMT": {
     "HEADER": "Agents",
-    "HEADER_BTN_TXT": "Add Agent",
+    "HEADER_BTN_TXT": "+ Add Agent",
     "LOADING": "Fetching Agent List",
-    "DESCRIPTION": "An agent is a member of your customer support team who can view and respond to user messages. The list below shows all the agents in your account.",
+    "DESCRIPTION": "Members of your support team who can view and respond to messages",
     "LEARN_MORE": "Learn about user roles",
     "AGENT_TYPES": {
       "ADMINISTRATOR": "Administrator",
@@ -18,7 +18,7 @@
       "EMAIL": "EMAIL",
       "STATUS": "Status",
       "ACTIONS": "Actions",
-      "VERIFIED": "Verified",
+      "VERIFIED": "✓ Verified",
       "VERIFICATION_PENDING": "Verification Pending",
       "AVAILABLE_CUSTOM_ROLE": "Available custom role permissions"
     },
