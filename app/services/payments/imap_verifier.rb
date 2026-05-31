@@ -7,11 +7,15 @@ module Payments
     end
 
     def verify(amount:, sender_name: nil, transaction_id: nil, timestamp: nil)
-      fetch_recent_emails.find do |email|
+      matches = fetch_recent_emails.select do |email|
         matches_amount?(email, amount) &&
           matches_sender?(email, sender_name) &&
           matches_transaction?(email, transaction_id)
       end
+      return nil if matches.empty?
+
+      # Chime sends two emails per payment; only the "You got $X" one carries the note.
+      matches.find { |e| e.subject.to_s =~ /you got \$/i } || matches.first
     end
 
     def fetch_recent_emails(count: 20)
