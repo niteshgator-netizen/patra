@@ -1,130 +1,181 @@
-# PATRA — CURSOR AI RULES
-# Save this file as `.cursorrules` in the root of your Patra repo
-# (same level as Gemfile, package.json, etc.)
-# Cursor reads this automatically and follows these rules for every edit.
+﻿# PATRA — CURSOR RULES
+# Auto-read by Cursor on every prompt. NON-NEGOTIABLE.
 
-# === ABOUT THIS PROJECT ===
+# ─────────────────────────────────────────────────────
+# 1. WHO I AM
+# ─────────────────────────────────────────────────────
+- Name: Genius. Complete coding beginner.
+- OS: Windows + PowerShell ONLY. Never give Linux/Mac/bash commands.
+- Editor: Cursor Pro. Local repo: C:\Users\kam work\patra
+- Explain in plain English. Define every technical term in one line.
+- Short, direct answers. No preambles. No filler ("great question", "certainly").
+- Push back when a request is bad. Explain why. Propose better.
+- Never suggest taking a break or stopping.
 
-This is Patra — a Chatwoot-forked unified inbox SaaS deployed on Railway at patrahq.com.
+# ─────────────────────────────────────────────────────
+# 2. PROJECT FACTS (do not guess these)
+# ─────────────────────────────────────────────────────
+- Patra = forked Chatwoot SaaS unified inbox, live at patrahq.com
+- Stack: Ruby on Rails + Vue.js + PostgreSQL + PgVector + Redis + SideKiq
+- Deploy: Railway, 4 services (Chatwoot / SideKiq / PgVector / Redis)
+- Pre-deploy: bundle exec rails db:chatwoot_prepare && bundle exec rails db:migrate
+- Railway internal hostname: http://chatwoot.railway.internal:3000
+- Both Chatwoot AND SideKiq must go green or deploy FAILED.
+- JWT in localStorage under legacy key `unibox_token` — NEVER rename.
+- AI: Grok 4.1 primary, Claude Opus 4.x complex, Gemini Flash OCR, DeepSeek complex replies, Voyage embeddings.
+- Game API calls route through SideKiq (different egress IP than Chatwoot).
 
-Stack:
-- Ruby on Rails (backend)
-- Vue.js 2 (frontend, Chatwoot legacy)
-- PostgreSQL + PgVector
-- Redis + SideKiq
-- Anthropic Claude API + Grok 4.1 (xAI)
+# ─────────────────────────────────────────────────────
+# 3. READ BEFORE EDITING ANY CODE
+# ─────────────────────────────────────────────────────
+Before ANY edit, read in this order:
+1. PATRA_MASTER_COMPLETE.md — single source of truth
+2. BUGS_FIXED.md — what's been fixed; never re-introduce
+3. PATRA_STATE.md — current state, open threads, next step
+4. The actual file you're about to edit — in full. No skimming.
 
-The owner (Genius) is a complete beginner at programming. When generating explanations or comments, use plain English. Define technical terms inline.
+If any of those don't exist, say so. Do not assume.
 
-# === HARD RULES ===
+# ─────────────────────────────────────────────────────
+# 4. HOT FILES — EXTREME CARE
+# ─────────────────────────────────────────────────────
+These crashed Railway before:
+1. app/services/ai/reply_service.rb (biggest)
+2. app/services/games/conversation_orchestrator.rb
+3. app/services/games/intent_detector.rb
+4. app/services/facebook/chatwoot_bridge_service.rb
 
-## Code style
-- Match the existing Chatwoot code style (snake_case, 2-space indent)
-- Use Ruby 3.x idioms (safe navigation `&.`, pattern matching where readable)
-- Vue components use `<template>`, `<script>`, `<style scoped>` blocks
-- Tailwind classes preferred over custom CSS
+Rules for hot files:
+- ONE hot file per task. NEVER two hot files in one run.
+- Read the ENTIRE file before editing.
+- Verify every def/if/case/do/begin has matching `end` after edits.
+- Wrap external API calls in `begin/rescue StandardError`.
+- Wrap ALL Telegram calls in `safe_telegram { ... }` blocks.
+- If task touches a hot file, START response with:
+  HOT FILE: <filename>. Reading full file first. Single-file change only.
 
-## Production-grade only
-- NEVER write placeholder logic ("// TODO add real logic later")
-- NEVER use dummy data, fake responses, or stubs in shipping code
-- NEVER write code that "would work in a tutorial" — write code that runs in production
+# ─────────────────────────────────────────────────────
+# 5. DATA SAFETY
+# ─────────────────────────────────────────────────────
+NEVER, without showing exactly what will change AND getting explicit "yes":
+- Delete files
+- Delete database rows / drop tables
+- Delete environment variables
+- Overwrite .env, database.yml, or any credential file
+- Force-push to main
+- Delete migrations
+- Rename variables/methods/files (unless told to)
+- Reformat unrelated code
+- Delete commented-out code
 
-## Error handling is mandatory
-- ALL external API calls must be wrapped in `begin/rescue StandardError => e`
-- Log errors with context: `Rails.logger.error("[Patra] #{e.class}: #{e.message} in #{__method__}")`
-- Failed external calls return a structured result object, never raise to user-facing code
-- Pattern: `{ success: false, error: e.message, error_class: e.class.name }`
+Bug-fix CODE edits in app/ are fine without extra confirmation.
+DATA or CONFIG changes need explicit confirmation.
 
-## Telegram-specific safety
-- All Telegram calls wrapped in a `safe_telegram { ... }` helper that catches errors
-- Never let a Telegram crash break the customer-facing chat flow
-- Telegram failures alert owner but don't block user response
+# ─────────────────────────────────────────────────────
+# 6. SCOPE DISCIPLINE
+# ─────────────────────────────────────────────────────
+- Do EXACTLY what was asked. No bonus changes.
+- See something else to fix? Call it out at END, do not fix it.
+- No premature optimization. No unused features. YAGNI.
 
-## Don't break what works
-- Before editing, READ the file you're changing
-- If a method is used elsewhere in the codebase, check those usages
-- Run `grep_search` for method names before renaming
-- If unsure whether a change is safe, ASK in a comment at the top of the diff
+# ─────────────────────────────────────────────────────
+# 7. CODE QUALITY
+# ─────────────────────────────────────────────────────
+- Production-grade only. NO placeholder, NO TODO, NO dummy data, NO tutorial comments.
+- Don't know something? STATE it as unknown. Never guess.
+- Match existing code style. Don't reformat unrelated code.
 
-# === HOT FILES — EXTREME CARE ===
+## Ruby / Rails
+- Service objects in app/services/
+- 2-space indent, no tabs
+- snake_case methods, CamelCase classes
+- `private` for non-public methods
+- Logging prefix matches service: [ReplyService], [ImagePaymentExtractor], [FacebookBridgeJob], [HaikuClient]
+- New AI calls: `defined?(ClassName)` + `begin/rescue StandardError`
+- Rails.logger.info/.warn/.error — NEVER `puts` in app code
 
-These files have crashed production before. Special rules:
+## Vue (frontend)
+- Composition API for NEW code; Options API only if file already uses it
+- Use existing design tokens / CSS variables — no new colors
+- PascalCase for Vue components
 
-1. `app/services/ai/reply_service.rb`
-2. `app/services/games/conversation_orchestrator.rb`
-3. `app/services/games/intent_detector.rb`
-4. `app/services/facebook/chatwoot_bridge_service.rb`
+## Database
+- Every new column needs a migration. NEVER edit schema.rb manually.
+- Migration filename: YYYYMMDDHHMMSS_descriptive_name.rb
+- Indexes for foreign keys + frequently-queried columns
 
-When editing any of the above:
-- Read the FULL file first, not just the section being edited
-- Verify every `def` has matching `end`
-- Verify every `if`, `case`, `do`, `begin` has matching `end`
-- Don't batch hot-file edits with edits to other hot files
-- After editing, count braces/ends and confirm balance
+# ─────────────────────────────────────────────────────
+# 8. END EVERY TASK WITH THIS DUMP
+# ─────────────────────────────────────────────────────
+After completing any task, print this dump as your final output.
+User pastes it back to Claude for verification BEFORE deploy.
+Do NOT skip this dump.
 
-# === RESPONSE FORMAT ===
+=== CURSOR DUMP ===
+FILES CHANGED:
+  - <full path 1>
+  - <full path 2>
 
-When asked to make a change, structure your response as:
+DIFF SUMMARY:
+  <file 1>: +X lines / -Y lines
 
-1. **Files I will modify**: list them
-2. **Files I read for context but won't change**: list them
-3. **The change** (with inline comments explaining WHY, not just WHAT)
-4. **How to test**: exact PowerShell command + expected output
+KEY CHANGES (one line each):
+  - <what changed and why>
 
-# === FORBIDDEN ACTIONS ===
+COMMANDS RUN:
+  - <command 1>
 
-DO NOT:
-- Delete files without explicit user confirmation
-- Modify migration files that are already deployed
-- Change ENV variable names (use new ones instead)
-- Refactor working code "just because" — only refactor when fixing a bug
-- Add new gems without justifying weight + maintenance cost
-- Add new npm packages without checking bundle size
-- Bypass Rails CSRF protection
-- Add `rescue => e` without `Rails.logger.error` and a structured return
+OUTPUT / ERRORS:
+  <paste test output, syntax errors, lint warnings>
 
-# === ENVIRONMENT ===
+HOT FILES STATUS:
+  - app/services/ai/reply_service.rb [untouched / touched]
+  - app/services/games/conversation_orchestrator.rb [untouched / touched]
+  - app/services/games/intent_detector.rb [untouched / touched]
+  - app/services/facebook/chatwoot_bridge_service.rb [untouched / touched]
 
-User is on Windows + PowerShell:
-- Use `Get-Content`, `Select-String`, `Out-File` (not `cat`, `grep`, `>`)
-- Use backslashes in paths only for local file ops, forward slashes for Rails paths
-- Railway CLI commands use `railway logs --service Chatwoot` not `railway logs -s`
+VERIFY STEPS (PowerShell, exact commands):
+  1. <command>
+  2. <expected output>
 
-# === REFERENCE DATA ===
+ROLLBACK COMMAND (if this breaks prod):
+  git revert HEAD && git push
+=== END DUMP ===
 
-Account ID: 2
-FB Inbox ID: 5 (Channel::Api, working)
-Inbox 2 is Channel::FacebookPage (broken, don't use)
-Telegram cashout group: -5243223053
+# ─────────────────────────────────────────────────────
+# 9. ENVIRONMENT QUIRKS
+# ─────────────────────────────────────────────────────
+- Windows RDP clipboard fails over ~28k chars — split large pastes.
+- VPS .env: edit via PowerShell `-replace` only. Notepad doubles variable names.
+- VPS Python: use `python` not `py -3.12`.
+- Type SSH commands FRESH — PowerShell bracket-paste corrupts them.
 
-# === WHEN UNSURE ===
+# ─────────────────────────────────────────────────────
+# 10. WHEN UNCERTAIN
+# ─────────────────────────────────────────────────────
+- STOP. State the uncertainty clearly.
+- Re-read the relevant file.
+- Ask ONE specific question.
+- Do NOT guess and proceed.
 
-If a request is ambiguous, ASK ONE QUESTION instead of guessing.
-If a change might break something, FLAG IT before making it.
-If a "fix" requires a workaround that introduces tech debt, NAME THE DEBT.
+# ─────────────────────────────────────────────────────
+# 11. GIT
+# ─────────────────────────────────────────────────────
+- Commit format: short imperative + scope. Examples:
+  fix(reply_service): premature 'loaded' message before IMAP verify
+  feat(games): add Vegas Sweeps URL config
+- NEVER force-push to main.
+- NEVER squash without asking.
 
-The goal is shipping working code that the owner understands, not impressing anyone.
-# === ZERO-BUG RULES (mandatory) ===
+# ─────────────────────────────────────────────────────
+# 12. WHAT NOT TO DO
+# ─────────────────────────────────────────────────────
+- Do not invent file paths. If file doesn't exist, say so.
+- Do not invent method names. Check the file first.
+- Do not write tests unless asked.
+- Do not refactor unless asked.
+- Do not "improve" code that wasn't part of the task.
+- Do not add dependencies (gems, npm packages) without approval.
+- Do not change Ruby/Rails/Vue/Node versions.
 
-## Before editing any file
-- Read the WHOLE file first, not just the section being changed
-- Search the codebase for who else uses this method/variable
-- If unclear, STOP and ask user before editing
-
-## Hot files — extra slow
-For these files (reply_service.rb, conversation_orchestrator.rb, intent_detector.rb, chatwoot_bridge_service.rb):
-- Make ONLY the requested change, never refactor
-- After editing, count: every `def` has matching `end`, every `if/case/do/begin` has matching `end`
-- If you touched 2+ hot files in one edit, STOP and split into separate commits
-
-## Never deploy with broken syntax
-After every edit, mentally check: "does this Ruby parse?" If unsure, add a comment: `# CLAUDE: please verify syntax before deploy`
-
-## Tests before deploy
-For every change, provide a PowerShell one-liner the user can run BEFORE deploying.
-Example: bundle exec rubocop app/services/games/juwa/client.rb
-If the test fails, do not deploy.
-
-## Rollback safety
-For every change, also provide the rollback command (usually: git revert HEAD; git push).
-User should rollback first, debug later — never debug in broken production.
+# END
