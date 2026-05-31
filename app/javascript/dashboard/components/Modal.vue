@@ -22,7 +22,7 @@ const modalClassName = computed(() => {
     'right-aligned': 'right-aligned',
   };
 
-  return `modal-mask skip-context-menu ${modalClassNameMap[modalType] || ''}`;
+  return `modal-mask patra-pop-mask skip-context-menu ${modalClassNameMap[modalType] || ''}`;
 });
 
 // [TODO] Revisit this logic to use outside click directive
@@ -76,7 +76,7 @@ onMounted(() => {
       @mousedown="handleMouseDown"
     >
       <div
-        class="relative max-h-full overflow-auto bg-n-alpha-3 shadow-md modal-container rtl:text-right skip-context-menu"
+        class="patra-pop relative max-h-full overflow-auto bg-n-alpha-3 shadow-md modal-container rtl:text-right skip-context-menu"
         :class="{
           'rounded-xl w-[37.5rem]': !fullWidth,
           'items-center rounded-none flex h-full justify-center w-full':
@@ -147,5 +147,17 @@ onMounted(() => {
 .modal-enter .modal-container,
 .modal-leave .modal-container {
   transform: scale(1.1);
+}
+</style>
+
+<style>
+.modal-mask.patra-pop-mask {
+  background: rgba(5, 4, 9, 0.6) !important;
+}
+
+.modal-container.patra-pop {
+  background: #0c0b12 !important;
+  border: 1px solid #171520 !important;
+  color: #ededf2 !important;
 }
 </style>

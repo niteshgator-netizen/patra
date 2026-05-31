@@ -118,7 +118,7 @@ defineExpose({ open, close });
   <TeleportWithDirection to="body">
     <dialog
       ref="dialogRef"
-      class="w-full transition-all duration-300 ease-in-out shadow-xl rounded-xl"
+      class="patra-pop-dialog w-full transition-all duration-300 ease-in-out shadow-xl rounded-xl"
       :class="[
         maxWidthClass,
         positionClass,
@@ -129,7 +129,7 @@ defineExpose({ open, close });
       <OnClickOutside @trigger="handleClickOutside">
         <form
           ref="dialogContentRef"
-          class="flex flex-col w-full h-auto gap-6 p-6 overflow-visible text-start align-middle transition-all duration-300 ease-in-out transform bg-n-alpha-3 backdrop-blur-[100px] shadow-xl rounded-xl"
+          class="patra-pop flex flex-col w-full h-auto gap-6 p-6 overflow-visible text-start align-middle transition-all duration-300 ease-in-out transform bg-n-alpha-3 backdrop-blur-[100px] shadow-xl rounded-xl"
           @submit.prevent="confirm"
           @click.stop
         >
@@ -177,8 +177,23 @@ defineExpose({ open, close });
 </template>
 
 <style scoped>
-dialog::backdrop {
-  @apply bg-n-alpha-black1 backdrop-blur-[4px];
+dialog.patra-pop-dialog::backdrop {
+  background: rgba(5, 4, 9, 0.6) !important;
+  backdrop-filter: blur(4px);
+}
+
+form.patra-pop {
+  background: #0c0b12 !important;
+  border: 1px solid #171520 !important;
+  color: #ededf2 !important;
+}
+
+form.patra-pop h3 {
+  color: #ededf2 !important;
+}
+
+form.patra-pop p {
+  color: #a8a6b6 !important;
 }
 
 .dialog-position-top {
