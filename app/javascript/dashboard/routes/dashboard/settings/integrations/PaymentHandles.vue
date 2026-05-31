@@ -8,11 +8,6 @@ import { picoSearch } from '@scmmishra/pico-search';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
-import {
-  BaseTable,
-  BaseTableRow,
-  BaseTableCell,
-} from 'dashboard/components-next/table';
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import paymentHandlesApi from 'dashboard/api/paymentHandles';
@@ -99,7 +94,9 @@ const NON_DEFAULT_SCORING_PLATFORMS = SCORING_PLATFORM_IDS.filter(
 
 const parseNumericConfig = raw => {
   const entries = Object.entries(raw || {})
-    .filter(([key]) => SCORING_CONFIG_KEYS.includes(key) || key === 'note_present')
+    .filter(
+      ([key]) => SCORING_CONFIG_KEYS.includes(key) || key === 'note_present'
+    )
     .map(([key, value]) => {
       const normalizedKey = key === 'note_present' ? 'note_match' : key;
       return [normalizedKey, Number(value)];
@@ -116,17 +113,6 @@ const effectiveDefaultConfig = () => ({
 const isPlatformInputsDisabled = computed(() => {
   if (selectedScoringPlatform.value === 'default') return false;
   return !platformEnabled.value[selectedScoringPlatform.value];
-});
-
-const isCurrentPlatformEnabled = computed({
-  get() {
-    if (selectedScoringPlatform.value === 'default') return true;
-    return Boolean(platformEnabled.value[selectedScoringPlatform.value]);
-  },
-  set(enabled) {
-    if (selectedScoringPlatform.value === 'default') return;
-    onPlatformEnabledChange(selectedScoringPlatform.value, enabled);
-  },
 });
 
 const syncDraftFromPlatform = () => {
@@ -152,6 +138,17 @@ const onPlatformEnabledChange = (platform, enabled) => {
     }
   }
 };
+
+const isCurrentPlatformEnabled = computed({
+  get() {
+    if (selectedScoringPlatform.value === 'default') return true;
+    return Boolean(platformEnabled.value[selectedScoringPlatform.value]);
+  },
+  set(enabled) {
+    if (selectedScoringPlatform.value === 'default') return;
+    onPlatformEnabledChange(selectedScoringPlatform.value, enabled);
+  },
+});
 
 const persistDraftToPlatform = () => {
   const draft = parseNumericConfig(scoringPlatformDraft.value);
@@ -491,6 +488,7 @@ const tableHeaders = computed(() => [
   t('PAYMENT_HANDLES.LIST.TABLE_HEADER.STATUS'),
   t('PAYMENT_HANDLES.LIST.TABLE_HEADER.FAILURE_COUNT'),
   t('PAYMENT_HANDLES.LIST.TABLE_HEADER.LAST_FAILED'),
+  LEDGER_LABELS.ledgerToggle,
   t('PAYMENT_HANDLES.LIST.TABLE_HEADER.ACTIONS'),
 ]);
 
@@ -508,14 +506,34 @@ const statusLabel = status => {
   return out === key ? status : out;
 };
 
-const statusPillClass = status => {
-  if (status === 'active') {
-    return 'bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30';
-  }
-  if (status === 'failed') {
-    return 'bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30';
-  }
-  return 'bg-n-slate-4 text-n-slate-11 border border-n-weak';
+const platformIconMeta = platform => {
+  const p = String(platform || '').toLowerCase();
+  const map = {
+    cashapp: { abbr: 'CA', bg: '#00D632' },
+    chime: { abbr: 'CH', bg: '#1EC677' },
+    paypal: { abbr: 'PP', bg: '#0070BA' },
+    venmo: { abbr: 'VE', bg: '#3D95CE' },
+    zelle: { abbr: 'ZE', bg: '#6B1FD6' },
+  };
+  return (
+    map[p] || {
+      abbr: String(platform || '??')
+        .slice(0, 2)
+        .toUpperCase(),
+      bg: '#54515e',
+    }
+  );
+};
+
+const statusBadgeClass = status => {
+  if (status === 'active') return 'st-active';
+  if (status === 'failed') return 'st-failed';
+  return 'st-disabled';
+};
+
+const failCountClass = count => {
+  const n = Number(count) || 0;
+  return n > 0 ? 'fc bad' : 'fc';
 };
 
 const getPaymentEvents = handle => ledgerData.value[handle.id] || [];
@@ -596,10 +614,7 @@ const ledgerStatusSummary = event => {
     return {
       color: 'green',
       label: 'LOADED',
-      reason:
-        game && user
-          ? `Loaded to ${user} on ${game}`
-          : 'Loaded to game',
+      reason: game && user ? `Loaded to ${user} on ${game}` : 'Loaded to game',
     };
   }
   if (flag.includes('duplicate')) {
@@ -644,7 +659,7 @@ const stripColorClass = color =>
     red: 'border-l-red-500',
     blue: 'border-l-blue-500',
     slate: 'border-l-n-slate-6',
-  }[color] || 'border-l-n-slate-6');
+  })[color] || 'border-l-n-slate-6';
 
 const stripBadgeClass = color =>
   ({
@@ -653,7 +668,7 @@ const stripBadgeClass = color =>
     red: 'bg-red-500/15 text-red-700 dark:text-red-400',
     blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
     slate: 'bg-n-slate-4 text-n-slate-11',
-  }[color] || 'bg-n-slate-4 text-n-slate-11');
+  })[color] || 'bg-n-slate-4 text-n-slate-11';
 
 const toggleLedgerRow = id => {
   expandedLedgerRows.value = {
@@ -741,13 +756,6 @@ const exportLedger = handle => {
 };
 
 const loadScoringConfig = () => {
-  console.log(
-    '[ScoringSettings] loaded raw:',
-    JSON.stringify(
-      currentAccount.value?.custom_attributes?.payment_scoring_config
-    )
-  );
-
   const saved =
     currentAccount.value?.custom_attributes?.payment_scoring_config || {};
   const isNested = saved.default && typeof saved.default === 'object';
@@ -798,8 +806,7 @@ const saveScoringConfig = async () => {
   scoringSaving.value = true;
   try {
     const payment_scoring_config = {
-      default:
-        scoringFullConfig.value.default || { ...DEFAULT_SCORING_CONFIG },
+      default: scoringFullConfig.value.default || { ...DEFAULT_SCORING_CONFIG },
       custom_rules: customRules.value
         .filter(rule => rule.name.trim())
         .map(rule => ({
@@ -816,7 +823,6 @@ const saveScoringConfig = async () => {
     });
 
     const payload = { custom_attributes: { payment_scoring_config } };
-    console.log('[ScoringSettings] saving:', JSON.stringify(payload));
     await updateAccount(payload);
     useAlert(t('PAYMENT_HANDLES.SCORING_SAVED'));
   } catch {
@@ -991,398 +997,13 @@ watch(selectedScoringPlatform, () => {
 
 <template>
   <SettingsLayout
+    class="pat-ph-wrap"
     :is-loading="isLoading"
     :loading-message="t('PAYMENT_HANDLES.LOADING')"
     :no-records-found="!handles.length"
     :no-records-message="t('PAYMENT_HANDLES.EMPTY')"
   >
     <template #header>
-      <div
-        class="mb-4 overflow-hidden rounded-xl border border-[#DDD8F5] bg-n-solid-1"
-      >
-        <button
-          type="button"
-          class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F0EDFF]/40"
-          @click="scoringSettingsOpen = !scoringSettingsOpen"
-        >
-          <span
-            class="text-sm font-semibold text-[#4C3799] dark:text-[#DDD8F5]"
-          >
-            {{ t('PAYMENT_HANDLES.SCORING_TITLE') }}
-          </span>
-          <span
-            class="i-lucide-chevron-down size-4 text-n-slate-11 transition-transform"
-            :class="{ 'rotate-180': scoringSettingsOpen }"
-          />
-        </button>
-
-        <div
-          v-show="scoringSettingsOpen"
-          class="border-t border-[#DDD8F5] px-4 py-4"
-        >
-          <div class="mb-4 flex flex-wrap gap-1 border-b border-[#DDD8F5]">
-            <button
-              v-for="tab in SCORING_PLATFORM_TABS"
-              :key="tab.id"
-              type="button"
-              class="rounded-t-lg px-3 py-2 text-xs font-medium transition-colors"
-              :class="
-                selectedScoringPlatform === tab.id
-                  ? 'border-b-2 border-[#6E56CF] bg-[#F0EDFF]/60 text-[#4C3799]'
-                  : 'text-n-slate-11 hover:bg-[#F0EDFF]/30 hover:text-[#4C3799]'
-              "
-              @click="selectedScoringPlatform = tab.id"
-            >
-              {{ t(tab.labelKey) }}
-            </button>
-          </div>
-
-          <div
-            v-if="selectedScoringPlatform !== 'default'"
-            class="mb-3 flex items-center gap-3"
-          >
-            <Switch v-model="isCurrentPlatformEnabled" />
-            <span class="text-sm text-n-slate-12">
-              {{
-                t('PAYMENT_HANDLES.SCORING_USE_CUSTOM', {
-                  platform: platformLabel(selectedScoringPlatform),
-                })
-              }}
-            </span>
-          </div>
-
-          <p
-            v-if="isPlatformInputsDisabled"
-            class="mb-3 text-xs italic text-n-slate-11"
-          >
-            {{ t('PAYMENT_HANDLES.SCORING_USING_DEFAULT') }}
-          </p>
-
-          <div class="grid gap-6 lg:grid-cols-2">
-            <div>
-              <h3
-                class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
-              >
-                {{ t('PAYMENT_HANDLES.SCORING_WEIGHTS_TITLE') }}
-              </h3>
-              <div class="overflow-hidden rounded-lg border border-n-weak">
-                <div
-                  class="grid grid-cols-[1fr_5rem] gap-2 border-b border-n-weak bg-n-alpha-2 px-3 py-2 text-[11px] font-medium text-n-slate-11"
-                >
-                  <span>{{ t('PAYMENT_HANDLES.SCORING_WEIGHTS_TITLE') }}</span>
-                  <span>{{ t('PAYMENT_HANDLES.SCORING_POINTS') }}</span>
-                </div>
-                <div
-                  v-for="field in SCORING_WEIGHT_FIELDS"
-                  :key="field.key"
-                  class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2"
-                >
-                  <span
-                    class="text-sm"
-                    :class="
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10'
-                        : 'text-n-slate-12'
-                    "
-                  >
-                    {{ t(field.labelKey) }}
-                  </span>
-                  <div class="flex flex-col items-end gap-0.5">
-                    <input
-                      v-model.number="scoringPlatformDraft[field.key]"
-                      type="number"
-                      min="0"
-                      max="100"
-                      :disabled="isPlatformInputsDisabled"
-                      class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                      :class="
-                        isPlatformInputsDisabled
-                          ? 'text-n-slate-10 opacity-60'
-                          : 'text-n-slate-12'
-                      "
-                      @input="onScoringInput"
-                    />
-                    <span
-                      v-if="showScoringOverrideIndicators"
-                      class="text-[10px] leading-none"
-                      :class="
-                        isScoringFieldCustom(field.key)
-                          ? 'text-purple-600 dark:text-purple-400'
-                          : 'text-n-slate-10'
-                      "
-                    >
-                      {{
-                        isScoringFieldCustom(field.key)
-                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
-                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
-                      }}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  class="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2"
-                >
-                  <span
-                    class="text-sm"
-                    :class="
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10'
-                        : 'text-n-slate-12'
-                    "
-                  >
-                    {{ t('PAYMENT_HANDLES.SCORING_TIME') }}
-                  </span>
-                  <div class="flex flex-wrap items-center justify-end gap-2">
-                    <span class="text-xs text-n-slate-11">
-                      {{ t('PAYMENT_HANDLES.SCORING_POINTS') }}:
-                    </span>
-                    <div class="flex flex-col items-end gap-0.5">
-                      <input
-                        v-model.number="scoringPlatformDraft.time_proximity"
-                        type="number"
-                        min="0"
-                        max="100"
-                        :disabled="isPlatformInputsDisabled"
-                        class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                        :class="
-                          isPlatformInputsDisabled
-                            ? 'text-n-slate-10 opacity-60'
-                            : 'text-n-slate-12'
-                        "
-                        @input="onScoringInput"
-                      />
-                      <span
-                        v-if="showScoringOverrideIndicators"
-                        class="text-[10px] leading-none"
-                        :class="
-                          isScoringFieldCustom('time_proximity')
-                            ? 'text-purple-600 dark:text-purple-400'
-                            : 'text-n-slate-10'
-                        "
-                      >
-                        {{
-                          isScoringFieldCustom('time_proximity')
-                            ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
-                            : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
-                        }}
-                      </span>
-                    </div>
-                    <span class="text-xs text-n-slate-11">
-                      {{ t('PAYMENT_HANDLES.SCORING_TIME_WINDOW') }}:
-                    </span>
-                    <div class="flex flex-col items-end gap-0.5">
-                      <input
-                        v-model.number="
-                          scoringPlatformDraft.time_proximity_minutes
-                        "
-                        type="number"
-                        min="1"
-                        max="1440"
-                        :disabled="isPlatformInputsDisabled"
-                        class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                        :class="
-                          isPlatformInputsDisabled
-                            ? 'text-n-slate-10 opacity-60'
-                            : 'text-n-slate-12'
-                        "
-                        @input="onScoringInput"
-                      />
-                      <span
-                        v-if="showScoringOverrideIndicators"
-                        class="text-[10px] leading-none"
-                        :class="
-                          isScoringFieldCustom('time_proximity_minutes')
-                            ? 'text-purple-600 dark:text-purple-400'
-                            : 'text-n-slate-10'
-                        "
-                      >
-                        {{
-                          isScoringFieldCustom('time_proximity_minutes')
-                            ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
-                            : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
-                        }}
-                      </span>
-                    </div>
-                    <span class="text-xs text-n-slate-11">
-                      {{ t('PAYMENT_HANDLES.SCORING_TIME_MINUTES') }}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  class="grid grid-cols-[1fr_5rem] items-center gap-2 px-3 py-2"
-                >
-                  <span
-                    class="text-sm"
-                    :class="
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10'
-                        : 'text-n-slate-12'
-                    "
-                  >
-                    {{ t('PAYMENT_HANDLES.SCORING_TIME_MATCH') }}
-                  </span>
-                  <div class="flex flex-col items-end gap-0.5">
-                    <input
-                      v-model.number="scoringPlatformDraft.time_match"
-                      type="number"
-                      min="0"
-                      max="100"
-                      :disabled="isPlatformInputsDisabled"
-                      class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
-                      :class="
-                        isPlatformInputsDisabled
-                          ? 'text-n-slate-10 opacity-60'
-                          : 'text-n-slate-12'
-                      "
-                      @input="onScoringInput"
-                    />
-                    <span
-                      v-if="showScoringOverrideIndicators"
-                      class="text-[10px] leading-none"
-                      :class="
-                        isScoringFieldCustom('time_match')
-                          ? 'text-purple-600 dark:text-purple-400'
-                          : 'text-n-slate-10'
-                      "
-                    >
-                      {{
-                        isScoringFieldCustom('time_match')
-                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
-                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
-                      }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3
-                class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
-              >
-                {{ t('PAYMENT_HANDLES.SCORING_THRESHOLDS_TITLE') }}
-              </h3>
-              <div class="overflow-hidden rounded-lg border border-n-weak">
-                <div
-                  class="grid grid-cols-[1fr_5rem] gap-2 border-b border-n-weak bg-n-alpha-2 px-3 py-2 text-[11px] font-medium text-n-slate-11"
-                >
-                  <span>{{
-                    t('PAYMENT_HANDLES.SCORING_THRESHOLDS_TITLE')
-                  }}</span>
-                  <span>{{ t('PAYMENT_HANDLES.SCORING_THRESHOLD') }}</span>
-                </div>
-                <div
-                  v-for="field in SCORING_THRESHOLD_FIELDS"
-                  :key="field.key"
-                  class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
-                >
-                  <span
-                    class="text-sm"
-                    :class="
-                      isPlatformInputsDisabled
-                        ? 'text-n-slate-10'
-                        : 'text-n-slate-12'
-                    "
-                  >
-                    {{ field.prefix }}
-                    {{ t(field.labelKey) }}
-                  </span>
-                  <div class="flex flex-col items-end gap-0.5">
-                    <input
-                      v-model.number="scoringPlatformDraft[field.key]"
-                      type="number"
-                      min="0"
-                      max="100"
-                      :disabled="isPlatformInputsDisabled"
-                      class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm"
-                      :class="[
-                        field.inputClass,
-                        isPlatformInputsDisabled
-                          ? 'text-n-slate-10 opacity-60'
-                          : 'text-n-slate-12',
-                      ]"
-                      @input="onScoringInput"
-                    />
-                    <span
-                      v-if="showScoringOverrideIndicators"
-                      class="text-[10px] leading-none"
-                      :class="
-                        isScoringFieldCustom(field.key)
-                          ? 'text-purple-600 dark:text-purple-400'
-                          : 'text-n-slate-10'
-                      "
-                    >
-                      {{
-                        isScoringFieldCustom(field.key)
-                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
-                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
-                      }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <h3
-              class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
-            >
-              {{ t('PAYMENT_HANDLES.SCORING_CUSTOM_RULES_TITLE') }}
-            </h3>
-            <div class="overflow-hidden rounded-lg border border-n-weak">
-              <div
-                v-for="(rule, index) in customRules"
-                :key="index"
-                class="flex items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
-              >
-                <input
-                  v-model="rule.name"
-                  type="text"
-                  :placeholder="
-                    t('PAYMENT_HANDLES.SCORING_RULE_NAME_PLACEHOLDER')
-                  "
-                  class="h-8 min-w-0 flex-1 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
-                />
-                <input
-                  v-model.number="rule.points"
-                  type="number"
-                  min="-100"
-                  max="100"
-                  class="h-8 w-20 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
-                />
-                <button
-                  type="button"
-                  class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-n-slate-11 transition-colors hover:bg-n-ruby-2 hover:text-n-ruby-11"
-                  :aria-label="t('PAYMENT_HANDLES.SCORING_DELETE_RULE')"
-                  @click="removeCustomRule(index)"
-                >
-                  <span class="i-lucide-trash-2 size-4" />
-                </button>
-              </div>
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#6E56CF] transition-colors hover:bg-[#F0EDFF]/40"
-                @click="addCustomRule"
-              >
-                <span class="text-base leading-none">➕</span>
-                {{ t('PAYMENT_HANDLES.SCORING_ADD_RULE') }}
-              </button>
-            </div>
-          </div>
-
-          <div class="mt-4 flex justify-end">
-            <Button
-              :label="t('PAYMENT_HANDLES.SCORING_SAVE')"
-              size="sm"
-              color="blue"
-              :is-loading="scoringSaving"
-              @click="saveScoringConfig"
-            />
-          </div>
-        </div>
-      </div>
-
       <BaseSettingsHeader
         v-model:search-query="searchQuery"
         :title="t('PAYMENT_HANDLES.TITLE')"
@@ -1390,375 +1011,720 @@ watch(selectedScoringPlatform, () => {
         feature-name="payment_handles"
         :search-placeholder="t('PAYMENT_HANDLES.SEARCH_PLACEHOLDER')"
         :back-button-label="$t('SIDEBAR.INTEGRATIONS')"
-      >
-        <template v-if="handles.length" #count>
-          <span class="text-body-main text-n-slate-11">
-            {{ handles.length }}
+      />
+
+      <div v-show="scoringSettingsOpen" class="ph-scoring-panel">
+        <div class="mb-4 flex flex-wrap gap-1 border-b border-[#DDD8F5]">
+          <button
+            v-for="tab in SCORING_PLATFORM_TABS"
+            :key="tab.id"
+            type="button"
+            class="rounded-t-lg px-3 py-2 text-xs font-medium transition-colors"
+            :class="
+              selectedScoringPlatform === tab.id
+                ? 'border-b-2 border-[#6E56CF] bg-[#F0EDFF]/60 text-[#4C3799]'
+                : 'text-n-slate-11 hover:bg-[#F0EDFF]/30 hover:text-[#4C3799]'
+            "
+            @click="selectedScoringPlatform = tab.id"
+          >
+            {{ t(tab.labelKey) }}
+          </button>
+        </div>
+
+        <div
+          v-if="selectedScoringPlatform !== 'default'"
+          class="mb-3 flex items-center gap-3"
+        >
+          <Switch v-model="isCurrentPlatformEnabled" />
+          <span class="text-sm text-n-slate-12">
+            {{
+              t('PAYMENT_HANDLES.SCORING_USE_CUSTOM', {
+                platform: platformLabel(selectedScoringPlatform),
+              })
+            }}
           </span>
-        </template>
-        <template #actions>
+        </div>
+
+        <p
+          v-if="isPlatformInputsDisabled"
+          class="mb-3 text-xs italic text-n-slate-11"
+        >
+          {{ t('PAYMENT_HANDLES.SCORING_USING_DEFAULT') }}
+        </p>
+
+        <div class="grid gap-6 lg:grid-cols-2">
+          <div>
+            <h3
+              class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+            >
+              {{ t('PAYMENT_HANDLES.SCORING_WEIGHTS_TITLE') }}
+            </h3>
+            <div class="overflow-hidden rounded-lg border border-n-weak">
+              <div
+                class="grid grid-cols-[1fr_5rem] gap-2 border-b border-n-weak bg-n-alpha-2 px-3 py-2 text-[11px] font-medium text-n-slate-11"
+              >
+                <span>{{ t('PAYMENT_HANDLES.SCORING_WEIGHTS_TITLE') }}</span>
+                <span>{{ t('PAYMENT_HANDLES.SCORING_POINTS') }}</span>
+              </div>
+              <div
+                v-for="field in SCORING_WEIGHT_FIELDS"
+                :key="field.key"
+                class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2"
+              >
+                <span
+                  class="text-sm"
+                  :class="
+                    isPlatformInputsDisabled
+                      ? 'text-n-slate-10'
+                      : 'text-n-slate-12'
+                  "
+                >
+                  {{ t(field.labelKey) }}
+                </span>
+                <div class="flex flex-col items-end gap-0.5">
+                  <input
+                    v-model.number="scoringPlatformDraft[field.key]"
+                    type="number"
+                    min="0"
+                    max="100"
+                    :disabled="isPlatformInputsDisabled"
+                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10 opacity-60'
+                        : 'text-n-slate-12'
+                    "
+                    @input="onScoringInput"
+                  />
+                  <span
+                    v-if="showScoringOverrideIndicators"
+                    class="text-[10px] leading-none"
+                    :class="
+                      isScoringFieldCustom(field.key)
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-n-slate-10'
+                    "
+                  >
+                    {{
+                      isScoringFieldCustom(field.key)
+                        ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                        : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                    }}
+                  </span>
+                </div>
+              </div>
+              <div
+                class="grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2"
+              >
+                <span
+                  class="text-sm"
+                  :class="
+                    isPlatformInputsDisabled
+                      ? 'text-n-slate-10'
+                      : 'text-n-slate-12'
+                  "
+                >
+                  {{ t('PAYMENT_HANDLES.SCORING_TIME') }}
+                </span>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  <span class="text-xs text-n-slate-11">
+                    {{ t('PAYMENT_HANDLES.SCORING_POINTS') }}:
+                  </span>
+                  <div class="flex flex-col items-end gap-0.5">
+                    <input
+                      v-model.number="scoringPlatformDraft.time_proximity"
+                      type="number"
+                      min="0"
+                      max="100"
+                      :disabled="isPlatformInputsDisabled"
+                      class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                      :class="
+                        isPlatformInputsDisabled
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12'
+                      "
+                      @input="onScoringInput"
+                    />
+                    <span
+                      v-if="showScoringOverrideIndicators"
+                      class="text-[10px] leading-none"
+                      :class="
+                        isScoringFieldCustom('time_proximity')
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'text-n-slate-10'
+                      "
+                    >
+                      {{
+                        isScoringFieldCustom('time_proximity')
+                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                      }}
+                    </span>
+                  </div>
+                  <span class="text-xs text-n-slate-11">
+                    {{ t('PAYMENT_HANDLES.SCORING_TIME_WINDOW') }}:
+                  </span>
+                  <div class="flex flex-col items-end gap-0.5">
+                    <input
+                      v-model.number="
+                        scoringPlatformDraft.time_proximity_minutes
+                      "
+                      type="number"
+                      min="1"
+                      max="1440"
+                      :disabled="isPlatformInputsDisabled"
+                      class="h-8 w-16 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                      :class="
+                        isPlatformInputsDisabled
+                          ? 'text-n-slate-10 opacity-60'
+                          : 'text-n-slate-12'
+                      "
+                      @input="onScoringInput"
+                    />
+                    <span
+                      v-if="showScoringOverrideIndicators"
+                      class="text-[10px] leading-none"
+                      :class="
+                        isScoringFieldCustom('time_proximity_minutes')
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : 'text-n-slate-10'
+                      "
+                    >
+                      {{
+                        isScoringFieldCustom('time_proximity_minutes')
+                          ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                          : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                      }}
+                    </span>
+                  </div>
+                  <span class="text-xs text-n-slate-11">
+                    {{ t('PAYMENT_HANDLES.SCORING_TIME_MINUTES') }}
+                  </span>
+                </div>
+              </div>
+              <div
+                class="grid grid-cols-[1fr_5rem] items-center gap-2 px-3 py-2"
+              >
+                <span
+                  class="text-sm"
+                  :class="
+                    isPlatformInputsDisabled
+                      ? 'text-n-slate-10'
+                      : 'text-n-slate-12'
+                  "
+                >
+                  {{ t('PAYMENT_HANDLES.SCORING_TIME_MATCH') }}
+                </span>
+                <div class="flex flex-col items-end gap-0.5">
+                  <input
+                    v-model.number="scoringPlatformDraft.time_match"
+                    type="number"
+                    min="0"
+                    max="100"
+                    :disabled="isPlatformInputsDisabled"
+                    class="h-8 w-full rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm"
+                    :class="
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10 opacity-60'
+                        : 'text-n-slate-12'
+                    "
+                    @input="onScoringInput"
+                  />
+                  <span
+                    v-if="showScoringOverrideIndicators"
+                    class="text-[10px] leading-none"
+                    :class="
+                      isScoringFieldCustom('time_match')
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-n-slate-10'
+                    "
+                  >
+                    {{
+                      isScoringFieldCustom('time_match')
+                        ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                        : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                    }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3
+              class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+            >
+              {{ t('PAYMENT_HANDLES.SCORING_THRESHOLDS_TITLE') }}
+            </h3>
+            <div class="overflow-hidden rounded-lg border border-n-weak">
+              <div
+                class="grid grid-cols-[1fr_5rem] gap-2 border-b border-n-weak bg-n-alpha-2 px-3 py-2 text-[11px] font-medium text-n-slate-11"
+              >
+                <span>{{ t('PAYMENT_HANDLES.SCORING_THRESHOLDS_TITLE') }}</span>
+                <span>{{ t('PAYMENT_HANDLES.SCORING_THRESHOLD') }}</span>
+              </div>
+              <div
+                v-for="field in SCORING_THRESHOLD_FIELDS"
+                :key="field.key"
+                class="grid grid-cols-[1fr_5rem] items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
+              >
+                <span
+                  class="text-sm"
+                  :class="
+                    isPlatformInputsDisabled
+                      ? 'text-n-slate-10'
+                      : 'text-n-slate-12'
+                  "
+                >
+                  {{ field.prefix }}
+                  {{ t(field.labelKey) }}
+                </span>
+                <div class="flex flex-col items-end gap-0.5">
+                  <input
+                    v-model.number="scoringPlatformDraft[field.key]"
+                    type="number"
+                    min="0"
+                    max="100"
+                    :disabled="isPlatformInputsDisabled"
+                    class="h-8 w-full rounded-md border bg-n-alpha-3 px-2 text-sm"
+                    :class="[
+                      field.inputClass,
+                      isPlatformInputsDisabled
+                        ? 'text-n-slate-10 opacity-60'
+                        : 'text-n-slate-12',
+                    ]"
+                    @input="onScoringInput"
+                  />
+                  <span
+                    v-if="showScoringOverrideIndicators"
+                    class="text-[10px] leading-none"
+                    :class="
+                      isScoringFieldCustom(field.key)
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-n-slate-10'
+                    "
+                  >
+                    {{
+                      isScoringFieldCustom(field.key)
+                        ? t('PAYMENT_HANDLES.SCORING_FIELD_CUSTOM')
+                        : t('PAYMENT_HANDLES.SCORING_FIELD_DEFAULT')
+                    }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <h3
+            class="mb-3 text-xs font-semibold uppercase tracking-wide text-n-slate-11"
+          >
+            {{ t('PAYMENT_HANDLES.SCORING_CUSTOM_RULES_TITLE') }}
+          </h3>
+          <div class="overflow-hidden rounded-lg border border-n-weak">
+            <div
+              v-for="(rule, index) in customRules"
+              :key="index"
+              class="flex items-center gap-2 border-b border-n-weak/70 px-3 py-2 last:border-b-0"
+            >
+              <input
+                v-model="rule.name"
+                type="text"
+                :placeholder="
+                  t('PAYMENT_HANDLES.SCORING_RULE_NAME_PLACEHOLDER')
+                "
+                class="h-8 min-w-0 flex-1 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+              />
+              <input
+                v-model.number="rule.points"
+                type="number"
+                min="-100"
+                max="100"
+                class="h-8 w-20 rounded-md border border-n-weak bg-n-alpha-3 px-2 text-sm text-n-slate-12"
+              />
+              <button
+                type="button"
+                class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-n-slate-11 transition-colors hover:bg-n-ruby-2 hover:text-n-ruby-11"
+                :aria-label="t('PAYMENT_HANDLES.SCORING_DELETE_RULE')"
+                @click="removeCustomRule(index)"
+              >
+                <span class="i-lucide-trash-2 size-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              class="flex w-full items-center gap-2 px-3 py-2.5 text-sm font-medium text-[#6E56CF] transition-colors hover:bg-[#F0EDFF]/40"
+              @click="addCustomRule"
+            >
+              <span class="i-lucide-plus size-4" aria-hidden="true" />
+              {{ t('PAYMENT_HANDLES.SCORING_ADD_RULE') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="ph-scoring-save">
           <Button
-            :label="t('PAYMENT_HANDLES.ADD_BUTTON')"
+            :label="t('PAYMENT_HANDLES.SCORING_SAVE')"
             size="sm"
-            @click="openCreate"
+            color="blue"
+            :is-loading="scoringSaving"
+            @click="saveScoringConfig"
           />
-        </template>
-      </BaseSettingsHeader>
+        </div>
+      </div>
     </template>
 
     <template #body>
-      <BaseTable
-        :headers="tableHeaders"
-        :items="filteredRecords"
-        :no-data-message="
-          !handles.length
-            ? t('PAYMENT_HANDLES.EMPTY')
-            : searchQuery
-              ? t('PAYMENT_HANDLES.NO_RESULTS')
-              : ''
-        "
-      >
-        <template #row="{ items }">
-          <template v-for="row in items" :key="row.id">
-            <BaseTableRow :item="row">
-              <template #default>
-                <BaseTableCell>
-                  <span class="text-body-main text-n-slate-12">
-                    {{ platformLabel(row.platform) }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell>
-                  <span class="text-body-main text-n-slate-12 font-medium">
-                    {{ row.handle }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell>
-                  <span class="text-body-main text-n-slate-11">
-                    {{ row.display_name || '-' }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell>
-                  <span class="text-body-main text-n-slate-11">
-                    {{ row.priority }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell>
-                  <span
-                    class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full"
-                    :class="statusPillClass(row.status)"
-                  >
-                    {{ statusLabel(row.status) }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell>
-                  <span class="text-body-main text-n-slate-11">
-                    {{ row.failure_count ?? 0 }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell>
-                  <span class="text-body-main text-n-slate-11 text-sm">
-                    {{ safeDynamicTime(row.last_failure_at) }}
-                  </span>
-                </BaseTableCell>
-                <BaseTableCell align="end">
-                  <div class="flex gap-2 justify-end flex-shrink-0">
-                    <Button
-                      v-tooltip.top="LEDGER_LABELS.ledgerToggle"
-                      :label="LEDGER_LABELS.ledgerToggle"
-                      slate
-                      sm
-                      class="!text-[#6E56CF] hover:enabled:!bg-[#F0EDFF] hover:enabled:!text-[#4C3799]"
-                      :class="{
-                        '!bg-[#F0EDFF] !text-[#4C3799] ring-1 ring-[#DDD8F5]':
-                          isLedgerOpen(row.id),
-                      }"
-                      @click="toggleLedger(row.id)"
-                    />
-                    <Button
-                      v-tooltip.top="t('PAYMENT_HANDLES.EDIT')"
-                      icon="i-woot-edit-pen"
-                      slate
-                      sm
-                      @click="openEdit(row)"
-                    />
-                    <Button
-                      v-tooltip.top="t('PAYMENT_HANDLES.DELETE')"
-                      icon="i-woot-bin"
-                      slate
-                      sm
-                      class="hover:enabled:text-n-ruby-11 hover:enabled:bg-n-ruby-2"
-                      @click="openDelete(row)"
-                    />
-                  </div>
-                </BaseTableCell>
-              </template>
-            </BaseTableRow>
-            <tr v-if="isLedgerOpen(row.id)">
-              <td
-                :colspan="tableHeaders.length"
-                class="p-0 border-t border-[#DDD8F5]"
-              >
-                <div class="bg-[#F0EDFF]/40 dark:bg-n-alpha-2 px-4 py-4">
-                  <div
-                    class="flex flex-wrap items-center justify-between gap-3 mb-4"
-                  >
-                    <div>
-                      <h3
-                        class="m-0 text-sm font-semibold text-[#4C3799] dark:text-[#DDD8F5]"
-                      >
-                        {{ LEDGER_LABELS.title }}
-                      </h3>
-                      <p class="m-0 mt-1 text-xs text-n-slate-11">
-                        {{ platformLabel(row.platform) }} · {{ row.handle }}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1.5 rounded-lg border border-[#6E56CF] bg-[#6E56CF] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#4C3799] hover:border-[#4C3799]"
-                      @click="exportLedger(row)"
-                    >
-                      {{ LEDGER_LABELS.export }}
-                    </button>
-                  </div>
+      <div class="card">
+        <div class="card-toolbar">
+          <span v-if="handles.length" class="handle-count">
+            {{ t('PAYMENT_HANDLES.HANDLE_COUNT', { n: handles.length }) }}
+          </span>
+          <div class="card-toolbar-actions">
+            <button
+              type="button"
+              class="btn sm"
+              :class="{ 'btn-active': scoringSettingsOpen }"
+              @click="scoringSettingsOpen = !scoringSettingsOpen"
+            >
+              {{ t('PAYMENT_HANDLES.SCORING_BUTTON') }}
+            </button>
+            <button type="button" class="btn primary sm" @click="openCreate">
+              {{ t('PAYMENT_HANDLES.ADD_BUTTON') }}
+            </button>
+          </div>
+        </div>
 
-                  <div
-                    v-if="isLedgerLoading(row.id)"
-                    class="rounded-lg border border-[#DDD8F5] bg-n-solid-1 px-4 py-8 text-center text-sm text-n-slate-11"
-                  >
-                    <span class="inline-flex items-center gap-2">
-                      <span
-                        class="i-lucide-loader-circle size-4 animate-spin text-[#6E56CF]"
-                      />
-                      {{ t('PAYMENT_HANDLES.LOADING') }}
-                    </span>
-                  </div>
-
-                  <div
-                    v-else-if="!getPaymentEvents(row).length"
-                    class="rounded-lg border border-[#DDD8F5] bg-n-solid-1 px-4 py-8 text-center text-sm text-n-slate-11"
-                  >
-                    {{ LEDGER_LABELS.empty }}
-                  </div>
-
-                  <div v-else class="flex flex-col gap-3">
-                    <article
-                      v-for="event in getPaymentEvents(row)"
-                      :key="event.id"
-                      class="overflow-hidden rounded-xl border border-[#DDD8F5] bg-n-solid-1"
-                      :class="[
-                        'border-l-4',
-                        stripColorClass(ledgerStatusSummary(event).color),
-                      ]"
-                    >
-                      <!-- Collapsed strip header -->
-                      <button
-                        type="button"
-                        class="flex w-full items-start justify-between gap-3 border-b border-[#DDD8F5] bg-n-alpha-2 px-4 py-3 text-left transition-colors hover:bg-n-alpha-3"
-                        @click="toggleLedgerRow(event.id)"
-                      >
-                        <div class="flex min-w-0 flex-1 flex-col gap-1">
-                          <div
-                            class="flex flex-wrap items-center gap-3"
-                          >
-                            <span
-                              class="text-xl font-bold tabular-nums text-n-slate-12"
-                            >
-                              {{ formatLedgerAmount(event.amount) }}
-                            </span>
-                            <span
-                              class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize"
-                              :class="platformBadgeClass(event.platform)"
-                            >
-                              {{ platformLabel(event.platform) }}
-                            </span>
-                            <div
-                              class="relative group flex items-center gap-2 min-w-[100px]"
-                            >
-                              <span
-                                class="text-[11px] font-medium text-n-slate-11"
-                              >
-                                {{ LEDGER_LABELS.score }}
-                              </span>
-                              <div
-                                class="h-1.5 w-16 overflow-hidden rounded-full bg-n-slate-4"
-                              >
-                                <div
-                                  v-if="event.score != null"
-                                  class="h-full rounded-full"
-                                  :class="scoreBarClass(event.score)"
-                                  :style="{ width: `${event.score}%` }"
-                                />
-                              </div>
-                              <span
-                                class="text-xs font-semibold tabular-nums"
-                                :class="scoreTextClass(event.score)"
-                              >
-                                {{ event.score ?? '—' }}
-                              </span>
-                              <div
-                                v-if="event.score_breakdown"
-                                class="absolute z-10 hidden group-hover:block right-0 top-full mt-1 w-56 rounded-lg border border-n-weak bg-n-solid-1 p-3 shadow-lg text-xs"
-                              >
-                                <div class="font-semibold mb-2">
-                                  {{ LEDGER_LABELS.scoreBreakdown }}
-                                </div>
-                                <div
-                                  v-for="breakdownRow in getScoreBreakdownRows(
-                                    event.score_breakdown
-                                  )"
-                                  :key="breakdownRow.key"
-                                  class="flex justify-between mb-1 last:mb-0"
-                                >
-                                  <span>{{ breakdownRow.label }}</span>
-                                  <span
-                                    :class="
-                                      breakdownRow.earned > 0
-                                        ? 'text-green-600 font-semibold'
-                                        : 'text-n-slate-10'
-                                    "
-                                  >
-                                    {{ breakdownRow.display }}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <span
-                              class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-                              :class="
-                                stripBadgeClass(
-                                  ledgerStatusSummary(event).color
-                                )
-                              "
-                            >
-                              {{ ledgerStatusSummary(event).label }}
-                            </span>
-                          </div>
-                          <p
-                            v-if="ledgerStatusSummary(event).reason"
-                            class="m-0 truncate text-xs text-n-slate-11"
-                          >
-                            {{ ledgerStatusSummary(event).reason }}
-                          </p>
-                        </div>
-                        <span
-                          class="shrink-0 pt-1 text-n-slate-11"
-                          aria-hidden="true"
-                        >
-                          {{ isLedgerRowExpanded(event.id) ? '▾' : '▸' }}
-                        </span>
-                      </button>
-
-                      <div v-show="isLedgerRowExpanded(event.id)">
-                      <!-- Screenshot row -->
-                      <div
-                        class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/20 px-4 py-3 text-xs dark:bg-[#6E56CF]/5"
-                      >
-                        <button
-                          type="button"
-                          class="col-span-2 mb-1 inline-flex w-fit items-center rounded-full border border-[#6E56CF]/30 bg-[#F0EDFF] px-2.5 py-0.5 text-[11px] font-medium text-[#4C3799] transition-colors hover:border-[#6E56CF] hover:bg-[#6E56CF]/10 disabled:cursor-not-allowed disabled:opacity-50"
-                          :disabled="!event.screenshot.imageUrl"
-                          @click="
-                            openScreenshotModal(event.screenshot.imageUrl)
-                          "
-                        >
-                          {{ LEDGER_LABELS.sourceScreenshot }}
-                        </button>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.sender
-                        }}</span>
-                        <span class="font-medium text-n-slate-12">
-                          {{ event.screenshot.sender }}
-                        </span>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.txnId
-                        }}</span>
-                        <span class="font-mono text-n-slate-11">
-                          {{ event.screenshot.txnId }}
-                        </span>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.dateTime
-                        }}</span>
-                        <span class="text-n-slate-11">{{
-                          event.screenshot.time
-                        }}</span>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.note
-                        }}</span>
-                        <span class="text-n-slate-11">{{
-                          event.screenshot.note
-                        }}</span>
-                      </div>
-
-                      <!-- Email row -->
-                      <div
-                        v-if="hasEmailRowData(event)"
-                        class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-4 py-3 text-xs bg-[#E6F7F2]/20 dark:bg-[#0F9B76]/5"
-                      >
-                        <button
-                          type="button"
-                          class="col-span-2 mb-1 inline-flex w-fit items-center rounded-full border border-[#0F9B76]/30 bg-[#E6F7F2] px-2.5 py-0.5 text-[11px] font-medium text-[#0F9B76] transition-colors hover:border-[#0F9B76] hover:bg-[#0F9B76]/10"
-                          @click="openEmailModal(event)"
-                        >
-                          {{ LEDGER_LABELS.sourceEmail }}
-                        </button>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.sender
-                        }}</span>
-                        <span class="font-medium text-n-slate-12">
-                          {{ event.email.sender }}
-                          <span
-                            v-if="emailSenderMatches(event)"
-                            class="ml-1 text-green-600"
-                          >
-                            {{ LEDGER_LABELS.matchCheck }}
-                          </span>
-                        </span>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.emailSubject
-                        }}</span>
-                        <span class="text-n-slate-11">{{
-                          event.email.subject
-                        }}</span>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.dateTime
-                        }}</span>
-                        <span class="text-n-slate-11">
-                          {{ event.email.date }}
-                          <span
-                            v-if="emailDateMatches(event)"
-                            class="ml-1 text-green-600"
-                          >
-                            {{ LEDGER_LABELS.matchCheck }}
-                          </span>
-                        </span>
-                        <span class="text-n-slate-11">{{
-                          LEDGER_LABELS.note
-                        }}</span>
-                        <span class="text-n-slate-11">
-                          {{ event.email.note }}
-                          <span
-                            v-if="emailAmountMatches(event)"
-                            class="ml-1 text-green-600"
-                          >
-                            {{ LEDGER_LABELS.matchCheck }}
-                          </span>
-                        </span>
-                      </div>
-                      <div
-                        v-else
-                        class="px-4 py-3 text-xs text-n-slate-11 bg-n-alpha-2"
-                      >
-                        {{ LEDGER_LABELS.awaitingEmail }}
-                      </div>
-                      </div>
-                    </article>
-                  </div>
-                </div>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th v-for="header in tableHeaders" :key="header">
+                {{ header }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!filteredRecords.length">
+              <td :colspan="tableHeaders.length" class="tbl-empty">
+                {{
+                  searchQuery
+                    ? t('PAYMENT_HANDLES.NO_RESULTS')
+                    : t('PAYMENT_HANDLES.EMPTY')
+                }}
               </td>
             </tr>
-          </template>
-        </template>
-      </BaseTable>
+            <template v-for="row in filteredRecords" :key="row.id">
+              <tr>
+                <td>
+                  <span class="pm-tag">
+                    <span
+                      class="pm-ic"
+                      :style="{
+                        background: platformIconMeta(row.platform).bg,
+                      }"
+                    >
+                      {{ platformIconMeta(row.platform).abbr }}
+                    </span>
+                    {{ platformLabel(row.platform) }}
+                  </span>
+                </td>
+                <td class="fc">{{ row.handle }}</td>
+                <td class="ph-display-name">
+                  {{ row.display_name || '—' }}
+                </td>
+                <td class="prio">{{ row.priority }}</td>
+                <td>
+                  <span :class="statusBadgeClass(row.status)">
+                    {{ statusLabel(row.status) }}
+                  </span>
+                </td>
+                <td :class="failCountClass(row.failure_count)">
+                  {{ row.failure_count ?? 0 }}
+                </td>
+                <td class="ph-last-failed">
+                  {{ safeDynamicTime(row.last_failure_at) }}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="ledger"
+                    :class="{ 'ledger-open': isLedgerOpen(row.id) }"
+                    :title="LEDGER_LABELS.ledgerToggle"
+                    @click="toggleLedger(row.id)"
+                  >
+                    {{ t('PAYMENT_HANDLES.LEDGER_VIEW') }}
+                  </button>
+                </td>
+                <td class="ph-actions">
+                  <Button
+                    v-tooltip.top="t('PAYMENT_HANDLES.EDIT')"
+                    icon="i-woot-edit-pen"
+                    slate
+                    sm
+                    @click="openEdit(row)"
+                  />
+                  <Button
+                    v-tooltip.top="t('PAYMENT_HANDLES.DELETE')"
+                    icon="i-woot-bin"
+                    slate
+                    sm
+                    class="ph-delete-btn"
+                    @click="openDelete(row)"
+                  />
+                </td>
+              </tr>
+              <tr v-if="isLedgerOpen(row.id)" class="ph-ledger-row">
+                <td :colspan="tableHeaders.length" class="ph-ledger-cell">
+                  <div class="ph-ledger-panel">
+                    <div class="ph-ledger-head">
+                      <div>
+                        <h3 class="ph-ledger-title">
+                          {{ LEDGER_LABELS.title }}
+                        </h3>
+                        <p class="ph-ledger-sub">
+                          {{ platformLabel(row.platform) }} · {{ row.handle }}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn primary sm"
+                        @click="exportLedger(row)"
+                      >
+                        {{ LEDGER_LABELS.export }}
+                      </button>
+                    </div>
+
+                    <div v-if="isLedgerLoading(row.id)" class="ph-ledger-state">
+                      <span class="ph-ledger-loading">
+                        <span class="i-lucide-loader-circle ph-spin" />
+                        {{ t('PAYMENT_HANDLES.LOADING') }}
+                      </span>
+                    </div>
+
+                    <div
+                      v-else-if="!getPaymentEvents(row).length"
+                      class="ph-ledger-state"
+                    >
+                      {{ LEDGER_LABELS.empty }}
+                    </div>
+
+                    <div v-else class="ph-ledger-events">
+                      <article
+                        v-for="event in getPaymentEvents(row)"
+                        :key="event.id"
+                        class="ph-ledger-event"
+                        :class="
+                          stripColorClass(ledgerStatusSummary(event).color)
+                        "
+                      >
+                        <button
+                          type="button"
+                          class="ph-ledger-event-head"
+                          @click="toggleLedgerRow(event.id)"
+                        >
+                          <div class="flex min-w-0 flex-1 flex-col gap-1">
+                            <div class="flex flex-wrap items-center gap-3">
+                              <span
+                                class="text-xl font-bold tabular-nums text-n-slate-12"
+                              >
+                                {{ formatLedgerAmount(event.amount) }}
+                              </span>
+                              <span
+                                class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize"
+                                :class="platformBadgeClass(event.platform)"
+                              >
+                                {{ platformLabel(event.platform) }}
+                              </span>
+                              <div
+                                class="relative group flex items-center gap-2 min-w-[100px]"
+                              >
+                                <span
+                                  class="text-[11px] font-medium text-n-slate-11"
+                                >
+                                  {{ LEDGER_LABELS.score }}
+                                </span>
+                                <div
+                                  class="h-1.5 w-16 overflow-hidden rounded-full bg-n-slate-4"
+                                >
+                                  <div
+                                    v-if="event.score != null"
+                                    class="h-full rounded-full"
+                                    :class="scoreBarClass(event.score)"
+                                    :style="{ width: `${event.score}%` }"
+                                  />
+                                </div>
+                                <span
+                                  class="text-xs font-semibold tabular-nums"
+                                  :class="scoreTextClass(event.score)"
+                                >
+                                  {{ event.score ?? '—' }}
+                                </span>
+                                <div
+                                  v-if="event.score_breakdown"
+                                  class="absolute z-10 hidden group-hover:block right-0 top-full mt-1 w-56 rounded-lg border border-n-weak bg-n-solid-1 p-3 shadow-lg text-xs"
+                                >
+                                  <div class="font-semibold mb-2">
+                                    {{ LEDGER_LABELS.scoreBreakdown }}
+                                  </div>
+                                  <div
+                                    v-for="breakdownRow in getScoreBreakdownRows(
+                                      event.score_breakdown
+                                    )"
+                                    :key="breakdownRow.key"
+                                    class="flex justify-between mb-1 last:mb-0"
+                                  >
+                                    <span>{{ breakdownRow.label }}</span>
+                                    <span
+                                      :class="
+                                        breakdownRow.earned > 0
+                                          ? 'text-green-600 font-semibold'
+                                          : 'text-n-slate-10'
+                                      "
+                                    >
+                                      {{ breakdownRow.display }}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <span
+                                class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                                :class="
+                                  stripBadgeClass(
+                                    ledgerStatusSummary(event).color
+                                  )
+                                "
+                              >
+                                {{ ledgerStatusSummary(event).label }}
+                              </span>
+                            </div>
+                            <p
+                              v-if="ledgerStatusSummary(event).reason"
+                              class="m-0 truncate text-xs text-n-slate-11"
+                            >
+                              {{ ledgerStatusSummary(event).reason }}
+                            </p>
+                          </div>
+                          <span
+                            class="shrink-0 pt-1 text-n-slate-11"
+                            aria-hidden="true"
+                          >
+                            {{ isLedgerRowExpanded(event.id) ? '▾' : '▸' }}
+                          </span>
+                        </button>
+
+                        <div v-show="isLedgerRowExpanded(event.id)">
+                          <!-- Screenshot row -->
+                          <div
+                            class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-b border-[#DDD8F5]/70 bg-[#F0EDFF]/20 px-4 py-3 text-xs dark:bg-[#6E56CF]/5"
+                          >
+                            <button
+                              type="button"
+                              class="col-span-2 mb-1 inline-flex w-fit items-center rounded-full border border-[#6E56CF]/30 bg-[#F0EDFF] px-2.5 py-0.5 text-[11px] font-medium text-[#4C3799] transition-colors hover:border-[#6E56CF] hover:bg-[#6E56CF]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="!event.screenshot.imageUrl"
+                              @click="
+                                openScreenshotModal(event.screenshot.imageUrl)
+                              "
+                            >
+                              {{ LEDGER_LABELS.sourceScreenshot }}
+                            </button>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.sender
+                            }}</span>
+                            <span class="font-medium text-n-slate-12">
+                              {{ event.screenshot.sender }}
+                            </span>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.txnId
+                            }}</span>
+                            <span class="font-mono text-n-slate-11">
+                              {{ event.screenshot.txnId }}
+                            </span>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.dateTime
+                            }}</span>
+                            <span class="text-n-slate-11">{{
+                              event.screenshot.time
+                            }}</span>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.note
+                            }}</span>
+                            <span class="text-n-slate-11">{{
+                              event.screenshot.note
+                            }}</span>
+                          </div>
+
+                          <!-- Email row -->
+                          <div
+                            v-if="hasEmailRowData(event)"
+                            class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 px-4 py-3 text-xs bg-[#E6F7F2]/20 dark:bg-[#0F9B76]/5"
+                          >
+                            <button
+                              type="button"
+                              class="col-span-2 mb-1 inline-flex w-fit items-center rounded-full border border-[#0F9B76]/30 bg-[#E6F7F2] px-2.5 py-0.5 text-[11px] font-medium text-[#0F9B76] transition-colors hover:border-[#0F9B76] hover:bg-[#0F9B76]/10"
+                              @click="openEmailModal(event)"
+                            >
+                              {{ LEDGER_LABELS.sourceEmail }}
+                            </button>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.sender
+                            }}</span>
+                            <span class="font-medium text-n-slate-12">
+                              {{ event.email.sender }}
+                              <span
+                                v-if="emailSenderMatches(event)"
+                                class="ml-1 text-green-600"
+                              >
+                                {{ LEDGER_LABELS.matchCheck }}
+                              </span>
+                            </span>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.emailSubject
+                            }}</span>
+                            <span class="text-n-slate-11">{{
+                              event.email.subject
+                            }}</span>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.dateTime
+                            }}</span>
+                            <span class="text-n-slate-11">
+                              {{ event.email.date }}
+                              <span
+                                v-if="emailDateMatches(event)"
+                                class="ml-1 text-green-600"
+                              >
+                                {{ LEDGER_LABELS.matchCheck }}
+                              </span>
+                            </span>
+                            <span class="text-n-slate-11">{{
+                              LEDGER_LABELS.note
+                            }}</span>
+                            <span class="text-n-slate-11">
+                              {{ event.email.note }}
+                              <span
+                                v-if="emailAmountMatches(event)"
+                                class="ml-1 text-green-600"
+                              >
+                                {{ LEDGER_LABELS.matchCheck }}
+                              </span>
+                            </span>
+                          </div>
+                          <div
+                            v-else
+                            class="px-4 py-3 text-xs text-n-slate-11 bg-n-alpha-2"
+                          >
+                            {{ LEDGER_LABELS.awaitingEmail }}
+                          </div>
+                        </div>
+                      </article>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </template>
 
     <woot-modal v-model:show="showFormModal" :on-close="hideFormModal">
@@ -1996,3 +1962,387 @@ watch(selectedScoringPlatform, () => {
     </woot-modal>
   </SettingsLayout>
 </template>
+
+<style scoped>
+.pat-ph-wrap {
+  --canvas: #050409;
+  --surface: #0c0b12;
+  --surface-2: #131119;
+  --surface-3: #1b1925;
+  --surface-4: #252233;
+  --border: #171520;
+  --border-hi: #2e2940;
+  --patra: #6e56cf;
+  --patra-2: #8b5cf6;
+  --patra-3: #a78bfa;
+  --patra-deep: #5b45b0;
+  --patra-glow: rgba(110, 86, 207, 0.55);
+  --text: #ededf2;
+  --text-2: #a8a6b6;
+  --text-3: #75727f;
+  --text-4: #54515e;
+  --green: #3fb950;
+  --amber: #d29922;
+  --red: #f85149;
+
+  color: var(--text);
+}
+
+.pat-ph-wrap :deep(h1) {
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--text);
+}
+
+.pat-ph-wrap :deep(.text-n-slate-11),
+.pat-ph-wrap :deep(.text-body-main) {
+  color: var(--text-2);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.card-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.handle-count {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.card-toolbar-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--border-hi);
+  background: var(--surface-3);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  border-color: var(--patra);
+  color: var(--patra-3);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--patra), var(--patra-deep));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 3px 10px var(--patra-glow);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.08);
+  color: #fff;
+}
+
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-active {
+  border-color: var(--patra);
+  color: var(--patra-3);
+  background: rgba(110, 86, 207, 0.14);
+}
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tbl th {
+  font-size: 11px;
+  color: var(--text-4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: left;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.tbl td {
+  font-size: 13px;
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.tbl tbody tr:last-child td,
+.tbl tbody tr.ph-ledger-row td {
+  border-bottom: none;
+}
+
+.tbl tbody tr:not(.ph-ledger-row) {
+  transition: background 0.2s;
+}
+
+.tbl tbody tr:not(.ph-ledger-row):hover {
+  background: var(--surface-2);
+}
+
+.tbl-empty {
+  text-align: center;
+  color: var(--text-3);
+  padding: 28px 10px !important;
+}
+
+.pm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.pm-ic {
+  width: 24px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.st-active {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  background: rgba(63, 185, 80, 0.16);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.st-failed {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--red);
+  background: rgba(248, 81, 73, 0.16);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.st-disabled {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  background: var(--surface-4);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.prio {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--patra-3);
+}
+
+.fc {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.fc.bad {
+  color: var(--amber);
+}
+
+.ledger {
+  font-size: 11px;
+  color: var(--patra-3);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+.ledger:hover {
+  text-decoration: underline;
+}
+
+.ledger-open {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.ph-display-name,
+.ph-last-failed {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.ph-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ph-delete-btn:hover:enabled {
+  color: var(--red) !important;
+}
+
+.ph-scoring-panel {
+  margin-top: 12px;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ph-scoring-panel :deep(.border-\\[\\#DDD8F5\\]),
+.ph-scoring-panel :deep(.border-n-weak) {
+  border-color: var(--border) !important;
+}
+
+.ph-scoring-panel :deep(.bg-\\[\\#F0EDFF\\]\\/60),
+.ph-scoring-panel :deep(.bg-n-alpha-2) {
+  background: rgba(110, 86, 207, 0.12) !important;
+}
+
+.ph-scoring-panel :deep(.text-\\[\\#4C3799\\]),
+.ph-scoring-panel :deep(.text-n-slate-12) {
+  color: var(--text) !important;
+}
+
+.ph-scoring-panel :deep(input) {
+  background: var(--canvas);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ph-scoring-save {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ph-ledger-cell {
+  padding: 0 !important;
+  background: var(--surface-2);
+}
+
+.ph-ledger-panel {
+  padding: 16px 18px;
+}
+
+.ph-ledger-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ph-ledger-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--patra-3);
+}
+
+.ph-ledger-sub {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.ph-ledger-state {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.ph-ledger-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ph-spin {
+  width: 16px;
+  height: 16px;
+  animation: ph-spin 0.8s linear infinite;
+  color: var(--patra-3);
+}
+
+@keyframes ph-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ph-ledger-events {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ph-ledger-event {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-left-width: 4px;
+}
+
+.ph-ledger-event-head {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-3);
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.2s;
+}
+
+.ph-ledger-event-head:hover {
+  background: var(--surface-4);
+}
+
+.ph-ledger-event :deep(.text-n-slate-12) {
+  color: var(--text);
+}
+
+.ph-ledger-event :deep(.text-n-slate-11) {
+  color: var(--text-3);
+}
+</style>

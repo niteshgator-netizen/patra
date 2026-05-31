@@ -3,7 +3,10 @@
     "NAV_LABEL": "Payment handles",
     "TITLE": "Payment Handles",
     "DESCRIPTION": "Configure payment tags per platform, priority order for rotation, and failover tracking.",
-    "ADD_BUTTON": "Add handle",
+    "ADD_BUTTON": "+ Add handle",
+    "HANDLE_COUNT": "{n} handles",
+    "LEDGER_VIEW": "View",
+    "SCORING_BUTTON": "Scoring Settings",
     "EDIT": "Edit",
     "DELETE": "Delete",
     "SAVE": "Save",
@@ -19,7 +22,7 @@
         "DISPLAY_NAME": "Name",
         "PRIORITY": "Priority",
         "STATUS": "Status",
-        "FAILURE_COUNT": "Failure count",
+        "FAILURE_COUNT": "Fails",
         "LAST_FAILED": "Last failed",
         "ACTIONS": "Actions"
       }
