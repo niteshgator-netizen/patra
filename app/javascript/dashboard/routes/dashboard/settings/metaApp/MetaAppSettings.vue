@@ -68,9 +68,7 @@ const validatedAtDisplay = computed(() => {
   if (!v) return '';
   try {
     const unixSeconds =
-      typeof v === 'number'
-        ? v
-        : Math.floor(new Date(v).getTime() / 1000);
+      typeof v === 'number' ? v : Math.floor(new Date(v).getTime() / 1000);
     if (!unixSeconds || Number.isNaN(unixSeconds)) return '';
     return dynamicTime(unixSeconds);
   } catch {
@@ -214,217 +212,394 @@ onMounted(() => {
 </script>
 
 <template>
-  <SettingsLayout
-    :is-loading="isLoading"
-    :loading-message="$t('ATTRIBUTES_MGMT.LOADING')"
-  >
-    <template #header>
-      <BaseSettingsHeader
-        :title="$t('META_APP_SETTINGS.TITLE')"
-        :description="$t('META_APP_SETTINGS.DESCRIPTION')"
-      />
-    </template>
+  <div class="pat-page-wrap">
+    <div class="pat-page-main">
+      <SettingsLayout
+        :is-loading="isLoading"
+        :loading-message="$t('ATTRIBUTES_MGMT.LOADING')"
+      >
+        <template #header>
+          <BaseSettingsHeader
+            :title="$t('META_APP_SETTINGS.TITLE')"
+            :description="$t('META_APP_SETTINGS.DESCRIPTION')"
+          />
+        </template>
 
-    <template #body>
-      <div class="max-w-2xl flex flex-col gap-6 px-6 pb-8">
-        <div
-          v-if="errorMessage"
-          class="text-sm text-n-ruby-11 bg-n-ruby-3/30 rounded-lg px-3 py-2"
-        >
-          {{ errorMessage }}
-        </div>
-
-        <div
-          v-if="successMessage && !hasByocApp"
-          class="text-sm text-n-teal-11 bg-n-teal-3/30 rounded-lg px-3 py-2"
-        >
-          {{ successMessage }}
-        </div>
-
-        <!-- STATE B: configured -->
-        <div
-          v-if="hasByocApp"
-          class="flex flex-col gap-5 p-5 rounded-xl border border-n-weak bg-n-alpha-2"
-        >
-          <h2 class="text-lg font-semibold text-n-slate-12">
-            {{ $t('META_APP_SETTINGS.CONFIGURED.HEADING') }}
-          </h2>
-
-          <dl class="flex flex-col gap-3 text-sm">
-            <div v-if="savedAppName" class="flex flex-col gap-0.5">
-              <dt class="text-n-slate-10">
-                {{ $t('META_APP_SETTINGS.CONFIGURED.APP_NAME') }}
-              </dt>
-              <dd class="font-medium text-n-slate-12">{{ savedAppName }}</dd>
-            </div>
-            <div class="flex flex-col gap-0.5">
-              <dt class="text-n-slate-10">
-                {{ $t('META_APP_SETTINGS.CONFIGURED.APP_ID') }}
-              </dt>
-              <dd class="font-mono text-n-slate-12">{{ savedAppId }}</dd>
-            </div>
-            <div v-if="validatedAtDisplay" class="flex flex-col gap-0.5">
-              <dt class="text-n-slate-10">
-                {{
-                  $t('META_APP_SETTINGS.CONFIGURED.VALIDATED', {
-                    date: validatedAtDisplay,
-                  })
-                }}
-              </dt>
-            </div>
-          </dl>
-
-          <div
-            class="flex flex-col gap-2 p-4 rounded-lg border border-n-weak bg-n-solid-2"
-          >
-            <h4 class="text-sm font-semibold text-n-slate-12">
-              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_TITLE') }}
-            </h4>
-            <p class="text-sm text-n-slate-11 whitespace-pre-line">
-              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_BODY') }}
-            </p>
-            <a
-              :href="businessManagerLink"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex self-start text-sm font-medium text-violet-600 hover:text-violet-700 underline-offset-2 hover:underline"
+        <template #body>
+          <div class="max-w-2xl flex flex-col gap-6 px-6 pb-8">
+            <div
+              v-if="errorMessage"
+              class="text-sm text-n-ruby-11 bg-n-ruby-3/30 rounded-lg px-3 py-2"
             >
-              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_LINK') }}
-            </a>
-            <p class="text-xs text-n-slate-10">
-              {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_FOOTNOTE') }}
-            </p>
-          </div>
-
-          <div class="flex flex-wrap gap-3">
-            <ConfirmButton
-              :label="$t('META_APP_SETTINGS.CONFIGURED.DISCONNECT')"
-              :confirm-label="disconnectConfirmLabel"
-              :confirm-hint="disconnectConfirmHint"
-              color="slate"
-              confirm-color="ruby"
-              :is-loading="isDisconnecting"
-              @click="disconnectMetaApp"
-            />
-            <Button
-              :label="$t('META_APP_SETTINGS.CONFIGURED.CONNECT_PAGES')"
-              class="!bg-violet-600 hover:!bg-violet-700 !text-white"
-              @click="goToConnectFacebook"
-            />
-          </div>
-        </div>
-
-        <!-- STATE A: empty -->
-        <div v-else class="flex flex-col gap-8">
-          <div>
-            <h2 class="text-lg font-semibold text-n-slate-12">
-              {{ $t('META_APP_SETTINGS.EMPTY.HEADING') }}
-            </h2>
-            <p class="text-sm text-n-slate-11 mt-1">
-              {{ $t('META_APP_SETTINGS.EMPTY.SUBHEADING') }}
-            </p>
-          </div>
-
-          <!-- Section 1 -->
-          <section class="flex gap-4">
-            <span
-              class="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white"
-            >
-              1
-            </span>
-            <div class="flex flex-col gap-3 min-w-0 flex-1">
-              <h3 class="text-base font-medium text-n-slate-12">
-                {{ $t('META_APP_SETTINGS.EMPTY.SECTION_1_TITLE') }}
-              </h3>
-              <p class="text-sm text-n-slate-11">
-                {{ $t('META_APP_SETTINGS.EMPTY.SECTION_1_HELP') }}
-              </p>
-              <Button
-                :label="$t('META_APP_SETTINGS.EMPTY.OPEN_CONSOLE')"
-                faded
-                slate
-                class="self-start"
-                @click="openMetaConsole"
-              />
+              {{ errorMessage }}
             </div>
-          </section>
 
-          <!-- Section 2 -->
-          <section class="flex gap-4">
-            <span
-              class="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white"
+            <div
+              v-if="successMessage && !hasByocApp"
+              class="text-sm text-n-teal-11 bg-n-teal-3/30 rounded-lg px-3 py-2"
             >
-              2
-            </span>
-            <div class="flex flex-col gap-3 min-w-0 flex-1">
-              <h3 class="text-base font-medium text-n-slate-12">
-                {{ $t('META_APP_SETTINGS.EMPTY.SECTION_2_TITLE') }}
-              </h3>
-              <p class="text-sm text-n-slate-11">
-                {{ $t('META_APP_SETTINGS.EMPTY.SECTION_2_HELP') }}
-              </p>
+              {{ successMessage }}
+            </div>
+
+            <!-- STATE B: configured -->
+            <div
+              v-if="hasByocApp"
+              class="flex flex-col gap-5 p-5 rounded-xl border border-n-weak bg-n-alpha-2"
+            >
+              <h2 class="text-lg font-semibold text-n-slate-12">
+                {{ $t('META_APP_SETTINGS.CONFIGURED.HEADING') }}
+              </h2>
+
+              <dl class="flex flex-col gap-3 text-sm">
+                <div v-if="savedAppName" class="flex flex-col gap-0.5">
+                  <dt class="text-n-slate-10">
+                    {{ $t('META_APP_SETTINGS.CONFIGURED.APP_NAME') }}
+                  </dt>
+                  <dd class="font-medium text-n-slate-12">
+                    {{ savedAppName }}
+                  </dd>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <dt class="text-n-slate-10">
+                    {{ $t('META_APP_SETTINGS.CONFIGURED.APP_ID') }}
+                  </dt>
+                  <dd class="font-mono text-n-slate-12">{{ savedAppId }}</dd>
+                </div>
+                <div v-if="validatedAtDisplay" class="flex flex-col gap-0.5">
+                  <dt class="text-n-slate-10">
+                    {{
+                      $t('META_APP_SETTINGS.CONFIGURED.VALIDATED', {
+                        date: validatedAtDisplay,
+                      })
+                    }}
+                  </dt>
+                </div>
+              </dl>
+
               <div
-                class="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg bg-n-solid-3 border border-n-weak"
+                class="flex flex-col gap-2 p-4 rounded-lg border border-n-weak bg-n-solid-2"
               >
-                <code
-                  class="text-xs font-mono break-all text-n-slate-12 flex-1"
+                <h4 class="text-sm font-semibold text-n-slate-12">
+                  {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_TITLE') }}
+                </h4>
+                <p class="text-sm text-n-slate-11 whitespace-pre-line">
+                  {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_BODY') }}
+                </p>
+                <a
+                  :href="businessManagerLink"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex self-start text-sm font-medium text-violet-600 hover:text-violet-700 underline-offset-2 hover:underline"
                 >
-                  {{ redirectUri }}
-                </code>
+                  {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_LINK') }}
+                </a>
+                <p class="text-xs text-n-slate-10">
+                  {{ $t('META_APP_SETTINGS.CONFIGURED.BM_TIP_FOOTNOTE') }}
+                </p>
+              </div>
+
+              <div class="flex flex-wrap gap-3">
+                <ConfirmButton
+                  :label="$t('META_APP_SETTINGS.CONFIGURED.DISCONNECT')"
+                  :confirm-label="disconnectConfirmLabel"
+                  :confirm-hint="disconnectConfirmHint"
+                  color="slate"
+                  confirm-color="ruby"
+                  :is-loading="isDisconnecting"
+                  @click="disconnectMetaApp"
+                />
                 <Button
-                  :label="$t('META_APP_SETTINGS.EMPTY.COPY_URI')"
-                  size="sm"
-                  faded
-                  slate
-                  class="shrink-0"
-                  @click="copyRedirectUri"
+                  :label="$t('META_APP_SETTINGS.CONFIGURED.CONNECT_PAGES')"
+                  class="!bg-violet-600 hover:!bg-violet-700 !text-white"
+                  @click="goToConnectFacebook"
                 />
               </div>
-              <Button
-                :label="$t('META_APP_SETTINGS.EMPTY.OPEN_APPS')"
-                faded
-                slate
-                class="self-start"
-                @click="openMetaApps"
-              />
             </div>
-          </section>
 
-          <!-- Section 3 -->
-          <section class="flex gap-4">
-            <span
-              class="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white"
-            >
-              3
-            </span>
-            <div class="flex flex-col gap-4 min-w-0 flex-1">
-              <h3 class="text-base font-medium text-n-slate-12">
-                {{ $t('META_APP_SETTINGS.EMPTY.SECTION_3_TITLE') }}
-              </h3>
-              <Input
-                v-model="appIdInput"
-                :label="$t('META_APP_SETTINGS.EMPTY.APP_ID_LABEL')"
-                :placeholder="$t('META_APP_SETTINGS.EMPTY.APP_ID_PLACEHOLDER')"
-              />
-              <Input
-                v-model="appSecretInput"
-                type="password"
-                :label="$t('META_APP_SETTINGS.EMPTY.APP_SECRET_LABEL')"
-                :placeholder="
-                  $t('META_APP_SETTINGS.EMPTY.APP_SECRET_PLACEHOLDER')
-                "
-              />
-              <Button
-                :label="$t('META_APP_SETTINGS.EMPTY.TEST_SAVE')"
-                class="!bg-violet-600 hover:!bg-violet-700 !text-white self-start min-h-11"
-                :is-loading="isSaving"
-                :disabled="!appIdInput.trim() || !appSecretInput.trim()"
-                @click="saveMetaApp"
-              />
+            <!-- STATE A: empty -->
+            <div v-else class="flex flex-col gap-8">
+              <div>
+                <h2 class="text-lg font-semibold text-n-slate-12">
+                  {{ $t('META_APP_SETTINGS.EMPTY.HEADING') }}
+                </h2>
+                <p class="text-sm text-n-slate-11 mt-1">
+                  {{ $t('META_APP_SETTINGS.EMPTY.SUBHEADING') }}
+                </p>
+              </div>
+
+              <!-- Section 1 -->
+              <section class="flex gap-4">
+                <span
+                  class="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white"
+                >
+                  1
+                </span>
+                <div class="flex flex-col gap-3 min-w-0 flex-1">
+                  <h3 class="text-base font-medium text-n-slate-12">
+                    {{ $t('META_APP_SETTINGS.EMPTY.SECTION_1_TITLE') }}
+                  </h3>
+                  <p class="text-sm text-n-slate-11">
+                    {{ $t('META_APP_SETTINGS.EMPTY.SECTION_1_HELP') }}
+                  </p>
+                  <Button
+                    :label="$t('META_APP_SETTINGS.EMPTY.OPEN_CONSOLE')"
+                    faded
+                    slate
+                    class="self-start"
+                    @click="openMetaConsole"
+                  />
+                </div>
+              </section>
+
+              <!-- Section 2 -->
+              <section class="flex gap-4">
+                <span
+                  class="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white"
+                >
+                  2
+                </span>
+                <div class="flex flex-col gap-3 min-w-0 flex-1">
+                  <h3 class="text-base font-medium text-n-slate-12">
+                    {{ $t('META_APP_SETTINGS.EMPTY.SECTION_2_TITLE') }}
+                  </h3>
+                  <p class="text-sm text-n-slate-11">
+                    {{ $t('META_APP_SETTINGS.EMPTY.SECTION_2_HELP') }}
+                  </p>
+                  <div
+                    class="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-lg bg-n-solid-3 border border-n-weak"
+                  >
+                    <code
+                      class="text-xs font-mono break-all text-n-slate-12 flex-1"
+                    >
+                      {{ redirectUri }}
+                    </code>
+                    <Button
+                      :label="$t('META_APP_SETTINGS.EMPTY.COPY_URI')"
+                      size="sm"
+                      faded
+                      slate
+                      class="shrink-0"
+                      @click="copyRedirectUri"
+                    />
+                  </div>
+                  <Button
+                    :label="$t('META_APP_SETTINGS.EMPTY.OPEN_APPS')"
+                    faded
+                    slate
+                    class="self-start"
+                    @click="openMetaApps"
+                  />
+                </div>
+              </section>
+
+              <!-- Section 3 -->
+              <section class="flex gap-4">
+                <span
+                  class="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white"
+                >
+                  3
+                </span>
+                <div class="flex flex-col gap-4 min-w-0 flex-1">
+                  <h3 class="text-base font-medium text-n-slate-12">
+                    {{ $t('META_APP_SETTINGS.EMPTY.SECTION_3_TITLE') }}
+                  </h3>
+                  <Input
+                    v-model="appIdInput"
+                    :label="$t('META_APP_SETTINGS.EMPTY.APP_ID_LABEL')"
+                    :placeholder="
+                      $t('META_APP_SETTINGS.EMPTY.APP_ID_PLACEHOLDER')
+                    "
+                  />
+                  <Input
+                    v-model="appSecretInput"
+                    type="password"
+                    :label="$t('META_APP_SETTINGS.EMPTY.APP_SECRET_LABEL')"
+                    :placeholder="
+                      $t('META_APP_SETTINGS.EMPTY.APP_SECRET_PLACEHOLDER')
+                    "
+                  />
+                  <Button
+                    :label="$t('META_APP_SETTINGS.EMPTY.TEST_SAVE')"
+                    class="!bg-violet-600 hover:!bg-violet-700 !text-white self-start min-h-11"
+                    :is-loading="isSaving"
+                    :disabled="!appIdInput.trim() || !appSecretInput.trim()"
+                    @click="saveMetaApp"
+                  />
+                </div>
+              </section>
             </div>
-          </section>
-        </div>
-      </div>
-    </template>
-  </SettingsLayout>
+          </div>
+        </template>
+      </SettingsLayout>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.pat-page-wrap {
+  --canvas: #050409;
+  --surface: #0c0b12;
+  --surface-2: #131119;
+  --surface-3: #1b1925;
+  --surface-4: #252233;
+  --border: #171520;
+  --border-hi: #2e2940;
+  --patra: #6e56cf;
+  --patra-3: #a78bfa;
+  --text: #ededf2;
+  --text-2: #a8a6b6;
+  --text-3: #75727f;
+  --text-4: #54515e;
+  --green: #3fb950;
+  --red: #f85149;
+
+  position: relative;
+  min-height: 100%;
+  margin-left: -24px;
+  margin-right: -24px;
+  padding: 0 24px 24px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  background: var(--canvas);
+}
+
+.pat-page-main {
+  position: relative;
+  z-index: 1;
+}
+
+.pat-page-wrap :deep(.text-heading-1),
+.pat-page-wrap :deep(h1),
+.pat-page-wrap :deep(h2) {
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-12) {
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-11) {
+  color: var(--text-2) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-10),
+.pat-page-wrap :deep(.text-n-slate-9) {
+  color: var(--text-3) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-6),
+.pat-page-wrap :deep(.text-n-slate-7),
+.pat-page-wrap :deep(.text-n-slate-8) {
+  color: var(--text-4) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-surface-1),
+.pat-page-wrap :deep(.bg-n-solid-1) {
+  background: var(--canvas) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-surface-2),
+.pat-page-wrap :deep(.bg-n-solid-2),
+.pat-page-wrap :deep(.bg-n-solid-3) {
+  background: var(--surface) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-alpha-1),
+.pat-page-wrap :deep(.bg-n-alpha-2) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-slate-1),
+.pat-page-wrap :deep(.bg-n-slate-2) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-slate-3) {
+  background: var(--surface-3) !important;
+}
+
+.pat-page-wrap :deep(.rounded-xl.border),
+.pat-page-wrap :deep(.rounded-lg.border) {
+  border-color: var(--border) !important;
+}
+
+.pat-page-wrap :deep(.border-n-weak),
+.pat-page-wrap :deep(.border-n-container),
+.pat-page-wrap :deep(.outline-n-weak),
+.pat-page-wrap :deep(.outline-n-container),
+.pat-page-wrap :deep(.dark\:border-n-slate-6) {
+  border-color: var(--border) !important;
+  outline-color: var(--border) !important;
+}
+
+.pat-page-wrap :deep(.divide-y > *) {
+  border-color: var(--border) !important;
+}
+
+.pat-page-wrap :deep(.group-hover\:bg-n-alpha-2) {
+  background: var(--surface-2) !important;
+  border-color: var(--border-hi) !important;
+  color: var(--text-2) !important;
+}
+
+.pat-page-wrap :deep(.group:hover .group-hover\:bg-n-alpha-2) {
+  background: var(--surface-3) !important;
+  border-color: var(--patra) !important;
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(thead) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(thead th) {
+  color: var(--text-4) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.pat-page-wrap :deep(tbody tr:hover) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(tbody td) {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.pat-page-wrap :deep(input),
+.pat-page-wrap :deep(textarea),
+.pat-page-wrap :deep(select) {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+}
+
+.pat-page-wrap :deep(input:focus),
+.pat-page-wrap :deep(textarea:focus),
+.pat-page-wrap :deep(select:focus) {
+  border-color: var(--patra);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
+}
+
+.pat-page-wrap :deep(.text-n-teal-10),
+.pat-page-wrap :deep(.text-n-teal-11) {
+  color: var(--green) !important;
+}
+
+.pat-page-wrap :deep(.text-n-ruby-9),
+.pat-page-wrap :deep(.text-n-ruby-10) {
+  color: var(--red) !important;
+}
+
+.pat-page-wrap :deep(.fixed.z-50.bg-n-slate-12) {
+  background: var(--surface-4) !important;
+  border: 1px solid var(--border-hi);
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.animate-loader-pulse) {
+  background: var(--surface-3) !important;
+}
+</style>

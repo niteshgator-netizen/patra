@@ -81,8 +81,7 @@ const showPatraFacebookConnect = computed(() => {
   if (!cfg.fbAppId) return false;
   const n = inboxes.value.filter(
     i =>
-      i.channel_type === 'Channel::Api' &&
-      i.additional_attributes?.fb_page_id
+      i.channel_type === 'Channel::Api' && i.additional_attributes?.fb_page_id
   ).length;
   return n === 0;
 });
@@ -271,177 +270,358 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit">
-    <OnboardingLayout
-      :greeting="t('ONBOARDING_NEXT.GREETING', { name: userName })"
-      :subtitle="t('ONBOARDING_NEXT.SUBTITLE')"
-      :continue-label="t('ONBOARDING_NEXT.CONTINUE')"
-      :is-loading="isSubmitting"
-      :disabled="isEnriching"
-    >
-      <OnboardingSection
-        :title="t('ONBOARDING_NEXT.YOUR_DETAILS')"
-        icon="i-lucide-user"
-      >
-        <div class="flex items-center gap-2 px-3 py-3">
-          <Avatar :name="userName" :size="16" rounded-full />
-          <span class="text-sm font-medium text-n-slate-12">
-            {{ userName }}
-          </span>
-        </div>
-        <OnboardingFormRow
-          v-if="showPatraFacebookConnect"
-          :title="t('PATRA_CONNECT_FACEBOOK.ONBOARDING_ROW_TITLE')"
-          icon="i-lucide-facebook"
+  <div class="pat-page-wrap">
+    <div class="pat-page-main">
+      <form @submit.prevent="handleSubmit">
+        <OnboardingLayout
+          :greeting="t('ONBOARDING_NEXT.GREETING', { name: userName })"
+          :subtitle="t('ONBOARDING_NEXT.SUBTITLE')"
+          :continue-label="t('ONBOARDING_NEXT.CONTINUE')"
+          :is-loading="isSubmitting"
+          :disabled="isEnriching"
         >
-          <RouterLink
-            :to="{
-              name: 'patra_connect_facebook',
-              params: { accountId },
-            }"
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          <OnboardingSection
+            :title="t('ONBOARDING_NEXT.YOUR_DETAILS')"
+            icon="i-lucide-user"
           >
-            {{ t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK') }}
-          </RouterLink>
-        </OnboardingFormRow>
-        <OnboardingFormRow
-          :title="t('ONBOARDING_NEXT.FIELDS.EMAIL')"
-          icon="i-lucide-mail"
-        >
-          <div class="flex items-center justify-end gap-1.5">
-            <span class="text-sm text-n-slate-12">{{ userEmail }}</span>
-            <Icon
-              v-tooltip="t('ONBOARDING_NEXT.EMAIL_VERIFIED')"
-              icon="i-lucide-circle-check"
-              class="size-4 text-n-teal-11 flex-shrink-0"
-            />
-          </div>
-        </OnboardingFormRow>
-        <OnboardingFormRow
-          :title="t('ONBOARDING_NEXT.FIELDS.YOUR_ROLE')"
-          icon="i-lucide-user"
-        >
-          <OnboardingFormSelect
-            v-model="userRole"
-            :has-error="showErrorOnFields && v$.userRole.$error"
-            :options="USER_ROLE_OPTIONS"
-            :placeholder="t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_ROLE')"
-          />
-        </OnboardingFormRow>
-      </OnboardingSection>
-
-      <OnboardingSection
-        :title="t('ONBOARDING_NEXT.COMPANY_DETAILS')"
-        icon="i-lucide-briefcase-business"
-      >
-        <div
-          v-if="isEnriching"
-          class="flex items-center justify-center gap-3 py-8"
-        >
-          <Spinner :size="16" class="text-n-blue-10" />
-          <span class="text-sm text-n-slate-11">
-            {{ t('ONBOARDING_NEXT.SETTING_UP') }}
-          </span>
-        </div>
-        <template v-else>
-          <div class="flex items-center gap-2 px-3 py-3">
-            <img
-              v-if="companyLogo"
-              :src="companyLogo"
-              :alt="accountName"
-              class="size-4 object-contain"
-            />
-            <span class="text-sm font-medium text-n-slate-12">
-              {{ accountName }}
-            </span>
-          </div>
-          <OnboardingFormRow
-            :title="t('ONBOARDING_NEXT.FIELDS.WEBSITE')"
-            icon="i-lucide-globe"
-          >
-            <div class="flex items-center justify-end gap-2">
-              <InlineInput
-                ref="websiteInput"
-                v-model="website"
-                :readonly="!isEditingWebsite"
-                :placeholder="t('ONBOARDING_NEXT.PLACEHOLDERS.ENTER_WEBSITE')"
-                :custom-input-class="[
-                  'w-auto text-end px-1 py-0.5 -my-0.5 mx-0 placeholder:text-n-slate-9 rounded',
-                  { 'animate-shake': showErrorOnFields && v$.website.$error },
-                ]"
-                @enter-press="handleWebsiteEnter"
-                @blur="isEditingWebsite = false"
-              />
-              <NextButton
-                type="button"
-                icon="i-lucide-pencil"
-                slate
-                xs
-                ghost
-                @click="enableWebsiteEditing"
-              />
+            <div class="flex items-center gap-2 px-3 py-3">
+              <Avatar :name="userName" :size="16" rounded-full />
+              <span class="text-sm font-medium text-n-slate-12">
+                {{ userName }}
+              </span>
             </div>
-          </OnboardingFormRow>
-          <OnboardingFormRow
-            :title="t('ONBOARDING_NEXT.FIELDS.LANGUAGE')"
-            icon="i-lucide-languages"
+            <OnboardingFormRow
+              v-if="showPatraFacebookConnect"
+              :title="t('PATRA_CONNECT_FACEBOOK.ONBOARDING_ROW_TITLE')"
+              icon="i-lucide-facebook"
+            >
+              <RouterLink
+                :to="{
+                  name: 'patra_connect_facebook',
+                  params: { accountId },
+                }"
+                class="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+              >
+                {{ t('PATRA_CONNECT_FACEBOOK.SIDEBAR_LINK') }}
+              </RouterLink>
+            </OnboardingFormRow>
+            <OnboardingFormRow
+              :title="t('ONBOARDING_NEXT.FIELDS.EMAIL')"
+              icon="i-lucide-mail"
+            >
+              <div class="flex items-center justify-end gap-1.5">
+                <span class="text-sm text-n-slate-12">{{ userEmail }}</span>
+                <Icon
+                  v-tooltip="t('ONBOARDING_NEXT.EMAIL_VERIFIED')"
+                  icon="i-lucide-circle-check"
+                  class="size-4 text-n-teal-11 flex-shrink-0"
+                />
+              </div>
+            </OnboardingFormRow>
+            <OnboardingFormRow
+              :title="t('ONBOARDING_NEXT.FIELDS.YOUR_ROLE')"
+              icon="i-lucide-user"
+            >
+              <OnboardingFormSelect
+                v-model="userRole"
+                :has-error="showErrorOnFields && v$.userRole.$error"
+                :options="USER_ROLE_OPTIONS"
+                :placeholder="t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_ROLE')"
+              />
+            </OnboardingFormRow>
+          </OnboardingSection>
+
+          <OnboardingSection
+            :title="t('ONBOARDING_NEXT.COMPANY_DETAILS')"
+            icon="i-lucide-briefcase-business"
           >
-            <OnboardingFormSelect
-              v-model="locale"
-              :has-error="showErrorOnFields && v$.locale.$error"
-              :options="languageOptions"
-            />
-          </OnboardingFormRow>
-          <OnboardingFormRow
-            :title="t('ONBOARDING_NEXT.FIELDS.TIMEZONE')"
-            icon="i-lucide-clock"
-          >
-            <OnboardingFormSelect
-              v-model="timezone"
-              :has-error="showErrorOnFields && v$.timezone.$error"
-              :options="timezoneOptions"
-              :placeholder="t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_TIMEZONE')"
-            />
-          </OnboardingFormRow>
-          <OnboardingFormRow
-            :title="t('ONBOARDING_NEXT.FIELDS.INDUSTRY')"
-            icon="i-lucide-factory"
-          >
-            <OnboardingFormSelect
-              v-model="industry"
-              :has-error="showErrorOnFields && v$.industry.$error"
-              :options="INDUSTRY_OPTIONS"
-              :placeholder="t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_INDUSTRY')"
-            />
-          </OnboardingFormRow>
-          <OnboardingFormRow
-            :title="t('ONBOARDING_NEXT.FIELDS.COMPANY_SIZE')"
-            icon="i-lucide-users"
-          >
-            <OnboardingFormSelect
-              v-model="companySize"
-              :has-error="showErrorOnFields && v$.companySize.$error"
-              :options="COMPANY_SIZE_OPTIONS"
-              :placeholder="
-                t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_COMPANY_SIZE')
-              "
-            />
-          </OnboardingFormRow>
-          <OnboardingFormRow
-            :title="t('ONBOARDING_NEXT.FIELDS.REFERRAL_SOURCE')"
-            icon="i-lucide-megaphone"
-          >
-            <OnboardingFormSelect
-              v-model="referralSource"
-              :has-error="showErrorOnFields && v$.referralSource.$error"
-              :options="REFERRAL_SOURCE_OPTIONS"
-              :placeholder="
-                t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_REFERRAL_SOURCE')
-              "
-            />
-          </OnboardingFormRow>
-        </template>
-      </OnboardingSection>
-    </OnboardingLayout>
-  </form>
+            <div
+              v-if="isEnriching"
+              class="flex items-center justify-center gap-3 py-8"
+            >
+              <Spinner :size="16" class="text-n-blue-10" />
+              <span class="text-sm text-n-slate-11">
+                {{ t('ONBOARDING_NEXT.SETTING_UP') }}
+              </span>
+            </div>
+            <template v-else>
+              <div class="flex items-center gap-2 px-3 py-3">
+                <img
+                  v-if="companyLogo"
+                  :src="companyLogo"
+                  :alt="accountName"
+                  class="size-4 object-contain"
+                />
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{ accountName }}
+                </span>
+              </div>
+              <OnboardingFormRow
+                :title="t('ONBOARDING_NEXT.FIELDS.WEBSITE')"
+                icon="i-lucide-globe"
+              >
+                <div class="flex items-center justify-end gap-2">
+                  <InlineInput
+                    ref="websiteInput"
+                    v-model="website"
+                    :readonly="!isEditingWebsite"
+                    :placeholder="
+                      t('ONBOARDING_NEXT.PLACEHOLDERS.ENTER_WEBSITE')
+                    "
+                    :custom-input-class="[
+                      'w-auto text-end px-1 py-0.5 -my-0.5 mx-0 placeholder:text-n-slate-9 rounded',
+                      {
+                        'animate-shake': showErrorOnFields && v$.website.$error,
+                      },
+                    ]"
+                    @enter-press="handleWebsiteEnter"
+                    @blur="isEditingWebsite = false"
+                  />
+                  <NextButton
+                    type="button"
+                    icon="i-lucide-pencil"
+                    slate
+                    xs
+                    ghost
+                    @click="enableWebsiteEditing"
+                  />
+                </div>
+              </OnboardingFormRow>
+              <OnboardingFormRow
+                :title="t('ONBOARDING_NEXT.FIELDS.LANGUAGE')"
+                icon="i-lucide-languages"
+              >
+                <OnboardingFormSelect
+                  v-model="locale"
+                  :has-error="showErrorOnFields && v$.locale.$error"
+                  :options="languageOptions"
+                />
+              </OnboardingFormRow>
+              <OnboardingFormRow
+                :title="t('ONBOARDING_NEXT.FIELDS.TIMEZONE')"
+                icon="i-lucide-clock"
+              >
+                <OnboardingFormSelect
+                  v-model="timezone"
+                  :has-error="showErrorOnFields && v$.timezone.$error"
+                  :options="timezoneOptions"
+                  :placeholder="
+                    t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_TIMEZONE')
+                  "
+                />
+              </OnboardingFormRow>
+              <OnboardingFormRow
+                :title="t('ONBOARDING_NEXT.FIELDS.INDUSTRY')"
+                icon="i-lucide-factory"
+              >
+                <OnboardingFormSelect
+                  v-model="industry"
+                  :has-error="showErrorOnFields && v$.industry.$error"
+                  :options="INDUSTRY_OPTIONS"
+                  :placeholder="
+                    t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_INDUSTRY')
+                  "
+                />
+              </OnboardingFormRow>
+              <OnboardingFormRow
+                :title="t('ONBOARDING_NEXT.FIELDS.COMPANY_SIZE')"
+                icon="i-lucide-users"
+              >
+                <OnboardingFormSelect
+                  v-model="companySize"
+                  :has-error="showErrorOnFields && v$.companySize.$error"
+                  :options="COMPANY_SIZE_OPTIONS"
+                  :placeholder="
+                    t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_COMPANY_SIZE')
+                  "
+                />
+              </OnboardingFormRow>
+              <OnboardingFormRow
+                :title="t('ONBOARDING_NEXT.FIELDS.REFERRAL_SOURCE')"
+                icon="i-lucide-megaphone"
+              >
+                <OnboardingFormSelect
+                  v-model="referralSource"
+                  :has-error="showErrorOnFields && v$.referralSource.$error"
+                  :options="REFERRAL_SOURCE_OPTIONS"
+                  :placeholder="
+                    t('ONBOARDING_NEXT.PLACEHOLDERS.SELECT_REFERRAL_SOURCE')
+                  "
+                />
+              </OnboardingFormRow>
+            </template>
+          </OnboardingSection>
+        </OnboardingLayout>
+      </form>
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.pat-page-wrap {
+  --canvas: #050409;
+  --surface: #0c0b12;
+  --surface-2: #131119;
+  --surface-3: #1b1925;
+  --surface-4: #252233;
+  --border: #171520;
+  --border-hi: #2e2940;
+  --patra: #6e56cf;
+  --patra-3: #a78bfa;
+  --text: #ededf2;
+  --text-2: #a8a6b6;
+  --text-3: #75727f;
+  --text-4: #54515e;
+  --green: #3fb950;
+  --red: #f85149;
+
+  position: relative;
+  min-height: 100%;
+  margin-left: -24px;
+  margin-right: -24px;
+  padding: 0 24px 24px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  background: var(--canvas);
+}
+
+.pat-page-main {
+  position: relative;
+  z-index: 1;
+}
+
+.pat-page-wrap :deep(.text-heading-1),
+.pat-page-wrap :deep(h1),
+.pat-page-wrap :deep(h2) {
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-12) {
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-11) {
+  color: var(--text-2) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-10),
+.pat-page-wrap :deep(.text-n-slate-9) {
+  color: var(--text-3) !important;
+}
+
+.pat-page-wrap :deep(.text-n-slate-6),
+.pat-page-wrap :deep(.text-n-slate-7),
+.pat-page-wrap :deep(.text-n-slate-8) {
+  color: var(--text-4) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-surface-1),
+.pat-page-wrap :deep(.bg-n-solid-1) {
+  background: var(--canvas) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-surface-2),
+.pat-page-wrap :deep(.bg-n-solid-2),
+.pat-page-wrap :deep(.bg-n-solid-3) {
+  background: var(--surface) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-alpha-1),
+.pat-page-wrap :deep(.bg-n-alpha-2) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-slate-1),
+.pat-page-wrap :deep(.bg-n-slate-2) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-slate-3) {
+  background: var(--surface-3) !important;
+}
+
+.pat-page-wrap :deep(.rounded-xl.border),
+.pat-page-wrap :deep(.rounded-lg.border) {
+  border-color: var(--border) !important;
+}
+
+.pat-page-wrap :deep(.border-n-weak),
+.pat-page-wrap :deep(.border-n-container),
+.pat-page-wrap :deep(.outline-n-weak),
+.pat-page-wrap :deep(.outline-n-container),
+.pat-page-wrap :deep(.dark\:border-n-slate-6) {
+  border-color: var(--border) !important;
+  outline-color: var(--border) !important;
+}
+
+.pat-page-wrap :deep(.divide-y > *) {
+  border-color: var(--border) !important;
+}
+
+.pat-page-wrap :deep(.group-hover\:bg-n-alpha-2) {
+  background: var(--surface-2) !important;
+  border-color: var(--border-hi) !important;
+  color: var(--text-2) !important;
+}
+
+.pat-page-wrap :deep(.group:hover .group-hover\:bg-n-alpha-2) {
+  background: var(--surface-3) !important;
+  border-color: var(--patra) !important;
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(thead) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(thead th) {
+  color: var(--text-4) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.pat-page-wrap :deep(tbody tr:hover) {
+  background: var(--surface-2) !important;
+}
+
+.pat-page-wrap :deep(tbody td) {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.pat-page-wrap :deep(input),
+.pat-page-wrap :deep(textarea),
+.pat-page-wrap :deep(select) {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+}
+
+.pat-page-wrap :deep(input:focus),
+.pat-page-wrap :deep(textarea:focus),
+.pat-page-wrap :deep(select:focus) {
+  border-color: var(--patra);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
+}
+
+.pat-page-wrap :deep(.text-n-teal-10),
+.pat-page-wrap :deep(.text-n-teal-11) {
+  color: var(--green) !important;
+}
+
+.pat-page-wrap :deep(.text-n-ruby-9),
+.pat-page-wrap :deep(.text-n-ruby-10) {
+  color: var(--red) !important;
+}
+
+.pat-page-wrap :deep(.fixed.z-50.bg-n-slate-12) {
+  background: var(--surface-4) !important;
+  border: 1px solid var(--border-hi);
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.animate-loader-pulse) {
+  background: var(--surface-3) !important;
+}
+</style>
