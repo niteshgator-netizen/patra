@@ -172,8 +172,11 @@ module Payments
       email_pts = entry['email_confirmed'] == true ? cfg['email_confirmed'].to_i : 0
       # Note match: both screenshot and email have notes AND they match
       note_pts = 0
-      ocr_note = entry['note_or_memo'].to_s.downcase.strip
-      email_note = entry['email_body_snippet'].to_s.downcase
+      ocr_note = normalize_note(entry['note_or_memo'])
+      # Pull the note from the email's "...for <NOTE>." pattern, fall back to whole body
+      body = entry['email_body_snippet'].to_s
+      email_for = body[/for\s+(.+?)[.\n]/i, 1]
+      email_note = normalize_note(email_for.presence || body)
       if ocr_note.present? && email_note.present? && email_note.include?(ocr_note)
         note_pts = cfg['note_match'].to_i
       end
@@ -241,7 +244,14 @@ module Payments
       false
     end
 
-    private_class_method :names_overlap?
+    def self.normalize_note(raw)
+      raw.to_s.downcase
+         .gsub(/[\uFE00-\uFE0F\u200D]/, '') # strip emoji variation selectors + ZWJ
+         .gsub(/\s+/, '')
+         .strip
+    end
+
+    private_class_method :names_overlap?, :normalize_note
 
     private
 
