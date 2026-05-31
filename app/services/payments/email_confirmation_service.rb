@@ -268,7 +268,7 @@ module Payments
       parts << mail.body.decoded rescue parts << mail.body.to_s
       raw = parts.compact.join(' ')
       # strip HTML tags so note/sender text is matchable as plain text
-      raw.gsub(/<[^>]+>/, ' ').gsub(/&[a-z]+;/i, ' ').gsub(/\s+/, ' ').strip
+      raw.gsub(/<style[^>]*>.*?<\/style>/mi, ' ').gsub(/<script[^>]*>.*?<\/script>/mi, ' ').gsub(/<[^>]+>/, ' ').gsub(/&[a-z]+;/i, ' ').gsub(/\s+/, ' ').strip
     rescue StandardError
       mail.body.to_s
     end
