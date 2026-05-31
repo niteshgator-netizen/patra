@@ -61,3 +61,19 @@ const triggerClick = () => {
     </component>
   </li>
 </template>
+
+<style scoped>
+.n-dropdown-item a:hover,
+.n-dropdown-item button:hover {
+  background: #1b1925 !important;
+}
+
+.n-dropdown-item a,
+.n-dropdown-item button {
+  color: #ededf2 !important;
+}
+
+.n-dropdown-item .text-n-slate-11 {
+  color: #a8a6b6 !important;
+}
+</style>

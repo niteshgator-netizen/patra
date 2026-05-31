@@ -26,10 +26,22 @@ const beforeClass = computed(() => {
 <template>
   <div class="absolute">
     <ul
-      class="text-sm bg-n-alpha-3 backdrop-blur-[100px] border rounded-xl shadow-sm py-2 n-dropdown-body gap-2 grid list-none px-2 reset-base relative"
+      class="patra-pop text-sm bg-n-alpha-3 backdrop-blur-[100px] border rounded-xl shadow-sm py-2 n-dropdown-body gap-2 grid list-none px-2 reset-base relative"
       :class="[borderClass, beforeClass]"
     >
       <slot />
     </ul>
   </div>
 </template>
+
+<style scoped>
+.patra-pop {
+  background: #0c0b12 !important;
+  border-color: #171520 !important;
+  color: #ededf2 !important;
+}
+
+.patra-pop :deep(.n-dropdown-section .text-n-slate-10) {
+  color: #a8a6b6 !important;
+}
+</style>

@@ -136,7 +136,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 flex flex-col min-w-[136px] shadow-lg pt-2 overflow-hidden"
+    class="patra-pop bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 flex flex-col min-w-[136px] shadow-lg pt-2 overflow-hidden"
   >
     <div v-if="showSearch" class="relative shrink-0 px-2 mb-2">
       <span
@@ -291,3 +291,41 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.patra-pop {
+  background: #0c0b12 !important;
+  outline-color: #171520 !important;
+  color: #ededf2 !important;
+}
+
+.patra-pop input[type='search'] {
+  background: #131119 !important;
+  color: #ededf2 !important;
+}
+
+.patra-pop button:hover:not(:disabled) {
+  background: #1b1925 !important;
+}
+
+.patra-pop button.bg-n-alpha-1 {
+  background: #1b1925 !important;
+  color: #6e56cf !important;
+}
+
+.patra-pop .text-n-slate-11 {
+  color: #a8a6b6 !important;
+}
+
+.patra-pop .text-n-slate-12 {
+  color: #ededf2 !important;
+}
+
+.patra-pop .bg-n-alpha-3 {
+  background: #0c0b12 !important;
+}
+
+.patra-pop .h-px {
+  background: #171520 !important;
+}
+</style>
