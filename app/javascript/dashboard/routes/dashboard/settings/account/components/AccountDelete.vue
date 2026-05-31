@@ -6,8 +6,6 @@ import { useI18n } from 'vue-i18n';
 import { useToggle } from '@vueuse/core';
 import { useAlert } from 'dashboard/composables';
 import WootConfirmDeleteModal from 'dashboard/components/widgets/modal/ConfirmDeleteModal.vue';
-import NextButton from 'dashboard/components-next/button/Button.vue';
-import SectionLayout from './SectionLayout.vue';
 
 const { t } = useI18n();
 const store = useStore();
@@ -70,27 +68,22 @@ function handleDeletionError(error) {
 async function markAccountForDeletion() {
   toggleDeletePopup(false);
   try {
-    // Use the enterprise API to toggle deletion with delete action
     await store.dispatch('accounts/toggleDeletion', {
       action_type: 'delete',
     });
-    // Refresh account data
     await store.dispatch('accounts/get');
     useAlert(t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.SUCCESS'));
   } catch (error) {
-    // Handle error message
     handleDeletionError(error);
   }
 }
 
 async function clearDeletionMark() {
   try {
-    // Use the enterprise API to toggle deletion with undelete action
     await store.dispatch('accounts/toggleDeletion', {
       action_type: 'undelete',
     });
 
-    // Refresh account data
     await store.dispatch('accounts/get');
     useAlert(t('GENERAL_SETTINGS.UPDATE.SUCCESS'));
   } catch (error) {
@@ -100,36 +93,43 @@ async function clearDeletionMark() {
 </script>
 
 <template>
-  <SectionLayout
-    :title="t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.TITLE')"
-    :description="t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.NOTE')"
-    with-border
-  >
-    <div v-if="isMarkedForDeletion">
-      <div class="p-4 flex-grow-0 flex-shrink-0 flex-[50%] bg-n-ruby-4 rounded">
-        <p class="mb-4">
-          {{ markedForDeletionMessage }}
-        </p>
-        <NextButton
-          :label="
-            $t(
-              'GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.SCHEDULED_DELETION.CLEAR_BUTTON'
-            )
-          "
-          color="ruby"
-          :is-loading="uiFlags.isUpdating"
-          @click="clearDeletionMark"
-        />
-      </div>
+  <div class="card">
+    <div class="card-t display">
+      <span class="dot" />
+      {{ t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.TITLE') }}
     </div>
-    <div v-if="!isMarkedForDeletion">
-      <NextButton
-        :label="$t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.BUTTON_TEXT')"
-        color="ruby"
-        @click="toggleDeletePopup(true)"
-      />
+    <p class="delete-note">
+      {{ t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.NOTE') }}
+    </p>
+
+    <div v-if="isMarkedForDeletion" class="delete-scheduled">
+      <p class="delete-msg">{{ markedForDeletionMessage }}</p>
+      <button
+        type="button"
+        class="btn danger"
+        :disabled="uiFlags.isUpdating"
+        @click="clearDeletionMark"
+      >
+        {{
+          uiFlags.isUpdating
+            ? $t('PATRA.SETTINGS.SAVING')
+            : $t(
+                'GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.SCHEDULED_DELETION.CLEAR_BUTTON'
+              )
+        }}
+      </button>
     </div>
-  </SectionLayout>
+
+    <button
+      v-if="!isMarkedForDeletion"
+      type="button"
+      class="btn danger"
+      @click="toggleDeletePopup(true)"
+    >
+      {{ $t('GENERAL_SETTINGS.ACCOUNT_DELETE_SECTION.BUTTON_TEXT') }}
+    </button>
+  </div>
+
   <WootConfirmDeleteModal
     v-if="showDeletePopup"
     v-model:show="showDeletePopup"
@@ -145,3 +145,86 @@ async function clearDeletionMark() {
     @on-close="toggleDeletePopup(false)"
   />
 </template>
+
+<style scoped>
+.display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.card {
+  background: var(--surface, #0c0b12);
+  border: 1px solid var(--border, #171520);
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 16px;
+}
+
+.card-t {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.card-t .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--patra-2, #8b5cf6);
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
+}
+
+.delete-note {
+  font-size: 12.5px;
+  color: var(--text-3, #75727f);
+  margin: -6px 0 14px;
+}
+
+.delete-scheduled {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.delete-msg {
+  font-size: 13px;
+  color: var(--text-2, #a8a6b6);
+  margin: 0 0 12px;
+}
+
+.btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border-hi, #2e2940);
+  background: var(--surface-2, #131119);
+  color: var(--text, #ededf2);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn.danger {
+  background: rgba(248, 81, 73, 0.16);
+  border-color: rgba(248, 81, 73, 0.4);
+  color: #f85149;
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: #f85149;
+  color: #fff;
+}
+</style>

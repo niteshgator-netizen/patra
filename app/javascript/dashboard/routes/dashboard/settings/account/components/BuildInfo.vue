@@ -34,23 +34,47 @@ const copyGitSha = () => {
 </script>
 
 <template>
-  <div class="p-4 text-sm text-center">
-    <div v-if="hasAnUpdateAvailable && globalConfig.displayManifest">
-      {{
-        t('GENERAL_SETTINGS.UPDATE_CHATWOOT', {
-          latestChatwootVersion: latestChatwootVersion,
-        })
-      }}
-    </div>
-    <div class="divide-x divide-n-slate-9">
-      <span class="px-2">{{ `v${globalConfig.appVersion}` }}</span>
-      <span
-        v-tooltip="t('COMPONENTS.CODE.BUTTON_TEXT')"
-        class="px-2 build-id cursor-pointer"
-        @click="copyGitSha"
-      >
-        {{ `Build ${gitSha}` }}
-      </span>
-    </div>
-  </div>
+  <span
+    v-if="hasAnUpdateAvailable && globalConfig.displayManifest"
+    class="update-note"
+  >
+    {{
+      t('GENERAL_SETTINGS.UPDATE_CHATWOOT', {
+        latestChatwootVersion: latestChatwootVersion,
+      })
+    }}
+  </span>
+  <span class="version">{{
+    t('PATRA.SETTINGS.VERSION', { version: globalConfig.appVersion })
+  }}</span>
+  <span
+    v-tooltip="t('COMPONENTS.CODE.BUTTON_TEXT')"
+    class="build-id"
+    role="button"
+    tabindex="0"
+    @click="copyGitSha"
+    @keydown.enter.space.prevent="copyGitSha"
+  >
+    {{ t('PATRA.SETTINGS.BUILD', { sha: gitSha }) }}
+  </span>
 </template>
+
+<style scoped>
+.update-note {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.version,
+.build-id {
+  cursor: default;
+}
+
+.build-id {
+  cursor: pointer;
+}
+
+.build-id:hover {
+  color: var(--patra-3, #a78bfa);
+}
+</style>
