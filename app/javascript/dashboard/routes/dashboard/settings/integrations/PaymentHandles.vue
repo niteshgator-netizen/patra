@@ -2217,17 +2217,14 @@ watch(selectedScoringPlatform, () => {
   background: var(--surface);
 }
 
-.ph-scoring-panel :deep(.border-\\[\\#DDD8F5\\]),
 .ph-scoring-panel :deep(.border-n-weak) {
   border-color: var(--border) !important;
 }
 
-.ph-scoring-panel :deep(.bg-\\[\\#F0EDFF\\]\\/60),
 .ph-scoring-panel :deep(.bg-n-alpha-2) {
   background: rgba(110, 86, 207, 0.12) !important;
 }
 
-.ph-scoring-panel :deep(.text-\\[\\#4C3799\\]),
 .ph-scoring-panel :deep(.text-n-slate-12) {
   color: var(--text) !important;
 }
