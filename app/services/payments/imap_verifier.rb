@@ -42,19 +42,35 @@ module Payments
     private
 
     def matches_amount?(email, amount)
-      email.body.to_s.include?(amount.to_s)
+      full_body(email).include?(amount.to_s)
     end
 
     def matches_sender?(email, sender_name)
       return true if sender_name.blank?
 
-      email.body.to_s.downcase.include?(sender_name.downcase)
+      full_body(email).downcase.include?(sender_name.downcase)
     end
 
     def matches_transaction?(email, transaction_id)
       return true if transaction_id.blank?
 
-      email.body.to_s.include?(transaction_id.to_s)
+      full_body(email).include?(transaction_id.to_s)
+    end
+
+    def full_body(email)
+      parts = []
+      begin
+        if email.multipart?
+          parts << email.text_part&.decoded if email.text_part
+          parts << email.html_part&.decoded if email.html_part
+        end
+      rescue StandardError
+        # fall through
+      end
+      parts << (email.body.decoded rescue email.body.to_s)
+      parts.compact.join(' ').gsub(/<[^>]+>/, ' ').gsub(/&[a-z]+;/i, ' ').gsub(/\s+/, ' ').strip
+    rescue StandardError
+      email.body.to_s
     end
   end
 end
