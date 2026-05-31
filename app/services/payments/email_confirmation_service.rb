@@ -164,8 +164,15 @@ module Payments
       end
 
       recipient_pts = 0
-      if entry['email_confirmed'] == true && email_sender.present? && ocr_recipient.present?
-        recipient_pts = cfg['recipient_match'].to_i if names_overlap?(email_sender, ocr_recipient) || entry['email_amount'].present?
+      handle_name = entry['recipient_name'].to_s.downcase.strip
+      expected = entry['recipient_handle'].to_s.gsub(/^[\$@]/, '').gsub('-', ' ').downcase.strip
+      if ocr_recipient.present? && expected.present?
+        # screenshot recipient matches the handle the money was sent to
+        recipient_pts = cfg['recipient_match'].to_i if names_overlap?(ocr_recipient, expected)
+      end
+      # Fallback: email confirmed + amount matched means it landed on the right verified handle
+      if recipient_pts.zero? && entry['email_confirmed'] == true && entry['email_amount'].present?
+        recipient_pts = cfg['recipient_match'].to_i
       end
 
       txn_pts = entry['transaction_id'].present? && entry['transaction_id'].to_s.length > 3 ? cfg['txn_id_present'].to_i : 0
