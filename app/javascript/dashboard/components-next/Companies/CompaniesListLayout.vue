@@ -26,7 +26,7 @@ const updateCurrentPage = page => {
 
 <template>
   <section
-    class="flex w-full h-full gap-4 overflow-hidden justify-evenly bg-n-surface-1"
+    class="pat-companies-layout flex w-full h-full gap-4 overflow-hidden justify-evenly"
   >
     <div class="flex flex-col w-full h-full transition-all duration-300">
       <CompanyHeader
@@ -56,3 +56,29 @@ const updateCurrentPage = page => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.pat-companies-layout {
+  background: #050409;
+  color: #ededf2;
+}
+
+.pat-companies-layout :deep(.text-n-slate-12) {
+  color: #ededf2 !important;
+}
+
+.pat-companies-layout :deep(.text-n-slate-11) {
+  color: #a8a6b6 !important;
+}
+
+.pat-companies-layout :deep(.bg-n-surface-1),
+.pat-companies-layout :deep(.bg-n-solid-1),
+.pat-companies-layout :deep(.bg-n-solid-2) {
+  background: #0c0b12 !important;
+}
+
+.pat-companies-layout :deep(.border-n-weak),
+.pat-companies-layout :deep(.border-n-container) {
+  border-color: #171520 !important;
+}
+</style>

@@ -1,5 +1,12 @@
 <script>
-import { defineAsyncComponent, ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import {
+  defineAsyncComponent,
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+} from 'vue';
 import { useStore } from 'dashboard/composables/store';
 import {
   updateTabTitle,
@@ -55,7 +62,9 @@ export default {
       updateTabTitle(getTotalUnreadCount(store.getters.getAllConversations));
     };
 
-    watch(() => store.getters.getAllConversations, syncTabTitle, { deep: true });
+    watch(() => store.getters.getAllConversations, syncTabTitle, {
+      deep: true,
+    });
 
     onMounted(syncTabTitle);
 
@@ -159,7 +168,7 @@ export default {
     />
 
     <main
-      class="flex flex-1 h-full w-full min-h-0 px-0 overflow-hidden bg-n-surface-1"
+      class="pat-dashboard-main flex flex-1 h-full w-full min-h-0 px-0 overflow-hidden"
     >
       <UpgradePage
         v-show="showUpgradePage"
@@ -194,3 +203,10 @@ export default {
     </main>
   </div>
 </template>
+
+<style scoped>
+.pat-dashboard-main {
+  background: #050409 !important;
+  color: #ededf2;
+}
+</style>
