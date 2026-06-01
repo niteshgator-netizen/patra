@@ -61,10 +61,11 @@ namespace :bella do
 
     system_prompt = "You label sweepstakes/gaming customer-service messages by the " \
       "REAL customer intent. Read the prior turns and the cashier's actual reply to " \
-      "decide what really happened, ignoring the surface keyword.\n#{taxonomy}\n" \
-      "Return ONLY a JSON array, one object per item: " \
+      "decide what really happened, ignoring the surface keyword.\n#{taxonomy}"
+
+    json_instruction = 'Return ONLY a JSON array, one object per item: ' \
       '[{"id":123,"intent":"load_deposit","confidence":"high","reason":"max 6 words"}]. ' \
-      'confidence is high|medium|low. JSON only — no prose, no markdown.'
+      'confidence is high|medium|low. Output JSON only — no prose, no markdown, no thinking.'
 
     relation = BellaRagPair.where(real_intent: nil).order(:id)
     relation = relation.limit(limit) if limit
@@ -87,7 +88,7 @@ namespace :bella do
             max_tokens: 1800,
             messages: [
               { role: 'system', content: system_prompt },
-              { role: 'user',   content: "Label each item.\n#{JSON.generate(items)}" }
+              { role: 'user',   content: "#{json_instruction}\n\nLabel each item:\n#{JSON.generate(items)}" }
             ],
             **(use_deepseek ? { temperature: 0.2 } : {})
           }.to_json,
