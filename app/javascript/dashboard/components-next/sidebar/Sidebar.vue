@@ -196,6 +196,11 @@ onMounted(() => {
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
   fetchChannelStatuses();
+
+  if (!isMobile.value && sidebarWidth.value !== 66) {
+    setSidebarWidth(66);
+    saveWidth();
+  }
 });
 
 const sortedInboxes = computed(() =>
@@ -572,7 +577,7 @@ const menuItems = computed(() => {
         ],
       },
     ]"
-    class="bg-n-background flex flex-col text-sm pb-px fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 w-[200px] md:w-auto md:relative md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:translate-x-0 ltr:border-r rtl:border-l border-n-weak"
+    class="patra-nav-rail bg-n-background flex flex-col text-sm pb-px fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 w-[200px] md:w-auto md:relative md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:translate-x-0 ltr:border-r rtl:border-l border-n-weak"
     :class="[
       {
         'shadow-lg md:shadow-none': isMobileSidebarOpen,
@@ -716,3 +721,259 @@ const menuItems = computed(() => {
     </div>
   </aside>
 </template>
+
+<style>
+@media (min-width: 768px) {
+  .patra-nav-rail {
+    width: 66px !important;
+    min-width: 66px !important;
+    max-width: 66px !important;
+    flex: 0 0 66px !important;
+    background: linear-gradient(180deg, #0c0b12, #050409) !important;
+    border-color: #171520 !important;
+    padding: 14px 0 !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .patra-nav-rail > div.absolute {
+    display: none !important;
+  }
+
+  .patra-nav-rail > section:first-child {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 8px !important;
+  }
+
+  .patra-nav-rail > section:first-child > div:first-child {
+    justify-content: center !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .patra-nav-rail > section:first-child .flex-shrink-0.w-px,
+  .patra-nav-rail #sidebar-account-switcher,
+  .patra-nav-rail > section:first-child > div:first-child > button span,
+  .patra-nav-rail
+    > section:first-child
+    > div:first-child
+    > button
+    .i-lucide-chevron-down {
+    display: none !important;
+  }
+
+  .patra-nav-rail > section:first-child .size-6,
+  .patra-nav-rail > section:first-child button:has(.size-7) {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+    transition: transform 0.2s !important;
+  }
+
+  .patra-nav-rail > section:first-child .size-6 svg,
+  .patra-nav-rail > section:first-child button:has(.size-7) svg {
+    display: none !important;
+  }
+
+  .patra-nav-rail > section:first-child .size-6::after,
+  .patra-nav-rail > section:first-child button:has(.size-7)::after {
+    content: 'P';
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .patra-nav-rail > section:first-child .size-6:hover,
+  .patra-nav-rail > section:first-child button:has(.size-7):hover {
+    transform: scale(1.06) rotate(-3deg);
+  }
+
+  .patra-nav-rail > section:first-child > div:last-child {
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 0 !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .patra-nav-rail > section:first-child a,
+  .patra-nav-rail > section:first-child button {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    outline: none !important;
+    border-radius: 12px !important;
+  }
+
+  .patra-nav-rail > section:first-child a span:not([class*='i-lucide']),
+  .patra-nav-rail > section:first-child a .flex-grow {
+    display: none !important;
+  }
+
+  .patra-nav-rail > div.grid-cols-3 {
+    display: none !important;
+  }
+
+  .patra-nav-rail > nav {
+    width: 100% !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .patra-nav-rail > nav ul {
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .patra-nav-rail .sidebar-group-children,
+  .patra-nav-rail .snav-group,
+  .patra-nav-rail .snav-title {
+    display: none !important;
+  }
+
+  .patra-nav-rail nav li > div > a,
+  .patra-nav-rail nav li > div > button,
+  .patra-nav-rail nav li > a,
+  .patra-nav-rail nav li > button,
+  .patra-nav-rail nav .snav-item,
+  .patra-nav-rail nav [role='button'] {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #54515e !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    position: relative !important;
+    transition: all 0.2s !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+  }
+
+  .patra-nav-rail nav li span.truncate,
+  .patra-nav-rail nav li .flex-grow span,
+  .patra-nav-rail nav li .text-body-main,
+  .patra-nav-rail nav .snav-item span,
+  .patra-nav-rail nav .i-lucide-chevron-up {
+    display: none !important;
+  }
+
+  .patra-nav-rail nav li > div > a:hover,
+  .patra-nav-rail nav li > div > button:hover,
+  .patra-nav-rail nav li > a:hover,
+  .patra-nav-rail nav li > button:hover,
+  .patra-nav-rail nav .snav-item:hover {
+    color: #ededf2 !important;
+    background: #131119 !important;
+    transform: translateY(-2px) !important;
+  }
+
+  .patra-nav-rail nav li > div > a.text-n-slate-12,
+  .patra-nav-rail nav li > div > button.text-n-slate-12,
+  .patra-nav-rail nav li > div > button.font-medium.text-n-slate-12,
+  .patra-nav-rail nav li > a.text-n-slate-12,
+  .patra-nav-rail nav li > button.text-n-slate-12,
+  .patra-nav-rail nav li > a.router-link-active,
+  .patra-nav-rail nav .snav-item.active {
+    color: #fff !important;
+    background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
+    box-shadow: 0 4px 14px rgba(110, 86, 207, 0.35) !important;
+  }
+
+  .patra-nav-rail nav li > div > a.text-n-slate-12::before,
+  .patra-nav-rail nav li > div > button.text-n-slate-12::before,
+  .patra-nav-rail nav li > div > button.font-medium.text-n-slate-12::before,
+  .patra-nav-rail nav li > a.text-n-slate-12::before,
+  .patra-nav-rail nav li > button.text-n-slate-12::before,
+  .patra-nav-rail nav li > a.router-link-active::before,
+  .patra-nav-rail nav .snav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+    background: #6e56cf;
+    border-radius: 0 3px 3px 0;
+  }
+
+  .patra-nav-rail nav [title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #131119;
+    border: 1px solid #2e2940;
+    color: #ededf2;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .patra-nav-rail > section:last-child {
+    width: 100% !important;
+    align-items: center !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .patra-nav-rail > section:last-child > div:first-child,
+  .patra-nav-rail > section:last-child > :not(:last-child) {
+    display: none !important;
+  }
+
+  .patra-nav-rail > section:last-child > div:last-child {
+    justify-content: center !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .patra-nav-rail > section:last-child button .min-w-0 {
+    display: none !important;
+  }
+
+  .patra-nav-rail > section:last-child button {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+  }
+}
+</style>
