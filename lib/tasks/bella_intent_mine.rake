@@ -12,13 +12,23 @@ namespace :bella do
     require 'httparty'
     require 'json'
 
-    xai_url    = 'https://api.x.ai/v1/chat/completions'
-    model      = ENV.fetch('XAI_MODEL', 'grok-4.3')
-    api_key    = ENV.fetch('XAI_API_KEY', '').to_s
+    provider   = ENV.fetch('PROVIDER', 'grok').to_s.downcase
+    use_deepseek = provider == 'deepseek'
+
+    if use_deepseek
+      api_url = 'https://api.deepseek.com/v1/chat/completions'
+      model   = ENV.fetch('DEEPSEEK_MODEL', 'deepseek-v4-flash')
+      api_key = ENV.fetch('DEEPSEEK_API_KEY', '').to_s
+      abort('DEEPSEEK_API_KEY not set') if api_key.blank?
+    else
+      api_url = 'https://api.x.ai/v1/chat/completions'
+      model   = ENV.fetch('XAI_MODEL', 'grok-4.3')
+      api_key = ENV.fetch('XAI_API_KEY', '').to_s
+      abort('XAI_API_KEY not set') if api_key.blank?
+    end
+
     batch_size = (ENV['BATCH'] || 25).to_i
     limit      = ENV['LIMIT']&.to_i
-
-    abort('XAI_API_KEY not set') if api_key.blank?
 
     taxonomy = <<~TAX
       Pick ONE label per item from the REAL situation shown by the cashier's reply
@@ -70,7 +80,7 @@ namespace :bella do
 
       begin
         resp = HTTParty.post(
-          xai_url,
+          api_url,
           headers: { 'Authorization' => "Bearer #{api_key}", 'Content-Type' => 'application/json' },
           body: {
             model: model,
@@ -78,7 +88,8 @@ namespace :bella do
             messages: [
               { role: 'system', content: system_prompt },
               { role: 'user',   content: "Label each item.\n#{JSON.generate(items)}" }
-            ]
+            ],
+            **(use_deepseek ? { temperature: 0.2 } : {})
           }.to_json,
           timeout: 120
         )
