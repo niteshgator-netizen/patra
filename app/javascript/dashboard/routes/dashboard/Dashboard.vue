@@ -66,10 +66,26 @@ export default {
       deep: true,
     });
 
-    onMounted(syncTabTitle);
+    let spotlightMouseMoveHandler = null;
+
+    onMounted(() => {
+      syncTabTitle();
+      const spotlight = document.getElementById('spotlight');
+      if (spotlight) {
+        spotlightMouseMoveHandler = e => {
+          spotlight.style.left = `${e.clientX}px`;
+          spotlight.style.top = `${e.clientY}px`;
+          spotlight.style.opacity = '0.9';
+        };
+        window.addEventListener('mousemove', spotlightMouseMoveHandler);
+      }
+    });
 
     onBeforeUnmount(() => {
       updateTabTitle(0);
+      if (spotlightMouseMoveHandler) {
+        window.removeEventListener('mousemove', spotlightMouseMoveHandler);
+      }
     });
 
     return {
@@ -158,6 +174,8 @@ export default {
 
 <template>
   <div class="flex flex-grow overflow-hidden text-n-slate-12">
+    <div id="spotlight" />
+    <div class="mesh" />
     <NextSidebar
       :is-mobile-sidebar-open="isMobileSidebarOpen"
       @toggle-account-modal="toggleAccountModal"
@@ -205,8 +223,170 @@ export default {
 </template>
 
 <style scoped>
+#spotlight {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(110, 86, 207, 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+
+.mesh {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at 20% 50%,
+      rgba(110, 86, 207, 0.08) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 20%,
+      rgba(139, 92, 246, 0.06) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 50% 80%,
+      rgba(91, 69, 176, 0.05) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+  z-index: 0;
+  animation: meshShift 20s ease-in-out infinite alternate;
+}
+
+@keyframes meshShift {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
 .pat-dashboard-main {
+  position: relative;
+  z-index: 1;
   background: #050409 !important;
   color: #ededf2;
+}
+</style>
+
+<style>
+.pat-page-wrap,
+.pat-page-main {
+  position: relative;
+  z-index: 1;
+}
+
+.pat-page-wrap :deep(.card),
+.pat-page-wrap :deep([class*='card']),
+.pat-page-wrap :deep(.bg-n-solid-2),
+.pat-page-wrap :deep(.bg-n-solid-3) {
+  background: #0c0b12 !important;
+  border: 1px solid #171520 !important;
+  border-radius: 14px !important;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.pat-page-wrap :deep(.card):hover,
+.pat-page-wrap :deep([class*='card']):hover {
+  border-color: #2e2940 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.pat-page-wrap :deep(h1),
+.pat-page-wrap :deep(h2),
+.pat-page-wrap :deep(.text-2xl),
+.pat-page-wrap :deep(.text-xl) {
+  font-family: 'Space Grotesk', sans-serif !important;
+  letter-spacing: -0.01em;
+}
+
+.pat-page-wrap :deep(input:not([type='checkbox']):not([type='radio'])),
+.pat-page-wrap :deep(select),
+.pat-page-wrap :deep(textarea) {
+  background: #050409 !important;
+  border: 1px solid #171520 !important;
+  border-radius: 10px !important;
+  color: #ededf2 !important;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.pat-page-wrap :deep(input:focus),
+.pat-page-wrap :deep(select:focus),
+.pat-page-wrap :deep(textarea:focus) {
+  border-color: #6e56cf !important;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.15) !important;
+  outline: none !important;
+}
+
+.pat-page-wrap :deep(button.bg-n-brand),
+.pat-page-wrap :deep(button[class*='primary']),
+.pat-page-wrap :deep(.btn-primary) {
+  background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
+  border: none !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.pat-page-wrap :deep(button.bg-n-brand):hover,
+.pat-page-wrap :deep(button[class*='primary']):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(110, 86, 207, 0.3);
+}
+
+.pat-page-wrap :deep(table) {
+  border-collapse: collapse;
+}
+
+.pat-page-wrap :deep(th) {
+  color: #75727f !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #171520 !important;
+}
+
+.pat-page-wrap :deep(td) {
+  border-bottom: 1px solid #171520 !important;
+}
+
+.pat-page-wrap :deep(tr):hover {
+  background: #1b1925 !important;
+}
+
+.pat-page-wrap :deep(::-webkit-scrollbar) {
+  width: 6px;
+}
+
+.pat-page-wrap :deep(::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.pat-page-wrap :deep(::-webkit-scrollbar-thumb) {
+  background: #2e2940;
+  border-radius: 3px;
 }
 </style>
