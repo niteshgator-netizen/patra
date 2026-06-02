@@ -15,3 +15,13 @@ vendor/bundle
 .DS_Store
 *.swp
 *~
+
+# Test fixtures — not needed in production build (incl. spec/assets/large_file.pdf 26MB, sample.mp4/.ogg)
+spec
+
+# Root-level debug/log dumps accidentally committed (last.txt, api.txt, all_logs.txt, etc.)
+/*.txt
+
+# Local automation scratch + backup tree, not part of the Rails app build
+patra-automation
+patra-automation-BACKUP
