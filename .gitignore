@@ -104,3 +104,6 @@ CLAUDE.local.md
 .pnpm-store/*
 local/
 Procfile.worktree
+
+# Unused 66MB sentiment model — not loaded by any code (sentiment scoring is keyword-based)
+vendor/db/sentiment-analysis.onnx

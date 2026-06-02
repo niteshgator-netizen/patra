@@ -25,3 +25,6 @@ spec
 # Local automation scratch + backup tree, not part of the Rails app build
 patra-automation
 patra-automation-BACKUP
+
+# Unused 66MB sentiment model — not loaded by any code (sentiment scoring is keyword-based)
+vendor/db/sentiment-analysis.onnx
