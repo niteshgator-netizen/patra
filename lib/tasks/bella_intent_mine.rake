@@ -100,7 +100,8 @@ namespace :bella do
           next
         end
 
-        raw = resp.parsed_response.dig('choices', 0, 'message', 'content').to_s.gsub(/```json|```/, '').strip
+        msg = resp.parsed_response.dig('choices', 0, 'message') || {}
+        raw = (msg['content'].to_s.presence || msg['reasoning_content'].to_s).gsub(/```json|```/, '').strip
         by_id = {}
         JSON.parse(raw).each { |h| by_id[h['id'].to_i] = h }
 
