@@ -179,10 +179,3 @@ ROLLBACK COMMAND (if this breaks prod):
 - Do not change Ruby/Rails/Vue/Node versions.
 
 # END
-
-# CLAUDE CODE SPECIFIC
-- You are Claude Code in terminal, not Cursor.
-- Always use Plan mode on hot files.
-- Never use --dangerously-skip-permissions on Patra.
-- Read PATRA_STATE.md + BUGS_FIXED.md before any task.
-- Same DUMP format required at end of every task.
