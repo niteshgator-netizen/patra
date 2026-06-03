@@ -19,7 +19,7 @@ module Payments
 
     def self.usage_count(handle)
       GameAction.where(payment_handle: handle.handle, status: 'success')
-                .where('created_at > ?', 24.hours.ago).count
+                .where('game_actions.created_at > ?', 24.hours.ago).count
     end
 
     def self.increment_usage(_handle)

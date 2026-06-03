@@ -12,8 +12,8 @@ module Contacts
     def self.score(contact)
       s = 0
       s += WEIGHTS[:message_7d] if Message.where(sender: contact).where('created_at > ?', 7.days.ago).exists?
-      s += WEIGHTS[:load_7d] if GameAction.where(contact: contact, action_type: 'load', status: 'success').where('created_at > ?', 7.days.ago).exists?
-      s += WEIGHTS[:cashout_7d] if GameAction.where(contact: contact, action_type: 'cashout', status: 'success').where('created_at > ?', 7.days.ago).exists?
+      s += WEIGHTS[:load_7d] if GameAction.where(contact: contact, action_type: 'load', status: 'success').where('game_actions.created_at > ?', 7.days.ago).exists?
+      s += WEIGHTS[:cashout_7d] if GameAction.where(contact: contact, action_type: 'cashout', status: 'success').where('game_actions.created_at > ?', 7.days.ago).exists?
       s += WEIGHTS[:inactive_30d] unless Message.where(sender: contact).where('created_at > ?', 30.days.ago).exists?
       s
     end
