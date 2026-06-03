@@ -832,6 +832,33 @@ Fix commits found: 131
 **Subject:** fix(http): wrap Telegram/Instagram outbound HTTParty in StandardError rescue
 **Files changed:** app/services/telegram/customer_bot_handler.rb, app/services/instagram/message_handler.rb
 
+### F-137 | 2026-06-03
+**Author:** genius
+**Subject:** fix: correct orchestrator branch order — game intent before payment intent
+**Files changed:** app/services/games/intent_detector.rb
+**What:** IntentDetector `detect()` checked `payment_method_chosen` before load/cashout/reset; game names like Cash Machine misrouted. Reordered branches; removed ambiguous `cash` alias; payment pick skips when `resolve_game_slug` matches.
+
+### F-138 | 2026-06-03
+**Author:** genius
+**Subject:** fix(export): batch message counts in conversation CSV export (N+1)
+**Files changed:** app/controllers/api/v1/accounts/patra/conversations_export_controller.rb
+
+### F-139 | 2026-06-03
+**Author:** genius
+**Subject:** fix(imap_check): single query for active handles with verification email
+**Files changed:** app/jobs/payments/imap_check_job.rb
+
+### F-140 | 2026-06-03
+**Author:** genius
+**Subject:** fix(rake): bella_intent_mine JSON array + bucket sort
+**Files changed:** lib/tasks/bella_intent_mine.rake
+**What:** Accept single-object Grok JSON; sort intent buckets by count without invalid `count_all` order.
+
+### F-141 | 2026-06-03
+**Author:** genius
+**Subject:** chore(vue): remove console.log from production Vue components
+**Files changed:** app/javascript/dashboard/routes/dashboard/settings/profile/NotificationPreferences.vue, app/javascript/dashboard/components-next/year-in-review/YearInReviewModal.vue
+
 ---
 
 ## FEATURE COMMITS THAT FIXED BUGS (commits starting with feat: but mentioning a fix in body)
