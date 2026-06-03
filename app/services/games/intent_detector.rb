@@ -130,7 +130,6 @@ module Games
       'cash machine' => 'cash_machine',
       'cashmachine' => 'cash_machine',
       'cash_machine' => 'cash_machine',
-      'cash' => 'cash_machine',
       'cm' => 'cash_machine',
 
       # Game Room
@@ -304,18 +303,12 @@ module Games
 
         return { intent: :greeting } if text.strip.match?(GREETING_PATTERNS) && text.strip.split.size <= 5
 
+        # Game-specific intents (load/cashout/reset) BEFORE payment_method_chosen so game
+        # names like "Cash Machine" are not misread as a payment-platform pick.
         result = (if (multi_game = detect_multi_game(text))
                     multi_game
                   elsif (create_account = detect_account_creation_request(text))
                     create_account
-                  elsif (m = match_payment_method_pick(text))
-                    raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
-                    normalized = raw_platform == 'cashapp' ? 'cashapp' : raw_platform
-                    Rails.logger.info("[IntentDetector] matched payment_method_chosen platform=#{normalized}")
-                    {
-                      intent: :payment_method_chosen,
-                      platform: normalized
-                    }
                   elsif match_any(text, RESET_PASSWORD_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched reset_password')
                     {
@@ -348,6 +341,14 @@ module Games
                     }
                   elsif (new_acct = detect_new_account_request_with_game(text))
                     new_acct
+                  elsif (m = match_payment_method_pick(text))
+                    raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
+                    normalized = raw_platform == 'cashapp' ? 'cashapp' : raw_platform
+                    Rails.logger.info("[IntentDetector] matched payment_method_chosen platform=#{normalized}")
+                    {
+                      intent: :payment_method_chosen,
+                      platform: normalized
+                    }
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
@@ -496,6 +497,8 @@ module Games
       def match_payment_method_pick(text)
         return nil if text =~ PAYMENT_METHOD_QUESTION_GUARD
         return nil if text =~ PAYMENT_METHOD_NEGATION_GUARD
+        # Game name in message (e.g. Cash Machine) — not a payment-platform pick
+        return nil if resolve_game_slug(text).present?
 
         match_any(text, PAYMENT_METHOD_PICK_PATTERNS)
       end
