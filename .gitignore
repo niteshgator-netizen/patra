@@ -114,3 +114,5 @@ sidekiq_vars.json
 pgvector_vars.json
 redis_vars.json
 .tmp-gql-out.json
+
+.cursor/mcp.json
