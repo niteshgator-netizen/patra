@@ -23,16 +23,17 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: Install JS deps
-        run: yarn install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build assets
-        run: yarn vite:build
+        run: pnpm exec vite build
         env:
           NODE_ENV: production
+          RAILS_ENV: production
 
       - name: Commit built assets
         run: |
