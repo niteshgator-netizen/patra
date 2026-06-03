@@ -6,39 +6,71 @@ on:
       - main
 
 jobs:
-  build-assets:
-    name: Build frontend assets
+
+  build:
+
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+
         with:
+
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
+      - name: Setup Node
+
         uses: actions/setup-node@v4
+
         with:
-          node-version: '24'
+
+          node-version-file: '.nvmrc'
 
       - name: Setup pnpm
+
         uses: pnpm/action-setup@v4
 
-      - name: Install dependencies
+        with:
+
+          run_install: false
+
+      - name: Install JS deps
+
         run: pnpm install --frozen-lockfile
 
       - name: Build assets
-        run: pnpm exec vite build
+
         env:
-          NODE_ENV: production
+
           RAILS_ENV: production
 
+          NODE_ENV: production
+
+          NODE_OPTIONS: --max-old-space-size=4096
+
+          SECRET_KEY_BASE: placeholder_for_build
+
+        run: bundle exec rails assets:precompile
+
+      - name: Setup Ruby
+
+        uses: ruby/setup-ruby@v1
+
+        with:
+
+          bundler-cache: true
+
       - name: Commit built assets
+
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add public/packs public/packs-test || true
-          git diff --staged --quiet || git commit -m "ci: pre-built assets [skip ci]"
+
+          git config user.name "GitHub Actions"
+
+          git config user.email "actions@github.com"
+
+          git add public/packs public/assets -f
+
+          git diff --staged --quiet || git commit -m "chore: pre-build assets [skip ci]"
+
           git push
