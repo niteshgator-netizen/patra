@@ -804,6 +804,34 @@ Fix commits found: 131
 **Files changed:** app/javascript/dashboard/routes/dashboard/conversation/ConversationView.vue
 **Body excerpt (if exists):** none
 
+### F-132 | d604700d0 | 2026-06-03
+**Author:** genius
+**Subject:** fix(export): conversation CSV labels used tag name not Label.title column
+**Files changed:** app/controllers/api/v1/accounts/patra/conversations_export_controller.rb
+**What:** `conv.labels` is acts_as_taggable (Tag.name); `pluck(:title)` returned empty/wrong — now uses `label_list`.
+
+### F-133 | d604700d0 | 2026-06-03
+**Author:** genius
+**Subject:** fix(game_actions): qualify created_at in SideKiq contact/payment queries
+**Files changed:** app/services/contacts/segmentation_service.rb, app/services/contacts/activity_scorer.rb, app/services/contacts/lifecycle_calculator.rb, app/services/payments/smart_router.rb, app/services/payments/contact_payment_status.rb
+**What:** Same ambiguous-column class as shift_report_job when joins present; `game_actions.created_at` qualified.
+
+### F-134 | 84953d00d | 2026-06-03
+**Author:** genius
+**Subject:** fix(rescue): replace bare inline rescue with StandardError blocks in payment IMAP
+**Files changed:** app/services/payments/email_confirmation_service.rb, app/services/payments/imap_verifier.rb
+**What:** Email date/body decode no longer uses bare `rescue` modifier.
+
+### F-135 | 84953d00d | 2026-06-03
+**Author:** genius
+**Subject:** fix(logging): ConversationSummaryService logger prefix matches class name
+**Files changed:** app/services/ai/conversation_summary_service.rb
+
+### F-136 | 71f433879 | 2026-06-03
+**Author:** genius
+**Subject:** fix(http): wrap Telegram/Instagram outbound HTTParty in StandardError rescue
+**Files changed:** app/services/telegram/customer_bot_handler.rb, app/services/instagram/message_handler.rb
+
 ---
 
 ## FEATURE COMMITS THAT FIXED BUGS (commits starting with feat: but mentioning a fix in body)
