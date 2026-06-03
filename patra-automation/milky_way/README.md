@@ -12,7 +12,7 @@ Controls an AdsPower-protected Chrome browser via Playwright to automate Milky W
    ```
 3. Copy `.env.example` to `.env` and fill in:
    - `MILKY_WAY_PASS` — your hamro555D password
-   - `TELEGRAM_BOT_TOKEN` — `8878122491:AAG41As6M2VcwBxg9ZLIHVloM4Tlu0fn5II` (already in Railway)
+   - `TELEGRAM_BOT_TOKEN` — `<YOUR_TELEGRAM_BOT_TOKEN>` (already in Railway)
 4. Open the AdsPower app (the launcher must be running for the Local API at port 50325 to work).
 
 ## Run
