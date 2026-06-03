@@ -74,11 +74,11 @@ Rails.application.configure do
   # config.logger = ActiveSupport::TaggedLogging.new(Syslog::Logger.new 'app-name')
 
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('RAILS_LOG_TO_STDOUT', true))
-    logger           = ActiveSupport::Logger.new($stdout)
+    logger = ActiveSupport::Logger.new($stdout)
     logger.formatter = config.log_formatter
-    config.logger    = ActiveSupport::TaggedLogging.new(logger)
+    config.logger = ActiveSupport::TaggedLogging.new(logger)
   else
-    config.logger    = ActiveSupport::Logger.new(
+    config.logger = ActiveSupport::Logger.new(
       Rails.root.join("log/#{Rails.env}.log"),
       1,
       ENV.fetch('LOG_SIZE', '1024').to_i.megabytes
