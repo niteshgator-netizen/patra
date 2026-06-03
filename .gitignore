@@ -107,3 +107,11 @@ Procfile.worktree
 
 # Unused 66MB sentiment model — not loaded by any code (sentiment scoring is keyword-based)
 vendor/db/sentiment-analysis.onnx
+
+# Sensitive files — never commit
+render.env
+chatwoot_vars.json
+sidekiq_vars.json
+pgvector_vars.json
+redis_vars.json
+.tmp-gql-out.json
