@@ -32,6 +32,9 @@ module Instagram
         }.to_json,
         headers: { 'Content-Type' => 'application/json' }
       )
+    rescue StandardError => e
+      Rails.logger.error("[Instagram::MessageHandler] send failed: #{e.class}: #{e.message}")
+      nil
     end
 
     private
