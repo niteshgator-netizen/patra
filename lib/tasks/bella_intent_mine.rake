@@ -12,17 +12,17 @@ namespace :bella do
     require 'httparty'
     require 'json'
 
-    provider   = ENV.fetch('PROVIDER', 'grok').to_s.downcase
+    provider     = ENV.fetch('PROVIDER', 'grok').to_s.downcase
     use_deepseek = provider == 'deepseek'
 
     if use_deepseek
       api_url = 'https://api.deepseek.com/v1/chat/completions'
-      model   = ENV.fetch('DEEPSEEK_MODEL', 'deepseek-v4-flash')
+      model   = ENV.fetch('DEEPSEEK_MODEL', 'deepseek-chat')
       api_key = ENV.fetch('DEEPSEEK_API_KEY', '').to_s
       abort('DEEPSEEK_API_KEY not set') if api_key.blank?
     else
       api_url = 'https://api.x.ai/v1/chat/completions'
-      model   = ENV.fetch('XAI_MODEL', 'grok-4.3')
+      model   = ENV.fetch('XAI_MODEL', 'grok-4')
       api_key = ENV.fetch('XAI_API_KEY', '').to_s
       abort('XAI_API_KEY not set') if api_key.blank?
     end
