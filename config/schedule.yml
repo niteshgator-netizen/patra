@@ -141,6 +141,7 @@ games_proactive_session_refresh_job:
   class: 'Games::ProactiveSessionRefreshJob'
   queue: low
   description: 'Refresh Cluster 1 ASP.NET + Cluster 2 Laravel panel sessions before they expire (Ship 4)'
+  after_perform: HTTParty.get("https://uptime.betterstack.com/api/v1/heartbeat/BZHgPuMSLcsuMFayA29HaK4m") rescue nil
 
 # Every 2 minutes — poll email inboxes for new messages
 channels_email_poll_job:
