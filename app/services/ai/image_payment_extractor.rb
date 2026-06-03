@@ -220,6 +220,14 @@ module Ai
         if payment_keywords.any? { |kw| raw.include?(kw) || platform.include?(kw) }
           Rails.logger.info "[ImagePaymentExtractor] override is_payment=true (keyword found in raw_text/platform)"
           sym = sym.merge(is_payment: true, confidence: sym[:confidence] || 'medium')
+          # Correct platform if raw_text contains a clearer signal
+          if sym[:platform].to_s.downcase == 'cashapp'
+            raw = sym[:raw_text].to_s.downcase
+            if raw.include?('paypal') || raw.include?('pay pal')
+              sym = sym.merge(platform: 'paypal')
+              Rails.logger.info "[ImagePaymentExtractor] platform corrected cashapp→paypal via raw_text"
+            end
+          end
         end
       end
 
