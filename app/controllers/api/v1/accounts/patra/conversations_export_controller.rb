@@ -5,6 +5,7 @@ class Api::V1::Accounts::Patra::ConversationsExportController < Api::V1::Account
 
   def show
     conversations = Current.account.conversations.includes(:contact, :inbox, :labels).limit(5000)
+    message_counts = Message.where(conversation_id: conversations.select(:id)).group(:conversation_id).count
 
     csv = CSV.generate do |row|
       row << %w[id contact_name channel status created_at resolved_at messages_count labels]
@@ -16,7 +17,7 @@ class Api::V1::Accounts::Patra::ConversationsExportController < Api::V1::Account
           conv.status,
           conv.created_at&.iso8601,
           (conv.updated_at.iso8601 if conv.resolved?),
-          conv.messages.count,
+          message_counts[conv.id] || 0,
           Array(conv.label_list).join(';')
         ]
       end

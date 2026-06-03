@@ -9,9 +9,10 @@ module Payments
 
     def perform
       Account.find_each do |account|
-        next unless account.payment_handles.where.not(verification_email: nil).exists?
+        active_handles = account.payment_handles.where(status: 'active').where.not(verification_email: nil)
+        next unless active_handles.exists?
 
-        account.payment_handles.where.not(verification_email: nil).where(status: 'active').find_each do |ph|
+        active_handles.find_each do |ph|
           begin
             Payments::GhostPaymentIngestionService.new(payment_handle: ph).ingest!
           rescue StandardError => e
