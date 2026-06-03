@@ -32,6 +32,7 @@ module Payments
           end
         end
       end
+      HTTParty.get("https://uptime.betterstack.com/api/v1/heartbeat/m497AzJnPKrBdPJfJbSSKbfR") rescue nil
     end
 
     private
