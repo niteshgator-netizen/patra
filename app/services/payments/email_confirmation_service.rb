@@ -56,7 +56,11 @@ module Payments
         begin
           entry['email_subject'] = match.subject.to_s.encode('UTF-8', invalid: :replace, undef: :replace)[0, 200]
           entry['email_from'] = match.from&.first.to_s[0, 100]
-          entry['email_date'] = match.date&.iso8601 rescue match.date.to_s
+          entry['email_date'] = begin
+            match.date&.iso8601
+          rescue StandardError
+            match.date.to_s
+          end
           body_full = full_email_body(match)
           entry['email_body_snippet'] = body_full.encode('UTF-8', invalid: :replace, undef: :replace)[0, 500]
 
@@ -272,7 +276,11 @@ module Payments
       rescue StandardError
         # fall through to body
       end
-      parts << mail.body.decoded rescue parts << mail.body.to_s
+      begin
+        parts << mail.body.decoded
+      rescue StandardError
+        parts << mail.body.to_s
+      end
       raw = parts.compact.join(' ')
       # strip HTML tags so note/sender text is matchable as plain text
       raw.gsub(/<style[^>]*>.*?<\/style>/mi, ' ').gsub(/<script[^>]*>.*?<\/script>/mi, ' ').gsub(/<[^>]+>/, ' ').gsub(/&[a-z]+;/i, ' ').gsub(/\s+/, ' ').strip

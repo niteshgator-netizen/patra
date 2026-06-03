@@ -41,7 +41,7 @@ module Ai
 
       response.parsed_response.dig('choices', 0, 'message', 'content') || 'No summary available'
     rescue StandardError => e
-      Rails.logger.error("[ConversationSummary] failed: #{e.message}")
+      Rails.logger.error("[ConversationSummaryService] failed: #{e.message}")
       'Summary unavailable'
     end
   end
