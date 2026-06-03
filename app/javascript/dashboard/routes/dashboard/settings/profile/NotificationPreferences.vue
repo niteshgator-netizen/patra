@@ -115,8 +115,9 @@ export default {
               this.hasEnabledPushPermissions = true;
             }
           })
-          // eslint-disable-next-line no-console
-          .catch(error => console.log(error))
+          .catch(() => {
+            this.hasEnabledPushPermissions = false;
+          })
       );
     },
     async updateNotificationSettings() {

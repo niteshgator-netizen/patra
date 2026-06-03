@@ -74,13 +74,9 @@ const playDrumroll = () => {
     }
 
     drumrollAudio.value.currentTime = 0;
-    drumrollAudio.value.play().catch(err => {
-      // eslint-disable-next-line no-console
-      console.log('Could not play drumroll:', err);
-    });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.log('Error playing drumroll:', err);
+    drumrollAudio.value.play().catch(() => {});
+  } catch {
+    // Audio optional — ignore playback failures
   }
 };
 
