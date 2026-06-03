@@ -71,7 +71,11 @@ module Payments
       rescue StandardError
         # fall through
       end
-      parts << (email.body.decoded rescue email.body.to_s)
+      begin
+        parts << email.body.decoded
+      rescue StandardError
+        parts << email.body.to_s
+      end
       parts.compact.join(' ').gsub(/<style[^>]*>.*?<\/style>/mi, ' ').gsub(/<script[^>]*>.*?<\/script>/mi, ' ').gsub(/<[^>]+>/, ' ').gsub(/&[a-z]+;/i, ' ').gsub(/\s+/, ' ').strip
     rescue StandardError
       email.body.to_s
