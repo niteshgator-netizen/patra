@@ -102,8 +102,10 @@ namespace :bella do
 
         msg = resp.parsed_response.dig('choices', 0, 'message') || {}
         raw = (msg['content'].to_s.presence || msg['reasoning_content'].to_s).gsub(/```json|```/, '').strip
+        parsed = JSON.parse(raw)
+        parsed = [parsed] unless parsed.is_a?(Array)
         by_id = {}
-        JSON.parse(raw).each { |h| by_id[h['id'].to_i] = h }
+        parsed.each { |h| by_id[h['id'].to_i] = h if h.is_a?(Hash) && h['id'] }
 
         group.each do |p|
           h = by_id[p.id]
@@ -130,7 +132,9 @@ namespace :bella do
 
     puts "\n[mine_intents] DONE. Discovered buckets (real_intent → count):"
     BellaRagPair.where.not(real_intent: nil)
-                .group(:real_intent).order(Arel.sql('count_all DESC')).count
+                .group(:real_intent)
+                .count
+                .sort_by { |_, v| -v }
                 .each { |k, v| puts "  #{k}: #{v}" }
   end
 end
