@@ -14,8 +14,8 @@ module Reports
 
     def send_shift_report(account)
       since = 8.hours.ago
-      loads = account.game_actions.where(action_type: 'load', status: 'success').where('created_at > ?', since)
-      cashouts = account.game_actions.where(action_type: 'cashout', status: 'success').where('created_at > ?', since)
+      loads = account.game_actions.where(action_type: 'load', status: 'success').where('game_actions.created_at > ?', since)
+      cashouts = account.game_actions.where(action_type: 'cashout', status: 'success').where('game_actions.created_at > ?', since)
 
       load_total = loads.sum(:amount)
       cashout_total = cashouts.sum(:amount)

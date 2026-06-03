@@ -11,7 +11,7 @@ module Contacts
 
     def self.apply!(contact)
       attrs = (contact.custom_attributes || {}).stringify_keys
-      labels = contact.labels.pluck(:title)
+      labels = contact.labels.pluck(:name)
 
       SEGMENT_TAGS.each do |tag, rule|
         matched = rule.arity == 1 ? rule.call(attrs) : rule.call(contact, attrs)
