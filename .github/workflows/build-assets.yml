@@ -63,15 +63,8 @@ jobs:
         run: bundle exec rails assets:precompile
 
       - name: Commit built assets
-
         run: |
-
           git config user.name "GitHub Actions"
-
           git config user.email "actions@github.com"
-
           git add public/packs public/assets -f
-
-          git diff --staged --quiet || git commit -m "chore: pre-build assets [skip ci]"
-
-          git push
+          git diff --staged --quiet || (git commit -m "chore: pre-build assets [skip ci]" && git pull --rebase origin main && git push)
