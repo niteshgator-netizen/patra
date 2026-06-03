@@ -17,7 +17,7 @@ class Api::V1::Accounts::Patra::ConversationsExportController < Api::V1::Account
           conv.created_at&.iso8601,
           (conv.updated_at.iso8601 if conv.resolved?),
           conv.messages.count,
-          conv.labels.pluck(:title).join(';')
+          Array(conv.label_list).join(';')
         ]
       end
     end

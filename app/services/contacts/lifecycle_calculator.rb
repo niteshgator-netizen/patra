@@ -23,7 +23,7 @@ module Contacts
     def self.loaded_in_last_7_days?(contact)
       contact.account.game_actions
              .where(contact_id: contact.id, action_type: 'load', status: 'success')
-             .where('created_at >= ?', 7.days.ago)
+             .where('game_actions.created_at >= ?', 7.days.ago)
              .exists?
     end
 

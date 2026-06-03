@@ -82,7 +82,7 @@ module Payments
       return false if @contact.blank?
 
       GameAction.where(contact_id: @contact.id, action_type: 'load', status: 'success')
-                .where('created_at > ?', RECENT_ACTIVITY_WINDOW.ago)
+                .where('game_actions.created_at > ?', RECENT_ACTIVITY_WINDOW.ago)
                 .exists?
     end
   end

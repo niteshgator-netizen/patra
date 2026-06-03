@@ -29,7 +29,7 @@ module Contacts
     def self.was_active_before?(contact)
       contact.account.game_actions
              .where(contact_id: contact.id, action_type: 'load', status: 'success')
-             .where('created_at < ?', 14.days.ago)
+             .where('game_actions.created_at < ?', 14.days.ago)
              .exists?
     end
 
