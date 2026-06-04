@@ -27,4 +27,26 @@ class Api::V1::Accounts::BellaRagUploadsController < Api::V1::Accounts::BaseCont
       }
     }
   end
+
+  def stats
+    total = Current.account.bella_rag_pairs.count
+    labeled = Current.account.bella_rag_pairs.where.not(real_intent: nil).count
+    awaiting_review = Current.account.bella_takeover_candidates
+                             .where(status: 'queued').count rescue 0
+
+    period = 7.days.ago.beginning_of_day..Time.current
+    ai_handle_rate = begin
+      Analytics::AiHandleRateService.new(Current.account, period: period).call[:rate]
+    rescue StandardError
+      0
+    end
+
+    render json: {
+      total_pairs: total,
+      labeled_pairs: labeled,
+      label_progress_pct: total.zero? ? 0 : ((labeled.to_f / total) * 100).round(1),
+      ai_handle_rate: ai_handle_rate,
+      awaiting_review: awaiting_review
+    }
+  end
 end

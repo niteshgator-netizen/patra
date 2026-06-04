@@ -119,7 +119,11 @@ Rails.application.routes.draw do
             end
           end
           resources :canned_responses, only: [:index, :create, :update, :destroy]
-          resources :bella_rag_uploads, only: [:create, :index]
+          resources :bella_rag_uploads, only: [:index, :create] do
+            collection do
+              get :stats
+            end
+          end
           resources :bella_takeover_candidates, only: [:index, :update]
           resources :secret_phrases, only: [:index, :show, :create, :update, :destroy]
           resources :automation_rules, only: [:index, :create, :show, :update, :destroy] do
