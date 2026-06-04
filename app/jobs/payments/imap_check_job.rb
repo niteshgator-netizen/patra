@@ -16,10 +16,17 @@ module Payments
           begin
             Payments::GhostPaymentIngestionService.new(payment_handle: ph).ingest!
           rescue StandardError => e
-            Rails.logger.error("[ImapCheckJob] ghost_ingest_failed handle=#{ph.id} error=#{e.message}")
+            error_msg = e.message.to_s
+            if error_msg.include?('Too many simultaneous') || error_msg.include?('exceeded') || error_msg.include?('closed stream')
+              Rails.logger.warn("[ImapCheckJob] IMAP rate limit hit handle=#{ph.id} — backing off 30s")
+              sleep 30
+            else
+              Rails.logger.error("[ImapCheckJob] ghost_ingest_failed handle=#{ph.id} error=#{error_msg}")
+            end
           ensure
             ActiveRecord::Base.connection_pool.release_connection
           end
+          sleep 2
         end
 
         find_contacts_with_unconfirmed_entries(account).each do |contact_id|
@@ -27,10 +34,17 @@ module Payments
             contact = account.contacts.find_by(id: contact_id) or next
             Payments::EmailConfirmationService.new(contact: contact).check_all
           rescue StandardError => e
-            Rails.logger.error("[ImapCheckJob] contact #{contact_id} failed: #{e.message}")
+            error_msg = e.message.to_s
+            if error_msg.include?('Too many simultaneous') || error_msg.include?('exceeded') || error_msg.include?('closed stream')
+              Rails.logger.warn("[ImapCheckJob] IMAP rate limit hit contact=#{contact_id} — backing off 30s")
+              sleep 30
+            else
+              Rails.logger.error("[ImapCheckJob] contact #{contact_id} failed: #{error_msg}")
+            end
           ensure
             ActiveRecord::Base.connection_pool.release_connection
           end
+          sleep 2
         end
       end
       HTTParty.get("https://uptime.betterstack.com/api/v1/heartbeat/m497AzJnPKrBdPJfJbSSKbfR") rescue nil
