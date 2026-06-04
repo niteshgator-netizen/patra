@@ -286,3 +286,126 @@
   mix-blend-mode: screen;
   filter: blur(12px);
 }
+
+/* ═══════════════════════════════════════
+   MOTION BOOST — global micro-animations
+   (mirrors v6 mockup motion spec)
+   ═══════════════════════════════════════ */
+
+/* Entrance animation */
+@keyframes pat-mIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Cards — entrance + mouse-follow glow on hover */
+.pat-stat-card,
+.pat-game-card,
+.pat-dash-section,
+.pat-train-pair,
+.pat-train-stat,
+.vault-card,
+.gsum-card,
+.patra-kpi,
+.patra-card,
+.patra-ms {
+  animation: pat-mIn .5s cubic-bezier(.23,1,.32,1) backwards;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Mouse-follow radial glow on cards */
+.pat-stat-card::before,
+.pat-game-card::before,
+.patra-kpi::before,
+.patra-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+  background: radial-gradient(
+    260px circle at var(--gx, 50%) var(--gy, 50%),
+    rgba(110, 86, 207, .15),
+    transparent 70%
+  );
+  z-index: -1;
+}
+.pat-stat-card:hover::before,
+.pat-game-card:hover::before,
+.patra-kpi:hover::before,
+.patra-card:hover::before {
+  opacity: 1;
+}
+
+/* Card hover lift */
+.pat-stat-card:hover,
+.patra-kpi:hover,
+.patra-card:hover {
+  transform: translateY(-4px) scale(1.008);
+  box-shadow: 0 18px 40px -14px rgba(0,0,0,.55), 0 0 26px rgba(110,86,207,.18);
+  border-color: var(--patra, #6E56CF);
+}
+
+/* Game card icon rotate on hover */
+.pat-game-card:hover .game-icon,
+.pat-game-card:hover .gcard-ic,
+.pat-game-card:hover .game-emoji {
+  transform: scale(1.1) rotate(-5deg);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+
+/* Game card mouse-follow glow */
+.pat-game-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    200px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(110, 86, 207, .12),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity .3s;
+  pointer-events: none;
+  z-index: 0;
+}
+.pat-game-card:hover::after { opacity: 1; }
+
+/* Button hover lift */
+.pat-hbtn:hover,
+.pat-game-action:hover,
+.pat-btn:hover,
+.pat-send:hover,
+.pat-ho-btn:hover,
+.save-btn:hover,
+.ops-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* List row slide (settings lists, contact rows) */
+.pat-lrow,
+.lrow {
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+  border-radius: 10px;
+}
+.pat-lrow:hover,
+.lrow:hover {
+  background: var(--surface-2, #131119);
+  transform: translateX(3px);
+  padding-left: 8px !important;
+}
+
+/* Reduced motion — always last */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

@@ -135,6 +135,19 @@ export default {
           <h1 class="display">{{ $t('GAMES.HEADER') }}</h1>
           <div class="sub">{{ $t('GAMES.DESCRIPTION') }}</div>
         </div>
+        <button type="button" class="pat-btn" @click="() => {}">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            width="15"
+            height="15"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Add game
+        </button>
       </div>
 
       <div class="content">
@@ -324,6 +337,10 @@ export default {
 }
 
 .topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 22px;
 
   h1.display {
