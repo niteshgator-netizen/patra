@@ -55,7 +55,7 @@ class Facebook::ChatwootBridgeService
   def perform
     raise ConfigurationError, 'CHATWOOT_BRIDGE_API_TOKEN is not configured' if api_token.blank?
     raise BridgeError, 'sender id missing on Facebook payload' if @sender_id.blank?
-    raise BridgeError, 'message text missing on Facebook payload' if @text.blank?
+    raise BridgeError, 'message text and attachments missing on Facebook payload' if @text.blank? && first_fb_image_attachment_url.blank?
 
     contact_id = ensure_contact!
     conversation_id = ensure_conversation!(contact_id)
