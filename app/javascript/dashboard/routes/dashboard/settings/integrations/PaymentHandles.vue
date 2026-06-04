@@ -1000,7 +1000,7 @@ watch(selectedScoringPlatform, () => {
     class="pat-ph-wrap"
     :is-loading="isLoading"
     :loading-message="t('PAYMENT_HANDLES.LOADING')"
-    :no-records-found="!handles.length"
+    :no-records-found="!isLoading && !handles.length"
     :no-records-message="t('PAYMENT_HANDLES.EMPTY')"
   >
     <template #header>
