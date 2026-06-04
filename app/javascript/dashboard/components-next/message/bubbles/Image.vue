@@ -60,7 +60,7 @@ const handleImageError = () => {
         {{ $t('COMPONENTS.MEDIA.IMAGE_UNAVAILABLE') }}
       </p>
     </div>
-    <div v-else-if="isLoaded" class="relative group rounded-lg overflow-hidden">
+    <div v-else-if="isLoaded || attachment.dataUrl" class="relative group rounded-lg overflow-hidden">
       <img
         class="skip-context-menu"
         :src="attachment.dataUrl"

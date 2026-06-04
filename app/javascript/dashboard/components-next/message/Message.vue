@@ -329,7 +329,7 @@ const componentToRender = computed(() => {
   if (Array.isArray(props.attachments) && props.attachments.length === 1) {
     const fileType = props.attachments[0].fileType;
 
-    if (!props.content) {
+    if (!props.content || /^\[image\]$/i.test(props.content?.trim())) {
       if (fileType === ATTACHMENT_TYPES.IMAGE) return ImageBubble;
       if (fileType === ATTACHMENT_TYPES.FILE) return FileBubble;
       if (fileType === ATTACHMENT_TYPES.AUDIO) return AudioBubble;
