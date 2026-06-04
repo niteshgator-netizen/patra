@@ -13,6 +13,7 @@ class Patra::RefreshFbTokensJob < ApplicationJob
     rescue StandardError => e
       Rails.logger.error("[PatraFB] token refresh inbox=#{inbox.id} #{e.class}: #{e.message}")
     end
+    update_identity_statuses
   end
 
   private
@@ -52,5 +53,25 @@ class Patra::RefreshFbTokensJob < ApplicationJob
     Time.zone.parse(raw.to_s)
   rescue ArgumentError
     nil
+  end
+
+  def update_identity_statuses
+    FacebookIdentity.find_each do |identity|
+      begin
+        channel = identity.inboxes.first&.channel
+        next if channel.blank?
+
+        attrs = channel.additional_attributes || {}
+        obtained = parse_obtained_at(attrs['fb_page_token_obtained_at'])
+
+        if obtained.present? && obtained > TOKEN_REFRESH_AGE.ago
+          identity.update_columns(status: 'active') if identity.status != 'active'
+        else
+          identity.update_columns(status: 'expired') if identity.status != 'expired'
+        end
+      rescue StandardError => e
+        Rails.logger.error("[PatraFB] identity status update id=#{identity.id} #{e.class}: #{e.message}")
+      end
+    end
   end
 end
