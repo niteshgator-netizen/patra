@@ -12,7 +12,7 @@
     },
     "SETUP_STEPS": {
       "TITLE": "Setup (2 minutes)",
-      "STEP_1": "1. Open Telegram, search @BotFather, send /newbot. Give your bot a name. Copy the bot token it gives you.",
+      "STEP_1": "1. Open Telegram, search {'@'}BotFather, send /newbot. Give your bot a name. Copy the bot token it gives you.",
       "STEP_2": "2. Create a new Telegram group. Add your bot. Promote the bot to admin (no permissions needed, just admin status).",
       "STEP_3": "3. Send /start in the group. Then visit https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates and find the chat ID (negative number).",
       "STEP_4": "4. Paste both below and click Test Connection."
