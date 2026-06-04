@@ -146,7 +146,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="conv-sidebar-patra w-full flex flex-col min-h-0">
+  <div class="conv-sidebar-patra contact-panel-v6 w-full flex flex-col min-h-0">
     <SidebarActionsHeader
       class="ctx-sidebar-header shrink-0"
       :title="$t('CONVERSATION.SIDEBAR.CONTACT')"
@@ -341,4 +341,258 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 @import 'dashboard/components/widgets/conversation/conversation-sidebar-patra.scss';
+
+/* ── v6 right sidebar ── */
+.contact-panel-v6,
+.conversation-sidebar,
+.contact-panel {
+  background: var(--surface, #0c0b12);
+  border-left: 1px solid var(--border, #171520);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+}
+
+/* Tabs */
+.contact-panel-v6 :deep(.tabs-pane),
+.contact-panel-v6 :deep(.tabs) {
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface, #0c0b12);
+  padding: 0 12px;
+}
+.contact-panel-v6 :deep(.tabs-title a),
+.contact-panel-v6 :deep(.tabs-title button) {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2, #a8a6b6);
+  padding: 10px 12px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.contact-panel-v6 :deep(.tabs-title.is-active a),
+.contact-panel-v6 :deep(.tabs-title.is-active button) {
+  color: var(--patra-3, #a78bfa);
+  border-bottom-color: var(--patra, #6e56cf);
+}
+
+/* Section labels */
+.contact-panel-v6 :deep(.conv-details--label),
+.contact-panel-v6 :deep(.section-label) {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-4, #54515e);
+  padding: 14px 16px 6px;
+}
+
+/* Accordion headers */
+.contact-panel-v6 :deep(.accordion-head),
+.contact-panel-v6 :deep(.conv-details-item) {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #ededf2);
+  border-top: 1px solid var(--border, #171520);
+  transition: background 0.2s;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.contact-panel-v6 :deep(.accordion-head:hover) {
+  background: var(--surface-2, #131119);
+}
+
+/* Field rows */
+.contact-panel-v6 :deep(.conv-details--item),
+.contact-panel-v6 :deep(.field-row) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+  font-size: 12.5px;
+}
+.contact-panel-v6 :deep(.conv-details--item .title),
+.contact-panel-v6 :deep(.field-key) {
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+}
+.contact-panel-v6 :deep(.conv-details--item .value),
+.contact-panel-v6 :deep(.field-val) {
+  color: var(--text, #ededf2);
+  font-weight: 500;
+  text-align: right;
+}
+
+/* Stats grid */
+.pat-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.pat-stat-cell {
+  background: var(--surface-2, #131119);
+  border: 1px solid var(--border, #171520);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pat-stat-cell .n {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #ededf2);
+  font-family: 'JetBrains Mono', monospace;
+}
+.pat-stat-cell .n.g {
+  color: var(--green, #3fb950);
+}
+.pat-stat-cell .n.p {
+  color: var(--patra-3, #a78bfa);
+}
+.pat-stat-cell .l {
+  font-size: 10px;
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+}
+
+/* Macro rows */
+.contact-panel-v6 :deep(.macro-row) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  color: var(--text-2, #a8a6b6);
+  border-bottom: 1px solid var(--border, #171520);
+  transition: background 0.2s;
+}
+.contact-panel-v6 :deep(.macro-row:hover) {
+  background: var(--surface-2, #131119);
+  color: var(--text, #ededf2);
+}
+
+/* Bridge: spec → existing Patra DOM */
+.contact-panel-v6 :deep(.sidebar-accordions .acc) {
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 0;
+  border: none;
+  border-top: 1px solid var(--border, #171520);
+}
+
+.contact-panel-v6 :deep(.acc-h) {
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #ededf2);
+  border-top: none;
+  transition: background 0.2s;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.contact-panel-v6 :deep(.acc-h:hover) {
+  background: var(--surface-2, #131119);
+}
+
+.contact-panel-v6 :deep(.ctx-label),
+.contact-panel-v6 :deep(.sub-label) {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-4, #54515e);
+  padding: 14px 16px 6px;
+  margin-bottom: 0;
+  font-family: inherit;
+}
+
+.contact-panel-v6 :deep(.field) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+  font-size: 12.5px;
+  border-bottom: none;
+}
+
+.contact-panel-v6 :deep(.field .k) {
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+}
+
+.contact-panel-v6 :deep(.field .v) {
+  color: var(--text, #ededf2);
+  font-weight: 500;
+  text-align: right;
+}
+
+.contact-panel-v6 :deep(.stat-row) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-bottom: 0;
+}
+
+.contact-panel-v6 :deep(.stat) {
+  background: var(--surface-2, #131119);
+  border: 1px solid var(--border, #171520);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: default;
+}
+
+.contact-panel-v6 :deep(.stat::after) {
+  display: none;
+}
+
+.contact-panel-v6 :deep(.stat.js-spot:hover) {
+  border-color: var(--border, #171520);
+  transform: none;
+  box-shadow: none;
+}
+
+.contact-panel-v6 :deep(.stat .n) {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text, #ededf2);
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.2;
+}
+
+.contact-panel-v6 :deep(.stat .n.g) {
+  color: var(--green, #3fb950);
+  background: none;
+  -webkit-text-fill-color: var(--green, #3fb950);
+}
+
+.contact-panel-v6 :deep(.stat .n.p) {
+  color: var(--patra-3, #a78bfa);
+  background: none;
+  -webkit-text-fill-color: var(--patra-3, #a78bfa);
+}
+
+.contact-panel-v6 :deep(.stat .n.sm) {
+  font-size: 16px;
+}
+
+.contact-panel-v6 :deep(.stat .l) {
+  font-size: 10px;
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+  margin-top: 0;
+}
 </style>

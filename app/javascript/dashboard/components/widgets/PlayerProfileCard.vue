@@ -541,7 +541,10 @@ watch(() => props.contact?.id, loadExtras);
           paymentStatusPill.label
         }}</span>
       </div>
-      <div class="field">
+      <div
+        class="field pat-blacklist-row"
+        :class="{ active: isBlacklisted }"
+      >
         <span class="k">{{ $t('BLACKLIST.TOGGLE') }}</span>
         <span class="v">
           <button
@@ -572,13 +575,15 @@ watch(() => props.contact?.id, loadExtras);
       <div v-if="lifecycleStage" class="field">
         <span class="k">{{ $t('PLAYER_PROFILE.LIFECYCLE') }}</span>
         <span class="v">
-          <span class="tag engaged">{{ lifecycleStage }}</span>
+          <span class="tag engaged pat-lifecycle-tag engaged">{{
+            lifecycleStage
+          }}</span>
         </span>
       </div>
       <div v-if="loyaltyTier" class="field">
         <span class="k">{{ $t('PLAYER_PROFILE.FIELDS.LOYALTY_TIER') }}</span>
         <span class="v">
-          <span class="tag new">{{ loyaltyTier }}</span>
+          <span class="tag new pat-lifecycle-tag new">{{ loyaltyTier }}</span>
         </span>
       </div>
       <div
@@ -721,28 +726,30 @@ watch(() => props.contact?.id, loadExtras);
             <span class="vg-ic">{{ gameEmoji(cred.game) }}</span>
             {{ humanizeGame(cred.game) }}
           </div>
-          <div class="vault-cred">
-            <span class="vc-k">{{
+          <div class="vault-cred vault-cred-row">
+            <span class="vc-k vault-cred-key">{{
               $t('CONTACTS_LAYOUT.PLAYER_VAULT.USER')
             }}</span>
-            <span class="vc-v">{{ cred.username }}</span>
+            <span class="vc-v vault-cred-val">{{ cred.username }}</span>
             <button
               type="button"
-              class="vc-copy"
+              class="vc-copy vault-copy"
               :aria-label="$t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY')"
               @click="copyValue(cred.username)"
             >
               {{ $t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY') }}
             </button>
           </div>
-          <div class="vault-cred">
-            <span class="vc-k">{{
+          <div class="vault-cred vault-cred-row">
+            <span class="vc-k vault-cred-key">{{
               $t('CONTACTS_LAYOUT.PLAYER_VAULT.PASS')
             }}</span>
-            <span class="vc-v">{{ maskPassword(cred.password) }}</span>
+            <span class="vc-v vault-cred-val">{{
+              maskPassword(cred.password)
+            }}</span>
             <button
               type="button"
-              class="vc-copy"
+              class="vc-copy vault-copy"
               :aria-label="$t('CONTACTS_LAYOUT.PLAYER_VAULT.COPY')"
               @click="copyValue(cred.password)"
             >
@@ -790,3 +797,94 @@ watch(() => props.contact?.id, loadExtras);
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+/* ── Player Vault cards ── */
+.vault-card {
+  background: var(--surface-2, #131119);
+  border: 1px solid var(--border, #171520);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 4px 16px;
+  transition: border-color 0.2s;
+}
+.vault-card:hover {
+  border-color: var(--patra, #6e56cf);
+}
+.vault-game {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #ededf2);
+  margin-bottom: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vault-cred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 11.5px;
+}
+.vault-cred-key {
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+}
+.vault-cred-val {
+  color: var(--text, #ededf2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.vault-copy {
+  border: none;
+  background: transparent;
+  color: var(--text-4, #54515e);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 5px;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+.vault-copy:hover {
+  color: var(--patra-3, #a78bfa);
+  background: rgba(110, 86, 207, 0.12);
+}
+
+/* Loyalty / lifecycle tags */
+.pat-lifecycle-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.pat-lifecycle-tag.engaged {
+  background: rgba(63, 185, 80, 0.16);
+  color: var(--green, #3fb950);
+}
+.pat-lifecycle-tag.vip {
+  background: rgba(227, 160, 8, 0.16);
+  color: var(--amber, #e3a008);
+}
+.pat-lifecycle-tag.new {
+  background: rgba(110, 86, 207, 0.16);
+  color: var(--patra-3, #a78bfa);
+}
+
+/* Blacklist toggle row */
+.pat-blacklist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12.5px;
+  color: var(--text-2, #a8a6b6);
+  border-top: 1px solid var(--border, #171520);
+}
+.pat-blacklist-row.active {
+  color: var(--red, #f85149);
+  background: rgba(248, 81, 73, 0.06);
+}
+</style>
