@@ -11,7 +11,7 @@ class Captain::BaseTaskService
   # 120000 * 4 = 480,000 characters (rounding off downwards to 400,000 to be safe)
   TOKEN_LIMIT = 400_000
   GPT_MODEL = Llm::Config::DEFAULT_MODEL
-  XAI_EVENTS = %w[summarize reply_suggestion].freeze
+  XAI_EVENTS = %w[summarize reply_suggestion rewrite].freeze
   XAI_URL = 'https://api.x.ai/v1'.freeze
 
   # Prepend enterprise module to subclasses when they're defined.
