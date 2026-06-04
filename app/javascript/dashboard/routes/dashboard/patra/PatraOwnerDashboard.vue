@@ -89,6 +89,21 @@ const donutOffset = computed(() => {
   return circumference - (circumference * rate) / 100;
 });
 
+const heatmapCells = computed(() => {
+  const raw = stats.value?.heatmap || [];
+  const map = {};
+  let max = 1;
+  raw.forEach(({ dow, hour, count }) => {
+    map[`${dow}-${hour}`] = count;
+    if (count > max) max = count;
+  });
+  return { map, max };
+});
+
+function heatmapDayIndex(day) {
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(day);
+}
+
 function formatPercent(value) {
   return `${value ?? 0}%`;
 }
@@ -99,16 +114,16 @@ function channelColor(index) {
 
 function noopPlaceholder() {}
 
-function setRange(range) {
-  if (range === 'today') activeRange.value = 'today';
-  else noopPlaceholder();
+async function setRange(range) {
+  activeRange.value = range;
+  await loadStats(false, range);
 }
 
-async function loadStats(showSpinner = false) {
+async function loadStats(showSpinner = false, range = 'today') {
   if (showSpinner) loading.value = true;
   error.value = null;
   try {
-    const { data } = await PatraDashboardAPI.get();
+    const { data } = await PatraDashboardAPI.get({ params: { range } });
     stats.value = data;
   } catch (e) {
     error.value = e.message || 'Failed to load dashboard';
@@ -538,17 +553,15 @@ onUnmounted(() => {
                       formatPercent(stats.ai_handle_rate)
                     }}</span>
                   </div>
-                  <!-- TODO: wire backend -->
                   <div class="patra-leg">
                     <span class="patra-leg-sw patra-leg-sw-amber" />
                     {{ legendEscalated }}
-                    <span class="patra-leg-v">{{ emptyPlaceholder }}</span>
+                    <span class="patra-leg-v">{{ formatPercent(stats.escalation_rate) }}</span>
                   </div>
-                  <!-- TODO: wire backend -->
                   <div class="patra-leg">
                     <span class="patra-leg-sw patra-leg-sw-muted" />
                     {{ legendStillOpen }}
-                    <span class="patra-leg-v">{{ emptyPlaceholder }}</span>
+                    <span class="patra-leg-v">{{ formatPercent(stats.still_open_rate) }}</span>
                   </div>
                 </div>
               </div>
@@ -689,12 +702,15 @@ onUnmounted(() => {
                 </div>
                 <template v-for="day in heatmapDays" :key="day">
                   <div class="patra-hm-row-lbl">{{ day }}</div>
-                  <!-- TODO: wire backend -->
                   <div
                     v-for="hour in heatmapHours"
                     :key="`${day}-${hour}`"
                     class="patra-hm-cell"
-                    @click="noopPlaceholder"
+                    :style="{
+                      opacity: heatmapCells.map[`${heatmapDayIndex(day)}-${hour}`]
+                        ? 0.15 + 0.85 * (heatmapCells.map[`${heatmapDayIndex(day)}-${hour}`] / heatmapCells.max)
+                        : 0.05
+                    }"
                   />
                 </template>
               </div>
