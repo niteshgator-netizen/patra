@@ -200,3 +200,89 @@
   object-fit: contain;
   cursor: pointer;
 }
+
+:root {
+  --mesh-1: rgba(110, 86, 207, 0.16);
+  --mesh-2: rgba(139, 92, 246, 0.1);
+  --mesh-3: rgba(236, 72, 153, 0.05);
+}
+
+/* ── Global mesh background ── */
+.patra-mesh-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.patra-mesh-bg::before,
+.patra-mesh-bg::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+}
+
+.patra-mesh-bg::before {
+  top: -15%;
+  right: -5%;
+  width: 700px;
+  height: 560px;
+  background:
+    radial-gradient(circle at 40% 40%, var(--mesh-1, rgba(110, 86, 207, 0.16)), transparent 60%),
+    radial-gradient(circle at 70% 70%, var(--mesh-2, rgba(139, 92, 246, 0.1)), transparent 60%);
+  animation: meshA 22s ease-in-out infinite alternate;
+}
+
+.patra-mesh-bg::after {
+  bottom: -20%;
+  left: 10%;
+  width: 560px;
+  height: 500px;
+  background: radial-gradient(
+    circle at 50% 50%,
+    var(--mesh-3, rgba(236, 72, 153, 0.05)),
+    transparent 65%
+  );
+  animation: meshB 28s ease-in-out infinite alternate;
+}
+
+@keyframes meshA {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(-50px, 40px) scale(1.12) rotate(8deg);
+  }
+}
+
+@keyframes meshB {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(40px, -30px) scale(1.1);
+  }
+}
+
+/* ── Global cursor spotlight ── */
+.patra-spotlight {
+  position: fixed;
+  width: 460px;
+  height: 460px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(110, 86, 207, 0.16),
+    rgba(110, 86, 207, 0.04) 42%,
+    transparent 66%
+  );
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.5s;
+  mix-blend-mode: screen;
+  filter: blur(12px);
+}

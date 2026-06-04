@@ -67,24 +67,32 @@ export default {
     });
 
     let spotlightMouseMoveHandler = null;
+    let spotlightMouseLeaveHandler = null;
 
     onMounted(() => {
       syncTabTitle();
-      const spotlight = document.getElementById('spotlight');
+      const spotlight = document.getElementById('patra-global-spotlight');
       if (spotlight) {
         spotlightMouseMoveHandler = e => {
           spotlight.style.left = `${e.clientX}px`;
           spotlight.style.top = `${e.clientY}px`;
-          spotlight.style.opacity = '0.9';
+          spotlight.style.opacity = '1';
         };
-        window.addEventListener('mousemove', spotlightMouseMoveHandler);
+        spotlightMouseLeaveHandler = () => {
+          spotlight.style.opacity = '0';
+        };
+        document.addEventListener('mousemove', spotlightMouseMoveHandler);
+        document.addEventListener('mouseleave', spotlightMouseLeaveHandler);
       }
     });
 
     onBeforeUnmount(() => {
       updateTabTitle(0);
       if (spotlightMouseMoveHandler) {
-        window.removeEventListener('mousemove', spotlightMouseMoveHandler);
+        document.removeEventListener('mousemove', spotlightMouseMoveHandler);
+      }
+      if (spotlightMouseLeaveHandler) {
+        document.removeEventListener('mouseleave', spotlightMouseLeaveHandler);
       }
     });
 
@@ -174,8 +182,12 @@ export default {
 
 <template>
   <div class="flex flex-grow overflow-hidden text-n-slate-12">
-    <div id="spotlight" />
-    <div class="mesh" />
+    <div class="patra-mesh-bg" aria-hidden="true" />
+    <div
+      id="patra-global-spotlight"
+      class="patra-spotlight"
+      aria-hidden="true"
+    />
     <NextSidebar
       :is-mobile-sidebar-open="isMobileSidebarOpen"
       @toggle-account-modal="toggleAccountModal"
@@ -223,63 +235,10 @@ export default {
 </template>
 
 <style scoped>
-#spotlight {
-  position: fixed;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(110, 86, 207, 0.06) 0%,
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: 0;
-  transform: translate(-50%, -50%);
-  transition: opacity 0.3s;
-  opacity: 0;
-}
-
-.mesh {
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(
-      ellipse at 20% 50%,
-      rgba(110, 86, 207, 0.08) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 80% 20%,
-      rgba(139, 92, 246, 0.06) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse at 50% 80%,
-      rgba(91, 69, 176, 0.05) 0%,
-      transparent 50%
-    );
-  pointer-events: none;
-  z-index: 0;
-  animation: meshShift 20s ease-in-out infinite alternate;
-}
-
-@keyframes meshShift {
-  0% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.7;
-  }
-}
-
 .pat-dashboard-main {
   position: relative;
   z-index: 1;
-  background: #050409 !important;
+  background: transparent !important;
   color: #ededf2;
 }
 </style>

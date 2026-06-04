@@ -583,7 +583,7 @@ const menuItems = computed(() => {
         ],
       },
     ]"
-    class="patra-nav-rail bg-n-background flex flex-col text-sm pb-px fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 w-[200px] md:w-auto md:relative md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:translate-x-0 ltr:border-r rtl:border-l border-n-weak"
+    class="pat-rail patra-nav-rail bg-n-background flex flex-col text-sm pb-px fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 w-[200px] md:w-auto md:relative md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:translate-x-0 ltr:border-r rtl:border-l border-n-weak"
     :class="[
       {
         'shadow-lg md:shadow-none': isMobileSidebarOpen,
@@ -606,10 +606,12 @@ const menuItems = computed(() => {
         }"
       >
         <template v-if="isEffectivelyCollapsed">
-          <SidebarAccountSwitcher
-            is-collapsed
-            @show-create-account-modal="emit('showCreateAccountModal')"
-          />
+          <div class="pat-rail-logo">
+            <SidebarAccountSwitcher
+              is-collapsed
+              @show-create-account-modal="emit('showCreateAccountModal')"
+            />
+          </div>
         </template>
         <template v-else>
           <div class="grid flex-shrink-0 place-content-center size-6">
@@ -644,7 +646,7 @@ const menuItems = computed(() => {
         <RouterLink
           v-else
           :to="{ name: 'search' }"
-          class="flex items-center justify-center size-8 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out hover:bg-n-alpha-2 dark:hover:bg-n-slate-9/30"
+          class="pat-rail-item flex items-center justify-center size-8 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out hover:bg-n-alpha-2 dark:hover:bg-n-slate-9/30"
           :title="t('COMBOBOX.SEARCH_PLACEHOLDER')"
         >
           <span class="i-lucide-search size-4 text-n-slate-11" />
@@ -658,7 +660,7 @@ const menuItems = computed(() => {
               class="dark:hover:!bg-n-slate-9/30"
               :class="[
                 isEffectivelyCollapsed
-                  ? '!size-8 !outline-n-weak !text-n-slate-11'
+                  ? 'pat-rail-item !size-8 !outline-n-weak !text-n-slate-11'
                   : '!h-7 !outline-n-weak !text-n-slate-11',
                 { '!bg-n-alpha-2 dark:!bg-n-slate-9/30': isOpen },
               ]"
@@ -707,10 +709,12 @@ const menuItems = computed(() => {
         class="px-1 py-1.5 flex-shrink-0 flex w-full z-50 gap-2 items-center border-t border-n-weak shadow-[0px_-2px_4px_0px_rgba(27,28,29,0.02)]"
         :class="isEffectivelyCollapsed ? 'justify-center' : 'justify-between'"
       >
-        <SidebarProfileMenu
-          :is-collapsed="isEffectivelyCollapsed"
-          @open-key-shortcut-modal="emit('openKeyShortcutModal')"
-        />
+        <div class="pat-rail-avatar">
+          <SidebarProfileMenu
+            :is-collapsed="isEffectivelyCollapsed"
+            @open-key-shortcut-modal="emit('openKeyShortcutModal')"
+          />
+        </div>
       </div>
     </section>
     <!-- Resize Handle (desktop only) -->
@@ -730,6 +734,243 @@ const menuItems = computed(() => {
 
 <style>
 @media (min-width: 768px) {
+  /* ── v6 Rail tokens + class layer (pat-rail-*) ── */
+  .pat-rail.patra-nav-rail {
+    --canvas: #050409;
+    --surface: #0c0b12;
+    --surface-2: #131119;
+    --border: #171520;
+    --border-hi: #2e2940;
+    --text: #ededf2;
+    --text-3: #75727f;
+    --patra: #6e56cf;
+    --patra-2: #8b5cf6;
+    --patra-3: #a78bfa;
+    --patra-deep: #5b45b0;
+    --patra-glow: rgba(110, 86, 207, 0.55);
+    --red: #f85149;
+    --green: #3fb950;
+  }
+
+  .pat-rail.patra-nav-rail,
+  .patra-nav-rail.sidebar-rail,
+  .patra-nav-rail.navigation-rails {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0;
+    gap: 5px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border, #171520);
+    background: linear-gradient(
+      180deg,
+      var(--surface, #0c0b12),
+      var(--canvas, #050409)
+    );
+  }
+
+  .pat-rail-logo,
+  .patra-nav-rail .pat-rail-logo,
+  .patra-nav-rail .sidebar-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(
+      135deg,
+      var(--patra, #6e56cf),
+      var(--patra-deep, #5b45b0)
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    color: #fff;
+    font-size: 21px;
+    box-shadow:
+      0 0 22px var(--patra-glow, rgba(110, 86, 207, 0.55)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    margin-bottom: 14px;
+    cursor: pointer;
+    animation: logoPulse 4s ease-in-out infinite;
+    transition: transform 0.2s;
+    position: relative;
+  }
+
+  .pat-rail-logo::after {
+    content: 'P';
+    line-height: 1;
+  }
+
+  .pat-rail-logo:hover {
+    transform: scale(1.06) rotate(-3deg);
+  }
+
+  .pat-rail-logo button {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: inherit !important;
+    box-shadow: none !important;
+  }
+
+  .pat-rail-logo button::after {
+    content: none;
+  }
+
+  .pat-rail-logo svg {
+    display: none !important;
+  }
+
+  @keyframes logoPulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 22px var(--patra-glow, rgba(110, 86, 207, 0.55)),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    50% {
+      box-shadow:
+        0 0 38px var(--patra-glow, rgba(110, 86, 207, 0.55)),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  .pat-rail-item,
+  .patra-nav-rail nav .snav-item {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-3, #75727f);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  .pat-rail-item svg,
+  .patra-nav-rail nav .snav-item svg,
+  .patra-nav-rail nav .snav-item svg {
+    width: 21px;
+    height: 21px;
+    transition: transform 0.25s;
+  }
+
+  .pat-rail-item:hover,
+  .patra-nav-rail nav .snav-item:hover {
+    color: var(--text, #ededf2);
+    background: var(--surface-2, #131119);
+    transform: translateY(-2px);
+  }
+
+  .pat-rail-item:hover svg,
+  .pat-rail-item:hover svg,
+  .patra-nav-rail nav .snav-item:hover svg {
+    transform: scale(1.1);
+  }
+
+  .pat-rail-item.active,
+  .patra-nav-rail nav .snav-item.active {
+    color: #fff;
+    background: linear-gradient(
+      135deg,
+      var(--patra, #6e56cf),
+      var(--patra-deep, #5b45b0)
+    );
+    box-shadow:
+      0 6px 18px var(--patra-glow, rgba(110, 86, 207, 0.55)),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .pat-rail-item.active::before,
+  .patra-nav-rail nav .snav-item.active::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 22px;
+    background: linear-gradient(
+      180deg,
+      var(--patra-2, #8b5cf6),
+      var(--patra-3, #a78bfa)
+    );
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
+  }
+
+  .pat-rail-badge,
+  .patra-nav-rail nav .pat-rail-item .bg-n-brand.absolute,
+  .patra-nav-rail nav li .size-2.bg-n-brand {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--red, #f85149) !important;
+    color: #fff !important;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--surface, #0c0b12);
+  }
+
+  .pat-rail-avatar,
+  .patra-nav-rail .pat-rail-avatar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pat-rail-avatar button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    border: 2px solid var(--border-hi, #2e2940) !important;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .pat-rail-avatar button:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 16px var(--patra-glow, rgba(110, 86, 207, 0.55));
+  }
+
+  .pat-rail-avatar span.relative.inline-flex {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .pat-rail-avatar .absolute.z-20.border.rounded-full,
+  .pat-rail-avatar .online-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 11px !important;
+    height: 11px !important;
+    border-radius: 50%;
+    background: var(--green, #3fb950) !important;
+    border: 2px solid var(--surface, #0c0b12) !important;
+  }
+
+  /* ── legacy patra-nav-rail structural overrides (keep until verified) ── */
   .patra-nav-rail {
     width: 66px !important;
     min-width: 66px !important;
@@ -765,15 +1006,18 @@ const menuItems = computed(() => {
   .patra-nav-rail > section:first-child .flex-shrink-0.w-px,
   .patra-nav-rail #sidebar-account-switcher,
   .patra-nav-rail > section:first-child > div:first-child > button span,
+  .patra-nav-rail > section:first-child .pat-rail-logo button span,
   .patra-nav-rail
     > section:first-child
     > div:first-child
     > button
-    .i-lucide-chevron-down {
+    .i-lucide-chevron-down,
+  .patra-nav-rail > section:first-child .pat-rail-logo .i-lucide-chevron-down {
     display: none !important;
   }
 
   .patra-nav-rail > section:first-child .size-6,
+  .patra-nav-rail > section:first-child .pat-rail-logo,
   .patra-nav-rail > section:first-child button:has(.size-7) {
     width: 40px !important;
     height: 40px !important;
@@ -790,23 +1034,20 @@ const menuItems = computed(() => {
   }
 
   .patra-nav-rail > section:first-child .size-6 svg,
+  .patra-nav-rail > section:first-child .pat-rail-logo svg,
   .patra-nav-rail > section:first-child button:has(.size-7) svg {
     display: none !important;
   }
 
   .patra-nav-rail > section:first-child .size-6::after,
   .patra-nav-rail > section:first-child button:has(.size-7)::after {
-    content: 'P';
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 700;
-    font-size: 18px;
-    color: #fff;
-    line-height: 1;
+    content: none;
   }
 
-  .patra-nav-rail > section:first-child .size-6:hover,
-  .patra-nav-rail > section:first-child button:has(.size-7):hover {
-    transform: scale(1.06) rotate(-3deg);
+  .patra-nav-rail > section:last-child .pat-rail-avatar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .patra-nav-rail > section:first-child > div:last-child {
@@ -864,6 +1105,7 @@ const menuItems = computed(() => {
   .patra-nav-rail nav li > div > button,
   .patra-nav-rail nav li > a,
   .patra-nav-rail nav li > button,
+  .patra-nav-rail nav .pat-rail-item,
   .patra-nav-rail nav .snav-item,
   .patra-nav-rail nav [role='button'] {
     width: 44px !important;
@@ -895,6 +1137,7 @@ const menuItems = computed(() => {
   .patra-nav-rail nav li > div > button:hover,
   .patra-nav-rail nav li > a:hover,
   .patra-nav-rail nav li > button:hover,
+  .patra-nav-rail nav .pat-rail-item:hover,
   .patra-nav-rail nav .snav-item:hover {
     color: #ededf2 !important;
     background: #131119 !important;
@@ -907,6 +1150,7 @@ const menuItems = computed(() => {
   .patra-nav-rail nav li > a.text-n-slate-12,
   .patra-nav-rail nav li > button.text-n-slate-12,
   .patra-nav-rail nav li > a.router-link-active,
+  .patra-nav-rail nav .pat-rail-item.active,
   .patra-nav-rail nav .snav-item.active {
     color: #fff !important;
     background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
@@ -919,6 +1163,7 @@ const menuItems = computed(() => {
   .patra-nav-rail nav li > a.text-n-slate-12::before,
   .patra-nav-rail nav li > button.text-n-slate-12::before,
   .patra-nav-rail nav li > a.router-link-active::before,
+  .patra-nav-rail nav .pat-rail-item.active::before,
   .patra-nav-rail nav .snav-item.active::before {
     content: '';
     position: absolute;

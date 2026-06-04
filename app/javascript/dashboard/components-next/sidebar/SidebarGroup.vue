@@ -236,8 +236,9 @@ watch(
           ref="triggerRef"
           :to="to && !hasChildren ? to : undefined"
           type="button"
-          class="flex items-center justify-center size-10 rounded-lg"
+          class="pat-rail-item flex items-center justify-center size-10 rounded-lg"
           :class="{
+            active: isActive || hasActiveChild,
             'text-n-slate-12 bg-n-alpha-2': isActive || hasActiveChild,
             'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
           }"
@@ -273,7 +274,7 @@ watch(
             >
               <router-link
                 :to="child.to"
-                class="snav-item"
+                class="snav-item pat-rail-item"
                 :class="{ active: activeChild?.name === child.name }"
               >
                 <Icon v-if="child.icon" :icon="child.icon" />
