@@ -866,3 +866,170 @@
     animation: none !important;
   }
 }
+
+/* ── v6 contacts page ── */
+.pat-contacts {
+  background: var(--canvas, #050409);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pat-contacts-head {
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface, #0c0b12);
+  flex-shrink: 0;
+}
+
+.pat-contacts :deep(.list-head) {
+  padding: 18px 24px 10px;
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface, #0c0b12);
+  flex-shrink: 0;
+}
+
+.pat-contacts :deep(.list-head-top) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pat-contacts-head h1,
+.pat-contacts :deep(.list-title) {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text, #ededf2);
+}
+
+.pat-contacts-search,
+.pat-contacts :deep(.search input) {
+  flex: 1;
+  max-width: 340px;
+  background: var(--canvas, #050409);
+  border: 1px solid var(--border, #171520);
+  border-radius: 11px;
+  padding: 9px 14px;
+  color: var(--text, #ededf2);
+  font-size: 13px;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.pat-contacts-search:focus,
+.pat-contacts :deep(.search input:focus) {
+  border-color: var(--patra, #6e56cf);
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.13);
+}
+
+.pat-contacts-table,
+.pat-contacts :deep(.contacts) {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pat-contacts-table :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pat-contacts-table :deep(th) {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4, #54515e);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface, #0c0b12);
+  text-align: left;
+  position: sticky;
+  top: 0;
+}
+
+.pat-contacts-table :deep(td) {
+  font-size: 13px;
+  color: var(--text, #ededf2);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border, #171520);
+}
+
+.pat-contacts-table :deep(tr:hover td) {
+  background: var(--surface-2, #131119);
+  cursor: pointer;
+}
+
+.pat-contact-name,
+.pat-contacts :deep(.cn) {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.pat-contact-ava,
+.pat-contacts :deep(.c-ava) {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pat-btn,
+.pat-contacts :deep(.btn.primary) {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 3px 10px var(--patra-glow, rgba(110, 86, 207, 0.4));
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pat-btn:hover,
+.pat-contacts :deep(.btn.primary:hover) {
+  box-shadow: 0 5px 16px var(--patra-glow, rgba(110, 86, 207, 0.4));
+  transform: translateY(-1px);
+}
+
+.pat-contacts-table :deep(.contact) {
+  font-size: 13px;
+  color: var(--text, #ededf2);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border, #171520);
+  cursor: pointer;
+}
+
+.pat-contacts-table :deep(.contact:hover) {
+  background: var(--surface-2, #131119);
+}

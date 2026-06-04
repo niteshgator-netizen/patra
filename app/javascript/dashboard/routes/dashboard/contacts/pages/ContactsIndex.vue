@@ -487,7 +487,7 @@ const onSpotlightLeave = () => {
 
 <template>
   <div
-    class="contacts-wrap"
+    class="contacts-wrap pat-contacts"
     @mousemove="onSpotlightMove"
     @mouseleave="onSpotlightLeave"
   >
@@ -495,6 +495,7 @@ const onSpotlightLeave = () => {
     <div class="mesh" />
     <div class="contacts-app">
       <ContactsListLayout
+        class="pat-contacts-table"
         :search-value="searchValue"
         :header-title="headerTitle"
         :current-page="currentPage"

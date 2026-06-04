@@ -130,14 +130,17 @@ onMounted(() => {
 
 <template>
   <div
-    class="contacts-wrap"
+    class="contacts-wrap pat-contacts"
     @mousemove="onSpotlightMove"
     @mouseleave="onSpotlightLeave"
   >
     <div id="spotlight" ref="spotlightRef" />
     <div class="mesh" />
     <div class="contacts-app">
-      <PatraContactsCompactList :active-contact-id="route.params.contactId" />
+      <PatraContactsCompactList
+        class="pat-contacts-table"
+        :active-contact-id="route.params.contactId"
+      />
 
       <ContactsDetailsLayout
         :selected-contact="selectedContact"
