@@ -176,17 +176,7 @@
   pointer-events: none;
 }
 
-/* Patra premium look — token-driven row dividers, active highlight, header
-   chrome, message-list bg, metadata muting. Ungated by theme. */
-.conversations-list .conversation--item {
-  border-bottom: 1px solid var(--patra-border) !important;
-  padding: 12px 16px !important;
-}
-
-.conversations-list .conversation--item.active {
-  background: var(--patra-accent-soft) !important;
-  border-left: 3px solid var(--patra-accent) !important;
-}
+/* List rows: v6 card styles live on .convo-card-v6 in ConversationCard.vue */
 
 .conversation--header {
   background: var(--patra-bg2) !important;

@@ -228,11 +228,25 @@ export default {
   --border: #171520;
   --border-hi: #2e2940;
   --patra: #6e56cf;
+  --patra-2: #8b5cf6;
+  --patra-3: #a78bfa;
+  --patra-deep: #5b45b0;
+  --patra-glow: rgba(110, 86, 207, 0.55);
   --patra-active: rgba(110, 86, 207, 0.12);
   --text: #ededf2;
   --text-2: #a8a6b6;
   --text-3: #75727f;
   --text-4: #54515e;
+  --green: #3fb950;
+  --amber: #e3a008;
+  --red: #f85149;
+  --blue: #58a6ff;
+  --pink: #ec4899;
+  --bubble-in: #131119;
+  --inset: rgba(255, 255, 255, 0.045);
+  --mesh-1: rgba(110, 86, 207, 0.16);
+  --mesh-2: rgba(139, 92, 246, 0.1);
+  --mesh-3: rgba(236, 72, 153, 0.05);
 
   width: 100%;
   height: 100%;
@@ -240,6 +254,36 @@ export default {
   color: var(--text);
   font-family: 'Inter', sans-serif;
   background: var(--canvas) !important;
+}
+
+body:not(.dark) .pat-page-wrap {
+  --canvas: #f6f5f9;
+  --surface: #ffffff;
+  --surface-2: #f1f0f6;
+  --surface-3: #e9e7f1;
+  --surface-4: #dedbeb;
+  --border: #e7e5ef;
+  --border-hi: #d3cfe3;
+  --patra: #6e56cf;
+  --patra-2: #7c5fd8;
+  --patra-3: #6e56cf;
+  --patra-deep: #5b45b0;
+  --patra-glow: rgba(110, 86, 207, 0.28);
+  --patra-active: rgba(110, 86, 207, 0.1);
+  --text: #16151c;
+  --text-2: #56546a;
+  --text-3: #86849a;
+  --text-4: #a8a6b8;
+  --green: #1a7f37;
+  --amber: #9a6700;
+  --red: #cf222e;
+  --blue: #0969da;
+  --pink: #bf3989;
+  --bubble-in: #f1f0f6;
+  --inset: rgba(255, 255, 255, 0.7);
+  --mesh-1: rgba(110, 86, 207, 0.09);
+  --mesh-2: rgba(139, 92, 246, 0.06);
+  --mesh-3: rgba(236, 72, 153, 0.03);
 }
 
 .pat-page-wrap :deep(.bg-n-surface-1),
@@ -328,36 +372,15 @@ export default {
   border-color: var(--border) !important;
 }
 
-.pat-page-wrap :deep(.conversation) {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-}
-
-.pat-page-wrap :deep(.conversation:hover:not(.active)) {
-  background: var(--surface-3) !important;
-}
-
-.pat-page-wrap :deep(.conversation.active) {
-  background: var(--patra-active) !important;
-  border-left: 3px solid var(--patra) !important;
-}
-
-.pat-page-wrap :deep(.conversation.selected:not(.active)) {
-  background: var(--surface-2) !important;
-}
-
 .pat-page-wrap :deep(.conversation--user) {
   color: var(--text) !important;
 }
 
-.pat-page-wrap :deep(.conversation .text-xxs),
-.pat-page-wrap :deep(.conversation time) {
+.pat-page-wrap :deep(.cv6-time),
+.pat-page-wrap :deep(.cv6-time time),
+.pat-page-wrap :deep(.conversation .text-xxs) {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   color: var(--text-3) !important;
-}
-
-.pat-page-wrap :deep(.conversation .bg-n-teal-9) {
-  background: var(--patra) !important;
 }
 
 .pat-page-wrap :deep(img[alt='No Chat']) {

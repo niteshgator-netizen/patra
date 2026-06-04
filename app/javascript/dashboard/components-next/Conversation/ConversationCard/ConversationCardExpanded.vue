@@ -84,12 +84,11 @@ const paymentDotClass = computed(() => {
 
 <template>
   <div
-    class="conversation relative cursor-pointer group grid gap-4 items-center px-3 h-12 border-b border-n-slate-3 hover:border-n-surface-1 hover:z-[1] before:content-[none] before:absolute before:-top-px before:inset-x-0 before:h-px before:bg-n-surface-1 before:pointer-events-none hover:before:content-['']"
+    class="convo-card-v6 conversation relative cursor-pointer group grid gap-4 items-center px-3 min-h-12"
     :class="{
-      'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3 !border-n-surface-1':
-        isActiveChat,
-      'selected bg-n-slate-2 dark:bg-n-slate-3 !border-n-surface-1': selected,
-      'hover:bg-n-alpha-1': !isActiveChat && !selected,
+      active: isActiveChat,
+      selected,
+      'is-priority': chat.priority === 'urgent' || chat.priority === 'high',
       'grid-cols-[minmax(0,2fr)_minmax(0,1fr)]': showLabelsSection,
       'grid-cols-[minmax(0,2fr)_max-content]': !showLabelsSection,
     }"
@@ -167,7 +166,7 @@ const paymentDotClass = computed(() => {
       />
 
       <h4
-        class="text-heading-3 my-0 capitalize truncate text-n-slate-12 font-medium w-32 flex-shrink-0"
+        class="cv6-name text-heading-3 my-0 capitalize truncate text-n-slate-12 font-medium w-32 flex-shrink-0"
       >
         {{ currentContact.name }}
         <span
@@ -201,7 +200,7 @@ const paymentDotClass = computed(() => {
         <SLACardLabel ref="slaCardLabel" :chat="chat" />
       </div>
 
-      <div class="flex-shrink-0 w-[4.375rem] text-end">
+      <div class="cv6-time flex-shrink-0 w-[4.375rem] text-end">
         <TimeAgo
           :conversation-id="chat.id"
           :last-activity-timestamp="chat.timestamp"
@@ -212,3 +211,76 @@ const paymentDotClass = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.convo-card-v6 {
+  padding: 11px;
+  border-radius: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  margin-bottom: 3px;
+  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+}
+
+.convo-card-v6::before {
+  content: none;
+}
+
+.convo-card-v6:hover {
+  background: var(--surface-2, #131119);
+  transform: translateX(3px) scale(1.01);
+}
+
+.convo-card-v6.active {
+  background: var(--surface-2, #131119);
+  border-color: var(--border-hi, #2e2940);
+  box-shadow:
+    0 0 0 1px rgba(110, 86, 207, 0.15),
+    0 8px 24px -8px var(--patra-glow, rgba(110, 86, 207, 0.55));
+}
+
+.convo-card-v6.selected:not(.active) {
+  background: var(--surface-2, #131119);
+}
+
+.convo-card-v6.is-priority::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--red, #f85149), var(--amber, #e3a008));
+}
+
+.convo-card-v6.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    var(--patra, #6e56cf),
+    var(--patra-2, #8b5cf6)
+  );
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
+}
+
+.cv6-name {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.cv6-time {
+  font-size: 11px;
+  color: var(--text-3, #75727f);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+</style>

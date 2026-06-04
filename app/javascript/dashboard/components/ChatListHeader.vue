@@ -57,66 +57,90 @@ const toggleConversationLayout = () => {
 
 <template>
   <div
-    class="flex items-center justify-between gap-2 px-3 h-[3.25rem]"
+    class="pat-list-head"
     :class="{
-      'border-b border-n-strong': hasAppliedFiltersOrActiveFolders,
+      'pat-list-head--bordered': hasAppliedFiltersOrActiveFolders,
     }"
   >
-    <div class="flex items-center justify-center min-w-0">
-      <h1
-        class="text-base font-medium truncate text-n-slate-12"
-        :title="pageTitle"
-      >
-        {{ pageTitle }}
-      </h1>
-      <span
-        v-if="
-          allCount > 0 && hasAppliedFiltersOrActiveFolders && !isListLoading
-        "
-        class="px-2 py-1 my-0.5 mx-1 rounded-md capitalize bg-n-slate-3 text-xxs text-n-slate-12 shrink-0"
-        :title="allCount"
-      >
-        {{ formattedAllCount }}
-      </span>
-      <span
-        v-if="!hasAppliedFiltersOrActiveFolders"
-        class="px-2 py-1 my-0.5 mx-1 rounded-md capitalize bg-n-slate-3 text-xxs text-n-slate-12 shrink-0"
-      >
-        {{ $t(`CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.${activeStatus}.TEXT`) }}
-      </span>
-    </div>
-    <div class="flex items-center gap-1">
-      <template v-if="hasAppliedFilters && !hasActiveFolders">
-        <div class="relative">
+    <div class="pat-list-head-top">
+      <div class="pat-list-title-wrap min-w-0">
+        <h1 class="pat-list-title truncate text-n-slate-12" :title="pageTitle">
+          {{ pageTitle }}
+        </h1>
+        <span
+          v-if="
+            allCount > 0 && hasAppliedFiltersOrActiveFolders && !isListLoading
+          "
+          class="pat-list-count shrink-0"
+          :title="allCount"
+        >
+          {{ formattedAllCount }}
+        </span>
+        <span
+          v-if="!hasAppliedFiltersOrActiveFolders"
+          class="pat-list-count pat-list-count--status shrink-0 capitalize"
+        >
+          {{ $t(`CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.${activeStatus}.TEXT`) }}
+        </span>
+      </div>
+      <div class="pat-list-actions flex items-center gap-1 shrink-0">
+        <template v-if="hasAppliedFilters && !hasActiveFolders">
+          <div class="relative">
+            <NextButton
+              v-tooltip.top-end="$t('FILTER.CUSTOM_VIEWS.ADD.SAVE_BUTTON')"
+              icon="i-lucide-save"
+              slate
+              xs
+              faded
+              @click="emit('addFolders')"
+            />
+            <div
+              id="saveFilterTeleportTarget"
+              class="absolute z-50 mt-2"
+              :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+            />
+          </div>
           <NextButton
-            v-tooltip.top-end="$t('FILTER.CUSTOM_VIEWS.ADD.SAVE_BUTTON')"
-            icon="i-lucide-save"
-            slate
-            xs
+            v-tooltip.top-end="$t('FILTER.CLEAR_BUTTON_LABEL')"
+            icon="i-lucide-circle-x"
+            ruby
             faded
-            @click="emit('addFolders')"
+            xs
+            @click="emit('resetFilters')"
           />
-          <div
-            id="saveFilterTeleportTarget"
-            class="absolute z-50 mt-2"
-            :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
-          />
-        </div>
-        <NextButton
-          v-tooltip.top-end="$t('FILTER.CLEAR_BUTTON_LABEL')"
-          icon="i-lucide-circle-x"
-          ruby
-          faded
-          xs
-          @click="emit('resetFilters')"
-        />
-      </template>
-      <template v-if="hasActiveFolders">
-        <div class="relative">
+        </template>
+        <template v-if="hasActiveFolders">
+          <div class="relative">
+            <NextButton
+              id="toggleConversationFilterButton"
+              v-tooltip.top-end="$t('FILTER.CUSTOM_VIEWS.EDIT.EDIT_BUTTON')"
+              icon="i-lucide-pen-line"
+              slate
+              xs
+              faded
+              @click="emit('filtersModal')"
+            />
+            <div
+              id="conversationFilterTeleportTarget"
+              class="absolute z-50 mt-2"
+              :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+            />
+          </div>
           <NextButton
             id="toggleConversationFilterButton"
-            v-tooltip.top-end="$t('FILTER.CUSTOM_VIEWS.EDIT.EDIT_BUTTON')"
-            icon="i-lucide-pen-line"
+            v-tooltip.top-end="$t('FILTER.CUSTOM_VIEWS.DELETE.DELETE_BUTTON')"
+            icon="i-lucide-trash-2"
+            ruby
+            xs
+            faded
+            @click="emit('deleteFolders')"
+          />
+        </template>
+        <div v-else class="relative">
+          <NextButton
+            id="toggleConversationFilterButton"
+            v-tooltip.right="$t('FILTER.TOOLTIP_LABEL')"
+            icon="i-lucide-list-filter"
             slate
             xs
             faded
@@ -128,41 +152,64 @@ const toggleConversationLayout = () => {
             :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
           />
         </div>
-        <NextButton
-          id="toggleConversationFilterButton"
-          v-tooltip.top-end="$t('FILTER.CUSTOM_VIEWS.DELETE.DELETE_BUTTON')"
-          icon="i-lucide-trash-2"
-          ruby
-          xs
-          faded
-          @click="emit('deleteFolders')"
+        <ConversationBasicFilter
+          v-if="!hasAppliedFiltersOrActiveFolders"
+          :is-on-expanded-layout="isOnExpandedLayout"
+          @change-filter="onBasicFilterChange"
         />
-      </template>
-      <div v-else class="relative">
-        <NextButton
-          id="toggleConversationFilterButton"
-          v-tooltip.right="$t('FILTER.TOOLTIP_LABEL')"
-          icon="i-lucide-list-filter"
-          slate
-          xs
-          faded
-          @click="emit('filtersModal')"
-        />
-        <div
-          id="conversationFilterTeleportTarget"
-          class="absolute z-50 mt-2"
-          :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
+        <SwitchLayout
+          :is-on-expanded-layout="isOnExpandedLayout"
+          @toggle="toggleConversationLayout"
         />
       </div>
-      <ConversationBasicFilter
-        v-if="!hasAppliedFiltersOrActiveFolders"
-        :is-on-expanded-layout="isOnExpandedLayout"
-        @change-filter="onBasicFilterChange"
-      />
-      <SwitchLayout
-        :is-on-expanded-layout="isOnExpandedLayout"
-        @toggle="toggleConversationLayout"
-      />
     </div>
   </div>
 </template>
+
+<style scoped>
+.pat-list-head {
+  padding: 18px 16px 10px;
+  flex-shrink: 0;
+}
+
+.pat-list-head--bordered {
+  border-bottom: 1px solid var(--border, #171520);
+}
+
+.pat-list-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pat-list-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.pat-list-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.pat-list-count {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--patra-2, #8b5cf6);
+  background: rgba(110, 86, 207, 0.14);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.pat-list-count--status {
+  color: var(--text-2, #a8a6b6);
+  background: var(--surface-3, #1b1925);
+}
+</style>

@@ -939,6 +939,7 @@ watch(conversationFilters, (newVal, oldVal) => {
 
     <ChatTypeTabs
       v-if="!hasAppliedFiltersOrActiveFolders"
+      class="pat-filter-chips"
       :items="assigneeTabItems"
       :active-tab="activeAssigneeTab"
       is-compact
@@ -1005,3 +1006,65 @@ watch(conversationFilters, (newVal, oldVal) => {
     />
   </div>
 </template>
+
+<style scoped>
+.pat-filter-chips :deep(ul) {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 12px 3px;
+  margin: 0;
+}
+
+.pat-filter-chips :deep(ul::-webkit-scrollbar) {
+  display: none;
+}
+
+.pat-filter-chips :deep(li) {
+  flex-shrink: 0;
+  margin: 0 !important;
+}
+
+.pat-filter-chips :deep(li a) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px !important;
+  border-radius: 20px;
+  border: 1px solid var(--border, #171520);
+  background: transparent;
+  color: var(--text-2, #a8a6b6);
+  transition: all 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  white-space: nowrap;
+}
+
+.pat-filter-chips :deep(li a::after) {
+  display: none !important;
+}
+
+.pat-filter-chips :deep(li a:hover) {
+  border-color: var(--border-hi, #2e2940);
+  color: var(--text, #ededf2);
+  transform: translateY(-1px);
+}
+
+.pat-filter-chips :deep(li a.text-n-blue-11) {
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  color: #fff !important;
+  border-color: transparent;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110, 86, 207, 0.55));
+}
+
+.pat-filter-chips :deep(li a.text-n-blue-11 > div) {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+}
+</style>

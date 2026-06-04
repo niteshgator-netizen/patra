@@ -302,22 +302,21 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full py-0 cursor-pointer conversation border-b border-n-slate-3 hover:border-n-surface-1 hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group hover:z-[1] before:content-[none] before:absolute before:-top-px before:inset-x-0 before:h-px before:bg-n-surface-1 before:pointer-events-none hover:before:content-['']"
+    class="convo-card-v6 conversation group relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full cursor-pointer"
     :class="[
       {
-        'active animate-card-select bg-n-background !border-n-surface-1':
-          isActiveChat,
-        'selected bg-n-slate-2 !border-n-surface-1': selected,
+        active: isActiveChat,
+        selected,
+        'is-priority': chat.priority === 'urgent' || chat.priority === 'high',
         'px-0': compact,
         'px-3': !compact,
       },
-      priorityBorderClass,
     ]"
     @click="$emit('click', $event)"
     @contextmenu="$emit('contextmenu', $event)"
   >
     <div
-      class="relative inline-block"
+      class="cv6-avatar relative inline-block shrink-0"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -382,7 +381,7 @@ onUnmounted(() => {
         </div>
       </div>
       <h4
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
+        class="cv6-name conversation--user my-0 mx-2 capitalize pt-0.5 flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
         {{ currentContact.name }}
@@ -399,7 +398,7 @@ onUnmounted(() => {
         >
           {{ gameBadgeLabel }}
         </span>
-        <span v-if="showVipBadge" class="vip-badge">
+        <span v-if="showVipBadge" class="cv6-tag vip vip-badge">
           ⭐ {{ $t('PATRA.CONVERSATION_CARD.VIP_BADGE') }}
         </span>
       </h4>
@@ -414,13 +413,13 @@ onUnmounted(() => {
         v-else-if="lastMessageInChat"
         key="message-preview"
         :message="lastMessageInChat"
-        class="my-0 mx-2 leading-6 h-6 flex-1 min-w-0 text-sm"
+        class="cv6-preview my-0 mx-2 flex-1 min-w-0"
         :class="messagePreviewClass"
       />
       <p
         v-else
         key="no-messages"
-        class="text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+        class="cv6-preview text-n-slate-11 my-0 mx-2 flex-1 min-w-0"
         :class="messagePreviewClass"
       >
         <fluent-icon
@@ -433,18 +432,16 @@ onUnmounted(() => {
         </span>
       </p>
       <div class="mx-2">
-        <span class="status-pill" :class="aiStatus">
+        <span class="cv6-tag ai status-pill" :class="aiStatus">
           <span class="dot" />
           {{ aiStatusLabel }}
         </span>
       </div>
       <div
-        class="absolute flex flex-col items-end ltr:right-3 rtl:left-3 z-[1]"
+        class="cv6-meta absolute flex flex-col items-end ltr:right-3 rtl:left-3 z-[1]"
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
-        <span
-          class="font-normal leading-4 text-xxs text-n-slate-11 [&_div]:text-n-slate-11"
-        >
+        <span class="cv6-time font-normal leading-4 text-xxs text-n-slate-11 [&_div]:text-n-slate-11">
           <TimeAgo
             :last-activity-timestamp="chat.timestamp"
             :created-at-timestamp="chat.created_at"
@@ -454,7 +451,7 @@ onUnmounted(() => {
         <UnreadBadge
           v-if="hasUnread"
           :count="unreadCount"
-          class="ltr:ml-auto rtl:mr-auto mt-1 ring-1 ring-n-background"
+          class="cv6-unread ltr:ml-auto rtl:mr-auto mt-1"
         />
       </div>
       <div
@@ -510,3 +507,157 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.convo-card-v6 {
+  padding: 11px;
+  border-radius: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  margin-bottom: 3px;
+  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+}
+
+.convo-card-v6::before {
+  content: none;
+}
+
+.convo-card-v6:hover {
+  background: var(--surface-2, #131119);
+  transform: translateX(3px) scale(1.01);
+}
+
+.convo-card-v6.active {
+  background: var(--surface-2, #131119);
+  border-color: var(--border-hi, #2e2940);
+  box-shadow:
+    0 0 0 1px rgba(110, 86, 207, 0.15),
+    0 8px 24px -8px var(--patra-glow, rgba(110, 86, 207, 0.55));
+}
+
+.convo-card-v6.selected:not(.active) {
+  background: var(--surface-2, #131119);
+}
+
+.convo-card-v6.is-priority::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--red, #f85149), var(--amber, #e3a008));
+}
+
+.convo-card-v6.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 11px;
+  bottom: 11px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(
+    180deg,
+    var(--patra, #6e56cf),
+    var(--patra-2, #8b5cf6)
+  );
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
+}
+
+.convo-card-v6.is-priority.active::before {
+  background: linear-gradient(
+    180deg,
+    var(--patra, #6e56cf),
+    var(--patra-2, #8b5cf6)
+  );
+}
+
+.cv6-avatar :deep(span),
+.cv6-avatar :deep(.avatar) {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.cv6-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv6-time {
+  font-size: 11px;
+  color: var(--text-3, #75727f);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  flex-shrink: 0;
+}
+
+.cv6-preview {
+  font-size: 12.5px;
+  color: var(--text-2, #a8a6b6);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cv6-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.cv6-tag.vip {
+  background: rgba(227, 160, 8, 0.16);
+  color: var(--amber, #e3a008);
+}
+
+.cv6-tag.ai {
+  background: rgba(110, 86, 207, 0.18);
+  color: var(--patra-3, #a78bfa);
+}
+
+.cv6-tag.ai.needs-attention {
+  background: rgba(248, 81, 73, 0.16);
+  color: var(--red, #f85149);
+}
+
+.cv6-tag.new {
+  background: rgba(63, 185, 80, 0.16);
+  color: var(--green, #3fb950);
+}
+
+.cv6-tag.cashout {
+  background: rgba(88, 166, 255, 0.16);
+  color: var(--blue, #58a6ff);
+}
+
+.cv6-unread {
+  min-width: 17px !important;
+  height: 17px !important;
+  padding: 0 4px !important;
+  border-radius: 9px !important;
+  background: var(--red, #f85149) !important;
+  color: #fff !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+  border: 2px solid var(--surface, #0c0b12) !important;
+  box-shadow: none !important;
+}
+
+.convo-card-v6 :deep(.cv6-unread) {
+  min-width: 17px;
+  height: 17px;
+}
+</style>
