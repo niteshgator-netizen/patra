@@ -17,6 +17,9 @@ import PatraAddChannel from './patra/PatraAddChannel.vue';
 import PatraAiTraining from './patra/PatraAiTraining.vue';
 import PatraOwnerDashboard from './patra/PatraOwnerDashboard.vue';
 import PatraReports from './patra/PatraReports.vue';
+import PatraFacebookAccounts from './patra/PatraFacebookAccounts.vue';
+import PatraBackupPages from './patra/PatraBackupPages.vue';
+import PatraCashierQueue from './patra/PatraCashierQueue.vue';
 import broadcastsRoutes from './broadcasts/broadcasts.routes';
 import Leaderboard from './reports/Leaderboard.vue';
 import KnowledgeBase from './settings/knowledge/KnowledgeBase.vue';
@@ -62,7 +65,7 @@ export default {
         {
           path: 'patra/facebook-accounts',
           name: 'patra_facebook_accounts',
-          component: () => import('./patra/PatraFacebookAccounts.vue'),
+          component: PatraFacebookAccounts,
           meta: {
             permissions: ['administrator'],
           },
@@ -70,7 +73,7 @@ export default {
         {
           path: 'patra/backup-pages',
           name: 'patra_backup_pages',
-          component: () => import('./patra/PatraBackupPages.vue'),
+          component: PatraBackupPages,
           meta: {
             permissions: ['administrator'],
           },
@@ -78,7 +81,7 @@ export default {
         {
           path: 'patra/cashier-queue',
           name: 'patra_cashier_queue',
-          component: () => import('./patra/PatraCashierQueue.vue'),
+          component: PatraCashierQueue,
           meta: {
             permissions: ['administrator'],
           },

@@ -11,7 +11,12 @@ class PatraAiTrainingAPI extends ApiClient {
   // ── Bella RAG uploads ──────────────────────────────────────────────
 
   stats() {
-    return axios.get(`${this.url}/bella_rag_uploads/stats`);
+    return axios.get(`${this.baseUrl()}/bella_rag_uploads/stats`);
+  }
+
+  baseUrl() {
+    const accountId = this.accountIdFromRoute;
+    return `/api/v1/accounts/${accountId}`;
   }
 
   listUploads() {
