@@ -293,6 +293,8 @@ class Facebook::ChatwootBridgeService
     http.open_timeout = IMAGE_DOWNLOAD_OPEN_TIMEOUT
     http.read_timeout = IMAGE_DOWNLOAD_READ_TIMEOUT
     request = Net::HTTP::Get.new(uri.request_uri)
+    request['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    request['Accept'] = 'image/webp,image/apng,image/*,*/*;q=0.8'
     response = http.request(request)
     Rails.logger.info(
       "[ChatwootBridge::Bug8Diag] image download HTTP=#{response.code} " \
