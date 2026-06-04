@@ -239,7 +239,8 @@ const pinButtonLabel = computed(() =>
 </script>
 
 <template>
-  <div ref="conversationHeader" class="patra-conv-head">
+  <div ref="conversationHeader" class="patra-conv-head pat-conv-head-v6">
+    <div class="pat-conv-head-v6-row">
     <div class="patra-conv-head-l">
       <BackButton
         v-if="showBackButton"
@@ -269,7 +270,7 @@ const pinButtonLabel = computed(() =>
           />
           <button
             type="button"
-            class="patra-conv-head-cnum shrink-0"
+            class="patra-conv-head-cnum conv-id shrink-0"
             :title="$t('CONVERSATION.HEADER.COPY_ID_SUCCESS')"
             @click="copyConversationId"
           >
@@ -282,7 +283,10 @@ const pinButtonLabel = computed(() =>
             class="patra-conv-head-live"
             :class="{ 'is-online': contactPresence.online }"
           >
-            <span v-if="contactPresence.online" class="patra-conv-head-pip" />
+            <span
+              v-if="contactPresence.online"
+              class="patra-conv-head-pip conv-online-pip"
+            />
             {{ contactPresence.last_active }}
           </span>
           <template v-if="contactPresence.last_active">
@@ -302,14 +306,6 @@ const pinButtonLabel = computed(() =>
     </div>
 
     <div class="patra-conv-head-r">
-      <SLACardLabel
-        v-if="hasSlaPolicyId"
-        :chat="chat"
-        show-extended-info
-        :parent-width="width"
-        class="patra-conv-head-sla hidden md:flex"
-      />
-
       <div class="patra-conv-head-util relative">
         <button
           type="button"
@@ -358,14 +354,14 @@ const pinButtonLabel = computed(() =>
           </svg>
         </span>
         {{ aiToggleLabel }}
-        <span class="patra-conv-head-ai-sw" aria-hidden="true">
+        <span class="patra-conv-head-ai-sw pat-ai-sw" aria-hidden="true">
           <i />
         </span>
       </button>
 
       <button
         type="button"
-        class="patra-conv-head-btn"
+        class="patra-conv-head-btn pat-hbtn"
         :class="{ 'is-pinned': isPinned }"
         :title="
           isPinned
@@ -394,7 +390,7 @@ const pinButtonLabel = computed(() =>
       <button
         v-if="!aiOff"
         type="button"
-        class="patra-conv-head-btn"
+        class="patra-conv-head-btn pat-hbtn"
         :title="$t('PATRA.CONVERSATION.TAKE_OVER')"
         :aria-label="$t('PATRA.CONVERSATION.TAKE_OVER')"
         @click="takeOver"
@@ -414,6 +410,16 @@ const pinButtonLabel = computed(() =>
       </button>
 
       <MoreActions :conversation-id="currentChat.id" />
+    </div>
+    </div>
+
+    <div v-if="hasSlaPolicyId" class="pat-subbar">
+      <SLACardLabel
+        :chat="chat"
+        show-extended-info
+        :parent-width="width"
+        class="patra-conv-head-sla"
+      />
     </div>
   </div>
 </template>
@@ -804,5 +810,184 @@ const pinButtonLabel = computed(() =>
   border-color: transparent;
   background: linear-gradient(135deg, var(--ph-patra), var(--ph-patra-deep));
   box-shadow: 0 4px 12px var(--ph-patra-glow);
+}
+
+/* ── v6 header bar ── */
+.pat-conv-head-v6 {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.pat-conv-head-v6-row {
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface, #0C0B12);
+  gap: 12px;
+}
+
+/* ── Contact name ── */
+.pat-conv-head-v6 .patra-conv-head-name,
+.pat-conv-head-v6 .conv-contact-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text, #EDEDF2);
+}
+
+/* ── Conversation ID ── */
+.pat-conv-head-v6 .conv-id {
+  font-size: 12px;
+  color: var(--text-3, #75727F);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Sub-line ── */
+.pat-conv-head-v6 .patra-conv-head-sub {
+  font-size: 12px;
+  color: var(--text-2, #A8A6B6);
+  margin-top: 2px;
+}
+
+/* ── Online pip ── */
+.pat-conv-head-v6 .conv-online-pip,
+.pat-conv-head-v6 .patra-conv-head-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green, #3FB950);
+  display: inline-block;
+  box-shadow: 0 0 6px var(--green, #3FB950);
+  animation: pipPulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pipPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── AI toggle pill ── */
+.patra-conv-head-ai-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--patra-glow, rgba(110,86,207,0.55));
+  border: none !important;
+  transition: all .25s;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+}
+.patra-conv-head-ai-toggle.is-off {
+  background: var(--surface-3, #1B1925) !important;
+  color: var(--text-2, #A8A6B6) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-hi, #2E2940) !important;
+}
+.pat-ai-sw {
+  width: 28px;
+  height: 16px;
+  border-radius: 9px;
+  background: rgba(255,255,255,.25);
+  position: relative;
+  flex-shrink: 0;
+}
+.pat-ai-sw i {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: right .2s, left .2s;
+}
+.patra-conv-head-ai-toggle.is-off .pat-ai-sw i {
+  right: unset;
+  left: 2px;
+}
+
+/* ── Action buttons ── */
+.pat-conv-head-v6 .pat-hbtn,
+.pat-conv-head-v6 .patra-conv-head-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border-hi, #2E2940);
+  background: var(--surface-3, #1B1925);
+  color: var(--text-2, #A8A6B6);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .2s;
+  font-family: 'Inter', sans-serif;
+}
+.pat-conv-head-v6 .pat-hbtn:hover,
+.pat-conv-head-v6 .patra-conv-head-btn:hover {
+  background: var(--surface-4, #252233);
+  color: var(--text, #EDEDF2);
+  transform: translateY(-1px);
+}
+
+/* Resolve = green primary */
+.pat-conv-head-v6 .pat-hbtn.primary {
+  background: linear-gradient(135deg, var(--green, #3FB950), #2A7F37);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 10px rgba(63,185,80,.3);
+}
+.pat-conv-head-v6 .pat-hbtn.primary:hover {
+  box-shadow: 0 5px 16px rgba(63,185,80,.4);
+  transform: translateY(-1px);
+}
+
+.pat-conv-head-v6 .patra-conv-head-r :deep(.resolve-actions button) {
+  height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid transparent !important;
+  background: linear-gradient(135deg, var(--green, #3FB950), #2A7F37) !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 3px 10px rgba(63, 185, 80, 0.3) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.pat-conv-head-v6 .patra-conv-head-r :deep(.resolve-actions button:hover) {
+  box-shadow: 0 5px 16px rgba(63, 185, 80, 0.4) !important;
+  transform: translateY(-1px) !important;
+  filter: none !important;
+}
+
+/* ── SLA sub-bar ── */
+.pat-subbar {
+  padding: 5px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface, #0C0B12);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.pat-subbar :deep(.patra-conv-head-sla) {
+  color: var(--amber, #E3A008);
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 </style>
