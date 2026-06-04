@@ -378,12 +378,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="rootRef" class="pat-at-root">
+  <div ref="rootRef" class="pat-at-root pat-ai-train">
     <div ref="spotlightRef" class="pat-at-spotlight" aria-hidden="true" />
     <div class="pat-at-mesh" aria-hidden="true" />
 
     <div class="pat-at-main">
-      <div class="pat-at-topbar">
+      <div class="pat-at-topbar pat-ai-train-head">
         <div class="pat-at-bc">{{ breadcrumb }}</div>
         <h1 class="pat-at-title">{{ pageTitle }}</h1>
         <div class="pat-at-sub">
@@ -392,45 +392,64 @@ onUnmounted(() => {
       </div>
 
       <div class="pat-at-content">
-        <div class="pat-at-rag-stats">
+        <div class="pat-at-rag-stats pat-train-stats">
           <!-- TODO: wire backend — full knowledge-base pair count -->
-          <button type="button" class="pat-at-rag" @click="noopPlaceholder">
+          <button
+            type="button"
+            class="pat-at-rag pat-train-stat"
+            @click="noopPlaceholder"
+          >
             <div
-              class="pat-at-rag-n"
+              class="pat-at-rag-n n"
               :class="{ 'pat-at-rag-n--accent': trainingPairsTotal }"
             >
               {{ trainingPairsTotal ?? emptyPlaceholder }}
             </div>
-            <div class="pat-at-rag-l">{{ statTrainingPairsLabel }}</div>
+            <div class="pat-at-rag-l l">{{ statTrainingPairsLabel }}</div>
           </button>
           <!-- TODO: wire backend — live embedding stats -->
-          <button type="button" class="pat-at-rag" @click="noopPlaceholder">
-            <div class="pat-at-rag-n">{{ statEmbeddingsValue }}</div>
-            <div class="pat-at-rag-l">{{ statEmbeddingsLabel }}</div>
+          <button
+            type="button"
+            class="pat-at-rag pat-train-stat"
+            @click="noopPlaceholder"
+          >
+            <div class="pat-at-rag-n n">{{ statEmbeddingsValue }}</div>
+            <div class="pat-at-rag-l l">{{ statEmbeddingsLabel }}</div>
           </button>
           <!-- TODO: wire backend — AI handle rate -->
-          <button type="button" class="pat-at-rag" @click="noopPlaceholder">
-            <div class="pat-at-rag-n">{{ emptyPlaceholder }}</div>
-            <div class="pat-at-rag-l">{{ statHandleRateLabel }}</div>
+          <button
+            type="button"
+            class="pat-at-rag pat-train-stat"
+            @click="noopPlaceholder"
+          >
+            <div class="pat-at-rag-n n">{{ emptyPlaceholder }}</div>
+            <div class="pat-at-rag-l l">{{ statHandleRateLabel }}</div>
           </button>
-          <button type="button" class="pat-at-rag" @click="noopPlaceholder">
+          <button
+            type="button"
+            class="pat-at-rag pat-train-stat"
+            @click="noopPlaceholder"
+          >
             <div
-              class="pat-at-rag-n"
+              class="pat-at-rag-n n"
               :class="{ 'pat-at-rag-n--accent': awaitingReviewCount !== null }"
             >
               {{ awaitingReviewCount ?? emptyPlaceholder }}
             </div>
-            <div class="pat-at-rag-l">{{ statAwaitingReviewLabel }}</div>
+            <div class="pat-at-rag-l l">{{ statAwaitingReviewLabel }}</div>
           </button>
         </div>
 
-        <div class="pat-at-tabs">
+        <div class="pat-at-tabs pat-train-tabs">
           <button
             v-for="tab in TABS"
             :key="tab.key"
             type="button"
-            class="pat-at-tab"
-            :class="{ 'pat-at-tab--active': activeTab === tab.key }"
+            class="pat-at-tab pat-train-tab"
+            :class="{
+              'pat-at-tab--active': activeTab === tab.key,
+              active: activeTab === tab.key,
+            }"
             @click="switchTab(tab.key)"
           >
             <svg
@@ -582,8 +601,18 @@ onUnmounted(() => {
                   <div class="pat-at-uh-um">{{ uploadMetaLine(upload) }}</div>
                 </div>
                 <span
-                  class="pat-at-uh-tag"
-                  :class="statusBadgeClass(upload.status)"
+                  class="pat-at-uh-tag pat-train-badge"
+                  :class="[
+                    statusBadgeClass(upload.status),
+                    {
+                      approved: upload.status === 'completed',
+                      pending:
+                        upload.status === 'pending' ||
+                        upload.status === 'processing' ||
+                        upload.status === 'queued',
+                      rejected: upload.status === 'failed',
+                    },
+                  ]"
                 >
                   {{ uploadStatusLabel(upload.status) }}
                 </span>
@@ -612,7 +641,7 @@ onUnmounted(() => {
               <article
                 v-for="candidate in candidates"
                 :key="candidate.id"
-                class="pat-at-rq"
+                class="pat-at-rq pat-train-pair pending"
               >
                 <div class="pat-at-rq-top">
                   <span class="pat-at-rq-meta">
@@ -630,12 +659,18 @@ onUnmounted(() => {
                     formatDate(candidate.created_at)
                   }}</span>
                 </div>
-                <div class="pat-at-rq-msg pat-at-rq-msg--cust">
-                  <span class="pat-at-rq-ml">{{ customerLabel }}</span>
+                <div
+                  class="pat-at-rq-msg pat-at-rq-msg--cust pat-train-msg customer"
+                >
+                  <span class="pat-at-rq-ml pat-train-label">{{
+                    customerLabel
+                  }}</span>
                   {{ candidate.customer_text }}
                 </div>
-                <div class="pat-at-rq-msg pat-at-rq-msg--agent">
-                  <span class="pat-at-rq-ml">{{ humanReplyLabel }}</span>
+                <div class="pat-at-rq-msg pat-at-rq-msg--agent pat-train-msg">
+                  <span class="pat-at-rq-ml pat-train-label">{{
+                    humanReplyLabel
+                  }}</span>
                   {{ candidate.human_reply }}
                 </div>
                 <div class="pat-at-rq-actions">
@@ -1882,5 +1917,151 @@ onUnmounted(() => {
   .pat-at-pane {
     animation: none !important;
   }
+}
+
+/* ── v6 AI training ── */
+.pat-ai-train {
+  background: var(--canvas, #050409);
+  min-height: 100vh;
+  padding: 24px;
+}
+.pat-ai-train-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.pat-ai-train-head h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text, #ededf2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pat-ai-train-head h1 svg {
+  color: var(--patra-3, #a78bfa);
+}
+.pat-train-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #171520);
+  padding-bottom: 0;
+}
+.pat-train-tab {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 16px;
+  color: var(--text-3, #75727f);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.pat-train-tab:hover {
+  color: var(--text, #ededf2);
+}
+.pat-train-tab.active {
+  color: var(--patra-3, #a78bfa);
+  border-bottom-color: var(--patra, #6e56cf);
+}
+.pat-train-tab.active.pat-at-tab--active::after {
+  display: none;
+}
+.pat-train-pair {
+  background: var(--surface, #0c0b12);
+  border: 1px solid var(--border, #171520);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+.pat-train-pair:hover {
+  border-color: var(--border-hi, #2e2940);
+}
+.pat-train-pair.approved {
+  border-left: 3px solid var(--green, #3fb950);
+}
+.pat-train-pair.pending {
+  border-left: 3px solid var(--amber, #e3a008);
+}
+.pat-train-pair .pat-at-rq-top,
+.pat-train-pair .pat-at-rq-actions {
+  grid-column: 1 / -1;
+}
+.pat-train-msg {
+  font-size: 12.5px;
+  color: var(--text-2, #a8a6b6);
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: var(--surface-2, #131119);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+}
+.pat-train-msg.customer {
+  color: var(--text, #ededf2);
+}
+.pat-train-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4, #54515e);
+  margin-bottom: 5px;
+}
+.pat-train-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.pat-train-badge.approved {
+  background: rgba(63, 185, 80, 0.14);
+  color: var(--green, #3fb950);
+}
+.pat-train-badge.pending {
+  background: rgba(227, 160, 8, 0.14);
+  color: var(--amber, #e3a008);
+}
+.pat-train-badge.rejected {
+  background: rgba(248, 81, 73, 0.14);
+  color: var(--red, #f85149);
+}
+.pat-train-stats {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.pat-train-stat {
+  background: var(--surface, #0c0b12);
+  border: 1px solid var(--border, #171520);
+  border-radius: 10px;
+  padding: 12px 16px;
+  flex: 1;
+  min-width: 120px;
+}
+.pat-train-stat .n {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--patra-3, #a78bfa);
+}
+.pat-train-stat .l {
+  font-size: 11px;
+  color: var(--text-3, #75727f);
+  margin-top: 2px;
 }
 </style>
