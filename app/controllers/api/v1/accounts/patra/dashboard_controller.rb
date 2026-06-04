@@ -4,22 +4,25 @@ class Api::V1::Accounts::Patra::DashboardController < Api::V1::Accounts::BaseCon
   before_action :check_authorization
 
   def show
-    today = Time.current.beginning_of_day..Time.current
+    period = resolve_period(params[:range])
 
     stats = {
-      conversations_today: Current.account.conversations.where(created_at: today).count,
-      messages_in_today: messages_scope.incoming.where(created_at: today).count,
-      messages_out_today: messages_scope.outgoing.where(created_at: today).count,
-      resolved_today: Current.account.conversations.where(status: :resolved, updated_at: today).count,
-      ai_handle_rate: Analytics::AiHandleRateService.new(Current.account, period: today).call[:rate],
-      volume_by_channel: volume_by_channel(today),
+      conversations_today: Current.account.conversations.where(created_at: period).count,
+      messages_in_today: messages_scope.incoming.where(created_at: period).count,
+      messages_out_today: messages_scope.outgoing.where(created_at: period).count,
+      resolved_today: Current.account.conversations.where(status: :resolved, updated_at: period).count,
+      ai_handle_rate: Analytics::AiHandleRateService.new(Current.account, period: period).call[:rate],
+      escalation_rate: escalation_rate(period),
+      still_open_rate: still_open_rate(period),
+      volume_by_channel: volume_by_channel(period),
       active_agents: active_agents,
-      new_customers_today: Current.account.contacts.where(created_at: today).count,
+      new_customers_today: Current.account.contacts.where(created_at: period).count,
       flagged_for_review: flagged_for_review_count,
-      loads_today: load_cashout_stats(today)[:loads],
-      cashouts_today: load_cashout_stats(today)[:cashouts],
-      net_today: load_cashout_stats(today)[:net],
-      game_performance: game_health_summary
+      loads_today: load_cashout_stats(period)[:loads],
+      cashouts_today: load_cashout_stats(period)[:cashouts],
+      net_today: load_cashout_stats(period)[:net],
+      game_performance: game_health_summary,
+      heatmap: heatmap_data
     }
 
     render json: stats
@@ -93,5 +96,41 @@ class Api::V1::Accounts::Patra::DashboardController < Api::V1::Accounts::BaseCon
     games = Current.account.agent_games.includes(:game)
     active = games.count { |g| g.failure_count.to_i < 3 }
     { active: active, total: games.size }
+  end
+
+  def resolve_period(range)
+    case range
+    when '7d'  then 7.days.ago.beginning_of_day..Time.current
+    when '30d' then 30.days.ago.beginning_of_day..Time.current
+    else            Time.current.beginning_of_day..Time.current
+    end
+  end
+
+  def escalation_rate(period)
+    total = Current.account.conversations.where(created_at: period).count
+    return 0 if total.zero?
+
+    escalated = messages_scope.outgoing
+                              .where(created_at: period, sender_type: 'User')
+                              .distinct.pluck(:conversation_id).size
+    ((escalated.to_f / total) * 100).round(1)
+  end
+
+  def still_open_rate(period)
+    total = Current.account.conversations.where(created_at: period).count
+    return 0 if total.zero?
+
+    open_count = Current.account.conversations.where(created_at: period, status: :open).count
+    ((open_count.to_f / total) * 100).round(1)
+  end
+
+  def heatmap_data
+    start = 7.days.ago.beginning_of_day
+    rows = Current.account.conversations
+                  .where(created_at: start..Time.current)
+                  .group("EXTRACT(DOW FROM created_at AT TIME ZONE 'UTC')",
+                         "EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC')")
+                  .count
+    rows.map { |(dow, hour), count| { dow: dow.to_i, hour: hour.to_i, count: count } }
   end
 end
