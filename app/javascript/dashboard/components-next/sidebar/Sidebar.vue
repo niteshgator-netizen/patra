@@ -440,6 +440,12 @@ const menuItems = computed(() => {
           icon: 'i-lucide-briefcase',
           to: accountScopedRoute('general_settings_index'),
         },
+        {
+          name: 'Settings Facebook Accounts',
+          label: 'Facebook Accounts',
+          icon: 'i-woot-messenger',
+          to: accountScopedRoute('patra_facebook_accounts'),
+        },
         // {
         //   name: 'Settings Captain',
         //   label: t('SIDEBAR.CAPTAIN_AI'),
