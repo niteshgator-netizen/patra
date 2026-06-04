@@ -46,7 +46,7 @@ jobs:
 
       - name: Install JS deps
 
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build assets
 
