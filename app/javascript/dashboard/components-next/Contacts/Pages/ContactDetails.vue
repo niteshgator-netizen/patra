@@ -39,6 +39,14 @@ const getInitialContactData = () => {
 
 onMounted(() => {
   Object.assign(contactData.value, getInitialContactData());
+
+  document.querySelectorAll('.pat-sg.js-spot').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+      el.style.setProperty('--my', `${e.clientY - r.top}px`);
+    });
+  });
 });
 
 const formatMoney = val => {
@@ -148,42 +156,48 @@ const gameEmoji = game =>
         <span class="dot" />
         {{ t('PATRA.PROFILE.STATS') }}
       </div>
-      <div class="stat-grid">
-        <div class="sg js-spot">
-          <div class="n p">{{ stats.conversation_count ?? 0 }}</div>
-          <div class="l">{{ t('PATRA.PROFILE.CONVERSATIONS') }}</div>
+      <div class="pat-stats-grid">
+        <div class="pat-sg js-spot">
+          <div class="pat-sg-n pat-sg-purple">
+            {{ stats.conversation_count ?? 0 }}
+          </div>
+          <div class="pat-sg-l">{{ t('PATRA.PROFILE.CONVERSATIONS') }}</div>
         </div>
-        <div class="sg js-spot">
-          <div class="n g">
+        <div class="pat-sg js-spot">
+          <div class="pat-sg-n pat-sg-green">
             {{ stats.deposits?.count ?? 0 }}
             {{ t('CONTACTS_LAYOUT.META_SEPARATOR') }}
             {{ formatMoney(stats.deposits?.total) }}
           </div>
-          <div class="l">{{ t('PATRA.PROFILE.DEPOSITS') }}</div>
+          <div class="pat-sg-l">{{ t('PATRA.PROFILE.DEPOSITS') }}</div>
         </div>
-        <div class="sg js-spot">
-          <div class="n">
+        <div class="pat-sg js-spot">
+          <div class="pat-sg-n">
             {{ stats.cashouts?.count ?? 0 }}
             {{ t('CONTACTS_LAYOUT.META_SEPARATOR') }}
             {{ formatMoney(stats.cashouts?.total) }}
           </div>
-          <div class="l">{{ t('PATRA.PROFILE.CASHOUTS') }}</div>
+          <div class="pat-sg-l">{{ t('PATRA.PROFILE.CASHOUTS') }}</div>
         </div>
-        <div class="sg js-spot">
-          <div class="n">
+        <div class="pat-sg js-spot">
+          <div class="pat-sg-n">
             {{ formatMoney(stats.deposits?.last_amount || stats.last_deposit) }}
           </div>
-          <div class="l">{{ t('CONTACTS_LAYOUT.PROFILE.LAST_DEPOSIT') }}</div>
+          <div class="pat-sg-l">
+            {{ t('CONTACTS_LAYOUT.PROFILE.LAST_DEPOSIT') }}
+          </div>
         </div>
-        <div class="sg js-spot">
-          <div class="n sg-sm">
+        <div class="pat-sg js-spot">
+          <div class="pat-sg-n pat-sg-sm">
             {{ humanizePayment(stats.preferred_payment) }}
           </div>
-          <div class="l">{{ t('PATRA.PROFILE.PREFERRED_PAYMENT') }}</div>
+          <div class="pat-sg-l">{{ t('PATRA.PROFILE.PREFERRED_PAYMENT') }}</div>
         </div>
-        <div class="sg js-spot">
-          <div class="n sg-sm">{{ humanizeGame(stats.last_game) }}</div>
-          <div class="l">{{ t('PATRA.PROFILE.LAST_GAME') }}</div>
+        <div class="pat-sg js-spot">
+          <div class="pat-sg-n pat-sg-sm">
+            {{ humanizeGame(stats.last_game) }}
+          </div>
+          <div class="pat-sg-l">{{ t('PATRA.PROFILE.LAST_GAME') }}</div>
         </div>
       </div>
     </div>
@@ -209,7 +223,7 @@ const gameEmoji = game =>
           <div class="vault-game">
             <span class="vg-ic">{{ gameEmoji(cred.game) }}</span>
             {{ humanizeGame(cred.game) }}
-            <span class="vg-stat">{{
+            <span class="pat-vg-stat">{{
               t('CONTACTS_LAYOUT.PLAYER_VAULT.ACTIVE')
             }}</span>
           </div>
@@ -361,10 +375,6 @@ const gameEmoji = game =>
 
 .save-btn {
   margin-top: 12px;
-}
-
-.sg-sm {
-  font-size: 15px;
 }
 
 .delete-desc {

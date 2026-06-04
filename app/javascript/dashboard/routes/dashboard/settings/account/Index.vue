@@ -261,10 +261,10 @@ export default {
             </select>
           </div>
 
-          <p class="persona-note">
+          <div class="pat-persona-note">
             {{ $t('PATRA.SETTINGS.PERSONA_NOTE') }}
-            <b>{{ $t('PATRA.SETTINGS.PERSONA_NAME') }}</b>
-          </p>
+            <strong>{{ $t('PATRA.SETTINGS.PERSONA_NAME') }}</strong>
+          </div>
 
           <div v-if="featureCustomReplyDomainEnabled" class="fld">
             <label for="custom-domain">{{
@@ -323,7 +323,7 @@ export default {
 
       <AccountDelete v-if="!uiFlags.isFetchingItem && isOnChatwootCloud" />
 
-      <div class="footer-meta">
+      <div class="pat-settings-footer">
         <AccountId />
         <BuildInfo />
       </div>
@@ -548,16 +548,6 @@ export default {
   color: var(--red);
 }
 
-.persona-note {
-  font-size: 12.5px;
-  color: var(--text-3);
-  margin: -6px 0 14px;
-}
-
-.persona-note b {
-  color: var(--patra-3);
-}
-
 .pat-select {
   width: 100%;
   background: var(--canvas);
@@ -634,13 +624,4 @@ export default {
   margin: 0;
 }
 
-.footer-meta {
-  font-size: 11px;
-  color: var(--text-4);
-  font-family: 'JetBrains Mono', monospace;
-  margin-top: 20px;
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
 </style>
