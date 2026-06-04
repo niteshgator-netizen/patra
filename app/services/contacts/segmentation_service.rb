@@ -3,10 +3,10 @@
 module Contacts
   class SegmentationService
     SEGMENT_TAGS = {
-      'high-spender' => ->(attrs) { attrs['total_deposits_amount'].to_f > 1000 },
-      'at-risk' => ->(contact, attrs) { inactive_14_days?(contact) && was_active_before?(contact) },
-      'whale' => ->(contact) { single_load_over_200?(contact) },
-      'frequent' => ->(attrs) { attrs['total_deposits_count'].to_i > 10 }
+      'high-spender' => ->(contact, attrs) { attrs['total_deposits_amount'].to_f > 1000 },
+      'at-risk'      => ->(contact, attrs) { inactive_14_days?(contact) && was_active_before?(contact) },
+      'whale'        => ->(contact, attrs) { single_load_over_200?(contact) },
+      'frequent'     => ->(contact, attrs) { attrs['total_deposits_count'].to_i > 10 }
     }.freeze
 
     def self.apply!(contact)
@@ -14,7 +14,7 @@ module Contacts
       labels = contact.labels.pluck(:name)
 
       SEGMENT_TAGS.each do |tag, rule|
-        matched = rule.arity == 1 ? rule.call(attrs) : rule.call(contact, attrs)
+        matched = rule.call(contact, attrs)
         labels << tag if matched && labels.exclude?(tag)
       end
 
