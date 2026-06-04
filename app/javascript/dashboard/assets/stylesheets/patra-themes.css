@@ -375,6 +375,22 @@
 }
 .pat-game-card:hover::after { opacity: 1; }
 
+.pat-btn {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 15px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0));
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 4px 14px rgba(110,86,207,0.4);
+  transition: all .22s cubic-bezier(.23,1,.32,1);
+}
+
 /* Button hover lift */
 .pat-hbtn:hover,
 .pat-game-action:hover,
