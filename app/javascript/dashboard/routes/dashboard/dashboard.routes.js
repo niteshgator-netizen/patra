@@ -68,6 +68,14 @@ export default {
           },
         },
         {
+          path: 'patra/backup-pages',
+          name: 'patra_backup_pages',
+          component: () => import('./patra/PatraBackupPages.vue'),
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
           path: 'patra/ai-training',
           name: 'patra_ai_training',
           component: PatraAiTraining,
