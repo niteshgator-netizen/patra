@@ -42,8 +42,18 @@ export default {
   },
   mounted() {
     this.loadData();
+    this.bindGameCardGlow();
   },
   methods: {
+    bindGameCardGlow() {
+      document.querySelectorAll('.gcard').forEach(el => {
+        el.addEventListener('mousemove', e => {
+          const r = el.getBoundingClientRect();
+          el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+          el.style.setProperty('--my', `${e.clientY - r.top}px`);
+        });
+      });
+    },
     async loadData() {
       this.isLoading = true;
       try {
@@ -65,6 +75,7 @@ export default {
         useAlert(this.$t('GAMES.TOAST.ERROR'));
       } finally {
         this.isLoading = false;
+        this.$nextTick(() => this.bindGameCardGlow());
       }
     },
     openConfigModal(game) {

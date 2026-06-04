@@ -84,6 +84,23 @@ export default {
         document.addEventListener('mousemove', spotlightMouseMoveHandler);
         document.addEventListener('mouseleave', spotlightMouseLeaveHandler);
       }
+
+      window.addEventListener('load', () => {
+        document
+          .querySelectorAll(
+            '.pat-stat-card, .patra-kpi, .pat-game-card, .pat-train-stat'
+          )
+          .forEach((el, i) => {
+            el.style.animationDelay = `${Math.min(i, 10) * 0.05}s`;
+          });
+        document.querySelectorAll('.pat-stat-card, .patra-kpi').forEach(el => {
+          el.addEventListener('mousemove', e => {
+            const r = el.getBoundingClientRect();
+            el.style.setProperty('--gx', `${e.clientX - r.left}px`);
+            el.style.setProperty('--gy', `${e.clientY - r.top}px`);
+          });
+        });
+      });
     });
 
     onBeforeUnmount(() => {
