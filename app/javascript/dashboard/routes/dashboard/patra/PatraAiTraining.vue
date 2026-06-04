@@ -14,6 +14,7 @@ const TABS = [
 
 const activeTab = ref('upload');
 const rootRef = ref(null);
+const ragStats = ref(null);
 const spotlightRef = ref(null);
 const fileInputRef = ref(null);
 
@@ -322,18 +323,7 @@ const switchTab = key => {
   if (key === 'phrases') fetchPhrases();
 };
 
-const trainingPairsTotal = computed(() => {
-  if (uploadsLoading.value) return null;
-  const total = uploads.value
-    .filter(u => u.status === 'completed')
-    .reduce((sum, u) => sum + (Number(u.pairs_created) || 0), 0);
-  return total > 0 ? total.toLocaleString() : null;
-});
-
-const awaitingReviewCount = computed(() => {
-  if (!candidatesLoaded.value || candidatesLoading.value) return null;
-  return candidates.value.length;
-});
+const awaitingReviewCount = computed(() => ragStats.value?.awaiting_review ?? null);
 
 function noopPlaceholder() {}
 
@@ -364,11 +354,17 @@ function onMouseLeave() {
   if (spotlightRef.value) spotlightRef.value.style.opacity = '0';
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchUploads();
   fetchCandidates();
   rootRef.value?.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseleave', onMouseLeave);
+  try {
+    const { data } = await PatraAiTrainingAPI.stats();
+    ragStats.value = data;
+  } catch (e) {
+    // stats are non-critical, silently fail
+  }
 });
 
 onUnmounted(() => {
@@ -393,7 +389,6 @@ onUnmounted(() => {
 
       <div class="pat-at-content">
         <div class="pat-at-rag-stats pat-train-stats">
-          <!-- TODO: wire backend — full knowledge-base pair count -->
           <button
             type="button"
             class="pat-at-rag pat-train-stat"
@@ -401,13 +396,12 @@ onUnmounted(() => {
           >
             <div
               class="pat-at-rag-n n"
-              :class="{ 'pat-at-rag-n--accent': trainingPairsTotal }"
+              :class="{ 'pat-at-rag-n--accent': ragStats?.total_pairs }"
             >
-              {{ trainingPairsTotal ?? emptyPlaceholder }}
+              {{ ragStats?.total_pairs?.toLocaleString() ?? emptyPlaceholder }}
             </div>
             <div class="pat-at-rag-l l">{{ statTrainingPairsLabel }}</div>
           </button>
-          <!-- TODO: wire backend — live embedding stats -->
           <button
             type="button"
             class="pat-at-rag pat-train-stat"
@@ -416,13 +410,18 @@ onUnmounted(() => {
             <div class="pat-at-rag-n n">{{ statEmbeddingsValue }}</div>
             <div class="pat-at-rag-l l">{{ statEmbeddingsLabel }}</div>
           </button>
-          <!-- TODO: wire backend — AI handle rate -->
           <button
             type="button"
             class="pat-at-rag pat-train-stat"
             @click="noopPlaceholder"
           >
-            <div class="pat-at-rag-n n">{{ emptyPlaceholder }}</div>
+            <div class="pat-at-rag-n n">
+              {{
+                ragStats?.ai_handle_rate != null
+                  ? ragStats.ai_handle_rate + '%'
+                  : emptyPlaceholder
+              }}
+            </div>
             <div class="pat-at-rag-l l">{{ statHandleRateLabel }}</div>
           </button>
           <button
@@ -647,7 +646,6 @@ onUnmounted(() => {
                   <span class="pat-at-rq-meta">
                     {{ candidateConfidenceLabel(candidate.confidence_score) }}
                   </span>
-                  <!-- TODO: wire backend — game / player / agent metadata -->
                   <button
                     type="button"
                     class="pat-at-rq-stub"
