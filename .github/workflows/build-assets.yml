@@ -23,6 +23,8 @@ jobs:
 
           token: ${{ secrets.GITHUB_TOKEN }}
 
+          persist-credentials: true
+
       - name: Setup Ruby
 
         uses: ruby/setup-ruby@v1
