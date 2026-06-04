@@ -41,7 +41,7 @@ module Integrations::LlmInstrumentationHelpers
   end
 
   def set_prompt_messages(span, messages)
-    messages.each_with_index do |msg, idx|
+    messages.compact.each_with_index do |msg, idx|
       role = msg[:role] || msg['role']
       content = msg[:content] || msg['content']
 
