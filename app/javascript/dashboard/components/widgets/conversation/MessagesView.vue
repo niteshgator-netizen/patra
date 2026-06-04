@@ -468,7 +468,10 @@ export default {
     class="flex flex-col justify-between flex-grow h-full min-w-0 m-0"
   >
     <div ref="topBannerRef">
-      <BlacklistBanner :contact="currentChat.meta?.sender" />
+      <BlacklistBanner
+        class="patra-blacklist-banner"
+        :contact="currentChat.meta?.sender"
+      />
       <Banner
         v-if="!currentChat.can_reply"
         color-scheme="alert"
@@ -484,13 +487,15 @@ export default {
         :banner-message="$t('CONVERSATION.OLD_INSTAGRAM_INBOX_REPLY_BANNER')"
       />
     </div>
-    <PinnedMessagesSection
-      :messages="getMessages"
-      @scroll-to-message="scrollToPinnedMessage"
-    />
+    <div class="pat-pinned">
+      <PinnedMessagesSection
+        :messages="getMessages"
+        @scroll-to-message="scrollToPinnedMessage"
+      />
+    </div>
     <MessageList
       ref="conversationPanelRef"
-      class="conversation-panel patra-conv-thread-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 max-md:pb-36"
+      class="conversation-panel patra-conv-thread-panel pat-thread flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 max-md:pb-36"
       :current-user-id="currentUserId"
       :first-unread-id="unReadMessages[0]?.id"
       :is-an-email-channel="isAnEmailChannel"
@@ -577,8 +582,166 @@ export default {
 </template>
 
 <style scoped>
+/* ── v6 thread container ── */
+:deep(.pat-thread),
+:deep(ul.pat-thread) {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0 !important;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas, #050409);
+}
+
 .patra-conv-thread-panel {
   background: transparent;
+}
+
+/* ── Pinned message banner ── */
+.pat-pinned {
+  display: flex;
+  flex-direction: column;
+  margin: 0 18px 8px;
+}
+
+.pat-pinned :deep(.border-b) {
+  border: 1px solid rgba(110, 86, 207, 0.25) !important;
+  border-radius: 10px;
+  background: rgba(110, 86, 207, 0.1);
+  overflow: hidden;
+}
+
+.pat-pinned :deep(button) {
+  padding: 9px 13px;
+  font-size: 12.5px;
+  color: var(--text-2, #a8a6b6);
+  line-height: 1.45;
+}
+
+.pat-pinned :deep(svg) {
+  color: var(--patra-3, #a78bfa);
+  flex-shrink: 0;
+}
+
+.pat-pinned :deep(.font-medium) {
+  color: var(--text, #ededf2);
+}
+
+.pat-pinned :deep(.max-h-40) {
+  padding: 0 13px 9px;
+  font-size: 12.5px;
+  color: var(--text-2, #a8a6b6);
+  line-height: 1.45;
+}
+
+/* ── AI Handoff card (CSS ready for future markup) ── */
+.pat-handoff {
+  margin: 8px 18px;
+  background: var(--surface-2, #131119);
+  border: 1px solid rgba(110, 86, 207, 0.3);
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.pat-handoff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(110, 86, 207, 0.1);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--patra-3, #a78bfa);
+  border-bottom: 1px solid rgba(110, 86, 207, 0.2);
+}
+
+.pat-handoff-conf {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green, #3fb950);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pat-handoff-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 12px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+.pat-handoff-grid .k {
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+  white-space: nowrap;
+  padding-top: 1px;
+}
+
+.pat-handoff-grid .v {
+  color: var(--text, #ededf2);
+  line-height: 1.45;
+}
+
+.pat-handoff-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border, #171520);
+}
+
+.pat-ho-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-hi, #2e2940);
+  background: var(--surface-3, #1b1925);
+  color: var(--text-2, #a8a6b6);
+  transition: all 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.pat-ho-btn:hover {
+  background: var(--surface-4, #252233);
+  color: var(--text, #ededf2);
+}
+
+.pat-ho-btn.primary {
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 10px var(--patra-glow, rgba(110, 86, 207, 0.4));
+}
+
+/* ── Blacklist banner ── */
+:deep(.patra-blacklist-banner) {
+  margin: 4px 18px 0;
+  border-radius: 10px;
+  background: rgba(248, 81, 73, 0.08) !important;
+  border: 1px solid rgba(248, 81, 73, 0.3) !important;
+  color: var(--red, #f85149) !important;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+}
+
+:deep(.pat-thread .blacklist-banner),
+:deep(.pat-thread .patra-blacklist-banner) {
+  margin: 4px 18px 0;
+  border-radius: 10px;
+  background: rgba(248, 81, 73, 0.08);
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  color: var(--red, #f85149);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
 }
 
 .patra-conv-composer-wrap {

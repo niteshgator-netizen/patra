@@ -571,6 +571,11 @@ provideMessageContext({
       {
         'group-with-next': shouldGroupWithNext,
         'bg-n-alpha-1': showBackgroundHighlight,
+        out: orientation === ORIENTATION.RIGHT,
+        in: orientation === ORIENTATION.LEFT,
+        ai:
+          variant === MESSAGE_VARIANTS.BOT ||
+          variant === MESSAGE_VARIANTS.TEMPLATE,
         'patra-conv-msg--out': orientation === ORIENTATION.RIGHT,
         'patra-conv-msg--in': orientation === ORIENTATION.LEFT,
         'patra-conv-msg--ai':
@@ -600,12 +605,12 @@ provideMessageContext({
       <div
         v-if="!shouldGroupWithNext && shouldShowAvatar"
         v-tooltip.left-end="avatarTooltip"
-        class="[grid-area:avatar] flex items-end"
+        class="msg-ava [grid-area:avatar] flex items-end"
       >
         <Avatar v-bind="avatarInfo" :size="31" class="patra-conv-msg-avatar" />
       </div>
       <div
-        class="[grid-area:bubble] relative flex"
+        class="msg-body [grid-area:bubble] relative flex"
         :class="{
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
@@ -648,24 +653,36 @@ provideMessageContext({
 </template>
 
 <style scoped>
+/* ── v6 message row ── */
 .patra-conv-msg {
   --pm-patra: #6e56cf;
   --pm-patra-2: #8b5cf6;
   --pm-patra-glow: rgba(110, 86, 207, 0.55);
 
-  max-width: 75%;
+  display: flex;
   gap: 10px;
+  padding: 4px 18px;
+  position: relative;
+  max-width: 75%;
   margin-bottom: 0;
   animation: patra-msg-in 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.patra-conv-msg--out {
-  align-self: flex-end;
-  flex-direction: row-reverse;
+.patra-conv-msg.in,
+.patra-conv-msg--in {
+  flex-direction: row;
+  align-self: flex-start;
 }
 
-.patra-conv-msg--in {
-  align-self: flex-start;
+.patra-conv-msg.out,
+.patra-conv-msg--out {
+  flex-direction: row-reverse;
+  align-self: flex-end;
+}
+
+.patra-conv-msg.ai,
+.patra-conv-msg--ai {
+  flex-direction: row;
 }
 
 .patra-conv-msg--center {
@@ -673,12 +690,155 @@ provideMessageContext({
   width: 100%;
 }
 
+/* Avatar */
+.patra-conv-msg .msg-ava :deep(.patra-conv-msg-avatar),
 .patra-conv-msg :deep(.patra-conv-msg-avatar) {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
   align-self: flex-end;
 }
 
+.patra-conv-msg.ai :deep(.patra-conv-msg-avatar),
 .patra-conv-msg--ai :deep(.patra-conv-msg-avatar) {
   box-shadow: 0 0 12px var(--pm-patra-glow);
+}
+
+/* Bubble */
+.patra-conv-msg.in :deep(.patra-conv-bubble--user),
+.patra-conv-msg.in :deep(.patra-conv-bubble--left),
+.patra-conv-msg--in :deep(.patra-conv-bubble--user),
+.patra-conv-msg--in :deep(.patra-conv-bubble--left) {
+  max-width: 72%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  word-break: break-word;
+  background: var(--bubble-in, #131119);
+  color: var(--text, #ededf2);
+  border: 1px solid var(--border, #171520);
+  border-bottom-left-radius: 4px;
+}
+
+.patra-conv-msg.out :deep(.patra-conv-bubble--agent),
+.patra-conv-msg.out :deep(.patra-conv-bubble--right),
+.patra-conv-msg--out :deep(.patra-conv-bubble--agent),
+.patra-conv-msg--out :deep(.patra-conv-bubble--right) {
+  max-width: 72%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  word-break: break-word;
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  color: #fff;
+  border: none;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 14px var(--patra-glow, rgba(110, 86, 207, 0.4));
+}
+
+.patra-conv-msg.ai :deep(.patra-conv-bubble--bot),
+.patra-conv-msg--ai :deep(.patra-conv-bubble--bot) {
+  max-width: 72%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  word-break: break-word;
+  background: var(--surface-2, #131119);
+  color: var(--text, #ededf2);
+  border: 1px solid rgba(110, 86, 207, 0.25);
+  border-bottom-left-radius: 4px;
+}
+
+/* AI auto-reply pill */
+.patra-conv-msg.ai :deep(.patra-conv-bubble--bot)::before,
+.patra-conv-msg--ai :deep(.patra-conv-bubble--bot)::before {
+  content: '✦ Auto-reply';
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--patra-3, #a78bfa);
+  background: rgba(110, 86, 207, 0.15);
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin-bottom: 5px;
+  letter-spacing: 0.04em;
+}
+
+/* Meta (name + time) */
+.patra-conv-msg :deep(.patra-conv-msg-meta) {
+  font-size: 11px;
+  color: var(--text-3, #75727f);
+  margin-bottom: 3px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.patra-conv-msg.out :deep(.patra-conv-msg-meta),
+.patra-conv-msg--out :deep(.patra-conv-msg-meta) {
+  text-align: right;
+}
+
+/* Reactions */
+.patra-conv-msg .msg-body > :deep(div.absolute) {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.patra-conv-msg .msg-body > :deep(div.absolute button) {
+  font-size: 13px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--surface-3, #1b1925);
+  border: 1px solid var(--border, #171520);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.patra-conv-msg .msg-body > :deep(div.absolute button:hover) {
+  transform: scale(1.2);
+}
+
+/* Day separator */
+.patra-conv-msg :deep(.patra-conv-day-sep),
+:deep(.pat-day-sep) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  font-size: 11px;
+  color: var(--text-4, #54515e);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.patra-conv-msg :deep(.patra-conv-day-sep)::before,
+:deep(.pat-day-sep)::before,
+.patra-conv-msg :deep(.patra-conv-day-sep)::after,
+:deep(.pat-day-sep)::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border, #171520);
 }
 
 @keyframes patra-msg-in {
