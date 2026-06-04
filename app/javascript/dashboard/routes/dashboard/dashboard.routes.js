@@ -60,6 +60,14 @@ export default {
           },
         },
         {
+          path: 'patra/facebook-accounts',
+          name: 'patra_facebook_accounts',
+          component: () => import('./patra/PatraFacebookAccounts.vue'),
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
           path: 'patra/ai-training',
           name: 'patra_ai_training',
           component: PatraAiTraining,
