@@ -1153,7 +1153,7 @@ module Games
     def active_payment_handle_for_account
       if defined?(PaymentHandle)
         handle = PaymentHandle.where(account_id: account.id, status: 'active').order(:id).first
-        return "#{handle.platform} #{handle.handle}" if handle
+        return handle.handle.to_s if handle
       end
       'the payment handle in our last message'
     end
