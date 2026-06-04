@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 defineProps({
   keepAlive: {
     type: Boolean,
-    default: true,
+    default: false,
   },
 });
 

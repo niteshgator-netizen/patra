@@ -366,7 +366,7 @@ onMounted(loadChannel);
 }
 
 #spotlight {
-  position: fixed;
+  position: absolute;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -386,7 +386,7 @@ onMounted(loadChannel);
 }
 
 .mesh {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;

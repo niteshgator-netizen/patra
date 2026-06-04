@@ -1965,6 +1965,10 @@ watch(selectedScoringPlatform, () => {
 
 <style scoped>
 .pat-ph-wrap {
+  position: relative;
+  min-height: 100%;
+  background: var(--canvas, #050409);
+
   --canvas: #050409;
   --surface: #0c0b12;
   --surface-2: #131119;

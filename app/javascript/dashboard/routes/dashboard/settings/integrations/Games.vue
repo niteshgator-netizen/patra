@@ -262,7 +262,7 @@ export default {
 }
 
 #spotlight {
-  position: fixed;
+  position: absolute;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -282,7 +282,7 @@ export default {
 }
 
 .mesh {
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
@@ -349,7 +349,7 @@ export default {
 
 .topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 22px;
@@ -482,6 +482,7 @@ export default {
   font-family: 'Inter', sans-serif;
   transition: all 0.22s;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pat-btn:hover {
