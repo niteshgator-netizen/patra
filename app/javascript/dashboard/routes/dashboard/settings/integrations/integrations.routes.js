@@ -11,6 +11,7 @@ import Notion from './Notion.vue';
 import Shopify from './Shopify.vue';
 import PaymentHandles from './PaymentHandles.vue';
 import Games from './Games.vue';
+import Notifications from './Notifications.vue';
 
 export default {
   routes: [
@@ -109,7 +110,7 @@ export default {
         {
           path: 'notifications',
           name: 'settings_integrations_notifications',
-          component: () => import('./Notifications.vue'),
+          component: Notifications,
           meta: {
             permissions: ['administrator'],
           },

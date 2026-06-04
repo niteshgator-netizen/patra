@@ -138,12 +138,15 @@ export default {
         this.isTesting = false;
       }
     },
+    closeModal() {
+      this.$emit('close');
+    },
   },
 };
 </script>
 
 <template>
-  <div class="overlay show" @click.self="$emit('close')">
+  <div class="overlay show" @click.self="closeModal">
     <div class="modal">
       <div class="modal-h">
         <div class="mic">{{ game.logo_emoji || '🎮' }}</div>
@@ -153,7 +156,7 @@ export default {
           </div>
           <div class="md">{{ game.domain }}</div>
         </div>
-        <button type="button" class="modal-x" @click="$emit('close')">
+        <button type="button" class="modal-x" @click.stop="closeModal">
           {{ $t('GAMES.ACTIONS.CLOSE_ICON') }}
         </button>
       </div>
@@ -395,6 +398,9 @@ export default {
   justify-content: center;
   transition: all 0.2s;
   padding: 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 3;
 
   &:hover {
     color: #fff;

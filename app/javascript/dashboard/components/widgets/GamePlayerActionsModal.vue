@@ -5,7 +5,7 @@ const CLUSTER_2_SLUGS = ['mafia', 'game_room', 'cash_machine', 'mr_all_in_one'];
 const FASTAPI_NO_UNDERSCORE_SLUGS = ['vblink', 'ultra_panda'];
 
 function passwordFromUsername(username, gameSlug) {
-  const name = username.toString().trim();
+  const name = (username ?? '').toString().trim();
   if (!name) return '';
   if (
     gameSlug &&

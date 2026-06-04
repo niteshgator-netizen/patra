@@ -466,4 +466,27 @@ export default {
     animation: none !important;
   }
 }
+
+.pat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #6e56cf, #5b45b0);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.22s;
+  flex-shrink: 0;
+}
+
+.pat-btn:hover {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(110, 86, 207, 0.45);
+}
 </style>
