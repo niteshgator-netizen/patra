@@ -11,7 +11,7 @@ module Payments
       lock_key = 'patra:imap_check_job:lock'
       lock_ttl  = 4.minutes.to_i
 
-      acquired = $redis.set(lock_key, 1, nx: true, ex: lock_ttl)
+      acquired = Redis.current.set(lock_key, 1, nx: true, ex: lock_ttl)
       unless acquired
         Rails.logger.info('[ImapCheckJob] skipped — another instance is running')
         return
@@ -59,7 +59,7 @@ module Payments
         end
         HTTParty.get("https://uptime.betterstack.com/api/v1/heartbeat/m497AzJnPKrBdPJfJbSSKbfR") rescue nil
       ensure
-        $redis.del(lock_key) rescue nil
+        Redis.current.del(lock_key) rescue nil
       end
     end
 
