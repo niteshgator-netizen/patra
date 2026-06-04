@@ -157,7 +157,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="rootRef" class="patra-owner-dashboard">
+  <div ref="rootRef" class="patra-owner-dashboard pat-dash">
     <div ref="spotlightRef" class="patra-spotlight" aria-hidden="true" />
     <div class="patra-mesh" aria-hidden="true" />
 
@@ -229,9 +229,9 @@ onUnmounted(() => {
             <OnboardingChecklist />
           </div>
 
-          <div class="patra-kpis">
+          <div class="patra-kpis pat-dash-grid">
             <!-- TODO: wire backend — KPI drill-down -->
-            <div class="patra-kpi patra-card" @click="noopPlaceholder">
+            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-violet">
                   <svg
@@ -246,8 +246,8 @@ onUnmounted(() => {
                   </svg>
                 </div>
               </div>
-              <div class="patra-kpi-n">{{ stats.conversations_today }}</div>
-              <div class="patra-kpi-l">
+              <div class="patra-kpi-n n">{{ stats.conversations_today }}</div>
+              <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.CONVERSATIONS_TODAY') }}
               </div>
               <svg
@@ -264,7 +264,7 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <div class="patra-kpi patra-card" @click="noopPlaceholder">
+            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-blue">
                   <svg
@@ -277,8 +277,8 @@ onUnmounted(() => {
                   </svg>
                 </div>
               </div>
-              <div class="patra-kpi-n">{{ stats.messages_in_today }}</div>
-              <div class="patra-kpi-l">
+              <div class="patra-kpi-n n">{{ stats.messages_in_today }}</div>
+              <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.MESSAGES_IN') }}
               </div>
               <svg
@@ -295,7 +295,7 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <div class="patra-kpi patra-card" @click="noopPlaceholder">
+            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-green">
                   <svg
@@ -308,8 +308,8 @@ onUnmounted(() => {
                   </svg>
                 </div>
               </div>
-              <div class="patra-kpi-n">{{ stats.messages_out_today }}</div>
-              <div class="patra-kpi-l">
+              <div class="patra-kpi-n n">{{ stats.messages_out_today }}</div>
+              <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.MESSAGES_OUT') }}
               </div>
               <svg
@@ -326,7 +326,7 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <div class="patra-kpi patra-card" @click="noopPlaceholder">
+            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-violet">
                   <svg viewBox="0 0 24 24" fill="#8B5CF6">
@@ -336,10 +336,10 @@ onUnmounted(() => {
                   </svg>
                 </div>
               </div>
-              <div class="patra-kpi-n patra-kpi-n-accent">
+              <div class="patra-kpi-n n p patra-kpi-n-accent">
                 {{ formatPercent(stats.ai_handle_rate) }}
               </div>
-              <div class="patra-kpi-l">
+              <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.AI_HANDLE_RATE') }}
               </div>
               <svg
@@ -356,7 +356,7 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <div class="patra-kpi patra-card" @click="noopPlaceholder">
+            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-red">
                   <svg
@@ -372,10 +372,10 @@ onUnmounted(() => {
                   </svg>
                 </div>
               </div>
-              <div class="patra-kpi-n patra-kpi-n-warn">
+              <div class="patra-kpi-n n a patra-kpi-n-warn">
                 {{ stats.flagged_for_review }}
               </div>
-              <div class="patra-kpi-l">
+              <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.FLAGGED_REVIEW') }}
               </div>
               <svg
@@ -392,7 +392,7 @@ onUnmounted(() => {
               </svg>
             </div>
 
-            <div class="patra-kpi patra-card" @click="noopPlaceholder">
+            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-green">
                   <svg
@@ -407,10 +407,10 @@ onUnmounted(() => {
                   </svg>
                 </div>
               </div>
-              <div class="patra-kpi-n patra-kpi-n-green">
+              <div class="patra-kpi-n n g patra-kpi-n-green">
                 {{ formattedNetToday }}
               </div>
-              <div class="patra-kpi-l">
+              <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.NET_TODAY') }}
               </div>
               <svg
@@ -429,9 +429,9 @@ onUnmounted(() => {
           </div>
 
           <div class="patra-grid">
-            <div class="patra-card">
+            <div class="patra-card pat-dash-section">
               <div class="patra-card-h">
-                <div class="patra-card-t">
+                <div class="patra-card-t pat-dash-section-title">
                   <span class="patra-card-dot" />
                   {{ $t('PATRA.DASHBOARD.VOLUME_BY_CHANNEL') }}
                 </div>
@@ -472,9 +472,9 @@ onUnmounted(() => {
               </p>
             </div>
 
-            <div class="patra-card">
+            <div class="patra-card pat-dash-section">
               <div class="patra-card-h">
-                <div class="patra-card-t">
+                <div class="patra-card-t pat-dash-section-title">
                   <span class="patra-card-dot" />
                   {{ $t('PATRA.DASHBOARD.AI_HANDLE_RATE') }}
                 </div>
@@ -556,9 +556,9 @@ onUnmounted(() => {
           </div>
 
           <div class="patra-grid">
-            <div class="patra-card">
+            <div class="patra-card pat-dash-section">
               <div class="patra-card-h">
-                <div class="patra-card-t">
+                <div class="patra-card-t pat-dash-section-title">
                   <span class="patra-card-dot" />
                   {{ $t('OVERVIEW_REPORTS.OWNER_STATS.PLAYERS') }}
                 </div>
@@ -571,51 +571,51 @@ onUnmounted(() => {
                   {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOTAL_PLAYERS') }}
                 </button>
               </div>
-              <div class="patra-mini-stats">
-                <div class="patra-ms">
-                  <div class="patra-ms-n patra-ms-empty">
+              <div class="patra-mini-stats pat-dash-grid">
+                <div class="patra-ms pat-stat-card">
+                  <div class="patra-ms-n n patra-ms-empty">
                     {{ emptyPlaceholder }}
                   </div>
-                  <div class="patra-ms-l">
+                  <div class="patra-ms-l l">
                     {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOTAL_PLAYERS') }}
                   </div>
                 </div>
-                <div class="patra-ms">
-                  <div class="patra-ms-n">{{ stats.new_customers_today }}</div>
-                  <div class="patra-ms-l">
+                <div class="patra-ms pat-stat-card">
+                  <div class="patra-ms-n n">{{ stats.new_customers_today }}</div>
+                  <div class="patra-ms-l l">
                     {{ $t('PATRA.DASHBOARD.NEW_CUSTOMERS') }}
                   </div>
                 </div>
-                <div class="patra-ms">
-                  <div class="patra-ms-n patra-ms-empty">
+                <div class="patra-ms pat-stat-card">
+                  <div class="patra-ms-n n patra-ms-empty">
                     {{ emptyPlaceholder }}
                   </div>
-                  <div class="patra-ms-l">
+                  <div class="patra-ms-l l">
                     {{ $t('OVERVIEW_REPORTS.OWNER_STATS.VIP') }}
                   </div>
                 </div>
-                <div class="patra-ms">
-                  <div class="patra-ms-n patra-ms-empty">
+                <div class="patra-ms pat-stat-card">
+                  <div class="patra-ms-n n patra-ms-empty">
                     {{ emptyPlaceholder }}
                   </div>
-                  <div class="patra-ms-l">
+                  <div class="patra-ms-l l">
                     {{ $t('OVERVIEW_REPORTS.OWNER_STATS.DORMANT') }}
                   </div>
                 </div>
-                <div class="patra-ms">
-                  <div class="patra-ms-n patra-ms-empty">
+                <div class="patra-ms pat-stat-card">
+                  <div class="patra-ms-n n patra-ms-empty">
                     {{ emptyPlaceholder }}
                   </div>
-                  <div class="patra-ms-l">
+                  <div class="patra-ms-l l">
                     {{ $t('OVERVIEW_REPORTS.OWNER_STATS.ACTIVE_NOW') }}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="patra-card">
+            <div class="patra-card pat-dash-section">
               <div class="patra-card-h">
-                <div class="patra-card-t">
+                <div class="patra-card-t pat-dash-section-title">
                   <span class="patra-card-dot" />
                   {{ $t('OVERVIEW_REPORTS.OWNER_STATS.AI_PERFORMANCE') }}
                 </div>
@@ -667,9 +667,9 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="patra-card patra-card-full">
+          <div class="patra-card patra-card-full pat-dash-section">
             <div class="patra-card-h">
-              <div class="patra-card-t">
+              <div class="patra-card-t pat-dash-section-title">
                 <span class="patra-card-dot" />
                 {{ $t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.HEADER') }}
                 <span class="patra-card-t-muted">{{
@@ -716,15 +716,15 @@ onUnmounted(() => {
           </div>
 
           <div class="patra-grid">
-            <div class="patra-card">
+            <div class="patra-card pat-dash-section">
               <div class="patra-card-h">
-                <div class="patra-card-t">
+                <div class="patra-card-t pat-dash-section-title">
                   <span class="patra-card-dot" />
                   {{ $t('PATRA.DASHBOARD.ACTIVE_AGENTS') }}
                 </div>
                 <span class="patra-card-more">{{ activeAgentsCount }}</span>
               </div>
-              <ul v-if="stats.active_agents?.length" class="patra-agent-list">
+              <ul v-if="stats.active_agents?.length" class="patra-agent-list pat-dash-table">
                 <!-- TODO: wire backend — agent drill-down -->
                 <li
                   v-for="(agent, index) in stats.active_agents"
@@ -752,9 +752,9 @@ onUnmounted(() => {
               </p>
             </div>
 
-            <div class="patra-card patra-game-wrap">
+            <div class="patra-card patra-game-wrap pat-dash-section">
               <div class="patra-card-h">
-                <div class="patra-card-t">
+                <div class="patra-card-t pat-dash-section-title">
                   <span class="patra-card-dot" />
                   {{ $t('GAME_HEALTH.TITLE') }}
                 </div>
@@ -769,7 +769,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="patra-card patra-loads-footer">
+          <div class="patra-card patra-loads-footer pat-dash-section">
             <div class="patra-lf-item">
               <div class="patra-lf-l">{{ $t('PATRA.REPORTS.LOADS') }}</div>
               <div class="patra-lf-v patra-lf-v-green">
@@ -1842,5 +1842,94 @@ onUnmounted(() => {
 
 .patra-game-wrap :deep(p) {
   color: var(--text-3) !important;
+}
+
+/* ── v6 dashboard ── */
+.pat-dash {
+  background: var(--canvas, #050409);
+  min-height: 100vh;
+  padding: 24px;
+}
+.pat-dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.pat-stat-card {
+  background: var(--surface, #0c0b12);
+  border: 1px solid var(--border, #171520);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+.pat-stat-card:hover {
+  border-color: var(--border-hi, #2e2940);
+  transform: translateY(-2px);
+}
+.pat-stat-card .n {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text, #ededf2);
+}
+.pat-stat-card .n.g {
+  color: var(--green, #3fb950);
+}
+.pat-stat-card .n.p {
+  color: var(--patra-3, #a78bfa);
+}
+.pat-stat-card .n.a {
+  color: var(--amber, #e3a008);
+}
+.pat-stat-card .l {
+  font-size: 12px;
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+}
+.pat-dash-section {
+  margin-bottom: 24px;
+}
+.pat-dash-section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4, #54515e);
+  margin-bottom: 12px;
+}
+.pat-dash-table {
+  background: var(--surface, #0c0b12);
+  border: 1px solid var(--border, #171520);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pat-dash-table :deep(th) {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4, #54515e);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, #171520);
+  background: var(--surface-2, #131119);
+}
+.pat-dash-table :deep(td) {
+  font-size: 13px;
+  color: var(--text, #ededf2);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.pat-dash-table :deep(tr:last-child td) {
+  border-bottom: none;
+}
+.pat-dash-table :deep(tr:hover td) {
+  background: var(--surface-2, #131119);
 }
 </style>
