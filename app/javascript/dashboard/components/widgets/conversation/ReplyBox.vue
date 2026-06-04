@@ -1265,7 +1265,7 @@ export default {
   <ReplyBoxBanner :message="message" :is-on-private-note="isOnPrivateNote" />
   <div
     ref="replyEditor"
-    class="reply-box patra-conv-composer"
+    class="reply-box patra-conv-composer pat-composer"
     :class="replyBoxClass"
   >
     <ReplyTopPanel
@@ -1405,7 +1405,13 @@ export default {
           v-if="isDefaultEditorMode && !isOnPrivateNote"
           class="flex justify-end pb-1"
         >
-          <span class="text-xs tabular-nums" :class="patraCharCounterClass">
+          <span
+            class="text-xs tabular-nums pat-charcount"
+            :class="{
+              warn: isPatraCharWarning,
+              over: isPatraCharLimitExceeded,
+            }"
+          >
             {{
               $t('PATRA.REPLY.CHAR_COUNT', {
                 current: patraCharCount,
@@ -1616,5 +1622,340 @@ export default {
 :dir(rtl) .emoji-dialog--expanded::before {
   right: 0.25rem;
   left: auto;
+}
+
+/* ── v6 composer wrapper ── */
+.pat-composer {
+  border-top: 1px solid var(--border, #171520);
+  background: var(--surface, #0c0b12);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Composer tabs (Reply / Internal Note) ── */
+.pat-composer :deep(.reply-editor--note),
+.pat-composer :deep(.reply-editor),
+.pat-composer-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #171520);
+  padding: 0 14px;
+  gap: 4px;
+  background: var(--surface, #0c0b12);
+}
+
+.pat-composer :deep(.tab-title),
+.pat-ctab {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3, #75727f);
+  padding: 9px 12px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.pat-composer :deep(.tab-title:hover),
+.pat-ctab:hover {
+  color: var(--text, #ededf2);
+}
+
+.pat-composer :deep(.tab-title.active),
+.pat-composer :deep(.tab-title.is-active),
+.pat-ctab.active {
+  color: var(--patra-3, #a78bfa);
+  border-bottom-color: var(--patra, #6e56cf);
+}
+
+/* Smart compose hint */
+.pat-smart-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--patra-3, #a78bfa);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+/* ── Composer text area ── */
+.pat-composer :deep(.ProseMirror),
+.pat-composer :deep(.editor-root) {
+  padding: 12px 16px;
+  font-size: 13.5px;
+  color: var(--text, #ededf2);
+  font-family: 'Inter', sans-serif;
+  line-height: 1.55;
+  min-height: 80px;
+  background: transparent;
+  outline: none;
+}
+
+.pat-composer :deep(.ProseMirror p.is-editor-empty:first-child::before) {
+  color: var(--text-4, #54515e);
+}
+
+/* ── Bottom toolbar bar ── */
+.pat-composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border, #171520);
+  gap: 8px;
+}
+
+.pat-composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Tool buttons */
+.pat-composer :deep(.toolbar-wrap button),
+.pat-composer :deep(.reply-editor--actions button),
+.pat-ctool {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-3, #75727f);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.pat-composer :deep(.toolbar-wrap button:hover),
+.pat-composer :deep(.reply-editor--actions button:hover),
+.pat-ctool:hover {
+  color: var(--text, #ededf2);
+  background: var(--surface-3, #1b1925);
+}
+
+.pat-composer :deep(.toolbar-wrap button.active),
+.pat-ctool.active {
+  color: var(--patra-3, #a78bfa);
+  background: rgba(110, 86, 207, 0.14);
+}
+
+/* AI assist tool button — purple tint */
+.pat-ctool.ai {
+  color: var(--patra-2, #8b5cf6);
+}
+
+.pat-ctool.ai:hover {
+  background: rgba(110, 86, 207, 0.18);
+  color: var(--patra-3, #a78bfa);
+}
+
+/* ── Send button ── */
+.pat-composer :deep(.send-reply),
+.pat-composer :deep(.button.send-reply),
+.pat-send {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s;
+  box-shadow: 0 3px 10px var(--patra-glow, rgba(110, 86, 207, 0.55));
+  font-family: 'Inter', sans-serif;
+}
+
+.pat-composer :deep(.send-reply:hover),
+.pat-send:hover {
+  box-shadow: 0 5px 16px var(--patra-glow, rgba(110, 86, 207, 0.55));
+  transform: translateY(-1px);
+}
+
+.pat-composer :deep(.send-reply:disabled),
+.pat-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Char count */
+.pat-charcount {
+  font-size: 11px;
+  color: var(--text-4, #54515e);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+.pat-charcount.warn {
+  color: var(--amber, #e3a008);
+}
+
+.pat-charcount.over {
+  color: var(--red, #f85149);
+}
+
+/* ── Canned response suggestion ── */
+.pat-composer :deep(.mention--box),
+.pat-composer :deep(.canned-response) {
+  background: var(--surface-2, #131119);
+  border: 1px solid var(--border-hi, #2e2940);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.pat-composer :deep(.mention--box li:hover),
+.pat-composer :deep(.canned-response li:hover) {
+  background: var(--surface-3, #1b1925);
+}
+
+.pat-composer :deep(.mention--box li.active),
+.pat-composer :deep(.canned-response li.active) {
+  background: rgba(110, 86, 207, 0.16);
+  color: var(--patra-3, #a78bfa);
+}
+
+/* Bridge: v6 pat-composer → existing patra-composer DOM */
+.pat-composer :deep(.patra-composer-tabs-row),
+.pat-composer :deep(.patra-composer-tabs) {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #171520);
+  padding: 0 14px;
+  gap: 4px;
+  background: var(--surface, #0c0b12);
+}
+
+.pat-composer :deep(.patra-composer-tab) {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3, #75727f);
+  padding: 9px 12px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
+.pat-composer :deep(.patra-composer-tab:hover) {
+  color: var(--text, #ededf2);
+}
+
+.pat-composer :deep(.patra-composer-tab.is-active:not(.is-note)) {
+  color: var(--patra-3, #a78bfa);
+  border-bottom-color: var(--patra, #6e56cf);
+  background: none;
+  border-color: transparent;
+  border-bottom-color: var(--patra, #6e56cf);
+}
+
+.pat-composer :deep(.patra-composer-bar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border, #171520);
+  gap: 8px;
+}
+
+.pat-composer :deep(.patra-composer-tools) {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pat-composer :deep(.patra-composer-tools button),
+.pat-composer :deep(.patra-composer-right > button:not(.patra-composer-send)) {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-3, #75727f);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  transform: none;
+}
+
+.pat-composer :deep(.patra-composer-tools button:hover:not(:disabled)),
+.pat-composer
+  :deep(.patra-composer-right > button:not(.patra-composer-send):hover:not(:disabled)) {
+  color: var(--text, #ededf2);
+  background: var(--surface-3, #1b1925);
+  transform: none;
+}
+
+.pat-composer :deep(.patra-composer-send) {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s;
+  box-shadow: 0 3px 10px var(--patra-glow, rgba(110, 86, 207, 0.55));
+  font-family: 'Inter', sans-serif;
+  min-width: unset;
+  min-height: unset;
+  width: auto;
+  transform: none;
+}
+
+.pat-composer :deep(.patra-composer-send:hover:not(:disabled)) {
+  box-shadow: 0 5px 16px var(--patra-glow, rgba(110, 86, 207, 0.55));
+  transform: translateY(-1px);
+  filter: none;
+}
+
+.pat-composer :deep(.patra-composer-send:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  filter: none;
 }
 </style>

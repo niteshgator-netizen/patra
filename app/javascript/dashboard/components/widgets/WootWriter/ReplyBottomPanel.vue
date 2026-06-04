@@ -306,8 +306,11 @@ export default {
 </script>
 
 <template>
-  <div class="patra-composer-bar flex justify-between" :class="wrapClass">
-    <div class="patra-composer-tools left-wrap">
+  <div
+    class="pat-bottom-panel patra-composer-bar flex justify-between"
+    :class="wrapClass"
+  >
+    <div class="pat-bottom-tools patra-composer-tools left-wrap">
       <NextButton
         v-if="!isEditorDisabled"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_EMOJI_ICON')"
@@ -426,7 +429,7 @@ export default {
         @click="toggleInsertArticle"
       />
     </div>
-    <div class="patra-composer-right right-wrap relative">
+    <div class="pat-bottom-right patra-composer-right right-wrap relative">
       <ScheduleMessagePopover
         :show="showSchedulePopover"
         :conversation-id="conversationId"
@@ -571,5 +574,29 @@ export default {
 
 .patra-composer-bar :deep(.file-uploads label) {
   cursor: pointer;
+}
+
+/* ── v6 bottom panel ── */
+.pat-bottom-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border, #171520);
+  background: var(--surface, #0c0b12);
+}
+
+.pat-bottom-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.pat-bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 </style>
