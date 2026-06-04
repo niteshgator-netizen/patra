@@ -76,6 +76,14 @@ export default {
           },
         },
         {
+          path: 'patra/cashier-queue',
+          name: 'patra_cashier_queue',
+          component: () => import('./patra/PatraCashierQueue.vue'),
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
           path: 'patra/ai-training',
           name: 'patra_ai_training',
           component: PatraAiTraining,
