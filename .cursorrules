@@ -17,10 +17,11 @@
 # ─────────────────────────────────────────────────────
 - Patra = forked Chatwoot SaaS unified inbox, live at patrahq.com
 - Stack: Ruby on Rails + Vue.js + PostgreSQL + PgVector + Redis + SideKiq
-- Deploy: Railway, 4 services (Chatwoot / SideKiq / PgVector / Redis)
-- Pre-deploy: bundle exec rails db:chatwoot_prepare && bundle exec rails db:migrate
-- Railway internal hostname: http://chatwoot.railway.internal:3000
-- Both Chatwoot AND SideKiq must go green or deploy FAILED.
+- Deploy: Render (Web Service + Background Worker) + managed Postgres (patra-db) + Valkey (patra-redis)
+- Deploy command: git push origin main (auto-deploys to Render; sync patra-clean for Render staging)
+- Pre-deploy (Render): bundle exec rails db:chatwoot_prepare && bundle exec rails db:migrate
+- Render dashboard: dashboard.render.com
+- Both Web Service AND Background Worker must go green or deploy FAILED.
 - JWT in localStorage under legacy key `unibox_token` — NEVER rename.
 - AI: Grok 4.1 primary, Claude Opus 4.x complex, Gemini Flash OCR, DeepSeek complex replies, Voyage embeddings.
 - Game API calls route through SideKiq (different egress IP than Chatwoot).
@@ -39,7 +40,7 @@ If any of those don't exist, say so. Do not assume.
 # ─────────────────────────────────────────────────────
 # 4. HOT FILES — EXTREME CARE
 # ─────────────────────────────────────────────────────
-These crashed Railway before:
+These crashed production deploys before (Railway retired; now Render):
 1. app/services/ai/reply_service.rb (biggest)
 2. app/services/games/conversation_orchestrator.rb
 3. app/services/games/intent_detector.rb
