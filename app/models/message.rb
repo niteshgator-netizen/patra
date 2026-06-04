@@ -499,6 +499,11 @@ class Message < ApplicationRecord
       new_content: content,
       editor_name: editor
     )
+    Audit::TelegramNotifier.message_edited(
+      message: self,
+      old_content: old_content,
+      editor_name: editor
+    ) if defined?(Audit::TelegramNotifier)
   rescue StandardError => e
     Rails.logger.error("[Message] agent edit notifier failed: #{e.message}")
   end
@@ -512,6 +517,11 @@ class Message < ApplicationRecord
       deleted_content: content,
       deleter_name: deleter
     )
+    Audit::TelegramNotifier.message_deleted(
+      message: self,
+      deleted_content: content,
+      deleter_name: deleter
+    ) if defined?(Audit::TelegramNotifier)
   rescue StandardError => e
     Rails.logger.error("[Message] agent delete notifier failed: #{e.message}")
   end
