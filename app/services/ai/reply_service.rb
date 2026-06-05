@@ -628,6 +628,13 @@ class Ai::ReplyService
 
     rag_examples_block = retrieve_rag_examples_block(last_user_plain)
 
+    @rag_examples = fetch_rag_examples(last_user_plain, account_id)
+    @reply_pref = begin
+      ReplyPreference.for_account(account_id)
+    rescue StandardError
+      nil
+    end
+
     case complexity
     when :has_image
       if image_url.present?
@@ -2040,6 +2047,10 @@ class Ai::ReplyService
   # ---------- Grok (xAI) + DeepSeek ----------
 
   def invoke_anthropic(messages, system_prompt, use_deepseek: false)
+    if @rag_examples.present?
+      system_prompt = build_rag_enhanced_prompt(system_prompt, @rag_examples, @reply_pref)
+    end
+
     llm_messages = use_deepseek ? messages.map { |m| { role: m['role'].to_s == 'assistant' ? 'assistant' : 'user', content: m['content'].to_s } } : messages
 
     Rails.logger.info("[ReplyService] GROK_HTTP_TIMEOUT=#{GROK_HTTP_TIMEOUT}s xAI conv=#{@conversation_id}") unless use_deepseek
@@ -2071,6 +2082,8 @@ class Ai::ReplyService
       Rails.logger.warn("[AiReply] #{provider} returned no text conversation=#{@conversation_id} body=#{response.body}")
       return nil
     end
+
+    Rails.logger.info("[ReplyService] RAG-enhanced reply. Examples: #{@rag_examples&.length || 0}, tone: #{@reply_pref&.reply_tone || 'default'}")
 
     text
   end
@@ -2518,6 +2531,97 @@ class Ai::ReplyService
     end
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] record_payment_handle_success #{e.class}: #{e.message}")
+  end
+
+  def fetch_rag_examples(customer_text, account_id, intent_label = nil)
+    begin
+      pref = ReplyPreference.for_account(account_id)
+      return [] unless pref.use_rag_examples
+      example_count = pref.rag_example_count || 3
+    rescue StandardError => e
+      Rails.logger.error("[ReplyService] ReplyPreference lookup failed: #{e.message}")
+      example_count = 3
+    end
+
+    begin
+      results = if defined?(BellaRag::IntentRetriever) && BellaRag::IntentRetriever.respond_to?(:retrieve)
+                  BellaRag::IntentRetriever.retrieve(
+                    text: customer_text,
+                    account_id: account_id,
+                    top_k: example_count,
+                    threshold: 0.30
+                  )
+                elsif defined?(BellaRagPair)
+                  rag_account = Account.find_by(id: account_id)
+                  rag_industry_slug = rag_account&.industry_slug || 'sweepstakes'
+                  BellaRagPair.search_similar(
+                    customer_text.to_s,
+                    limit: example_count,
+                    account_id: account_id,
+                    industry_slug: rag_industry_slug
+                  ).map do |pair|
+                    {
+                      customer_text: pair.customer_text,
+                      cashier_text: pair.cashier_text,
+                      real_intent: pair.real_intent
+                    }
+                  end
+                else
+                  []
+                end
+
+      examples = Array(results).map do |r|
+        {
+          customer: r[:customer_text] || r['customer_text'],
+          cashier: r[:cashier_text] || r['cashier_text'],
+          intent: r[:real_intent] || r['real_intent']
+        }
+      end.compact
+
+      Rails.logger.info("[ReplyService] RAG examples: #{examples.length} found for: #{customer_text.to_s.truncate(50)}")
+      examples
+    rescue StandardError => e
+      Rails.logger.error("[ReplyService] RAG example fetch failed: #{e.message}")
+      []
+    end
+  end
+
+  def build_rag_enhanced_prompt(base_prompt, rag_examples, reply_pref = nil)
+    return base_prompt if rag_examples.blank?
+
+    examples_text = rag_examples.map do |ex|
+      "Customer: #{ex[:customer]}\nCashier: #{ex[:cashier]}"
+    end.join("\n---\n")
+
+    tone = reply_pref&.reply_tone || 'casual'
+    max_lines = reply_pref&.max_reply_lines || 2
+    use_emojis = reply_pref&.use_emojis != false
+    sign_off = reply_pref&.sign_off_text
+
+    tone_instruction = case tone
+    when 'casual'
+      "Reply like a real cashier texting on shift. Keep it short, warm, human."
+    when 'professional'
+      "Reply professionally but briefly. No corporate speak."
+    when 'minimal'
+      "Reply with absolute minimum words. Just the facts."
+    else
+      "Reply like a real cashier texting on shift."
+    end
+
+    <<~PROMPT.strip
+      #{tone_instruction}
+      Max #{max_lines} lines. #{use_emojis ? 'Emojis OK.' : 'No emojis.'}
+      #{"Sign off with: #{sign_off}" if sign_off.present?}
+
+      Here are examples of how real cashiers reply to similar messages:
+      #{examples_text}
+
+      Now reply to this customer in the SAME style as the examples above.
+      Never admit you are AI. Never use bullet points. Never say "certainly" or "great question".
+
+      #{base_prompt}
+    PROMPT
   end
 
   # ─────────────────────────────────────────────────────────
