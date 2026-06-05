@@ -349,7 +349,7 @@ module Games
         return { intent: :greeting } if text.strip.match?(GREETING_PATTERNS) && text.strip.split.size <= 5
 
         # Status check before load/cashout — "any update on my load?" should not become :load
-        if match_any(text, STATUS_CHECK_PATTERNS) && !match_any(text, LOAD_PATTERNS.first(3))
+        if match_any(text, STATUS_CHECK_PATTERNS) && !match_any(text, LOAD_PATTERNS.first(6))
           Rails.logger.info('[IntentDetector] matched status_check (early)')
           return { intent: :status_check }
         end
