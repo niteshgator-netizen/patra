@@ -144,7 +144,7 @@ const activeChild = computed(() => {
 
   if (activeOnPages.length > 0) {
     const rankedPage = activeOnPages.find(child => {
-      return Object.keys(child.to.params)
+      return Object.keys(child.to.params || {})
         .map(key => {
           return String(child.to.params[key]) === String(route.params[key]);
         })
