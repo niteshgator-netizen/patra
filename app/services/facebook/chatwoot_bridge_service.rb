@@ -215,10 +215,12 @@ class Facebook::ChatwootBridgeService
         )
         http_post_multipart(path, body, "multipart/form-data; boundary=#{boundary}")
       else
-        http_post(
-          path,
-          body: { content: @text, message_type: 'incoming', private: false, source_id: @mid }
-        )
+        # If there was a FB image attachment but download failed, store the URL as external_url
+        # so the agent can still see the image link rather than losing it silently
+        fb_image_url = first_fb_image_attachment_url
+        body_params = { content: @text.presence || '', message_type: 'incoming', private: false, source_id: @mid }
+        body_params[:content] = "[image] #{fb_image_url}" if @text.blank? && fb_image_url.present?
+        http_post(path, body: body_params)
       end
 
     if image_tuple
