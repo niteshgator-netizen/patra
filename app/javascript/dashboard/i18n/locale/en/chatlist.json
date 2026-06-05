@@ -17,9 +17,11 @@
     "FILTER_ALL": "All",
     "ASSIGNEE_TYPE_TABS": {
       "me": "Needs You",
-      "unassigned": "Cashout Queue",
+      "unassigned": "Cashout",
       "all": "All",
-      "patra_ai": "Patra AI"
+      "patra_ai": "Patra AI",
+      "flagged": "Flagged",
+      "ai_handled": "✦ AI handled"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

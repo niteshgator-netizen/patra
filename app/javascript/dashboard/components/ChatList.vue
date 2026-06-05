@@ -197,6 +197,24 @@ const assigneeTabItems = computed(() => {
     count: patraAiCount,
   });
 
+  const flaggedCount = (allChatList.value(conversationFilters.value) || []).filter(
+    c => (c.labels || []).includes('flagged')
+  ).length;
+  base.push({
+    key: 'flagged',
+    name: t('CHAT_LIST.ASSIGNEE_TYPE_TABS.flagged'),
+    count: flaggedCount,
+  });
+
+  const aiHandledCount = (allChatList.value(conversationFilters.value) || []).filter(
+    c => c.status === 'resolved' && !(c.labels || []).includes('ai-off')
+  ).length;
+  base.push({
+    key: 'ai_handled',
+    name: t('CHAT_LIST.ASSIGNEE_TYPE_TABS.ai_handled'),
+    count: aiHandledCount,
+  });
+
   return base;
 });
 
@@ -263,7 +281,7 @@ const conversationFilters = computed(() => {
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType:
-      activeAssigneeTab.value === 'patra_ai'
+      ['patra_ai', 'flagged', 'ai_handled'].includes(activeAssigneeTab.value)
         ? wootConstants.ASSIGNEE_TYPE.ALL
         : activeAssigneeTab.value,
     status: activeStatus.value,
@@ -345,6 +363,14 @@ const conversationList = computed(() => {
     } else if (activeAssigneeTab.value === 'patra_ai') {
       localConversationList = allChatList.value(filters).filter(
         c => c.status === 'open' && !(c.labels || []).includes('ai-off')
+      );
+    } else if (activeAssigneeTab.value === 'flagged') {
+      localConversationList = allChatList.value(filters).filter(
+        c => (c.labels || []).includes('flagged')
+      );
+    } else if (activeAssigneeTab.value === 'ai_handled') {
+      localConversationList = allChatList.value(filters).filter(
+        c => c.status === 'resolved' && !(c.labels || []).includes('ai-off')
       );
     } else {
       localConversationList = [...allChatList.value(filters)];

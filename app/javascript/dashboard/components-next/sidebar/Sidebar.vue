@@ -431,6 +431,32 @@ const menuItems = computed(() => {
     // Phase H.10 item 5: Campaigns nav entry hidden. Routes still registered;
     // only the sidebar link is removed.
     {
+      name: 'Automations',
+      label: 'Automations & Flows',
+      icon: 'i-lucide-workflow',
+      to: accountScopedRoute('automation_list'),
+      activeOn: [
+        'automation_list',
+        'patra_flow_list',
+        'patra_flow_builder_new',
+        'patra_flow_builder',
+      ],
+    },
+    {
+      name: 'GamesHealth',
+      label: 'Games & Health',
+      icon: 'i-lucide-gamepad-2',
+      to: accountScopedRoute('settings_integrations_games'),
+      activeOn: ['settings_integrations_games'],
+    },
+    {
+      name: 'PatraAiTraining',
+      label: 'Patra AI Training',
+      icon: 'i-lucide-brain',
+      to: accountScopedRoute('patra_ai_training'),
+      activeOn: ['patra_ai_training'],
+    },
+    {
       name: 'Settings',
       label: t('PATRA.SETTINGS.NAV_TITLE'),
       icon: 'i-lucide-bolt',
