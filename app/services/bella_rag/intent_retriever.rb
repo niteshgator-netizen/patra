@@ -35,6 +35,7 @@ module BellaRag
                .where.not(real_intent: nil)
                .nearest_neighbors(:embedding, query_vec, distance: 'cosine')
                .limit(TOP_K)
+               .to_a
 
       return nil if rows.empty?
 
