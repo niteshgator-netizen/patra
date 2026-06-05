@@ -326,6 +326,23 @@ module Games
       /(?:move|take)\s+(?:it|them|credits?|points?)\s+(?:from|off)\s+\w+\s+(?:to|onto)\s+\w+/i
     ].freeze
 
+    WHATS_HITTING_PATTERNS = [
+      /what(?:'?s|\s+is)\s+(?:hitting|working|hot|good|available)/i,
+      /which\s+games?\s+(?:are\s+)?(?:hitting|working|hot|good|available)/i,
+      /any\s+(?:good\s+)?games?\s+(?:hitting|working|available)/i,
+      /what\s+games?\s+(?:are\s+)?(?:up|on|running|live)/i,
+      /what(?:'?s|\s+is)\s+(?:good|working)\s+(?:right\s+now|tonight|today)/i
+    ].freeze
+
+    REFERRAL_PATTERNS = [
+      /i\s+(?:referred|sent)\s+(?:someone|a\s+friend|my\s+friend|them|him|her)/i,
+      /(?:my|a)\s+referral/i,
+      /(?:use|using|used)\s+my\s+(?:referral|code|link|ref)/i,
+      /i\s+told\s+(?:them|him|her|my\s+friend)\s+(?:about|to\s+use)/i,
+      /referral\s+(?:code|link|bonus|credit)/i,
+      /(?:they|he|she)\s+(?:used|mentioned)\s+my\s+(?:name|referral)/i
+    ].freeze
+
     def detect_sent_without_screenshot?(message_text)
       return false if message_text.blank?
 
@@ -415,6 +432,12 @@ module Games
                   elsif match_any(text, TRANSFER_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched transfer_between_games')
                     { intent: :transfer_between_games, game_slug: detect_game(text) }
+                  elsif match_any(text, WHATS_HITTING_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched whats_hitting')
+                    { intent: :whats_hitting }
+                  elsif match_any(text, REFERRAL_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched referral')
+                    { intent: :referral }
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
