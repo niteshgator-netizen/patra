@@ -98,6 +98,15 @@ module Games
       Rails.logger.info("[Orchestrator] intent latest=#{latest_intent.inspect} combined=#{combined_intent.inspect} chosen=#{intent.inspect}")
       return nil if intent.nil?
 
+      # SHADOW MODE (RAG-SHADOW) — compares RAG prediction against regex. No routing impact.
+      # Remove or gate behind a feature flag before production cutover.
+      begin
+        _rag = BellaRag::IntentRetriever.predict(latest_text, account_id: account.id, industry_slug: 'sweepstakes')
+        Rails.logger.info("[Orchestrator][RAG-SHADOW] regex=#{intent[:intent].inspect} rag_intent=#{_rag&.dig(:intent).inspect} rag_conf=#{_rag&.dig(:confidence).inspect}")
+      rescue => _rag_err
+        Rails.logger.warn("[Orchestrator][RAG-SHADOW] error: #{_rag_err.message}")
+      end
+
       # Override game_slug with whatever is in the LATEST message — customer may have switched games
       latest_game = Games::IntentDetector.detect_game(latest_text)
       if latest_game && intent.is_a?(Hash)
