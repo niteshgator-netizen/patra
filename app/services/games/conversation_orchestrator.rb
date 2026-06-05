@@ -658,110 +658,125 @@ module Games
       end
     end
 
-    def handle_cashout_intent(intent)
-      # Verified May 21 2026: cashout/redeem/withdraw customer intents route here (not
-      # FORBIDDEN_AUTO_INTENTS guard). External payout = cashier manual via cashout_alert;
-      # in-game balance redeem = ActionExecutor#cashout_player (auto). Tested in production.
-      # Clear any leftover label from a PRIOR completed cashout flow.
-      # Prevents stale state across turns. Wrapped safe — never blocks the flow.
-      clear_stale_cashout_label_safely
+    def handle_cashout_intent(intent = nil)
+      contact = conversation.contact
+      game_slug = chosen_game_slug(intent || { intent: :cashout })
 
-      ag = agent_game_for_intent(intent)
-      return ag if ag.is_a?(Hash)
-      return nil unless ag
+      # Check if contact tier is blocked
+      if contact.player_tier&.blocked?
+        return { reply: "sorry, can't process that right now", labels: [] }
+      end
 
-      username = intent[:game_username] || stored_game_username(ag.game.slug)
-      if username.blank?
+      unless game_slug
         return {
-          reply: "got it — what's your username on #{ag.game.name}? need it to process your cashout.",
-          labels: ['needs-username']
+          reply: "which game do you want to cash out from?",
+          labels: ['cashier-action-needed']
         }
       end
 
-      deposit_amount = stored_deposit_amount || 5.0
-      requested = intent[:amount]
-      total_points = intent[:total_points] || requested
+      # Look up game rules
+      rules = nil
+      begin
+        game = Game.find_by(slug: game_slug)
+        rules = game ? GameRule.find_by(account_id: conversation.account_id, game_id: game.id) : nil
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Cashout GameRule lookup failed: #{e.message}")
+      end
 
-      calc = Games::CashoutCalculator.new(
-        account: account,
-        deposit_amount: deposit_amount,
-        requested_amount: requested,
-        total_points: total_points
-      ).calculate
-
-      if calc.cashout_amount <= 0
+      # Check if cashout is enabled
+      if rules && !rules.cashout_enabled
         return {
-          reply: "you need at least #{calc.min_required ? "$#{calc.min_required}" : '4x'} in play to cashout. #{calc.explanation}",
-          labels: ['cashout-not-eligible']
+          reply: "cashouts aren't available on #{game_slug} right now",
+          labels: []
         }
       end
 
-      cr = CashoutRequest.create!(
-        account: account,
-        agent_game: ag,
-        contact: contact,
-        conversation: conversation,
-        player_name: contact.name,
-        game_username: username,
-        total_points: total_points,
-        cashout_amount: calc.cashout_amount,
-        remaining_points: calc.remaining_points,
-        tip_amount: intent[:tip_amount] || 0,
-        reload_amount: intent[:reload_amount] || 0,
-        original_deposit: deposit_amount,
-        deposit_payment_method: stored_payment_method,
-        cashout_payment_method: intent[:cashout_method]&.dig(:platform),
-        cashout_destination_handle: intent[:cashout_method]&.dig(:handle),
-        applied_rules: calc.applied_rules,
-        customer_message: recent_customer_text.to_s[0..500],
-        status: 'pending'
-      )
+      # Parse requested amount from message
+      requested_amount = nil
+      msg = (latest_customer_text || recent_customer_text).to_s
+      if msg.match?(/\$?\d+/)
+        requested_amount = msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+      end
 
+      # Calculate deposit history for multiplier check
+      if rules
+        begin
+          total_deposits = game_actions_for_slug(contact.id, game_slug)
+            .where(action_type: 'load', status: 'success')
+            .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+            .sum(:amount).to_f
+
+          total_freeplay = game_actions_for_slug(contact.id, game_slug)
+            .where(action_type: 'load', status: 'success')
+            .where("metadata->>'freeplay' = ?", 'true')
+            .sum(:amount).to_f
+
+          has_real_deposits = (total_deposits - total_freeplay) > 0
+
+          if has_real_deposits
+            min_cashout = total_deposits * (rules.cashout_min_multiplier || 4)
+            max_cashout = [total_deposits * (rules.cashout_max_multiplier || 10), rules.cashout_max_amount || 250].min
+          else
+            # Freeplay-only player
+            min_cashout = total_freeplay * (rules.cashout_freeplay_multiplier || 5)
+            max_cashout = rules.cashout_freeplay_max || 50
+          end
+
+          # Validate requested amount
+          if requested_amount
+            if requested_amount < (rules.cashout_min_amount || 10)
+              return {
+                reply: "minimum cashout is $#{(rules.cashout_min_amount || 10).to_i}",
+                labels: []
+              }
+            end
+
+            if requested_amount > max_cashout
+              return {
+                reply: "max cashout is $#{max_cashout.to_i} based on your deposits. #{rules.cashout_rules_text}".strip,
+                labels: []
+              }
+            end
+          end
+
+          # If screenshot required
+          if rules.cashout_require_screenshot
+            has_screenshot = conversation.messages
+              .where(message_type: :incoming)
+              .order(created_at: :desc)
+              .limit(5)
+              .any? { |m| m.attachments.any? }
+
+            unless has_screenshot
+              return {
+                reply: "send me a screenshot of your balance and I'll process the cashout",
+                labels: ['cashier-action-needed']
+              }
+            end
+          end
+
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Cashout rules validation failed: #{e.message}")
+        end
+      end
+
+      # All checks passed — escalate to cashier for actual payout
+      amount_text = requested_amount ? "$#{requested_amount.to_i}" : "cashout"
       begin
-        Games::TelegramNotifier.cashout_alert(cr)
-      rescue StandardError
-      end
-
-      # Auto-execute withdraw from game (the money still needs cashier approval to actually pay out)
-      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
-      withdraw_result = executor.cashout_player(
-        game_username: username,
-        amount: calc.cashout_amount,
-        metadata: { source: 'bella_auto', cashout_request_id: cr.id }
-      )
-
-      cr.update(withdraw_action_id: withdraw_result[:action]&.id) if withdraw_result[:action]
-
-      begin
-        Games::TelegramNotifier.cashout_failed(withdraw_result[:action], cr) if withdraw_result[:action] && !withdraw_result[:ok]
-      rescue StandardError
-      end
-
-      # If the game API actually FAILED, never tell the customer "approved".
-      # Send a human-tone holding message + flag for cashier escalation.
-      # Bug fixed May 21 2026: conv 9 / action 122 case — customer was told
-      # "Cashout of $25 approved" 7 sec AFTER backend returned VIEWSTATE failure.
-      if withdraw_result.is_a?(Hash) && withdraw_result[:action].present? && !withdraw_result[:ok]
-        Rails.logger.warn(
-          "[Orchestrator][CashoutGuard] withdraw failed conv=#{conversation&.id} action=#{withdraw_result[:action].id} code=#{withdraw_result[:code]} — sending holding reply instead of approved"
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: "cashout_redeem — Cashout request: #{amount_text} on #{game_slug}. Contact: #{contact.name}",
+          conversation: conversation
         )
-        holding_reply = "let me double-check that cashout for you, one sec — i'll be right back"
-        return { reply: holding_reply, labels: ['cashout-failed', 'cashier-action-needed', 'needs-human'] }
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Cashout Telegram escalation failed: #{e.message}")
       end
 
-      if (intent[:reload_amount] || 0) > 0
-        reload_result = executor.load_player(
-          game_username: username,
-          amount: intent[:reload_amount],
-          metadata: { source: 'bella_auto_reload', cashout_request_id: cr.id }
-        )
-        cr.update(reload_action_id: reload_result[:action]&.id) if reload_result[:action]
-      end
-
-      reply_text = "got it — cashing out $#{calc.cashout_amount} for you. #{calc.explanation} a cashier will send the payment shortly."
-      reply_text += " keeping $#{intent[:reload_amount]} loaded back on your game." if (intent[:reload_amount] || 0) > 0
-
-      { reply: reply_text, labels: ['cashout-requested', 'cashier-action-needed'] }
+      {
+        reply: requested_amount ? "processing your $#{requested_amount.to_i} cashout on #{game_slug}" : "processing your cashout — one moment",
+        labels: %w[cashier-action-needed]
+      }
     end
 
     def handle_username_provided(intent)
@@ -1750,26 +1765,124 @@ module Games
       { reply: reply, labels: labels.uniq }
     end
 
-    def handle_complaint_angry(intent)
-      safe_telegram do
+    def handle_complaint_angry(intent = nil)
+      contact = conversation.contact
+
+      # Pull RAG examples for complaint-style replies
+      cashier_reply = nil
+      begin
+        results = BellaRag::IntentRetriever.retrieve(
+          text: (latest_customer_text || recent_customer_text).to_s,
+          account_id: conversation.account_id,
+          top_k: 3,
+          threshold: 0.30
+        )
+        if results.present?
+          # Pick the shortest cashier reply as the calming response
+          cashier_reply = results
+            .map { |r| r[:cashier_text] || r['cashier_text'] }
+            .compact
+            .reject { |t| t.to_s.strip.length < 3 }
+            .min_by { |t| t.length }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] RAG complaint lookup failed: #{e.message}")
+      end
+
+      # Reply like a real cashier first — calming, human
+      reply_text = cashier_reply || "just a min, looking into it"
+
+      # THEN silently escalate to Telegram — customer never knows
+      begin
         Games::TelegramNotifier.human_escalation(
           account: account,
           contact: contact,
-          reason: 'Customer complaint — needs immediate human response'
+          reason: "complaint_angry — Customer upset: #{(latest_customer_text || '').truncate(100)}",
+          conversation: conversation
         )
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Complaint Telegram escalation failed: #{e.message}")
       end
-      { reply: "i'm really sorry about that — getting someone from my team on this right now", labels: ['needs-human'] }
+
+      {
+        reply: reply_text,
+        labels: %w[needs-human cashier-action-needed]
+      }
     end
 
-    def handle_tech_issue(intent)
-      safe_telegram do
-        Games::TelegramNotifier.human_escalation(
-          account: account,
-          contact: contact,
-          reason: 'Technical issue reported — game or app not working'
-        )
+    def handle_tech_issue(intent = nil)
+      contact = conversation.contact
+      game_slug = chosen_game_slug(intent || { intent: :tech_issue })
+
+      # Try to find credentials for this contact + game
+      credentials_sent = false
+      if game_slug
+        begin
+          username = find_game_username_for_slug(contact, game_slug)
+          if username
+            # Find the game link from game_rules
+            game = Game.find_by(slug: game_slug)
+            rules = game ? GameRule.find_by(account_id: conversation.account_id, game_id: game.id) : nil
+            download_url = rules&.game_download_url
+            web_url = rules&.game_web_url
+
+            # Build credentials reply
+            parts = []
+            parts << "your #{game_slug} login: #{username}"
+            parts << "download: #{download_url}" if download_url.present?
+            parts << "play here: #{web_url}" if web_url.present? && download_url.blank?
+
+            if parts.any?
+              credentials_sent = true
+              reply_text = parts.join("\n")
+            end
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Tech issue credential lookup failed: #{e.message}")
+        end
       end
-      { reply: "sorry about that! flagging for our team to help you sort it out", labels: ['needs-human'] }
+
+      # If we couldn't send credentials, use RAG example or fallback
+      unless credentials_sent
+        begin
+          results = BellaRag::IntentRetriever.retrieve(
+            text: (latest_customer_text || recent_customer_text).to_s,
+            account_id: conversation.account_id,
+            top_k: 3,
+            threshold: 0.30
+          )
+          if results.present?
+            reply_text = results
+              .map { |r| r[:cashier_text] || r['cashier_text'] }
+              .compact
+              .reject { |t| t.to_s.strip.length < 3 }
+              .first
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] RAG tech issue lookup failed: #{e.message}")
+        end
+
+        reply_text ||= "let me check on that for you — one sec"
+      end
+
+      # Escalate to Telegram only if we couldn't auto-resolve
+      unless credentials_sent
+        begin
+          Games::TelegramNotifier.human_escalation(
+            account: account,
+            contact: contact,
+            reason: "tech_issue — Tech issue: #{(latest_customer_text || '').truncate(100)}. Game: #{game_slug || 'unknown'}",
+            conversation: conversation
+          )
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Tech issue Telegram escalation failed: #{e.message}")
+        end
+      end
+
+      {
+        reply: reply_text,
+        labels: credentials_sent ? ['status-check'] : %w[needs-human cashier-action-needed]
+      }
     end
 
     def handle_balance_check(intent)
