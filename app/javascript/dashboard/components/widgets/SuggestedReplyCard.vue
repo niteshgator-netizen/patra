@@ -28,7 +28,18 @@ const fetchSuggestion = async () => {
 watch(() => props.conversationId, fetchSuggestion, { immediate: true });
 
 const applySuggestion = () => emit('apply', suggestion.value);
-const dismiss = () => { dismissed.value = true; };
+
+const editSuggestion = () => {
+  emit('apply', suggestion.value);
+  const el = document.querySelector(
+    '.reply-box--container textarea, .reply-box--container .ProseMirror'
+  );
+  if (el) el.focus();
+};
+
+const dismiss = () => {
+  dismissed.value = true;
+};
 </script>
 
 <template>
@@ -39,7 +50,10 @@ const dismiss = () => { dismissed.value = true; };
       <button class="sr-dismiss" @click="dismiss">✕</button>
     </div>
     <p class="sr-text">{{ suggestion }}</p>
-    <button class="sr-apply" @click="applySuggestion">Apply suggested reply</button>
+    <div class="sr-actions">
+      <button class="sr-use" @click="applySuggestion">Use reply</button>
+      <button class="sr-edit" @click="editSuggestion">Edit</button>
+    </div>
   </div>
 </template>
 
@@ -57,8 +71,9 @@ const dismiss = () => { dismissed.value = true; };
 .sr-title { font-size: 11px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em; flex: 1; }
 .sr-dismiss { background: none; border: none; color: #75727f; cursor: pointer; font-size: 14px; padding: 0; }
 .sr-text { color: #ededf2; line-height: 1.5; margin: 4px 0 8px; }
-.sr-apply {
-  width: 100%;
+.sr-actions { display: flex; gap: 6px; }
+.sr-use {
+  flex: 1;
   padding: 6px 0;
   border-radius: 6px;
   border: none;
@@ -68,5 +83,15 @@ const dismiss = () => { dismissed.value = true; };
   font-weight: 600;
   cursor: pointer;
 }
-.sr-apply:hover { opacity: 0.9; }
+.sr-use:hover { opacity: 0.9; }
+.sr-edit {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(110, 86, 207, 0.3);
+  background: transparent;
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
 </style>

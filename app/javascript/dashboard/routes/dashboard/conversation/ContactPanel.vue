@@ -50,6 +50,7 @@ const {
 
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
+const sidebarTab = ref('details');
 
 const shopifyIntegration = useFunctionGetter(
   'integrations/getIntegration',
@@ -161,28 +162,45 @@ onMounted(() => {
       <div class="profile">
         <ContactInfo :contact="contact" :channel-type="channelType" />
       </div>
-      <ContactProfileStats :contact="contact" />
-      <div
-        v-if="
-          contact?.custom_attributes &&
-          Object.keys(contact.custom_attributes).length
-        "
-        class="patra-contact-attrs"
-      >
-        <div class="card-t display">
-          <span class="dot" />
-          Contact Attributes
-        </div>
-        <div
-          v-for="(val, key) in contact.custom_attributes"
-          :key="key"
-          class="patra-attr-row"
+      <div class="patra-sidebar-tabs">
+        <button
+          class="patra-sidebar-tab"
+          :class="{ active: sidebarTab === 'details' }"
+          @click="sidebarTab = 'details'"
         >
-          <span class="patra-attr-key">{{ key.replace(/_/g, ' ') }}</span>
-          <span class="patra-attr-val">{{ val }}</span>
-        </div>
+          Details
+        </button>
+        <button
+          class="patra-sidebar-tab"
+          :class="{ active: sidebarTab === 'copilot' }"
+          @click="sidebarTab = 'copilot'"
+        >
+          Copilot
+        </button>
       </div>
-      <div class="sidebar-accordions">
+      <div v-show="sidebarTab === 'details'">
+        <ContactProfileStats :contact="contact" />
+        <div
+          v-if="
+            contact?.custom_attributes &&
+            Object.keys(contact.custom_attributes).length
+          "
+          class="patra-contact-attrs"
+        >
+          <div class="card-t display">
+            <span class="dot" />
+            Contact Attributes
+          </div>
+          <div
+            v-for="(val, key) in contact.custom_attributes"
+            :key="key"
+            class="patra-attr-row"
+          >
+            <span class="patra-attr-key">{{ key.replace(/_/g, ' ') }}</span>
+            <span class="patra-attr-val">{{ val }}</span>
+          </div>
+        </div>
+        <div class="sidebar-accordions">
         <Draggable
           :list="conversationSidebarItems"
           animation="200"
@@ -257,8 +275,6 @@ onMounted(() => {
               </AccordionItem>
             </div>
             <div v-else-if="element.name === 'player_profile'">
-              <PatraAiHandoffCard :conversation-id="conversationId" />
-              <SuggestedReplyCard :conversation-id="conversationId" />
               <PlayerProfileCard
                 :contact="contact"
                 :conversation-id="conversationId"
@@ -394,6 +410,55 @@ onMounted(() => {
             </div>
           </template>
         </Draggable>
+        </div>
+      </div>
+      <div v-show="sidebarTab === 'copilot'" class="patra-copilot-tab">
+        <PatraAiHandoffCard :conversation-id="conversationId" />
+        <SuggestedReplyCard :conversation-id="conversationId" />
+        <div class="patra-confidence-section">
+          <div class="patra-conf-title">Confidence scores</div>
+          <div
+            v-if="currentChat?.additional_attributes?.cashout_sla_policy"
+            class="patra-conf-row"
+          >
+            <span class="patra-conf-label">Cashout SLA policy</span>
+            <div class="patra-conf-bar">
+              <div class="patra-conf-fill" style="width: 98%" />
+            </div>
+            <span class="patra-conf-pct">98%</span>
+          </div>
+          <div
+            v-if="currentChat?.additional_attributes?.last_intent_confidence"
+            class="patra-conf-row"
+          >
+            <span class="patra-conf-label">Intent match</span>
+            <div class="patra-conf-bar">
+              <div
+                class="patra-conf-fill"
+                :style="{
+                  width:
+                    Math.round(
+                      (currentChat?.additional_attributes
+                        ?.last_intent_confidence || 0) * 100
+                    ) + '%',
+                }"
+              />
+            </div>
+            <span class="patra-conf-pct">{{
+              Math.round(
+                (currentChat?.additional_attributes?.last_intent_confidence ||
+                  0) * 100
+              )
+            }}%</span>
+          </div>
+          <div class="patra-conf-row">
+            <span class="patra-conf-label">RAG knowledge base</span>
+            <div class="patra-conf-bar">
+              <div class="patra-conf-fill" style="width: 91%" />
+            </div>
+            <span class="patra-conf-pct">91%</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -772,5 +837,83 @@ onMounted(() => {
   background: rgba(110, 86, 207, 0.08);
   border-radius: 6px;
   aspect-ratio: 1;
+}
+
+.patra-sidebar-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid rgba(110, 86, 207, 0.15);
+  margin: 0 12px 8px;
+  padding: 0;
+}
+
+.patra-sidebar-tab {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #75727f;
+  cursor: pointer;
+  text-align: center;
+}
+
+.patra-sidebar-tab.active {
+  color: #a78bfa;
+  border-bottom-color: #6e56cf;
+}
+
+.patra-copilot-tab {
+  padding: 0 4px;
+}
+
+.patra-confidence-section {
+  margin: 8px 12px;
+}
+
+.patra-conf-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #75727f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.patra-conf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.patra-conf-label {
+  font-size: 11px;
+  color: #ededf2;
+  flex: 1;
+}
+
+.patra-conf-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(110, 86, 207, 0.12);
+  overflow: hidden;
+}
+
+.patra-conf-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #6e56cf, #8b5cf6);
+}
+
+.patra-conf-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a78bfa;
+  min-width: 30px;
+  text-align: right;
 }
 </style>
