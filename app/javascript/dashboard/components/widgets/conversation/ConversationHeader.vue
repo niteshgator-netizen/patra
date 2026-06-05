@@ -198,6 +198,11 @@ const isPinned = computed(() => {
   return pinned === true || pinned === 'true';
 });
 
+const pinnedNote = computed(() => {
+  const attrs = currentChat.value?.additional_attributes || {};
+  return attrs.pinned_note || (attrs.pinned ? 'Conversation pinned by agent' : null);
+});
+
 const showMessageSearch = ref(false);
 const showInfoPanel = ref(false);
 
@@ -476,6 +481,12 @@ const fetchConversationWatchers = () => {
 
       <MoreActions :conversation-id="currentChat.id" />
     </div>
+    </div>
+
+    <div v-if="pinnedNote" class="patra-pinned-banner">
+      <span class="patra-pinned-icon">📌</span>
+      <span class="patra-pinned-label">Pinned:</span>
+      <span class="patra-pinned-text">{{ pinnedNote }}</span>
     </div>
 
     <div v-if="hasSlaPolicyId" class="pat-subbar">
@@ -1097,5 +1108,33 @@ const fetchConversationWatchers = () => {
 .patra-auto-reply-toggle.active {
   background: rgba(110, 86, 207, 0.12);
   color: #a78bfa;
+}
+
+.patra-pinned-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(110, 86, 207, 0.06);
+  border-bottom: 1px solid rgba(110, 86, 207, 0.12);
+  font-size: 12px;
+  color: #a78bfa;
+}
+
+.patra-pinned-icon {
+  font-size: 14px;
+}
+
+.patra-pinned-label {
+  font-weight: 600;
+  color: #8b5cf6;
+}
+
+.patra-pinned-text {
+  color: #ededf2;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

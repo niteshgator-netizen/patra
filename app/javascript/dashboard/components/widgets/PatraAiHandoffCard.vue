@@ -101,6 +101,22 @@ const askPatraAi = () => {
         View full AI session →
       </a>
     </div>
+
+    <div v-if="attrs.ai_already_did" class="ai-hc-section">
+      <div class="ai-hc-section-title">AI already did</div>
+      <div class="ai-hc-section-text">{{ attrs.ai_already_did }}</div>
+    </div>
+
+    <div v-if="attrs.customer_context" class="ai-hc-section">
+      <div class="ai-hc-section-title">Context</div>
+      <div class="ai-hc-section-text">{{ attrs.customer_context }}</div>
+    </div>
+
+    <div v-if="attrs.ai_insight" class="ai-hc-section">
+      <div class="ai-hc-section-title">Insight</div>
+      <div class="ai-hc-section-text">{{ attrs.ai_insight }}</div>
+    </div>
+
     <button class="ai-hc-ask-btn" @click="askPatraAi">Ask Patra AI</button>
   </div>
 </template>
@@ -183,5 +199,26 @@ const askPatraAi = () => {
 }
 .ai-hc-ask-btn:hover {
   background: rgba(110, 86, 207, 0.08);
+}
+
+.ai-hc-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(110, 86, 207, 0.12);
+}
+
+.ai-hc-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #75727f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 3px;
+}
+
+.ai-hc-section-text {
+  font-size: 12px;
+  color: #ededf2;
+  line-height: 1.4;
 }
 </style>

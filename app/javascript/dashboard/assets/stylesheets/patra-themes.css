@@ -473,3 +473,15 @@
   0% { opacity: 0.7; }
   100% { opacity: 1; }
 }
+
+/* Patra micro-animations */
+@keyframes convoPop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes msgIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes slaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes sparkPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+@keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes donutGrow { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+
+.dark .conversation-panel .patra-conv-bubble { animation: msgIn 0.2s ease-out; }
+.dark .conversations-list .conversation { animation: convoPop 0.25s ease-out; }

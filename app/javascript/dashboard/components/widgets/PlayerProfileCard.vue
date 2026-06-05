@@ -438,6 +438,11 @@ const lifecycleStage = computed(() => attrs.value.lifecycle_stage || '');
 
 const loyaltyTier = computed(() => attrs.value.loyalty_tier || '');
 
+const contactCountry = computed(() => {
+  const ca = attrs.value || {};
+  return ca.country || ca.location || null;
+});
+
 const lifecycleTagClass = computed(() => {
   const stage = (lifecycleStage.value || '').toLowerCase();
   if (stage === 'vip') return 'vip';
@@ -603,6 +608,10 @@ watch(() => props.contact?.id, loadExtras);
           $t('PLAYER_PROFILE.FIELDS.PREFERRED_PAYMENT')
         }}</span>
         <span class="v">{{ paymentMethodDisplay }}</span>
+      </div>
+      <div v-if="contactCountry" class="ppc-stat">
+        <span class="ppc-label">Country</span>
+        <span class="ppc-value">{{ contactCountry }}</span>
       </div>
       <div class="sub-label">{{ $t('PLAYER_PROFILE.TIER_BADGE') }}</div>
       <div v-if="lifecycleStage" class="field">
@@ -967,5 +976,22 @@ watch(() => props.contact?.id, loadExtras);
   color: #8b5cf6;
   cursor: pointer;
   margin-top: 6px;
+}
+
+.ppc-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12.5px;
+}
+
+.ppc-label {
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+}
+
+.ppc-value {
+  color: var(--text, #ededf2);
 }
 </style>
