@@ -4,11 +4,14 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useClipboard } from '@vueuse/core';
+import { useRoute } from 'vue-router';
 
 import ContactsForm from 'dashboard/components-next/Contacts/ContactsForm/ContactsForm.vue';
 import ConfirmContactDeleteDialog from 'dashboard/components-next/Contacts/ContactsForm/ConfirmContactDeleteDialog.vue';
 import Policy from 'dashboard/components/policy.vue';
 import GameQuickActionsPanel from 'dashboard/components/widgets/GameQuickActionsPanel.vue';
+import PlayerTiersAPI from 'dashboard/api/playerTiers';
+import types from 'dashboard/store/mutation-types';
 
 const props = defineProps({
   selectedContact: {
@@ -21,11 +24,13 @@ const emit = defineEmits(['goToContactsList']);
 
 const { t } = useI18n();
 const store = useStore();
+const route = useRoute();
 const { copy, copied } = useClipboard();
 
 const confirmDeleteContactDialogRef = ref(null);
 const contactsFormRef = ref(null);
 const contactData = ref({});
+const playerTiers = ref([]);
 
 const uiFlags = useMapGetter('contacts/getUIFlags');
 const isUpdating = computed(() => uiFlags.value.isUpdating);
@@ -40,6 +45,7 @@ const getInitialContactData = () => {
 
 onMounted(() => {
   Object.assign(contactData.value, getInitialContactData());
+  fetchTiers();
 
   document.querySelectorAll('.pat-sg.js-spot').forEach(el => {
     el.addEventListener('mousemove', e => {
@@ -163,6 +169,50 @@ const sendMessage = () => {
       `/app/accounts/2/conversations?contactId=${contactId}`,
       '_self'
     );
+  }
+};
+
+const fetchTiers = async () => {
+  try {
+    const { data } = await PlayerTiersAPI.getPlayerTiers(route.params.accountId);
+    playerTiers.value = data;
+  } catch (error) {
+    console.error('Failed to fetch tiers:', error);
+  }
+};
+
+const updateTier = async event => {
+  const rawValue = event.target.value;
+  const tierId = rawValue ? parseInt(rawValue, 10) : null;
+
+  try {
+    await PlayerTiersAPI.bulkAssignTier(
+      route.params.accountId,
+      [props.selectedContact.id],
+      tierId
+    );
+
+    const tier = tierId
+      ? playerTiers.value.find(item => item.id === tierId)
+      : null;
+
+    store.commit(types.SET_CONTACT_ITEM, {
+      id: props.selectedContact.id,
+      player_tier_id: tierId,
+      player_tier: tier
+        ? {
+            id: tier.id,
+            name: tier.name,
+            color: tier.color,
+            badge_text: tier.badge_text,
+          }
+        : null,
+    });
+
+    useAlert(t('CONTACTS_LAYOUT.PROFILE.PLAYER_TIER_SUCCESS'));
+  } catch (error) {
+    console.error('Failed to update tier:', error);
+    useAlert(t('CONTACTS_LAYOUT.PROFILE.PLAYER_TIER_FAILED'));
   }
 };
 </script>
@@ -302,6 +352,25 @@ const sendMessage = () => {
         <span class="v">{{
           selectedContact?.customAttributes?.loyalty_tier || 'new'
         }}</span>
+      </div>
+      <div class="field tier-field">
+        <span class="k">{{ t('CONTACTS_LAYOUT.PROFILE.PLAYER_TIER') }}</span>
+        <span class="v">
+          <select
+            :value="selectedContact?.playerTierId ?? ''"
+            class="tier-select"
+            @change="updateTier"
+          >
+            <option value="">{{ t('CONTACTS_LAYOUT.PROFILE.NO_TIER') }}</option>
+            <option
+              v-for="tier in playerTiers"
+              :key="tier.id"
+              :value="tier.id"
+            >
+              {{ tier.badge_text || tier.name }}
+            </option>
+          </select>
+        </span>
       </div>
       <div class="field">
         <span class="k">{{
@@ -451,5 +520,19 @@ const sendMessage = () => {
 .patra-send-msg-btn:hover {
   opacity: 0.9;
   color: #fff;
+}
+
+.tier-field .v {
+  flex: 1;
+}
+
+.tier-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-hi, #2e2940);
+  background: var(--surface-2, #131119);
+  color: var(--text, #ededf2);
+  font-size: 12px;
 }
 </style>

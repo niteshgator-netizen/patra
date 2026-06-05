@@ -137,7 +137,19 @@ const hasAiOffLabel = contact => {
           </label>
         </div>
         <div class="c-info">
-          <div class="cn">{{ contact.name }}</div>
+          <div class="cn">
+            {{ contact.name }}
+            <span
+              v-if="contact.playerTier"
+              class="c-tag tier-badge"
+              :style="{
+                backgroundColor: `${contact.playerTier.color}33`,
+                color: contact.playerTier.color,
+              }"
+            >
+              {{ contact.playerTier.badgeText || contact.playerTier.name }}
+            </span>
+          </div>
           <div class="cm">
             <span v-if="gameLabel(contact)">{{ gameLabel(contact) }}</span>
             <span v-if="isVip(contact)" class="c-tag vip">{{

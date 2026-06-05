@@ -402,6 +402,18 @@
   color: var(--red);
 }
 
+:deep(.c-tag.tier-badge) {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+:deep(.cn) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 :deep(.c-arrow) {
   color: var(--text-4);
   transition: all 0.2s;

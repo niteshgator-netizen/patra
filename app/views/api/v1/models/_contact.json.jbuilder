@@ -8,6 +8,15 @@ json.blocked resource.blocked
 json.identifier resource.identifier
 json.thumbnail resource.avatar_url
 json.custom_attributes resource.custom_attributes
+json.player_tier_id resource.player_tier_id
+if resource.player_tier.present?
+  json.player_tier do
+    json.id resource.player_tier.id
+    json.name resource.player_tier.name
+    json.color resource.player_tier.color
+    json.badge_text resource.player_tier.badge_text
+  end
+end
 json.profile_stats resource.profile_stats
 json.payment_status begin
   Payments::ContactPaymentStatus.new(contact: resource).display_pill

@@ -1,11 +1,13 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import BulkSelectBar from 'dashboard/components-next/captain/assistant/BulkSelectBar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import BulkLabelActions from 'dashboard/components/widgets/conversation/conversationBulkActions/BulkLabelActions.vue';
 import Policy from 'dashboard/components/policy.vue';
+import PlayerTiersAPI from 'dashboard/api/playerTiers';
 
 const props = defineProps({
   visibleContactIds: {
@@ -25,11 +27,14 @@ const props = defineProps({
 const emit = defineEmits([
   'clearSelection',
   'assignLabels',
+  'assignTier',
   'toggleAll',
   'deleteSelected',
 ]);
 
 const { t } = useI18n();
+const route = useRoute();
+const playerTiers = ref([]);
 
 const selectedCount = computed(() => props.selectedContactIds.length);
 const totalVisibleContacts = computed(() => props.visibleContactIds.length);
@@ -72,6 +77,28 @@ const selectionModel = computed({
 const handleAssignLabels = labels => {
   emit('assignLabels', labels);
 };
+
+const fetchTiers = async () => {
+  try {
+    const { data } = await PlayerTiersAPI.getPlayerTiers(route.params.accountId);
+    playerTiers.value = data;
+  } catch (error) {
+    console.error('Failed to fetch tiers:', error);
+  }
+};
+
+const handleTierChange = event => {
+  const rawValue = event.target.value;
+  if (!rawValue) return;
+
+  const tierId = rawValue === 'clear' ? null : parseInt(rawValue, 10);
+  emit('assignTier', tierId);
+  event.target.value = '';
+};
+
+onMounted(() => {
+  fetchTiers();
+});
 </script>
 
 <template>
@@ -103,6 +130,25 @@ const handleAssignLabels = labels => {
             :disabled="!selectedCount"
             @assign="handleAssignLabels"
           />
+          <select
+            class="tier-bulk-select"
+            :disabled="!selectedCount || isLoading"
+            @change="handleTierChange"
+          >
+            <option value="">
+              {{ t('CONTACTS_BULK_ACTIONS.ASSIGN_TIER') }}
+            </option>
+            <option
+              v-for="tier in playerTiers"
+              :key="tier.id"
+              :value="tier.id"
+            >
+              {{ tier.badge_text || tier.name }}
+            </option>
+            <option value="clear">
+              {{ t('CONTACTS_BULK_ACTIONS.CLEAR_TIER') }}
+            </option>
+          </select>
           <div class="w-px h-3 bg-n-weak rounded-lg" />
           <Policy :permissions="['administrator']">
             <Button
@@ -124,3 +170,20 @@ const handleAssignLabels = labels => {
     </BulkSelectBar>
   </div>
 </template>
+
+<style scoped>
+.tier-bulk-select {
+  min-width: 140px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--slate-6) / 1);
+  background: rgb(var(--slate-2) / 1);
+  color: rgb(var(--slate-12) / 1);
+  font-size: 12px;
+}
+
+.tier-bulk-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

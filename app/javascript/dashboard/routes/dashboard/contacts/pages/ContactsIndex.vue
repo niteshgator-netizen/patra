@@ -15,6 +15,7 @@ import ContactsList from 'dashboard/components-next/Contacts/Pages/ContactsList.
 import ContactsBulkActionBar from '../components/ContactsBulkActionBar.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import BulkActionsAPI from 'dashboard/api/bulkActions';
+import PlayerTiersAPI from 'dashboard/api/playerTiers';
 
 const DEFAULT_SORT_FIELD = 'last_activity_at';
 const DEBOUNCE_DELAY = 300;
@@ -351,6 +352,28 @@ const assignLabels = async labels => {
   }
 };
 
+const assignTier = async tierId => {
+  if (!selectedContactIds.value.length) {
+    return;
+  }
+
+  isBulkActionLoading.value = true;
+  try {
+    await PlayerTiersAPI.bulkAssignTier(
+      route.params.accountId,
+      selectedContactIds.value,
+      tierId
+    );
+    useAlert(t('CONTACTS_BULK_ACTIONS.ASSIGN_TIER_SUCCESS'));
+    clearSelection();
+    await fetchContactsBasedOnContext(pageNumber.value);
+  } catch (error) {
+    useAlert(t('CONTACTS_BULK_ACTIONS.ASSIGN_TIER_FAILED'));
+  } finally {
+    isBulkActionLoading.value = false;
+  }
+};
+
 const deleteContacts = async () => {
   if (!selectedContactIds.value.length) {
     return;
@@ -537,6 +560,7 @@ const onSpotlightLeave = () => {
             @toggle-all="toggleSelectAll"
             @clear-selection="clearSelection"
             @assign-labels="assignLabels"
+            @assign-tier="assignTier"
             @delete-selected="openBulkDeleteDialog"
           />
           <ContactEmptyState
