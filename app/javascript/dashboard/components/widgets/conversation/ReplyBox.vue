@@ -139,6 +139,7 @@ export default {
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
       copilotAcceptedMessages: {},
+      smartComposeEnabled: false,
     };
   },
   computed: {
@@ -1257,6 +1258,13 @@ export default {
     onMessageScheduled() {
       this.clearMessage();
     },
+    openCannedResponses() {
+      this.onFocus();
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField();
+        this.addIntoEditor('/');
+      });
+    },
   },
 };
 </script>
@@ -1443,6 +1451,7 @@ export default {
         v-else
         key="reply-bottom-panel"
         :conversation-id="conversationId"
+        @open-canned-responses="openCannedResponses"
         :enable-multiple-file-upload="enableMultipleFileUpload"
         :enable-whats-app-templates="showWhatsappTemplates"
         :enable-content-templates="showContentTemplates"
@@ -1474,7 +1483,23 @@ export default {
         @toggle-insert-article="toggleInsertArticle"
         @toggle-quoted-reply="toggleQuotedReply"
         @message-scheduled="onMessageScheduled"
-      />
+      >
+        <template #extra-tools>
+          <button
+            class="patra-sc-toggle"
+            :class="{ active: smartComposeEnabled }"
+            :title="
+              smartComposeEnabled ? 'Smart Compose on' : 'Smart Compose off'
+            "
+            @click="smartComposeEnabled = !smartComposeEnabled"
+          >
+            ✦
+            {{
+              smartComposeEnabled ? 'Smart Compose on' : 'Smart Compose'
+            }}
+          </button>
+        </template>
+      </ReplyBottomPanel>
     </Transition>
 
     <WhatsappTemplates
@@ -1957,5 +1982,23 @@ export default {
   transform: none;
   box-shadow: none;
   filter: none;
+}
+
+.patra-sc-toggle {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  background: transparent;
+  color: #75727f;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.patra-sc-toggle.active {
+  background: rgba(110, 86, 207, 0.12);
+  color: #a78bfa;
+  border-color: rgba(110, 86, 207, 0.4);
 }
 </style>

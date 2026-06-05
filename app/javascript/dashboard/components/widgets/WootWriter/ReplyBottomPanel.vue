@@ -140,6 +140,7 @@ export default {
     'selectContentTemplate',
     'toggleQuotedReply',
     'messageScheduled',
+    'openCannedResponses',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -319,6 +320,19 @@ export default {
         faded
         sm
         @click="toggleEmojiPicker"
+      />
+      <slot name="extra-tools" />
+      <NextButton
+        v-if="!isEditorDisabled && !isOnPrivateNote"
+        v-tooltip.top-end="'Canned responses (/)'"
+        title="Canned responses (/)"
+        icon="i-ph-lightning"
+        label="Canned (/)"
+        slate
+        faded
+        sm
+        class="patra-canned-btn"
+        @click="$emit('openCannedResponses')"
       />
       <FileUpload
         v-if="showAttachButton"
@@ -598,5 +612,14 @@ export default {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.patra-composer-bar :deep(.patra-canned-btn) {
+  width: auto;
+  min-width: unset;
+  height: 31px;
+  padding: 0 8px;
+  font-size: 11px;
+  gap: 4px;
 }
 </style>

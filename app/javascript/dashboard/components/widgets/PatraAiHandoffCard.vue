@@ -29,6 +29,27 @@ const intentLabel = computed(() => {
 });
 
 const show = computed(() => true);
+
+const sentimentClass = computed(() => {
+  const s = attrs.value.sentiment?.toLowerCase();
+  if (s === 'frustrated' || s === 'angry') return 'ai-hc-sentiment-negative';
+  if (s === 'positive' || s === 'happy') return 'ai-hc-sentiment-positive';
+  return '';
+});
+
+const scrollToFirstAiMessage = () => {
+  const msgs = document.querySelectorAll('.patra-conv-bubble--agent');
+  if (msgs.length) msgs[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+const askPatraAi = () => {
+  const el = document.querySelector(
+    '.reply-box--container textarea, .reply-box--container .ProseMirror'
+  );
+  if (el) {
+    el.focus();
+  }
+};
 </script>
 
 <template>
@@ -51,10 +72,32 @@ const show = computed(() => true);
       <span class="ai-hc-label">Reason</span>
       <span class="ai-hc-value">{{ attrs.last_intent_reason }}</span>
     </div>
+    <div v-if="attrs.sentiment" class="ai-hc-intent">
+      <span class="ai-hc-label">Sentiment</span>
+      <span class="ai-hc-value" :class="sentimentClass">{{ attrs.sentiment }}</span>
+    </div>
+    <div v-if="attrs.safety_flags" class="ai-hc-intent">
+      <span class="ai-hc-label">Safety</span>
+      <span class="ai-hc-value">{{ attrs.safety_flags }}</span>
+    </div>
+    <div v-if="attrs.detected_entities" class="ai-hc-intent">
+      <span class="ai-hc-label">Entities</span>
+      <span class="ai-hc-value">{{ attrs.detected_entities }}</span>
+    </div>
     <div v-if="attrs.awaiting_load_amount" class="ai-hc-intent">
       <span class="ai-hc-label">Awaiting amount</span>
       <span class="ai-hc-value">${{ attrs.awaiting_load_amount }}</span>
     </div>
+    <div v-if="aiOff" class="ai-hc-intent" style="margin-top: 6px">
+      <a
+        href="#"
+        class="ai-hc-session-link"
+        @click.prevent="scrollToFirstAiMessage"
+      >
+        View full AI session →
+      </a>
+    </div>
+    <button class="ai-hc-ask-btn" @click="askPatraAi">Ask Patra AI</button>
   </div>
 </template>
 
@@ -107,5 +150,34 @@ const show = computed(() => true);
   color: #ededf2;
   font-weight: 500;
   text-align: right;
+}
+.ai-hc-sentiment-negative {
+  color: #f85149;
+}
+.ai-hc-sentiment-positive {
+  color: #3fb950;
+}
+.ai-hc-session-link {
+  color: #8b5cf6;
+  font-size: 11px;
+  text-decoration: none;
+}
+.ai-hc-session-link:hover {
+  text-decoration: underline;
+}
+.ai-hc-ask-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 0;
+  border-radius: 6px;
+  border: 1px solid rgba(110, 86, 207, 0.3);
+  background: transparent;
+  color: #a78bfa;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ai-hc-ask-btn:hover {
+  background: rgba(110, 86, 207, 0.08);
 }
 </style>
