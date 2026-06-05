@@ -11,7 +11,7 @@ module Ai
 
     def call
       text = @messages.map do |m|
-        role = m.message_type_outgoing? ? 'Agent' : 'Customer'
+        role = m.outgoing? ? 'Agent' : 'Customer'
         "#{role}: #{m.content}"
       end.join("\n")
 
