@@ -126,6 +126,11 @@ Rails.application.routes.draw do
           end
           resources :bella_takeover_candidates, only: [:index, :update]
           resources :secret_phrases, only: [:index, :show, :create, :update, :destroy]
+          resources :game_rules, only: [:index, :show, :update], param: :game_id
+          resources :player_tiers, only: [:index, :create, :show, :update, :destroy]
+          post 'contacts/bulk_tier', to: 'player_tiers#bulk_assign'
+          resources :referrals, only: [:index, :create, :update]
+          resource :reply_preference, only: [:show, :update]
           resources :automation_rules, only: [:index, :create, :show, :update, :destroy] do
             post :clone
           end

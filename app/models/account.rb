@@ -58,6 +58,10 @@ class Account < ApplicationRecord
   has_many :agent_bot_inboxes, dependent: :destroy_async
   has_many :agent_bots, dependent: :destroy_async
   has_many :agent_games, dependent: :destroy
+  has_many :game_rules, dependent: :destroy
+  has_many :player_tiers, dependent: :destroy
+  has_many :referrals, dependent: :destroy
+  has_one  :reply_preference, dependent: :destroy
   has_many :game_actions, dependent: :destroy
   has_many :cashout_requests, dependent: :destroy
   has_many :notification_channels, dependent: :destroy
