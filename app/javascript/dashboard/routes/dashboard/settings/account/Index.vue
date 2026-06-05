@@ -127,7 +127,7 @@ export default {
         if (effectiveLocale) {
           this.$root.$i18n.locale = effectiveLocale;
         }
-        this.name = name;
+        this.name = name || 'Patra';
         this.locale = locale;
         this.id = id;
         this.domain = domain;

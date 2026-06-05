@@ -32,6 +32,7 @@ export default {
   },
   data() {
     return {
+      conversationStatus: 'open',
       priorityOptions: [
         {
           id: null,
@@ -158,6 +159,14 @@ export default {
       return false;
     },
   },
+  watch: {
+    'currentChat.status': {
+      immediate: true,
+      handler(status) {
+        if (status) this.conversationStatus = status;
+      },
+    },
+  },
   methods: {
     onSelfAssign() {
       const {
@@ -207,12 +216,40 @@ export default {
         ? this.priorityOptions[0]
         : selectedPriorityItem;
     },
+
+    async toggleStatus(status) {
+      try {
+        await this.$store.dispatch('toggleStatus', {
+          conversationId: this.currentChat.id,
+          status,
+        });
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.CHANGE_STATUS_FAILED'));
+      }
+    },
   },
 };
 </script>
 
 <template>
   <div>
+    <ContactDetailsItem
+      :title="$t('CONVERSATION.STATUS.TITLE')"
+      class="patra-status-field"
+    >
+      <div class="patra-status-pills">
+        <button
+          v-for="s in ['open', 'resolved', 'pending']"
+          :key="s"
+          type="button"
+          class="patra-status-pill"
+          :class="{ active: currentChat.status === s }"
+          @click="toggleStatus(s)"
+        >
+          {{ s.charAt(0).toUpperCase() + s.slice(1) }}
+        </button>
+      </div>
+    </ContactDetailsItem>
     <div>
       <ContactDetailsItem
         compact
@@ -288,3 +325,24 @@ export default {
     <ConversationLabels :conversation-id="conversationId" />
   </div>
 </template>
+
+<style scoped>
+.patra-status-pills {
+  display: flex;
+  gap: 4px;
+}
+.patra-status-pill {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  background: transparent;
+  color: #75727f;
+  cursor: pointer;
+}
+.patra-status-pill.active {
+  background: rgba(110, 86, 207, 0.12);
+  color: #a78bfa;
+  border-color: #6e56cf;
+}
+</style>

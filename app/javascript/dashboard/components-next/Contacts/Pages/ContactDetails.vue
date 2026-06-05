@@ -148,10 +148,35 @@ const gameEmoji = game =>
     juwa: '🐉',
     ultra_panda: '🐼',
   })[game] || '🎮';
+
+const openMerge = () => {
+  const contactId = props.selectedContact?.id;
+  if (contactId) {
+    window.location.href = `/app/accounts/2/contacts/${contactId}`;
+  }
+};
+
+const sendMessage = () => {
+  const contactId = props.selectedContact?.id;
+  if (contactId) {
+    window.open(
+      `/app/accounts/2/conversations?contactId=${contactId}`,
+      '_self'
+    );
+  }
+};
 </script>
 
 <template>
   <div class="contact-details">
+    <div class="patra-contact-actions">
+      <button type="button" class="patra-merge-btn" @click="openMerge">
+        Merge
+      </button>
+      <button type="button" class="patra-send-msg-btn" @click="sendMessage">
+        Send message
+      </button>
+    </div>
     <div class="card full">
       <div class="card-t display">
         <span class="dot" />
@@ -393,5 +418,38 @@ const gameEmoji = game =>
   color: var(--text-4);
   text-align: left;
   padding: 0 0 12px;
+}
+
+.patra-contact-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.patra-merge-btn,
+.patra-send-msg-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-hi, #2e2940);
+  background: var(--surface-2, #131119);
+  color: var(--text, #ededf2);
+  transition: all 0.2s;
+}
+.patra-merge-btn:hover,
+.patra-send-msg-btn:hover {
+  border-color: var(--patra, #6e56cf);
+  color: var(--patra-3, #a78bfa);
+}
+.patra-send-msg-btn {
+  background: linear-gradient(135deg, #6e56cf, #5b45b0);
+  border-color: transparent;
+  color: #fff;
+}
+.patra-send-msg-btn:hover {
+  opacity: 0.9;
+  color: #fff;
 }
 </style>

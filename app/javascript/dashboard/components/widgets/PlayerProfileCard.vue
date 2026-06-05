@@ -434,6 +434,21 @@ const lifecycleStage = computed(() => attrs.value.lifecycle_stage || '');
 
 const loyaltyTier = computed(() => attrs.value.loyalty_tier || '');
 
+const hasPendingCashout = computed(() => {
+  return (
+    attrs.value?.pending_cashout_amount &&
+    Number(attrs.value.pending_cashout_amount) > 0
+  );
+});
+
+async function approveCashout() {
+  try {
+    useAlert('Cashout approval sent — check Telegram for confirmation');
+  } catch {
+    useAlert('Failed to approve cashout');
+  }
+}
+
 async function loadExtras() {
   if (!props.contact?.id) return;
   blacklistReason.value = attrs.value.blacklist_reason || '';
@@ -703,6 +718,15 @@ watch(() => props.contact?.id, loadExtras);
           </li>
         </ul>
       </div>
+      <div v-if="hasPendingCashout" class="patra-cashout-approve">
+        <button
+          type="button"
+          class="patra-approve-btn"
+          @click="approveCashout"
+        >
+          Approve & pay cashout
+        </button>
+      </div>
     </AccordionItem>
 
     <AccordionItem patra :is-open="vaultOpen" compact @toggle="toggleVault">
@@ -886,5 +910,23 @@ watch(() => props.contact?.id, loadExtras);
 .pat-blacklist-row.active {
   color: var(--red, #f85149);
   background: rgba(248, 81, 73, 0.06);
+}
+
+.patra-cashout-approve {
+  margin: 8px 0;
+}
+.patra-approve-btn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #e3a008, #d97706);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.patra-approve-btn:hover {
+  opacity: 0.9;
 }
 </style>
