@@ -485,3 +485,68 @@
 
 .dark .conversation-panel .patra-conv-bubble { animation: msgIn 0.2s ease-out; }
 .dark .conversations-list .conversation { animation: convoPop 0.25s ease-out; }
+
+/* Inbox empty state */
+.patra-empty-inbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  min-height: 200px;
+}
+
+.patra-empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.patra-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ededf2;
+  margin-bottom: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.patra-empty-text {
+  font-size: 13px;
+  color: #75727f;
+  max-width: 240px;
+  line-height: 1.5;
+}
+
+/* Command palette Patra dark styling */
+.dark .command-bar,
+.dark .ninja-keys {
+  --ninja-z-index: 9999;
+  --ninja-overflow: hidden;
+}
+
+.dark .command-bar .ninja-keys-modal,
+.dark .ninja-keys .modal {
+  background: #0c0b12 !important;
+  border: 1px solid rgba(110, 86, 207, 0.2) !important;
+  border-radius: 12px !important;
+}
+
+.dark .command-bar input,
+.dark .ninja-keys input {
+  background: #131119 !important;
+  color: #ededf2 !important;
+  border-color: rgba(110, 86, 207, 0.2) !important;
+}
+
+.dark ninja-keys {
+  --ninja-overflow-background: rgba(12, 11, 18, 0.6);
+  --ninja-modal-background: #0c0b12;
+  --ninja-secondary-background-color: #131119;
+  --ninja-selected-background: rgba(110, 86, 207, 0.18);
+  --ninja-footer-background: #131119;
+  --ninja-text-color: #ededf2;
+  --ninja-icon-color: #ededf2;
+  --ninja-secondary-text-color: #75727f;
+  --ninja-accent-color: #6e56cf;
+}

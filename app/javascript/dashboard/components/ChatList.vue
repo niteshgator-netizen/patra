@@ -994,12 +994,17 @@ watch(conversationFilters, (newVal, oldVal) => {
       @chat-tab-change="updateAssigneeTab"
     />
 
-    <p
+    <div
       v-if="!chatListLoading && !conversationList.length"
-      class="flex overflow-auto justify-center items-center p-4"
+      class="patra-empty-inbox"
     >
-      {{ $t('CHAT_LIST.LIST.404') }}
-    </p>
+      <div class="patra-empty-icon">💬</div>
+      <div class="patra-empty-title">All clear!</div>
+      <div class="patra-empty-text">
+        No conversations in this view. New messages will appear here
+        automatically.
+      </div>
+    </div>
     <ConversationBulkActions
       :conversations="selectedConversations"
       :all-conversations-selected="allConversationsSelected"

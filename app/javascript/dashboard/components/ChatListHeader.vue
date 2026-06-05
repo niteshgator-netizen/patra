@@ -7,6 +7,7 @@ import wootConstants from 'dashboard/constants/globals';
 import ConversationBasicFilter from './widgets/conversation/ConversationBasicFilter.vue';
 import SwitchLayout from 'dashboard/routes/dashboard/conversation/search/SwitchLayout.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
 const props = defineProps({
   pageTitle: { type: String, required: true },
@@ -84,6 +85,11 @@ const toggleConversationLayout = () => {
         </span>
       </div>
       <div class="pat-list-actions flex items-center gap-1 shrink-0">
+        <ComposeConversation>
+          <template #trigger>
+            <button type="button" class="patra-new-conv-btn">+ New</button>
+          </template>
+        </ComposeConversation>
         <template v-if="hasAppliedFilters && !hasActiveFolders">
           <div class="relative">
             <NextButton
@@ -211,5 +217,16 @@ const toggleConversationLayout = () => {
 .pat-list-count--status {
   color: var(--text-2, #a8a6b6);
   background: var(--surface-3, #1b1925);
+}
+
+.patra-new-conv-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #6e56cf, #5b45b0);
+  color: white;
+  border: none;
+  cursor: pointer;
 }
 </style>
