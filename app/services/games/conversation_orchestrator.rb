@@ -193,6 +193,16 @@ module Games
         handle_balance_check(intent)
       when :transfer_between_games
         handle_transfer_between_games(intent)
+      when :whats_hitting
+        handle_whats_hitting(intent)
+      when :referral
+        handle_referral(intent)
+      when :redeem_partial_replay
+        handle_redeem_partial_replay(intent)
+      when :new_account_reissue
+        handle_new_account_reissue(intent)
+      when :replay_from_balance
+        handle_replay_from_balance(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -1399,6 +1409,56 @@ module Games
         )
       end
       { reply: "transfers between games need manual processing — getting a cashier to help you now!", labels: ['cashier-action-needed', 'needs-human'] }
+    end
+
+    def handle_whats_hitting(intent)
+      games_text = active_games_list_text
+      reply = games_text.present? ? "right now we have: #{games_text} — which one do you want loaded?" : "let me check which games are available and get back to you!"
+      { reply: reply, labels: [] }
+    end
+
+    def handle_referral(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Customer made a referral — verify and apply referral bonus if applicable'
+        )
+      end
+      { reply: "thanks so much for the referral! i've noted it and someone will follow up with you shortly", labels: ['referral-pending'] }
+    end
+
+    def handle_redeem_partial_replay(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Partial cashout + replay requested — needs manual cashier calculation'
+        )
+      end
+      { reply: "got it — partial cashout with a reload needs manual processing, getting a cashier on it now!", labels: ['cashier-action-needed', 'needs-human'] }
+    end
+
+    def handle_new_account_reissue(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Account reissue requested — existing account broken, needs replacement'
+        )
+      end
+      { reply: "no worries! let me get someone to sort out your account replacement right away", labels: ['needs-human', 'account-reissue'] }
+    end
+
+    def handle_replay_from_balance(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Replay from existing balance requested — needs cashier to verify and load'
+        )
+      end
+      { reply: "got it — loading from your existing balance needs a quick check, cashier will handle it now!", labels: ['cashier-action-needed', 'needs-human'] }
     end
 
     # Bug 7 fix: payment_request_reply now mirrors handle_payment_method_chosen
