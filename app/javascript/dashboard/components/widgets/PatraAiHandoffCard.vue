@@ -72,6 +72,10 @@ const askPatraAi = () => {
       <span class="ai-hc-label">Reason</span>
       <span class="ai-hc-value">{{ attrs.last_intent_reason }}</span>
     </div>
+    <div v-if="attrs.cashout_sla_policy" class="ai-hc-intent">
+      <span class="ai-hc-label">Cashout SLA</span>
+      <span class="ai-hc-value">{{ attrs.cashout_sla_policy }}</span>
+    </div>
     <div v-if="attrs.sentiment" class="ai-hc-intent">
       <span class="ai-hc-label">Sentiment</span>
       <span class="ai-hc-value" :class="sentimentClass">{{ attrs.sentiment }}</span>

@@ -40,6 +40,7 @@ const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox } = useInbox();
 
 const currentChat = computed(() => store.getters.getSelectedChat);
+const currentUser = computed(() => store.getters.getCurrentUser);
 const accountId = computed(() => store.getters.getCurrentAccountId);
 
 const chatMetadata = computed(() => props.chat.meta);
@@ -169,6 +170,7 @@ const startPresencePolling = () => {
 
 onMounted(() => {
   startPresencePolling();
+  fetchConversationWatchers();
 });
 
 onBeforeUnmount(() => {
@@ -180,6 +182,7 @@ watch(
   () => {
     contactPresence.value = { online: false, last_active: null };
     startPresencePolling();
+    fetchConversationWatchers();
   }
 );
 
@@ -236,6 +239,48 @@ const pinButtonLabel = computed(() =>
     ? t('PATRA.CONVERSATION.UNPIN_SHORT')
     : t('PATRA.CONVERSATION.PIN_SHORT')
 );
+
+const conversationWatchers = computed(
+  () =>
+    store.getters['conversationWatchers/getByConversationId'](
+      currentChat.value?.id
+    ) || []
+);
+
+const otherParticipants = computed(() => {
+  const metaAgents = currentChat.value?.meta?.agents;
+  const metaParticipants =
+    currentChat.value?.meta?.all_count > 1 ? metaAgents || [] : [];
+  const participants =
+    metaParticipants.length > 0 ? metaParticipants : conversationWatchers.value;
+  if (participants.length <= 1) return [];
+  return participants.filter(a => a.id !== currentUser.value?.id);
+});
+
+const autoReplyEnabled = computed(
+  () => currentChat.value?.additional_attributes?.auto_reply !== false
+);
+
+const toggleAutoReply = async () => {
+  const attrs = {
+    ...(currentChat.value?.additional_attributes || {}),
+    auto_reply: !autoReplyEnabled.value,
+  };
+  try {
+    await store.dispatch('updateCustomAttributes', {
+      conversationId: currentChat.value.id,
+      customAttributes: attrs,
+    });
+  } catch (e) {
+    console.error('Auto-reply toggle failed', e);
+  }
+};
+
+const fetchConversationWatchers = () => {
+  const conversationId = currentChat.value?.id;
+  if (!conversationId) return;
+  store.dispatch('conversationWatchers/show', { conversationId });
+};
 </script>
 
 <template>
@@ -276,6 +321,17 @@ const pinButtonLabel = computed(() =>
           >
             #{{ chat.id }}
           </button>
+          <div v-if="otherParticipants.length" class="patra-participants">
+            <span
+              v-for="p in otherParticipants"
+              :key="p.id"
+              class="patra-participant-dot"
+              :title="p.name"
+            >
+              {{ p.name?.charAt(0) }}
+            </span>
+            <span class="patra-participants-text">are also viewing</span>
+          </div>
         </div>
         <div class="patra-conv-head-sub">
           <span
@@ -357,6 +413,15 @@ const pinButtonLabel = computed(() =>
         <span class="patra-conv-head-ai-sw pat-ai-sw" aria-hidden="true">
           <i />
         </span>
+      </button>
+
+      <button
+        type="button"
+        class="patra-auto-reply-toggle"
+        :class="{ active: autoReplyEnabled }"
+        @click="toggleAutoReply"
+      >
+        Auto-reply {{ autoReplyEnabled ? 'on' : 'off' }}
       </button>
 
       <button
@@ -989,5 +1054,48 @@ const pinButtonLabel = computed(() =>
   background: transparent;
   border: none;
   padding: 0;
+}
+
+.patra-participants {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #75727f;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.patra-participant-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(110, 86, 207, 0.2);
+  color: #a78bfa;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.patra-participants-text {
+  white-space: nowrap;
+}
+
+.patra-auto-reply-toggle {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  background: transparent;
+  color: #75727f;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.patra-auto-reply-toggle.active {
+  background: rgba(110, 86, 207, 0.12);
+  color: #a78bfa;
 }
 </style>

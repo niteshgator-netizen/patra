@@ -317,6 +317,23 @@ export default {
       </div>
 
       <PatraAutomationSettings v-if="!uiFlags.isFetchingItem" />
+      <div v-if="!uiFlags.isFetchingItem" class="patra-settings-links">
+        <div class="patra-link-card">
+          <span>14 games connected · managed on the</span>
+          <router-link
+            :to="{ name: 'settings_integrations_games' }"
+            class="patra-link-btn"
+          >
+            Open Games page
+          </router-link>
+        </div>
+        <div class="patra-link-card">
+          <span>Training data, review queue, secret phrases</span>
+          <router-link :to="{ name: 'patra_ai_training' }" class="patra-link-btn">
+            Open AI Training
+          </router-link>
+        </div>
+      </div>
       <PatraBusinessSettings v-if="!uiFlags.isFetchingItem" />
 
       <AudioTranscription v-if="showAudioTranscriptionConfig" />
@@ -622,6 +639,30 @@ export default {
   font-size: 13px;
   color: var(--text-3);
   margin: 0;
+}
+
+.patra-settings-links {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.patra-link-card {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(110, 86, 207, 0.15);
+  font-size: 12px;
+  color: #75727f;
+}
+
+.patra-link-btn {
+  display: block;
+  margin-top: 8px;
+  color: #8b5cf6;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 12px;
 }
 
 </style>

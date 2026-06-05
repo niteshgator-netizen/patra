@@ -408,6 +408,10 @@ const isBlacklisted = computed(
   () => attrs.value.blacklisted === true || attrs.value.blacklisted === 'true'
 );
 
+const lastVaultMsgId = computed(
+  () => attrs.value?.vault_cursor_msg_id || null
+);
+
 const gameCredentials = computed(() => {
   const creds = [];
   Object.entries(attrs.value).forEach(([key, value]) => {
@@ -433,6 +437,20 @@ const paymentMethodDisplay = computed(() => {
 const lifecycleStage = computed(() => attrs.value.lifecycle_stage || '');
 
 const loyaltyTier = computed(() => attrs.value.loyalty_tier || '');
+
+const lifecycleTagClass = computed(() => {
+  const stage = (lifecycleStage.value || '').toLowerCase();
+  if (stage === 'vip') return 'vip';
+  if (stage === 'new' || stage === 'new_player') return 'new';
+  return 'engaged';
+});
+
+const loyaltyTagClass = computed(() => {
+  const tier = (loyaltyTier.value || '').toLowerCase();
+  if (tier === 'vip') return 'vip';
+  if (['new', 'new_player', 'casual'].includes(tier)) return 'new';
+  return 'engaged';
+});
 
 const hasPendingCashout = computed(() => {
   return (
@@ -521,13 +539,13 @@ async function toggleBlacklist() {
 }
 
 async function sendCredentials(cred) {
-  if (!props.conversationId) return;
-  const content = `your ${cred.game} login — username: ${cred.username}, password: ${cred.password}`;
-  await store.dispatch('createPendingMessageAndSend', {
-    conversationId: props.conversationId,
-    content,
-    private: false,
-  });
+  const text = `🎮 ${cred.game}\nUser: ${cred.username}\nPass: ${cred.password}`;
+  try {
+    await copyTextToClipboard(text);
+    useAlert('Credentials copied — paste into chat');
+  } catch {
+    useAlert('Failed to copy credentials');
+  }
 }
 
 const toggleProfile = () => {
@@ -590,7 +608,7 @@ watch(() => props.contact?.id, loadExtras);
       <div v-if="lifecycleStage" class="field">
         <span class="k">{{ $t('PLAYER_PROFILE.LIFECYCLE') }}</span>
         <span class="v">
-          <span class="tag engaged pat-lifecycle-tag engaged">{{
+          <span class="tag pat-lifecycle-tag" :class="lifecycleTagClass">{{
             lifecycleStage
           }}</span>
         </span>
@@ -598,7 +616,9 @@ watch(() => props.contact?.id, loadExtras);
       <div v-if="loyaltyTier" class="field">
         <span class="k">{{ $t('PLAYER_PROFILE.FIELDS.LOYALTY_TIER') }}</span>
         <span class="v">
-          <span class="tag new pat-lifecycle-tag new">{{ loyaltyTier }}</span>
+          <span class="tag pat-lifecycle-tag" :class="loyaltyTagClass">{{
+            loyaltyTier
+          }}</span>
         </span>
       </div>
       <div
@@ -739,6 +759,9 @@ watch(() => props.contact?.id, loadExtras);
             })
           }}
         </span>
+        <span v-if="lastVaultMsgId" class="patra-vault-cursor">
+          msg {{ lastVaultMsgId }}
+        </span>
       </template>
       <template v-if="gameCredentials.length">
         <div
@@ -781,12 +804,11 @@ watch(() => props.contact?.id, loadExtras);
             </button>
           </div>
           <button
-            v-if="conversationId"
             type="button"
-            class="add-link mt-2"
+            class="patra-send-cred-btn"
             @click="sendCredentials(cred)"
           >
-            {{ $t('PLAYER_PROFILE.SEND_CREDENTIALS') }}
+            Send
           </button>
         </div>
       </template>
@@ -928,5 +950,22 @@ watch(() => props.contact?.id, loadExtras);
 }
 .patra-approve-btn:hover {
   opacity: 0.9;
+}
+
+.patra-vault-cursor {
+  font-size: 10px;
+  color: #54515e;
+  margin-left: auto;
+}
+
+.patra-send-cred-btn {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(110, 86, 207, 0.3);
+  background: transparent;
+  color: #8b5cf6;
+  cursor: pointer;
+  margin-top: 6px;
 }
 </style>

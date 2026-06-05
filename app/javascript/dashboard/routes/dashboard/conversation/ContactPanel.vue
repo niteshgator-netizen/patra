@@ -159,6 +159,26 @@ onMounted(() => {
         <ContactInfo :contact="contact" :channel-type="channelType" />
       </div>
       <ContactProfileStats :contact="contact" />
+      <div
+        v-if="
+          contact?.custom_attributes &&
+          Object.keys(contact.custom_attributes).length
+        "
+        class="patra-contact-attrs"
+      >
+        <div class="card-t display">
+          <span class="dot" />
+          Contact Attributes
+        </div>
+        <div
+          v-for="(val, key) in contact.custom_attributes"
+          :key="key"
+          class="patra-attr-row"
+        >
+          <span class="patra-attr-key">{{ key.replace(/_/g, ' ') }}</span>
+          <span class="patra-attr-val">{{ val }}</span>
+        </div>
+      </div>
       <div class="sidebar-accordions">
         <Draggable
           :list="conversationSidebarItems"
@@ -598,5 +618,51 @@ onMounted(() => {
   color: var(--text-3, #75727f);
   font-weight: 500;
   margin-top: 0;
+}
+
+.patra-contact-attrs {
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--border, #171520);
+}
+
+.patra-contact-attrs .card-t {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: var(--text, #ededf2);
+}
+
+.patra-contact-attrs .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--patra-2, #8b5cf6);
+}
+
+.patra-attr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+  font-size: 12.5px;
+}
+
+.patra-attr-key {
+  color: var(--text-3, #75727f);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.patra-attr-val {
+  color: var(--text, #ededf2);
+  font-weight: 500;
+  text-align: right;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

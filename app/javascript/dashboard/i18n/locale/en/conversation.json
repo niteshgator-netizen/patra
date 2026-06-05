@@ -127,6 +127,9 @@
       "APPLY": "Snooze",
       "CANCEL": "Cancel"
     },
+    "STATUS": {
+      "TITLE": "Status"
+    },
     "PRIORITY": {
       "TITLE": "Priority",
       "OPTIONS": {
