@@ -11,9 +11,9 @@ module Payments
       lock_key = 'patra:imap_check_job:lock'
       lock_ttl  = 4.minutes.to_i
 
-      acquired = Redis.new(Redis::Config.app).set(lock_key, 1, nx: true, ex: lock_ttl)
+      acquired = Sidekiq.redis { |conn| conn.set(lock_key, 1, 'NX', 'EX', lock_ttl) }
       unless acquired
-        Rails.logger.info('[ImapCheckJob] skipped — another instance is running')
+        Rails.logger.info('[ImapCheckJob] skipped -- another instance is running')
         return
       end
 
@@ -28,7 +28,7 @@ module Payments
             rescue StandardError => e
               error_msg = e.message.to_s
               if error_msg.include?('Too many simultaneous') || error_msg.include?('exceeded') || error_msg.include?('closed stream')
-                Rails.logger.warn("[ImapCheckJob] IMAP rate limit hit handle=#{ph.id} — backing off 30s")
+                Rails.logger.warn("[ImapCheckJob] IMAP rate limit hit handle=#{ph.id} -- backing off 30s")
                 sleep 30
               else
                 Rails.logger.error("[ImapCheckJob] ghost_ingest_failed handle=#{ph.id} error=#{error_msg}")
@@ -46,7 +46,7 @@ module Payments
             rescue StandardError => e
               error_msg = e.message.to_s
               if error_msg.include?('Too many simultaneous') || error_msg.include?('exceeded') || error_msg.include?('closed stream')
-                Rails.logger.warn("[ImapCheckJob] IMAP rate limit hit contact=#{contact_id} — backing off 30s")
+                Rails.logger.warn("[ImapCheckJob] IMAP rate limit hit contact=#{contact_id} -- backing off 30s")
                 sleep 30
               else
                 Rails.logger.error("[ImapCheckJob] contact #{contact_id} failed: #{error_msg}")
@@ -59,7 +59,7 @@ module Payments
         end
         HTTParty.get("https://uptime.betterstack.com/api/v1/heartbeat/m497AzJnPKrBdPJfJbSSKbfR") rescue nil
       ensure
-        Redis.new(Redis::Config.app).del(lock_key) rescue nil
+        Sidekiq.redis { |conn| conn.del(lock_key) } rescue nil
       end
     end
 
