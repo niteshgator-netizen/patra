@@ -5,7 +5,7 @@ class Api::V1::Accounts::Patra::FacebookIdentitiesController < Api::V1::Accounts
   before_action :find_identity, only: [:destroy, :reauthorize]
 
   def index
-    identities = Current.account.facebook_identities.includes(:inboxes).order(:created_at)
+    identities = Current.account.facebook_identities.order(:created_at)
     render json: identities.map { |fi| serialize_identity(fi) }
   end
 
