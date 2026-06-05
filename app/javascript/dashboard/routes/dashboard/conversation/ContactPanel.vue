@@ -27,6 +27,7 @@ import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/I
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
 import PlayerProfileCard from 'dashboard/components/widgets/PlayerProfileCard.vue';
 import GameQuickActionsPanel from 'dashboard/components/widgets/GameQuickActionsPanel.vue';
+import PatraAiHandoffCard from 'dashboard/components/widgets/PatraAiHandoffCard.vue';
 
 const props = defineProps({
   conversationId: {
@@ -232,6 +233,7 @@ onMounted(() => {
               </AccordionItem>
             </div>
             <div v-else-if="element.name === 'player_profile'">
+              <PatraAiHandoffCard :conversation-id="conversationId" />
               <PlayerProfileCard
                 :contact="contact"
                 :conversation-id="conversationId"
