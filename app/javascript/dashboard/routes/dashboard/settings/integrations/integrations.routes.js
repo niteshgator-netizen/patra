@@ -93,6 +93,7 @@ export default {
         },
         {
           path: 'payment_handles',
+          alias: 'payment-handles',
           name: 'settings_integrations_payment_handles',
           component: PaymentHandles,
           meta: {

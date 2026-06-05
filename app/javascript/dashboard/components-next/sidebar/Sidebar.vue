@@ -38,7 +38,8 @@ const emit = defineEmits([
   'closeMobileSidebar',
 ]);
 
-const { accountScopedRoute, isOnChatwootCloud } = useAccount();
+const { accountScopedRoute, accountScopedUrl, isOnChatwootCloud } =
+  useAccount();
 const store = useStore();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
@@ -533,7 +534,7 @@ const menuItems = computed(() => {
           name: 'Settings Payment Handles',
           label: t('PAYMENT_HANDLES.NAV_LABEL'),
           icon: 'i-lucide-wallet',
-          to: accountScopedRoute('settings_integrations_payment_handles'),
+          to: accountScopedUrl('settings/integrations/payment_handles'),
           activeOn: ['settings_integrations_payment_handles'],
         },
         {
