@@ -327,6 +327,7 @@ module Games
     ].freeze
 
     WHATS_HITTING_PATTERNS = [
+      /what\s+games?\s+(?:are\s+)?hitting/i,
       /what(?:'?s|\s+is)\s+(?:hitting|working|hot|good|available)/i,
       /which\s+games?\s+(?:are\s+)?(?:hitting|working|hot|good|available)/i,
       /any\s+(?:good\s+)?games?\s+(?:hitting|working|available)/i,
