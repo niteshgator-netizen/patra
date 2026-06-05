@@ -185,10 +185,11 @@ const assigneeTabItems = computed(() => {
   }));
 
   // Add Patra AI tab — shows count of open conversations WITHOUT ai-off label
-  const patraAiCount =
-    allChatList.value?.filter(
-      c => c.status === 'open' && !(c.labels || []).includes('ai-off')
-    ).length || 0;
+  const patraAiCount = conversationStats.value?.allCount
+    ? (allChatList.value(conversationFilters.value) || []).filter(
+        c => !(c.labels || []).includes('ai-off')
+      ).length
+    : 0;
 
   base.push({
     key: 'patra_ai',
