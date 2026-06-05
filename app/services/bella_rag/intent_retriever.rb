@@ -12,7 +12,7 @@
 #
 module BellaRag
   class IntentRetriever
-    CONFIDENCE_THRESHOLD = 0.55   # minimum vote-share to return a result; else nil
+    CONFIDENCE_THRESHOLD = 0.35   # minimum vote-share to return a result; else nil
     MIN_SIMILARITY       = 0.30   # ignore neighbors with cosine similarity below this
     TOP_K                = 10     # number of neighbors to retrieve
     MAX_TEXT_CHARS       = 512    # truncate input to avoid Voyage rate limits
