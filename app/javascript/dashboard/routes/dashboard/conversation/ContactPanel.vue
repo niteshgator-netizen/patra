@@ -81,6 +81,9 @@ const isLinearConnected = computed(
 
 const store = useStore();
 const currentChat = useMapGetter('getSelectedChat');
+const allAttachments = useMapGetter('getSelectedChatAttachments');
+const attachmentCount = computed(() => allAttachments.value.length);
+const recentAttachments = computed(() => allAttachments.value.slice(-6));
 const conversationId = computed(() => props.conversationId);
 const conversationMetadataGetter = useMapGetter(
   'conversationMetadata/getConversationMetadata'
@@ -286,6 +289,39 @@ onMounted(() => {
                   :conversation-id="conversationId"
                 />
               </AccordionItem>
+              <div
+                v-if="attachmentCount > 0"
+                class="patra-media-section"
+              >
+                <div class="card-t display">
+                  <span class="dot" />
+                  Attachments
+                  <span class="patra-media-count"
+                    >MEDIA · {{ attachmentCount }}</span
+                  >
+                </div>
+                <div class="patra-media-grid">
+                  <div
+                    v-for="att in recentAttachments"
+                    :key="att.id"
+                    class="patra-media-thumb"
+                  >
+                    <img
+                      v-if="att.thumb_url || att.data_url"
+                      :src="att.thumb_url || att.data_url"
+                      :alt="att.file_name || 'Attachment'"
+                      loading="lazy"
+                    />
+                    <span v-else class="patra-media-file">📄</span>
+                  </div>
+                  <div
+                    v-if="attachmentCount > 6"
+                    class="patra-media-more"
+                  >
+                    +{{ attachmentCount - 6 }}
+                  </div>
+                </div>
+              </div>
             </div>
             <woot-feature-toggle
               v-else-if="element.name === 'macros'"
@@ -664,5 +700,77 @@ onMounted(() => {
   max-width: 55%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.patra-media-section {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border, #171520);
+}
+
+.patra-media-section .card-t {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 4px 6px;
+  color: var(--text, #ededf2);
+}
+
+.patra-media-section .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--patra-2, #8b5cf6);
+}
+
+.patra-media-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: #75727f;
+  text-transform: uppercase;
+}
+
+.patra-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.patra-media-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(110, 86, 207, 0.06);
+}
+
+.patra-media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.patra-media-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 18px;
+}
+
+.patra-media-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #8b5cf6;
+  font-weight: 600;
+  background: rgba(110, 86, 207, 0.08);
+  border-radius: 6px;
+  aspect-ratio: 1;
 }
 </style>

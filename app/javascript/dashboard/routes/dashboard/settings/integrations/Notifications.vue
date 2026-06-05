@@ -15,6 +15,9 @@ const filters = ref({
   cashout_failed: true,
   human_escalation: true,
   api_error: true,
+  daily_summary: true,
+  email_flagged: true,
+  game_health_alerts: true,
 });
 const saving = ref(false);
 const testing = ref(false);
@@ -68,6 +71,21 @@ const eventFilters = computed(() => [
     key: 'api_error',
     label: t('NOTIFICATIONS.FORM.EVENT_API_ERROR'),
     subtitle: t('NOTIFICATIONS.FORM.EVENT_API_ERROR_DESC'),
+  },
+  {
+    key: 'daily_summary',
+    label: t('NOTIFICATIONS.FORM.EVENT_DAILY_SUMMARY'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_DAILY_SUMMARY_DESC'),
+  },
+  {
+    key: 'email_flagged',
+    label: t('NOTIFICATIONS.FORM.EVENT_EMAIL_FLAGGED'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_EMAIL_FLAGGED_DESC'),
+  },
+  {
+    key: 'game_health_alerts',
+    label: t('NOTIFICATIONS.FORM.EVENT_GAME_HEALTH_ALERTS'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_GAME_HEALTH_ALERTS_DESC'),
   },
 ]);
 
