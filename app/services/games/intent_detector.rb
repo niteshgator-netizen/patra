@@ -315,6 +315,8 @@ module Games
     BALANCE_CHECK_PATTERNS = [
       /how\s+much\s+(?:do\s+i\s+have|is\s+(?:in\s+)?my\s+(?:account|balance))/i,
       /what'?s?\s+my\s+(?:balance|points?|credits?)/i,
+      /what\s+is\s+my\s+(?:balance|points?|credits?)/i,
+      /how\s+(?:much|many)\s+(?:do\s+i\s+have|points?|credits?|money)/i,
       /check\s+my\s+(?:balance|points?|credits?|account)/i,
       /how\s+many\s+(?:points?|credits?)\s+(?:do\s+i\s+have|are\s+left)/i
     ].freeze
@@ -345,6 +347,12 @@ module Games
         Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
 
         return { intent: :greeting } if text.strip.match?(GREETING_PATTERNS) && text.strip.split.size <= 5
+
+        # Status check before load/cashout — "any update on my load?" should not become :load
+        if match_any(text, STATUS_CHECK_PATTERNS) && !match_any(text, LOAD_PATTERNS.first(3))
+          Rails.logger.info('[IntentDetector] matched status_check (early)')
+          return { intent: :status_check }
+        end
 
         # Game-specific intents (load/cashout/reset) BEFORE payment_method_chosen so game
         # names like "Cash Machine" are not misread as a payment-platform pick.
@@ -395,9 +403,6 @@ module Games
                   elsif new.detect_sent_without_screenshot?(text)
                     Rails.logger.info('[IntentDetector] matched payment_sent_confirmation')
                     { intent: :payment_sent_confirmation }
-                  elsif match_any(text, STATUS_CHECK_PATTERNS)
-                    Rails.logger.info('[IntentDetector] matched status_check')
-                    { intent: :status_check }
                   elsif match_any(text, COMPLAINT_ANGRY_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched complaint_angry')
                     { intent: :complaint_angry }
