@@ -174,7 +174,7 @@ const userPermissions = computed(() => {
 });
 
 const assigneeTabItems = computed(() => {
-  return filterItemsByPermission(
+  const base = filterItemsByPermission(
     ASSIGNEE_TYPE_TAB_PERMISSIONS,
     userPermissions.value,
     item => item.permissions
@@ -183,6 +183,20 @@ const assigneeTabItems = computed(() => {
     name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
     count: conversationStats.value[countKey] || 0,
   }));
+
+  // Add Patra AI tab — shows count of open conversations WITHOUT ai-off label
+  const patraAiCount =
+    allChatList.value?.filter(
+      c => c.status === 'open' && !(c.labels || []).includes('ai-off')
+    ).length || 0;
+
+  base.push({
+    key: 'patra_ai',
+    name: t('CHAT_LIST.ASSIGNEE_TYPE_TABS.patra_ai'),
+    count: patraAiCount,
+  });
+
+  return base;
 });
 
 const showAssigneeInConversationCard = computed(() => {
@@ -247,7 +261,10 @@ const conversationListPagination = computed(() => {
 const conversationFilters = computed(() => {
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
-    assigneeType: activeAssigneeTab.value,
+    assigneeType:
+      activeAssigneeTab.value === 'patra_ai'
+        ? wootConstants.ASSIGNEE_TYPE.ALL
+        : activeAssigneeTab.value,
     status: activeStatus.value,
     sortBy: activeSortBy.value,
     page: conversationListPagination.value,
@@ -324,6 +341,10 @@ const conversationList = computed(() => {
       localConversationList = [...mineChatsList.value(filters)];
     } else if (activeAssigneeTab.value === 'unassigned') {
       localConversationList = [...unAssignedChatsList.value(filters)];
+    } else if (activeAssigneeTab.value === 'patra_ai') {
+      localConversationList = allChatList.value(filters).filter(
+        c => c.status === 'open' && !(c.labels || []).includes('ai-off')
+      );
     } else {
       localConversationList = [...allChatList.value(filters)];
     }
