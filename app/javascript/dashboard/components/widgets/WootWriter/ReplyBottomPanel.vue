@@ -454,10 +454,12 @@ export default {
       <NextButton
         v-if="!isNote && !isEditorDisabled"
         v-tooltip.top-end="$t('PATRA.SCHEDULED.SEND_LATER')"
+        :label="$t('PATRA.SCHEDULED.SEND_LATER')"
         icon="i-lucide-clock"
         slate
         faded
         sm
+        class="patra-schedule-send-btn"
         @click="sendLater"
       />
       <NextButton

@@ -161,7 +161,7 @@
       "CONNECT_NO_AUTH_URL": "Connect failed: no auth URL returned by Zernio."
     },
     "SCHEDULED": {
-      "SEND_LATER": "Send later",
+      "SEND_LATER": "Schedule send",
       "COMING_SOON": "Scheduled messages coming soon",
       "PICK_TIME": "Schedule message",
       "CONFIRM": "Schedule",

@@ -526,6 +526,25 @@ export default {
         </li>
       </template>
       <template #after>
+        <li
+          v-if="isAnyoneTyping"
+          class="list-none flex-shrink-0"
+        >
+          <div v-if="isContactTyping" class="patra-typing">
+            <span class="patra-typing-dot" />
+            <span class="patra-typing-dot" />
+            <span class="patra-typing-dot" />
+            <span class="patra-typing-text">
+              {{ $t('PATRA.CONVERSATION.CUSTOMER_TYPING') }}
+            </span>
+          </div>
+          <div v-else-if="isAgentTyping" class="patra-typing">
+            <span class="patra-typing-dot" />
+            <span class="patra-typing-dot" />
+            <span class="patra-typing-dot" />
+            <span class="patra-typing-text">{{ typingUserNames }}</span>
+          </div>
+        </li>
         <ConversationLabelSuggestion
           v-if="shouldShowLabelSuggestions"
           :suggested-labels="labelSuggestions"
@@ -538,37 +557,22 @@ export default {
       class="patra-conv-composer-wrap flex relative flex-col max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:border-t max-md:border-n-weak max-md:shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
     >
       <div
-        v-if="isContactTyping"
-        class="absolute flex items-center w-full h-0 -top-7"
+        v-if="isAnyoneTyping"
+        class="patra-typing-composer absolute flex items-center w-full left-0 right-0 -top-8 z-10 pointer-events-none"
       >
-        <div
-          class="flex items-center py-2 pr-4 pl-5 shadow-md rounded-full bg-n-solid-3 border border-n-weak text-n-slate-11 text-xs font-medium my-2.5 mx-auto"
-        >
-          {{ $t('PATRA.CONVERSATION.CUSTOMER_TYPING') }}
-          <span class="inline-flex items-center gap-0.5 ltr:ml-1 rtl:mr-1">
-            <span
-              class="size-1 rounded-full bg-n-slate-11 animate-bounce [animation-delay:-0.3s]"
-            />
-            <span
-              class="size-1 rounded-full bg-n-slate-11 animate-bounce [animation-delay:-0.15s]"
-            />
-            <span class="size-1 rounded-full bg-n-slate-11 animate-bounce" />
+        <div v-if="isContactTyping" class="patra-typing mx-auto">
+          <span class="patra-typing-dot" />
+          <span class="patra-typing-dot" />
+          <span class="patra-typing-dot" />
+          <span class="patra-typing-text">
+            {{ $t('PATRA.CONVERSATION.CUSTOMER_TYPING') }}
           </span>
         </div>
-      </div>
-      <div
-        v-else-if="isAgentTyping"
-        class="absolute flex items-center w-full h-0 -top-7"
-      >
-        <div
-          class="flex py-2 pr-4 pl-5 shadow-md rounded-full bg-n-solid-3 border border-n-weak text-n-slate-11 text-xs font-semibold my-2.5 mx-auto"
-        >
-          {{ typingUserNames }}
-          <img
-            class="w-6 ltr:ml-2 rtl:mr-2"
-            src="assets/images/typing.gif"
-            alt="Someone is typing"
-          />
+        <div v-else-if="isAgentTyping" class="patra-typing mx-auto">
+          <span class="patra-typing-dot" />
+          <span class="patra-typing-dot" />
+          <span class="patra-typing-dot" />
+          <span class="patra-typing-text">{{ typingUserNames }}</span>
         </div>
       </div>
       <ResizableEditorWrapper
@@ -742,6 +746,50 @@ export default {
   font-size: 12.5px;
   font-weight: 500;
   padding: 8px 14px;
+}
+
+.patra-typing {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #75727f;
+}
+
+.patra-typing-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #6e56cf;
+  animation: typingBounce 1.2s infinite;
+}
+
+.patra-typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.patra-typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
+.patra-typing-composer .patra-typing {
+  background: rgba(19, 17, 25, 0.95);
+  border: 1px solid #2e2940;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .patra-conv-composer-wrap {
