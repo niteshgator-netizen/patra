@@ -281,6 +281,49 @@ module Games
       (?:cashapp|cash\s*app|chime|venmo|paypal|zelle)
     /ix
 
+    STATUS_CHECK_PATTERNS = [
+      /any\s+update/i,
+      /(?:did\s+(?:you|it)\s+)?go\s+through/i,
+      /(?:has\s+it|did\s+it)\s+(?:been\s+)?(?:loaded|processed|gone\s+through)/i,
+      /(?:what'?s?\s+)?(?:the\s+)?status/i,
+      /(?:can\s+you\s+)?check\s+(?:on\s+it|if\s+it|that)/i,
+      /(?:did\s+you|have\s+you)\s+(?:get|got|receive|received)\s+(?:it|my\s+(?:payment|money))/i,
+      /(?:is\s+it|was\s+it)\s+(?:done|loaded|processed|complete)/i,
+      /still\s+waiting/i,
+      /how\s+long\s+(?:does|will|do)/i
+    ].freeze
+
+    COMPLAINT_ANGRY_PATTERNS = [
+      /\b(?:wtf|wth|what\s+the\s+(?:fuck|hell|heck))\b/i,
+      /\b(?:scam|fraud|fake|bullshit|bs)\b/i,
+      /this\s+is\s+(?:ridiculous|unacceptable|a\s+scam)/i,
+      /(?:i'?m\s+)?(?:so\s+)?(?:pissed|angry|mad|furious|frustrated)/i,
+      /(?:you\s+guys?\s+)?(?:stole|robbing|stealing|cheating)\b/i,
+      /(?:worst|terrible|horrible)\s+(?:service|support|experience)/i,
+      /never\s+(?:again|using|coming\s+back)/i
+    ].freeze
+
+    TECH_ISSUE_PATTERNS = [
+      /(?:game|app|it)\s+(?:is\s+)?not\s+(?:working|loading|opening)/i,
+      /(?:can'?t|cannot|cant)\s+(?:open|load|access|get\s+into)\s+(?:the\s+)?(?:game|app)/i,
+      /(?:game|app|server)\s+is\s+(?:down|offline|not\s+available)/i,
+      /(?:stuck|frozen|crashing|crashed)\b/i,
+      /(?:error|issue|problem)\s+(?:with|on)\s+(?:the\s+)?(?:game|app)/i,
+      /(?:having\s+)?(?:trouble|issues?|problems?)\s+(?:logging|getting\s+in)/i
+    ].freeze
+
+    BALANCE_CHECK_PATTERNS = [
+      /how\s+much\s+(?:do\s+i\s+have|is\s+(?:in\s+)?my\s+(?:account|balance))/i,
+      /what'?s?\s+my\s+(?:balance|points?|credits?)/i,
+      /check\s+my\s+(?:balance|points?|credits?|account)/i,
+      /how\s+many\s+(?:points?|credits?)\s+(?:do\s+i\s+have|are\s+left)/i
+    ].freeze
+
+    TRANSFER_PATTERNS = [
+      /(?:transfer|move|switch|port)\s+(?:(?:my\s+)?(?:credits?|points?|balance|money)\s+)?(?:from\s+\w+\s+)?to\s+\w+/i,
+      /(?:move|take)\s+(?:it|them|credits?|points?)\s+(?:from|off)\s+\w+\s+(?:to|onto)\s+\w+/i
+    ].freeze
+
     def detect_sent_without_screenshot?(message_text)
       return false if message_text.blank?
 
@@ -349,6 +392,24 @@ module Games
                       intent: :payment_method_chosen,
                       platform: normalized
                     }
+                  elsif new.detect_sent_without_screenshot?(text)
+                    Rails.logger.info('[IntentDetector] matched payment_sent_confirmation')
+                    { intent: :payment_sent_confirmation }
+                  elsif match_any(text, STATUS_CHECK_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched status_check')
+                    { intent: :status_check }
+                  elsif match_any(text, COMPLAINT_ANGRY_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched complaint_angry')
+                    { intent: :complaint_angry }
+                  elsif match_any(text, TECH_ISSUE_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched tech_issue')
+                    { intent: :tech_issue }
+                  elsif match_any(text, BALANCE_CHECK_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched balance_check')
+                    { intent: :balance_check, game_slug: detect_game(text) }
+                  elsif match_any(text, TRANSFER_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched transfer_between_games')
+                    { intent: :transfer_between_games, game_slug: detect_game(text) }
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
