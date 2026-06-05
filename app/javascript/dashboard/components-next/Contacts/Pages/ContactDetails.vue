@@ -8,6 +8,7 @@ import { useClipboard } from '@vueuse/core';
 import ContactsForm from 'dashboard/components-next/Contacts/ContactsForm/ContactsForm.vue';
 import ConfirmContactDeleteDialog from 'dashboard/components-next/Contacts/ContactsForm/ConfirmContactDeleteDialog.vue';
 import Policy from 'dashboard/components/policy.vue';
+import GameQuickActionsPanel from 'dashboard/components/widgets/GameQuickActionsPanel.vue';
 
 const props = defineProps({
   selectedContact: {
@@ -332,6 +333,16 @@ const gameEmoji = game =>
       >
         {{ t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.UPDATE_BUTTON') }}
       </button>
+    </div>
+
+    <!-- QUICK ACTIONS — game ops panel -->
+    <div class="card">
+      <div class="card-t display">
+        <span class="dot" />
+        {{ t('GAMES.QUICK_ACTIONS.TITLE') }}
+        <span class="ops-hint">{{ t('GAMES.QUICK_ACTIONS.LIVE_HINT') }}</span>
+      </div>
+      <GameQuickActionsPanel />
     </div>
 
     <slot name="tabs" />
