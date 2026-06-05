@@ -11,6 +11,7 @@ const state = {
 
 export const getters = {
   getStats: $state => $state,
+  getAllCount: $state => $state.allCount,
 };
 
 // Create a debounced version of the actual API call function

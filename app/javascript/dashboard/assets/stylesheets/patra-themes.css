@@ -17,7 +17,7 @@
  * format — hex values break the rgb() compose.
  */
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"], .dark {
   /* Patra tokens (used by status pills / VIP badge / online dot below) */
   --patra-bg1: #0f0f13;
   --patra-bg2: #16161d;
@@ -67,64 +67,64 @@
 
 /* Direct element fallbacks — backstop for any surface that still styles via
    legacy class hooks rather than the design-token variables above. */
-:root[data-theme="dark"] body,
-:root[data-theme="dark"] #app,
-:root[data-theme="dark"] .app-wrapper,
-:root[data-theme="dark"] .sidebar,
-:root[data-theme="dark"] .conversations-list-wrap,
-:root[data-theme="dark"] .conversation--details,
-:root[data-theme="dark"] .row {
+:root[data-theme="dark"], .dark body,
+:root[data-theme="dark"], .dark #app,
+:root[data-theme="dark"], .dark .app-wrapper,
+:root[data-theme="dark"], .dark .sidebar,
+:root[data-theme="dark"], .dark .conversations-list-wrap,
+:root[data-theme="dark"], .dark .conversation--details,
+:root[data-theme="dark"], .dark .row {
   background-color: var(--patra-bg1) !important;
   color: var(--patra-text1) !important;
 }
 
 /* Modal surfaces — Chatwoot's modals render into a portal outside the main
    app tree, so the design-token overrides above don't always reach them. */
-:root[data-theme="dark"] .modal-container,
-:root[data-theme="dark"] .modal-body,
-:root[data-theme="dark"] .woot-modal,
-:root[data-theme="dark"] .woot-modal--expand,
-:root[data-theme="dark"] .dialog-contents {
+:root[data-theme="dark"], .dark .modal-container,
+:root[data-theme="dark"], .dark .modal-body,
+:root[data-theme="dark"], .dark .woot-modal,
+:root[data-theme="dark"], .dark .woot-modal--expand,
+:root[data-theme="dark"], .dark .dialog-contents {
   background-color: var(--patra-bg2) !important;
   color: var(--patra-text1) !important;
 }
 
-:root[data-theme="dark"] .modal-container input,
-:root[data-theme="dark"] .modal-container select,
-:root[data-theme="dark"] .modal-container textarea {
+:root[data-theme="dark"], .dark .modal-container input,
+:root[data-theme="dark"], .dark .modal-container select,
+:root[data-theme="dark"], .dark .modal-container textarea {
   background-color: var(--patra-bg3) !important;
   color: var(--patra-text1) !important;
   border-color: var(--patra-border) !important;
 }
 
-:root[data-theme="dark"] label {
+:root[data-theme="dark"], .dark label {
   color: var(--patra-text2) !important;
 }
 
 /* Conversation reply box + private-note mode — Chatwoot ships a beige tone
    for private notes that reads as "light card" even when surrounding chrome
    is dark. Pin both to theme tokens. */
-:root[data-theme="dark"] .private-note {
+:root[data-theme="dark"], .dark .private-note {
   background-color: #2a1f05 !important;
   color: var(--patra-text1) !important;
 }
 
-:root[data-theme="dark"] .reply-box,
-:root[data-theme="dark"] .reply-box-wrap {
+:root[data-theme="dark"], .dark .reply-box,
+:root[data-theme="dark"], .dark .reply-box-wrap {
   background-color: var(--patra-bg2) !important;
 }
 
 /* Profile dropdown surfaces — the "Set your availability / Profile / Log out"
    menu and any other foundation-css dropdown. */
-:root[data-theme="dark"] .dropdown-pane,
-:root[data-theme="dark"] .dropdown-menu,
-:root[data-theme="dark"] .menu-item {
+:root[data-theme="dark"], .dark .dropdown-pane,
+:root[data-theme="dark"], .dark .dropdown-menu,
+:root[data-theme="dark"], .dark .menu-item {
   background-color: var(--patra-bg2) !important;
   color: var(--patra-text1) !important;
   border-color: var(--patra-border) !important;
 }
 
-:root[data-theme="dark"] .menu-item:hover {
+:root[data-theme="dark"], .dark .menu-item:hover {
   background-color: var(--patra-bg3) !important;
 }
 

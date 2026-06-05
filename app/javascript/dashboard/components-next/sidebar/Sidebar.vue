@@ -252,6 +252,7 @@ const menuItems = computed(() => {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
       icon: 'i-lucide-message-circle',
+      getterKeys: { count: 'conversationStats/getAllCount' },
       children: [
         {
           name: 'All',
