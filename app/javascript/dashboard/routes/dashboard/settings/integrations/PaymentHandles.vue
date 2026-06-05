@@ -221,7 +221,7 @@ const IMAP_HOST_HINT =
   'Auto-detected from email. Override only if your provider uses a custom IMAP server.';
 
 const handles = ref([]);
-const isLoading = ref(true);
+const isLoading = ref(false);
 const searchQuery = ref('');
 const showFormModal = ref(false);
 const showDeleteModal = ref(false);
@@ -837,8 +837,7 @@ const loadHandles = async () => {
   try {
     const { data } = await paymentHandlesApi.get();
     handles.value = Array.isArray(data) ? data : [];
-  } catch {
-    useAlert(t('PAYMENT_HANDLES.ERROR_GENERIC'));
+  } catch (e) {
     handles.value = [];
   } finally {
     isLoading.value = false;
@@ -981,7 +980,11 @@ watch(
 );
 
 onMounted(async () => {
-  await store.dispatch('accounts/get', { silent: true });
+  try {
+    await store.dispatch('accounts/get', { silent: true });
+  } catch {
+    // ignore
+  }
   loadScoringConfig();
   loadHandles();
 });
