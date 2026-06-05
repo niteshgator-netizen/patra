@@ -6,7 +6,7 @@ import PatraBackupPagesAPI from 'dashboard/api/patraBackupPages';
 const STATUSES = ['standby', 'warming', 'active', 'banned', 'retired'];
 const PLATFORMS = ['facebook', 'instagram'];
 
-const { showAlert } = useAlert();
+const showAlert = useAlert;
 const pages = ref([]);
 const loading = ref(true);
 const saving = ref(false);

@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { useAlert } from 'dashboard/composables';
 import PatraFacebookIdentitiesAPI from 'dashboard/api/patraFacebookIdentities';
 
-const { showAlert } = useAlert();
+const showAlert = useAlert;
 const identities = ref([]);
 const loading = ref(true);
 const disconnecting = ref(null);
