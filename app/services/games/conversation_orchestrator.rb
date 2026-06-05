@@ -44,8 +44,8 @@ module Games
     # Only intents listed here are eligible for RAG cutover routing.
     RAG_TO_INTENT_MAP = {
       'load_deposit'              => :load,
-      'load_freeplay'             => :load,
-      'load_bonus'                => :load,
+      'load_freeplay'             => :load_freeplay,
+      'load_bonus'                => :load_bonus,
       'cashout_redeem'            => :cashout,
       'reset_password'            => :reset_password,
       'payment_handle_request'    => :payment_method_chosen,
@@ -167,6 +167,10 @@ module Games
       end
 
       case intent[:intent]
+      when :load_freeplay
+        handle_load_freeplay(intent)
+      when :load_bonus
+        handle_load_bonus(intent)
       when :load
         handle_load_intent(intent)
       when :cashout
@@ -217,6 +221,15 @@ module Games
     private
 
     def handle_load_intent(intent)
+      # Sub-route: if RAG or message suggests freeplay/bonus, delegate
+      msg_lower = (latest_customer_text || recent_customer_text).to_s.downcase
+      if msg_lower.match?(/\b(fp|freeplay|free\s*play|free\s*credit)\b/i)
+        return handle_load_freeplay(intent)
+      end
+      if msg_lower.match?(/\b(bonus|promo|promotion|signup\s*bonus|deposit\s*bonus)\b/i)
+        return handle_load_bonus(intent)
+      end
+
       ag = agent_game_for_intent(intent)
       return ag if ag.is_a?(Hash)
       return nil unless ag
@@ -353,6 +366,294 @@ module Games
         {
           reply: honest_failure_reply(result, requested_amount, ag.game.name),
           labels: ['load-failed', 'needs-human']
+        }
+      end
+    end
+
+    def handle_load_freeplay(intent = nil)
+      game_slug = chosen_game_slug(intent || { intent: :load })
+
+      unless game_slug
+        return { reply: 'which game for freeplay?', labels: [] }
+      end
+
+      contact = conversation.contact
+      if contact.player_tier&.blocked?
+        return { reply: "sorry, can't process that right now", labels: [] }
+      end
+
+      begin
+        game = Game.find_by(slug: game_slug)
+        rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] GameRule lookup failed: #{e.message}")
+        rules = nil
+      end
+
+      unless rules&.freeplay_enabled
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Freeplay requested on #{game_slug} but not enabled. Contact: #{contact.name}",
+            conversation: conversation
+          )
+        end
+        return {
+          reply: "freeplay isn't available on #{game_slug} right now",
+          labels: ['cashier-action-needed']
+        }
+      end
+
+      unless rules.freeplay_eligible?(contact)
+        return { reply: "freeplay isn't available for your account tier right now", labels: [] }
+      end
+
+      begin
+        fp_scope = game_actions_for_slug(contact.id, game_slug)
+          .where(action_type: 'load', status: 'success')
+          .where("metadata->>'freeplay' = 'true'")
+
+        today_count = fp_scope.where('game_actions.created_at >= ?', Time.current.beginning_of_day).count
+        week_count = fp_scope.where('game_actions.created_at >= ?', Time.current.beginning_of_week).count
+
+        if today_count >= (rules.freeplay_max_per_day || 1)
+          return { reply: 'you already got your freeplay today! try again tomorrow', labels: [] }
+        end
+
+        if week_count >= (rules.freeplay_max_per_week || 3)
+          return { reply: 'you hit the weekly freeplay limit, resets next week', labels: [] }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Freeplay limit check failed: #{e.message}")
+      end
+
+      if rules.freeplay_require_deposit_first
+        begin
+          has_deposit = game_actions_for_slug(contact.id, game_slug)
+            .where(action_type: 'load', status: 'success')
+            .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+            .exists?
+
+          unless has_deposit
+            return { reply: 'you need at least one deposit before getting freeplay', labels: [] }
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Deposit-first check failed: #{e.message}")
+        end
+      end
+
+      fp_amount = contact.player_tier&.override_for('freeplay_amount') || rules.freeplay_amount || 5.0
+
+      begin
+        username = find_game_username_for_slug(contact, game_slug)
+        unless username
+          return {
+            reply: "I don't have your #{game_slug} account yet — want me to create one?",
+            labels: []
+          }
+        end
+
+        result = execute_game_api(
+          game_slug: game_slug,
+          action: 'recharge',
+          username: username,
+          amount: fp_amount.to_i
+        )
+
+        if result[:success]
+          begin
+            ag = pick_agent_game(game_slug)
+            if ag
+              GameAction.create!(
+                account_id: account.id,
+                agent_game_id: ag.id,
+                contact_id: contact.id,
+                conversation_id: conversation&.id,
+                action_type: 'load',
+                order_id: GameAction.generate_order_id(prefix: 'fp'),
+                game_username: username,
+                amount: fp_amount,
+                status: 'success',
+                metadata: { freeplay: true, source: 'bella_freeplay' },
+                executed_at: Time.current
+              )
+            end
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Freeplay GameAction log failed: #{e.message}")
+          end
+
+          reply_text = rules.format_message(rules.freeplay_message || 'fp loaded ✅', {
+            amount: fp_amount.to_s,
+            game: game_slug
+          })
+          { reply: reply_text, labels: [] }
+        else
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: "Freeplay load FAILED on #{game_slug}. Contact: #{contact.name}. Error: #{result[:error]}",
+              conversation: conversation
+            )
+          end
+          {
+            reply: "couldn't load freeplay right now — let me get someone to help",
+            labels: ['cashier-action-needed']
+          }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Freeplay execution failed: #{e.message}")
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Freeplay error on #{game_slug}: #{e.message}. Contact: #{contact.name}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: 'having trouble loading that — one sec',
+          labels: ['cashier-action-needed']
+        }
+      end
+    end
+
+    def handle_load_bonus(intent = nil)
+      game_slug = chosen_game_slug(intent || { intent: :load })
+
+      unless game_slug
+        return { reply: 'which game?', labels: [] }
+      end
+
+      contact = conversation.contact
+
+      begin
+        game = Game.find_by(slug: game_slug)
+        rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] GameRule lookup failed: #{e.message}")
+        rules = nil
+      end
+
+      unless rules&.deposit_bonus_enabled
+        Rails.logger.info("[Orchestrator] No bonus rules for #{game_slug}, falling back to regular load")
+        return handle_load_intent(intent || { intent: :load, game_slug: game_slug })
+      end
+
+      if rules.deposit_bonus_first_deposit_only
+        begin
+          has_prior_deposit = game_actions_for_slug(contact.id, game_slug)
+            .where(action_type: 'load', status: 'success')
+            .where.not(amount: nil)
+            .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+            .exists?
+
+          if has_prior_deposit
+            Rails.logger.info('[Orchestrator] Bonus is first-deposit-only, contact already deposited — regular load')
+            return handle_load_intent(intent || { intent: :load, game_slug: game_slug })
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] First-deposit check failed: #{e.message}")
+        end
+      end
+
+      unless rules.deposit_bonus_eligible?(contact)
+        Rails.logger.info('[Orchestrator] Contact tier not eligible for bonus — regular load')
+        return handle_load_intent(intent || { intent: :load, game_slug: game_slug })
+      end
+
+      payment = find_unloaded_confirmed_payment
+      unless payment
+        return { reply: "send payment first and I'll load with your bonus!", labels: [] }
+      end
+
+      deposit_amount = payment[:amount].to_f
+
+      if deposit_amount < (rules.deposit_bonus_min_amount || 0)
+        Rails.logger.info("[Orchestrator] Deposit #{deposit_amount} below bonus min #{rules.deposit_bonus_min_amount} — regular load")
+        return handle_load_intent(intent || { intent: :load, game_slug: game_slug, amount: deposit_amount })
+      end
+
+      bonus_amount = rules.calculate_bonus(deposit_amount)
+      total_load = deposit_amount + bonus_amount
+
+      begin
+        username = find_game_username_for_slug(contact, game_slug)
+        unless username
+          return {
+            reply: "I don't have your #{game_slug} account — want me to create one?",
+            labels: []
+          }
+        end
+
+        result = execute_game_api(
+          game_slug: game_slug,
+          action: 'recharge',
+          username: username,
+          amount: total_load.to_i
+        )
+
+        if result[:success]
+          begin
+            ag = pick_agent_game(game_slug)
+            if ag
+              GameAction.create!(
+                account_id: account.id,
+                agent_game_id: ag.id,
+                contact_id: contact.id,
+                conversation_id: conversation&.id,
+                action_type: 'load',
+                order_id: GameAction.generate_order_id(prefix: 'bonus'),
+                game_username: username,
+                amount: total_load,
+                status: 'success',
+                metadata: {
+                  deposit_bonus: true,
+                  deposit_amount: deposit_amount,
+                  bonus_amount: bonus_amount,
+                  payment_id: payment[:id],
+                  source: 'bella_bonus'
+                },
+                executed_at: Time.current
+              )
+            end
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Bonus GameAction log failed: #{e.message}")
+          end
+
+          mark_payment_loaded(payment[:id], game_slug: game_slug, game_username: username)
+
+          reply_text = rules.format_message(rules.deposit_bonus_message || 'Loaded with {bonus_pct}% bonus ✅', {
+            amount: deposit_amount.to_s,
+            bonus_pct: (rules.deposit_bonus_percentage || 20).to_s,
+            bonus_amount: bonus_amount.to_s,
+            total: total_load.to_s,
+            game: game_slug
+          })
+          { reply: reply_text, labels: ['auto-load'] }
+        else
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: "Bonus load FAILED on #{game_slug}. Amount: #{total_load}. Contact: #{contact.name}",
+              conversation: conversation
+            )
+          end
+          {
+            reply: "couldn't load right now — getting help",
+            labels: ['cashier-action-needed']
+          }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Bonus load failed: #{e.message}")
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Bonus load error: #{e.message}. Contact: #{contact.name}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: 'having trouble — one sec',
+          labels: ['cashier-action-needed']
         }
       end
     end
@@ -1361,17 +1662,92 @@ module Games
     end
 
     def handle_payment_sent_confirmation(intent)
-      amount = stored_deposit_amount
-      if amount.to_f > 0
-        reply = "got it! just send me a screenshot of your receipt and i'll get $#{amount} loaded right away 🙌"
-      else
-        reply = "got it! send me a screenshot of your receipt and let me know which game you want loaded"
+      contact = conversation.contact
+
+      begin
+        if defined?(Payments::EmailConfirmationService)
+          Payments::EmailConfirmationService.new(contact: contact).check_all
+          Rails.logger.info("[Orchestrator] IMAP check triggered for #{contact.name}")
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] IMAP trigger failed: #{e.message}")
       end
-      { reply: reply, labels: ['payment-pending'] }
+
+      begin
+        attrs = conversation.additional_attributes || {}
+        attrs['awaiting_imap_confirmation'] = true
+        conversation.update!(additional_attributes: attrs)
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Flag set failed: #{e.message}")
+      end
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: "Payment sent confirmation from #{contact.name} — IMAP check triggered",
+          conversation: conversation
+        )
+      end
+
+      { reply: 'checking now — will load once confirmed!', labels: ['payment-pending'] }
     end
 
     def handle_status_check(intent)
-      { reply: "checking on that for you — one moment!", labels: ['status-check'] }
+      contact = conversation.contact
+      game_slug = chosen_game_slug(intent) || contact.custom_attributes&.dig('preferred_platform')
+      labels = ['status-check']
+
+      begin
+        last_action = GameAction.where(contact_id: contact.id)
+        if game_slug.present?
+          last_action = last_action.joins(agent_game: :game).where(games: { slug: game_slug })
+        end
+        last_action = last_action.order(created_at: :desc).first
+
+        if last_action
+          action_slug = last_action.agent_game&.game&.slug || game_slug
+          case last_action.status
+          when 'success'
+            amt = last_action.amount ? "$#{last_action.amount.to_i}" : ''
+            reply = "your last #{last_action.action_type} #{amt} on #{action_slug} went through ✅"
+          when 'pending'
+            reply = 'still processing — will update you soon!'
+          when 'failed'
+            reply = "there was an issue with your last #{last_action.action_type} — let me look into it"
+            safe_telegram do
+              Games::TelegramNotifier.human_escalation(
+                account: account, contact: contact,
+                reason: "Status check — last action FAILED for #{contact.name} on #{action_slug}",
+                conversation: conversation
+              )
+            end
+            labels << 'cashier-action-needed'
+          else
+            reply = 'checking on that — one moment!'
+            safe_telegram do
+              Games::TelegramNotifier.human_escalation(
+                account: account, contact: contact,
+                reason: "Status check from #{contact.name} — status: #{last_action.status}",
+                conversation: conversation
+              )
+            end
+          end
+        else
+          reply = "can you remind me which game? I'll check for you"
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Status check failed: #{e.message}")
+        reply = 'checking on that — one moment!'
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Status check from #{contact.name} (lookup failed: #{e.message})",
+            conversation: conversation
+          )
+        end
+      end
+
+      { reply: reply, labels: labels.uniq }
     end
 
     def handle_complaint_angry(intent)
@@ -1397,7 +1773,70 @@ module Games
     end
 
     def handle_balance_check(intent)
-      { reply: "let me pull that up — one moment!", labels: ['balance-check-requested'] }
+      contact = conversation.contact
+      game_slug = chosen_game_slug(intent) || contact.custom_attributes&.dig('preferred_platform')
+
+      unless game_slug
+        return { reply: 'which game do you want me to check?', labels: ['balance-check-requested'] }
+      end
+
+      begin
+        username = find_game_username_for_slug(contact, game_slug)
+        unless username
+          return {
+            reply: "I don't have your #{game_slug} account on file — which username?",
+            labels: ['balance-check-requested']
+          }
+        end
+
+        result = execute_game_api(
+          game_slug: game_slug,
+          action: 'agent_balance',
+          username: username
+        )
+
+        if result[:success] && result[:balance]
+          balance = result[:balance]
+          reply = "your #{game_slug} balance is $#{balance}"
+
+          begin
+            game = Game.find_by(slug: game_slug)
+            rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+            if rules && rules.cashout_rules_text.present? && balance.to_f >= (rules.cashout_min_amount || 10)
+              reply += "\ncashout rules: #{rules.cashout_rules_text}"
+            end
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Cashout rules lookup failed: #{e.message}")
+          end
+
+          { reply: reply, labels: ['balance-check-requested'] }
+        else
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: "Balance check failed for #{contact.name} on #{game_slug}: #{result[:error]}",
+              conversation: conversation
+            )
+          end
+          {
+            reply: "couldn't pull your balance right now — let me check manually",
+            labels: %w[cashier-action-needed balance-check-requested]
+          }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Balance check failed: #{e.message}")
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Balance check error for #{contact.name}: #{e.message}",
+            conversation: conversation
+          )
+        end
+        {
+          reply: 'let me pull that up — one sec',
+          labels: %w[cashier-action-needed balance-check-requested]
+        }
+      end
     end
 
     def handle_transfer_between_games(intent)
@@ -1570,6 +2009,47 @@ module Games
       conversation.save!
     rescue StandardError => e
       Rails.logger.warn("[Orchestrator][CashoutGuard] label cleanup failed: #{e.class}: #{e.message}")
+    end
+
+    def find_game_username_for_slug(contact, game_slug)
+      ag = pick_agent_game(game_slug)
+      return nil unless ag
+
+      verified_stored_game_username(ag) || stored_game_username(game_slug)
+    end
+
+    def game_actions_for_slug(contact_id, game_slug)
+      GameAction.joins(agent_game: :game)
+                .where(contact_id: contact_id, games: { slug: game_slug })
+    end
+
+    def execute_game_api(game_slug:, action:, username:, amount: nil)
+      ag = pick_agent_game(game_slug)
+      return { success: false, error: 'game unavailable' } unless ag
+
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+
+      case action.to_s
+      when 'recharge', 'load'
+        result = executor.load_player(
+          game_username: username,
+          amount: amount,
+          metadata: { source: 'bella_orchestrator' }
+        )
+        { success: result[:ok], error: result[:error], balance: nil }
+      when 'agent_balance', 'balance'
+        balance = executor.check_player_balance(game_username: username)
+        if balance.present?
+          { success: true, balance: balance }
+        else
+          { success: false, error: 'balance lookup failed' }
+        end
+      else
+        { success: false, error: "unknown action #{action}" }
+      end
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] execute_game_api failed: #{e.message}")
+      { success: false, error: e.message }
     end
   end
 end
