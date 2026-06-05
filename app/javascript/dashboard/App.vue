@@ -84,8 +84,20 @@ export default {
     this.setLocale(
       this.uiSettings?.locale || window.chatwootConfig.selectedLocale
     );
+    this.patraSpotlightMoveHandler = e => {
+      const spot = document.getElementById('patra-spotlight');
+      if (spot) {
+        spot.style.left = `${e.clientX}px`;
+        spot.style.top = `${e.clientY}px`;
+        spot.style.opacity = '1';
+      }
+    };
+    document.addEventListener('mousemove', this.patraSpotlightMoveHandler);
   },
   unmounted() {
+    if (this.patraSpotlightMoveHandler) {
+      document.removeEventListener('mousemove', this.patraSpotlightMoveHandler);
+    }
     if (this.reconnectService) {
       this.reconnectService.disconnect();
     }
@@ -151,6 +163,7 @@ export default {
     </router-view>
     <WootSnackbarBox />
     <NetworkNotification />
+    <div id="patra-spotlight" aria-hidden="true" />
   </div>
   <LoadingState v-else />
 </template>
