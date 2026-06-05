@@ -27,6 +27,7 @@ import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
 import captain from './captain/captain.routes';
 import metaApp from './metaApp/metaApp.routes';
+import businessRules from './businessRules/businessRules.routes';
 
 export default {
   routes: [
@@ -69,5 +70,6 @@ export default {
     ...conversationWorkflow.routes,
     ...captain.routes,
     ...metaApp.routes,
+    ...businessRules.routes,
   ],
 };
