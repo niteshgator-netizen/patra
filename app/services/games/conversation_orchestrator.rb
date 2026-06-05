@@ -40,6 +40,27 @@ module Games
     FORBIDDEN_AUTO_INTENTS = %w[cashout redeem withdraw refund comp_credit credit_back topup_agent].freeze
     OWNER_ONLY_AUTO_INTENTS = %w[refund comp_credit credit_back topup_agent].freeze
 
+    # Maps RAG real_intent labels → orchestrator intent symbols.
+    # Only intents listed here are eligible for RAG cutover routing.
+    RAG_TO_INTENT_MAP = {
+      'load_deposit'              => :load,
+      'load_freeplay'             => :load,
+      'load_bonus'                => :load,
+      'cashout_redeem'            => :cashout,
+      'reset_password'            => :reset_password,
+      'payment_handle_request'    => :payment_method_chosen,
+      'status_check'              => :status_check,
+      'complaint_angry'           => :complaint_angry,
+      'tech_issue'                => :tech_issue,
+      'balance_check'             => :balance_check,
+      'transfer_between_games'    => :transfer_between_games,
+      'payment_sent_confirmation' => :payment_sent_confirmation,
+      'whats_hitting'             => :whats_hitting,
+      'referral'                  => :referral,
+      'new_account_reissue'       => :new_account_reissue,
+      'redeem_partial_replay'     => :redeem_partial_replay
+    }.freeze
+
     def initialize(account:, contact:, conversation:, messages:)
       @account = account
       @contact = contact
@@ -106,7 +127,19 @@ module Games
         Rails.logger.warn("[Orchestrator][RAG-SHADOW] error: #{_rag_err.message}")
       end
 
-      return nil if intent.nil?
+      if intent.nil?
+        if _rag && _rag[:confidence].to_f >= 0.60
+          mapped = RAG_TO_INTENT_MAP[_rag[:intent].to_s]
+          if mapped
+            intent = { intent: mapped }
+            Rails.logger.info("[Orchestrator][RAG-CUTOVER] regex=nil routed to #{mapped} conf=#{_rag[:confidence]}")
+          else
+            return nil
+          end
+        else
+          return nil
+        end
+      end
 
       # Override game_slug with whatever is in the LATEST message — customer may have switched games
       latest_game = Games::IntentDetector.detect_game(latest_text)
