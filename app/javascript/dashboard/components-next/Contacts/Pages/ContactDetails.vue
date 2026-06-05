@@ -78,9 +78,9 @@ const gameCredentials = computed(() => {
   const attrs = props.selectedContact?.customAttributes || {};
   const creds = [];
   Object.entries(attrs).forEach(([key, value]) => {
-    if (!key.endsWith('_username') || !value) return;
-    const game = key.replace(/_username$/, '');
-    const password = attrs[`${game}_password`];
+    if (!key.startsWith('game_username_') || !value) return;
+    const game = key.replace(/^game_username_/, '');
+    const password = attrs[`game_password_${game}`];
     if (password) creds.push({ game, username: value, password });
   });
   return creds;

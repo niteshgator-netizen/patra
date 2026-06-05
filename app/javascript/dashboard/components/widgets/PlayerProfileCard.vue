@@ -411,9 +411,9 @@ const isBlacklisted = computed(
 const gameCredentials = computed(() => {
   const creds = [];
   Object.entries(attrs.value).forEach(([key, value]) => {
-    if (!key.endsWith('_username') || !value) return;
-    const game = key.replace(/_username$/, '');
-    const password = attrs.value[`${game}_password`];
+    if (!key.startsWith('game_username_') || !value) return;
+    const game = key.replace(/^game_username_/, '');
+    const password = attrs.value[`game_password_${game}`];
     if (password) creds.push({ game, username: value, password });
   });
   return creds;

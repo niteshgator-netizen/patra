@@ -8,7 +8,7 @@ import { useAlert } from 'dashboard/composables';
 const { t } = useI18n();
 const { currentAccount } = useAccount();
 
-const getAccountId = computed(() => currentAccount.value.id.toString());
+const getAccountId = computed(() => currentAccount.value?.id?.toString() ?? '');
 
 const copyAccountId = () => {
   copyTextToClipboard(getAccountId.value);
