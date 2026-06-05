@@ -818,3 +818,178 @@
   mix-blend-mode: screen;
   filter: blur(12px);
 }
+
+/* ============================================
+   PATRA DESIGN SYSTEM — PART 2
+   Dashboard, Charts, Tags, Global Polish
+   ============================================ */
+
+/* --- 16. DASHBOARD CARDS — CURSOR GLOW + HOVER LIFT --- */
+.dark .report-card,
+.dark .overview-card,
+.dark .metric-card,
+.dark [class*="card"] {
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s, border-color .25s;
+  position: relative;
+  isolation: isolate;
+}
+.dark .report-card:hover,
+.dark .overview-card:hover,
+.dark .metric-card:hover {
+  transform: translateY(-4px) scale(1.008);
+  box-shadow: 0 18px 40px -14px rgba(0,0,0,.55), 0 0 26px rgba(110,86,207,.18);
+  border-color: var(--patra-purple) !important;
+}
+
+/* --- 17. HEATMAP CELLS --- */
+.dark .heatmap-cell:hover,
+.dark [class*="heatmap"] [class*="cell"]:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 10px var(--patra-glow);
+  z-index: 2;
+  border: 1px solid var(--patra-purple-2);
+}
+
+/* --- 18. BAR CHART ANIMATION --- */
+.dark .bar-chart .bar,
+.dark [class*="chart"] [class*="bar"] {
+  animation: barGrow .9s cubic-bezier(.23,1,.32,1) backwards;
+  transition: all .4s cubic-bezier(.34,1.56,.64,1);
+}
+.dark .bar-chart .bar:hover,
+.dark [class*="chart"] [class*="bar"]:hover {
+  filter: brightness(1.2);
+  box-shadow: 0 0 24px var(--patra-glow);
+}
+
+/* --- 19. DONUT CHART ANIMATION --- */
+.dark .donut-chart circle[stroke-dasharray],
+.dark [class*="donut"] circle {
+  animation: donutGrow 1.4s cubic-bezier(.23,1,.32,1);
+}
+
+/* --- 20. GAME CHIPS --- */
+.dark .game-card:hover,
+.dark [class*="game"][class*="chip"]:hover,
+.dark [class*="game"][class*="card"]:hover {
+  border-color: var(--patra-purple) !important;
+  transform: translateX(3px);
+  box-shadow: -3px 0 0 var(--patra-purple);
+}
+
+/* --- 22. SURFACE COLORS ENFORCEMENT --- */
+.dark .app-content,
+.dark .main-content {
+  background: var(--patra-canvas) !important;
+}
+.dark .sidebar-panel,
+.dark .contact-panel,
+.dark .conversation-sidebar {
+  background: var(--patra-surface) !important;
+  border-color: var(--patra-border) !important;
+}
+
+/* --- 23. TAG STYLING --- */
+.dark .label.label--tag[data-key="vip"],
+.dark .conversation--label .label:has-text("vip") {
+  background: rgba(227,160,8,.16) !important;
+  color: var(--patra-amber) !important;
+}
+.dark .label.label--tag[data-key*="ai"],
+.dark .pat-ai-tag {
+  background: rgba(110,86,207,.18) !important;
+  color: var(--patra-purple-3) !important;
+}
+.dark .label.label--tag[data-key*="sla"] {
+  background: rgba(248,81,73,.16) !important;
+  color: var(--patra-red) !important;
+}
+.dark .label.label--tag[data-key*="cashout"] {
+  background: rgba(88,166,255,.16) !important;
+  color: var(--patra-blue) !important;
+}
+
+/* --- 24. KPI CARD NUMBER STYLING --- */
+.dark .report-card .heading,
+.dark .metric-card .metric-value,
+.dark .kpi-value {
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+
+/* --- 25. STAGGERED CARD ENTRANCE --- */
+.dark .report-card:nth-child(1) { animation-delay: 0s; }
+.dark .report-card:nth-child(2) { animation-delay: 0.04s; }
+.dark .report-card:nth-child(3) { animation-delay: 0.08s; }
+.dark .report-card:nth-child(4) { animation-delay: 0.12s; }
+.dark .report-card:nth-child(5) { animation-delay: 0.16s; }
+.dark .report-card:nth-child(6) { animation-delay: 0.20s; }
+.dark .report-card {
+  animation: mIn .5s cubic-bezier(.23,1,.32,1) backwards;
+}
+@keyframes mIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 26. AGENT ROW HOVER --- */
+.dark .agent-list-item:hover,
+.dark [class*="agent"][class*="row"]:hover {
+  background: var(--patra-surface-2);
+  transform: translateX(3px);
+  padding-left: 8px;
+  border-radius: 8px;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+}
+
+/* --- 27. BORDER RADIUS ENFORCEMENT --- */
+.dark .card,
+.dark .report-card,
+.dark .overview-card {
+  border-radius: 16px !important;
+}
+.dark input,
+.dark .input,
+.dark select {
+  border-radius: 11px !important;
+}
+.dark .button,
+.dark button.nice {
+  border-radius: 10px !important;
+}
+
+/* --- 28. BOX SHADOW ENFORCEMENT --- */
+.dark .card:hover,
+.dark .report-card:hover {
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,.5), 0 0 26px rgba(110,86,207,.22) !important;
+}
+
+/* --- 29. TRANSITION TIMING --- */
+.dark * {
+  transition-timing-function: cubic-bezier(.23,1,.32,1);
+}
+
+/* --- 30. AVATAR ONLINE DOT --- */
+.dark .current-user--avatar .online-dot,
+.dark .avatar-component .user-online-status {
+  background: var(--patra-green) !important;
+  box-shadow: 0 0 6px var(--patra-green);
+  animation: pip 2s infinite;
+}
+@keyframes pip {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.8); }
+}
+
+/* --- BRIGHTNESS DIMMER (spec item 25) --- */
+#patra-dimmer {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 65;
+  transition: opacity .25s;
+}
