@@ -147,6 +147,18 @@ module Games
         handle_payment_method_chosen(intent)
       when :reset_password
         handle_reset_password_intent(intent)
+      when :payment_sent_confirmation
+        handle_payment_sent_confirmation(intent)
+      when :status_check
+        handle_status_check(intent)
+      when :complaint_angry
+        handle_complaint_angry(intent)
+      when :tech_issue
+        handle_tech_issue(intent)
+      when :balance_check
+        handle_balance_check(intent)
+      when :transfer_between_games
+        handle_transfer_between_games(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -1302,6 +1314,57 @@ module Games
           labels: ['reset-failed', 'needs-human']
         }
       end
+    end
+
+    def handle_payment_sent_confirmation(intent)
+      amount = stored_deposit_amount
+      if amount.to_f > 0
+        reply = "got it! just send me a screenshot of your receipt and i'll get $#{amount} loaded right away 🙌"
+      else
+        reply = "got it! send me a screenshot of your receipt and let me know which game you want loaded"
+      end
+      { reply: reply, labels: ['payment-pending'] }
+    end
+
+    def handle_status_check(intent)
+      { reply: "checking on that for you — one moment!", labels: ['status-check'] }
+    end
+
+    def handle_complaint_angry(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Customer complaint — needs immediate human response'
+        )
+      end
+      { reply: "i'm really sorry about that — getting someone from my team on this right now", labels: ['needs-human'] }
+    end
+
+    def handle_tech_issue(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Technical issue reported — game or app not working'
+        )
+      end
+      { reply: "sorry about that! flagging for our team to help you sort it out", labels: ['needs-human'] }
+    end
+
+    def handle_balance_check(intent)
+      { reply: "let me pull that up — one moment!", labels: ['balance-check-requested'] }
+    end
+
+    def handle_transfer_between_games(intent)
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: contact,
+          reason: 'Transfer between games requested — needs cashier'
+        )
+      end
+      { reply: "transfers between games need manual processing — getting a cashier to help you now!", labels: ['cashier-action-needed', 'needs-human'] }
     end
 
     # Bug 7 fix: payment_request_reply now mirrors handle_payment_method_chosen
