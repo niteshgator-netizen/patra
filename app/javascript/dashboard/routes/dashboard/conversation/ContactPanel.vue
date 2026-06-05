@@ -28,6 +28,7 @@ import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/Lin
 import PlayerProfileCard from 'dashboard/components/widgets/PlayerProfileCard.vue';
 import GameQuickActionsPanel from 'dashboard/components/widgets/GameQuickActionsPanel.vue';
 import PatraAiHandoffCard from 'dashboard/components/widgets/PatraAiHandoffCard.vue';
+import SuggestedReplyCard from 'dashboard/components/widgets/SuggestedReplyCard.vue';
 
 const props = defineProps({
   conversationId: {
@@ -234,6 +235,7 @@ onMounted(() => {
             </div>
             <div v-else-if="element.name === 'player_profile'">
               <PatraAiHandoffCard :conversation-id="conversationId" />
+              <SuggestedReplyCard :conversation-id="conversationId" />
               <PlayerProfileCard
                 :contact="contact"
                 :conversation-id="conversationId"

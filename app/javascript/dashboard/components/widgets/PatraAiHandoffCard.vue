@@ -28,20 +28,28 @@ const intentLabel = computed(() => {
   return null;
 });
 
-const show = computed(() => aiOff.value || !!intentLabel.value);
+const show = computed(() => true);
 </script>
 
 <template>
-  <div v-if="show" class="ai-handoff-card">
+  <div class="ai-handoff-card">
     <div class="ai-hc-header">
       <span class="ai-dot" :class="aiOff ? 'dot-off' : 'dot-on'" />
       <span class="ai-hc-title">
-        {{ aiOff ? 'Human — AI Paused' : 'Patra AI — Active' }}
+        {{ aiOff ? 'Handed to you by Patra AI' : 'Patra AI — Active' }}
       </span>
     </div>
+    <div v-if="attrs.last_intent_confidence" class="ai-hc-intent">
+      <span class="ai-hc-label">Confidence</span>
+      <span class="ai-hc-value">{{ Math.round(attrs.last_intent_confidence * 100) }}%</span>
+    </div>
     <div v-if="intentLabel" class="ai-hc-intent">
-      <span class="ai-hc-label">Last intent</span>
+      <span class="ai-hc-label">Intent</span>
       <span class="ai-hc-value">{{ intentLabel }}</span>
+    </div>
+    <div v-if="attrs.last_intent_reason" class="ai-hc-intent">
+      <span class="ai-hc-label">Reason</span>
+      <span class="ai-hc-value">{{ attrs.last_intent_reason }}</span>
     </div>
     <div v-if="attrs.awaiting_load_amount" class="ai-hc-intent">
       <span class="ai-hc-label">Awaiting amount</span>
