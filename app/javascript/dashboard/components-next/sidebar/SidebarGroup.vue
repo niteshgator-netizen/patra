@@ -9,6 +9,7 @@ import SidebarGroupLeaf from './SidebarGroupLeaf.vue';
 import SidebarSubGroup from './SidebarSubGroup.vue';
 import SidebarGroupEmptyLeaf from './SidebarGroupEmptyLeaf.vue';
 import SidebarCollapsedPopover from './SidebarCollapsedPopover.vue';
+import { useMapGetter } from 'dashboard/composables/store.js';
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -31,6 +32,8 @@ const {
   isCollapsed,
   isResizing,
 } = useSidebarContext();
+
+const railCount = useMapGetter(props.getterKeys?.count);
 
 const {
   activePopover,
@@ -246,6 +249,10 @@ watch(
           @click="hasChildren ? handleCollapsedClick() : undefined"
         >
           <Icon v-if="icon" :icon="icon" class="size-4" />
+          <span
+            v-if="railCount"
+            class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-patra text-white text-[10px] font-semibold flex items-center justify-center leading-none"
+          >{{ railCount > 99 ? '99+' : railCount }}</span>
         </component>
         <SidebarCollapsedPopover
           v-if="hasChildren && isPopoverOpen"
