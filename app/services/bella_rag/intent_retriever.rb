@@ -62,5 +62,36 @@ module BellaRag
       Rails.logger.warn("[BellaRag::IntentRetriever] #{e.class}: #{e.message}")
       nil
     end
+
+    # Returns top-K similar RAG pairs as an array of hashes.
+    # Used by orchestrator handlers (complaint, tech_issue) for style examples.
+    # Different from .predict which returns a single intent label.
+    def self.retrieve(text:, account_id:, top_k: 3, threshold: 0.30)
+      return [] if text.to_s.strip.empty?
+
+      begin
+        query_vec = Bella::VoyageEmbedder.embed_one(text, input_type: 'query')
+        return [] if query_vec.blank?
+
+        scope = BellaRagPair.for_scope(account_id: account_id)
+                            .where.not(real_intent: nil)
+
+        results = scope.nearest_neighbors(:embedding, query_vec, distance: :cosine)
+                       .limit(top_k)
+                       .to_a
+
+        results.select { |r| (1 - r.neighbor_distance) >= threshold }.map do |r|
+          {
+            customer_text: r.customer_text,
+            cashier_text: r.cashier_text,
+            real_intent: r.real_intent,
+            confidence: (1 - r.neighbor_distance).round(4)
+          }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[IntentRetriever.retrieve] #{e.class}: #{e.message}")
+        []
+      end
+    end
   end
 end

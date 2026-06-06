@@ -171,40 +171,7 @@ class Ai::ReplyService
     - If training examples show creating accounts, you create accounts
     - Never contradict what the training data shows
 
-    DEPOSIT BONUS RULES:
-    - Deposits under $5: No bonus
-    - Deposits $5 and over: 20% to 40% bonus
-      * Regular players: 20-30% bonus
-      * Loyal/active players who keep playing: up to 30-40% bonus
-      * If a player only plays at 30% bonus and wont play for less,
-        and they are a good player, we can give 30%
-      * Use judgment based on customer history
-
-    CASHOUT/REDEEM RULES:
-    For deposits over $5:
-      - Minimum cashout: 4x the deposit amount
-      - Maximum cashout: 10x the deposit amount
-
-    For deposits under $5:
-      - Minimum cashout: 4x the deposit amount
-      - Maximum cashout: 5x the deposit amount
-
-    For referral bonus:
-      - Minimum: 4x the referral amount
-      - Maximum: 5x the referral amount
-
-    For $2 or $3 Freeplay:
-      - Hit 50+ points: get $10 in-game credit
-      - Hit 60+ points: get $10 cashout to Cash App/Chime/Venmo etc.
-
-    REFERRAL BONUS PROGRAM:
-    - Earn up to 100% referral bonus
-    - How it works: Refer a friend -> they message us confirming who referred them
-      -> they make 2 deposits using their own payment method
-      -> referrer earns 100% of the 2nd deposit amount
-    - Example: Friend deposits $100 twice = $100 bonus for referrer
-    - Requirements: FB account 1.5+ years old, payment method matches ID,
-      no self-referrals or fake accounts
+    <<<GAME_RULES_SECTION>>>
 
     ESCALATION RULES - VERY IMPORTANT:
     If a customer asks about something you are NOT 100% sure about,
@@ -1953,7 +1920,9 @@ class Ai::ReplyService
         'Let me check on that for you, one moment!' to escalate to human
     SECTION
 
-    prompt = SYSTEM_PROMPT.sub('<<<PAYMENT_INFO_SECTION>>>', section)
+    prompt = SYSTEM_PROMPT
+             .sub('<<<PAYMENT_INFO_SECTION>>>', section)
+             .sub('<<<GAME_RULES_SECTION>>>', dynamic_game_rules_prompt)
 
     unless persona_info.to_s.strip.empty?
       persona_section = <<~PERSONA.strip
@@ -2533,6 +2502,32 @@ class Ai::ReplyService
     Rails.logger.warn("[ReplyService] record_payment_handle_success #{e.class}: #{e.message}")
   end
 
+  # Build dynamic rules from game_rules DB
+  def dynamic_game_rules_prompt
+    begin
+      rules = GameRule.where(account_id: account_id).includes(:game)
+      return '' if rules.empty?
+
+      lines = ["\nGAME RULES (from Settings — follow these, not any older rules):"]
+      rules.each do |r|
+        game_name = r.game&.name || r.game&.slug || 'Unknown'
+        parts = ["#{game_name}:"]
+        parts << "Bonus: #{r.deposit_bonus_percentage}%" if r.deposit_bonus_enabled
+        parts << "Min deposit for bonus: $#{r.deposit_bonus_min_amount}" if r.deposit_bonus_enabled
+        parts << "Cashout: #{r.cashout_min_multiplier}x-#{r.cashout_max_multiplier}x, max $#{r.cashout_max_amount}" if r.cashout_enabled
+        parts << "Freeplay: $#{r.freeplay_amount}/day" if r.freeplay_enabled
+        if r.cashout_rules_text.present?
+          parts << "Rules: #{r.cashout_rules_text}"
+        end
+        lines << "  " + parts.join(" | ")
+      end
+      lines.join("\n")
+    rescue StandardError => e
+      Rails.logger.error("[ReplyService] dynamic_game_rules_prompt failed: #{e.message}")
+      ''
+    end
+  end
+
   def fetch_rag_examples(customer_text, account_id, intent_label = nil)
     begin
       pref = ReplyPreference.for_account(account_id)
@@ -2633,6 +2628,9 @@ class Ai::ReplyService
   # Always fails CLOSED — never blocks a reply.
   # ─────────────────────────────────────────────────────────
   def retrieve_rag_examples_block(latest_customer_text)
+    # Disabled — replaced by fetch_rag_examples + build_rag_enhanced_prompt (ReplyPreference-based)
+    return ''
+
     unless ENV['BELLA_RAG_ENABLED'].to_s == 'true'
       Rails.logger.info('[RAG] skipped — BELLA_RAG_ENABLED is not true')
       return ''
