@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import PatraDashboardAPI from 'dashboard/api/patraDashboard';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -174,6 +174,16 @@ onMounted(async () => {
   await loadStats(true);
   rootRef.value?.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseleave', onMouseLeave);
+
+  nextTick(() => {
+    document.querySelectorAll('.pat-stat-card').forEach(card => {
+      card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--gx', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--gy', `${e.clientY - rect.top}px`);
+      });
+    });
+  });
 });
 
 onUnmounted(() => {

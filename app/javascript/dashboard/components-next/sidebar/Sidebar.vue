@@ -1032,8 +1032,12 @@ const menuItems = computed(() => {
     min-width: 66px !important;
     max-width: 66px !important;
     flex: 0 0 66px !important;
-    background: linear-gradient(180deg, #0c0b12, #050409) !important;
-    border-color: #171520 !important;
+    background: linear-gradient(
+      180deg,
+      var(--patra-surface, #0c0b12),
+      var(--patra-canvas, #050409)
+    ) !important;
+    border-color: var(--patra-border, #171520) !important;
     padding: 14px 0 !important;
     gap: 8px !important;
     align-items: center !important;
@@ -1172,7 +1176,7 @@ const menuItems = computed(() => {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    color: #54515e !important;
+    color: var(--patra-text-3, #54515e) !important;
     background: transparent !important;
     box-shadow: none !important;
     position: relative !important;
@@ -1195,8 +1199,8 @@ const menuItems = computed(() => {
   .patra-nav-rail nav li > button:hover,
   .patra-nav-rail nav .pat-rail-item:hover,
   .patra-nav-rail nav .snav-item:hover {
-    color: #ededf2 !important;
-    background: #131119 !important;
+    color: var(--patra-text, #ededf2) !important;
+    background: var(--patra-surface-2, #131119) !important;
     transform: translateY(-2px) !important;
   }
 
@@ -1238,9 +1242,9 @@ const menuItems = computed(() => {
     left: calc(100% + 12px);
     top: 50%;
     transform: translateY(-50%);
-    background: #131119;
-    border: 1px solid #2e2940;
-    color: #ededf2;
+    background: var(--patra-surface-2, #131119);
+    border: 1px solid var(--patra-border-hi, #2e2940);
+    color: var(--patra-text, #ededf2);
     font-size: 12px;
     font-weight: 500;
     padding: 5px 10px;
