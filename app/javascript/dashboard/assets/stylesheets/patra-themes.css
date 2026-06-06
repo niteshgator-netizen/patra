@@ -19,112 +19,134 @@
 
 :root[data-theme="dark"], .dark {
   /* Patra tokens (used by status pills / VIP badge / online dot below) */
-  --patra-bg1: #0f0f13;
-  --patra-bg2: #16161d;
-  --patra-bg3: #1e1e28;
-  --patra-text1: #f0f0f5;
-  --patra-text2: #a0a0b8;
-  --patra-text3: #606078;
-  --patra-accent: #7c6ff7;
-  --patra-accent-soft: #2a2550;
-  --patra-green: #22c55e;
-  --patra-green-soft: #0f2a1a;
-  --patra-red: #ef4444;
-  --patra-red-soft: #2a1010;
-  --patra-amber: #f59e0b;
-  --patra-amber-soft: #2a1f05;
-  --patra-border: rgba(255, 255, 255, 0.07);
+  --patra-bg1: #050409;
+  --patra-bg2: #0C0B12;
+  --patra-bg3: #131119;
+  --patra-text1: #EDEDF2;
+  --patra-text2: #A8A6B6;
+  --patra-text3: #75727F;
+  --patra-accent: #6E56CF;
+  --patra-accent-soft: rgba(110,86,207,0.16);
+  --patra-green: #3FB950;
+  --patra-green-soft: rgba(63,185,80,0.14);
+  --patra-red: #F85149;
+  --patra-red-soft: rgba(248,81,73,0.14);
+  --patra-amber: #E3A008;
+  --patra-amber-soft: rgba(227,160,8,0.14);
+  --patra-border: rgba(255, 255, 255, 0.05);
 
-  /* Chatwoot semantic tokens — RGB triplets, no commas */
-  --background-color: 15 15 19 !important;
-  --surface-1: 22 22 29 !important;
-  --surface-2: 30 30 40 !important;
-  --surface-active: 42 37 80 !important;
-  --card-color: 22 22 29 !important;
-  --button-color: 30 30 40 !important;
-  --solid-1: 22 22 29 !important;
-  --solid-2: 30 30 40 !important;
-  --solid-3: 42 42 56 !important;
-  --solid-active: 42 37 80 !important;
-  --border-weak: 30 30 40 !important;
-  --border-strong: 50 50 64 !important;
-  --label-background: 30 30 40 !important;
+  /* Chatwoot semantic tokens — RGB triplets mapped to Patra spec */
+  --background-color: 5 4 9 !important;
+  --surface-1: 12 11 18 !important;
+  --surface-2: 19 17 25 !important;
+  --surface-active: 37 34 51 !important;
+  --card-color: 12 11 18 !important;
+  --button-color: 19 17 25 !important;
+  --solid-1: 12 11 18 !important;
+  --solid-2: 19 17 25 !important;
+  --solid-3: 27 25 37 !important;
+  --solid-active: 37 34 51 !important;
+  --border-weak: 23 21 32 !important;
+  --border-strong: 46 41 64 !important;
+  --label-background: 27 25 37 !important;
 
-  /* Slate scale remap — slate-12 is primary text; slate-1..3 back panel bgs. */
-  --slate-1: 15 15 19 !important;
-  --slate-2: 22 22 29 !important;
-  --slate-3: 30 30 40 !important;
-  --slate-4: 36 36 50 !important;
-  --slate-5: 42 42 56 !important;
-  --slate-6: 50 50 64 !important;
-  --slate-9: 96 96 120 !important;
-  --slate-10: 128 128 152 !important;
-  --slate-11: 160 160 184 !important;
-  --slate-12: 240 240 245 !important;
+  /* Slate scale — mapped to Patra spec surface/text tiers */
+  --slate-1: 5 4 9 !important;
+  --slate-2: 12 11 18 !important;
+  --slate-3: 19 17 25 !important;
+  --slate-4: 27 25 37 !important;
+  --slate-5: 37 34 51 !important;
+  --slate-6: 46 41 64 !important;
+  --slate-7: 59 55 79 !important;
+  --slate-8: 84 81 94 !important;
+  --slate-9: 117 114 127 !important;
+  --slate-10: 134 132 154 !important;
+  --slate-11: 168 166 182 !important;
+  --slate-12: 237 237 242 !important;
+
+  /* Violet = Patra purple */
+  --violet-1: 5 4 9 !important;
+  --violet-2: 12 11 18 !important;
+  --violet-3: 27 22 51 !important;
+  --violet-4: 37 30 68 !important;
+  --violet-5: 48 40 85 !important;
+  --violet-6: 61 50 105 !important;
+  --violet-7: 80 66 140 !important;
+  --violet-8: 100 80 171 !important;
+  --violet-9: 110 86 207 !important;
+  --violet-10: 125 100 217 !important;
+  --violet-11: 167 139 250 !important;
+  --violet-12: 226 221 254 !important;
+
+  /* Iris = match violet (Chatwoot uses iris for accent) */
+  --iris-9: 110 86 207 !important;
+  --iris-10: 100 80 196 !important;
+  --iris-11: 167 139 250 !important;
+  --iris-12: 226 221 254 !important;
 
   color-scheme: dark;
 }
 
 /* Direct element fallbacks — backstop for any surface that still styles via
    legacy class hooks rather than the design-token variables above. */
-:root[data-theme="dark"], .dark body,
-:root[data-theme="dark"], .dark #app,
-:root[data-theme="dark"], .dark .app-wrapper,
-:root[data-theme="dark"], .dark .sidebar,
-:root[data-theme="dark"], .dark .conversations-list-wrap,
-:root[data-theme="dark"], .dark .conversation--details,
-:root[data-theme="dark"], .dark .row {
+:root[data-theme="dark"] body, .dark body,
+:root[data-theme="dark"] #app, .dark #app,
+:root[data-theme="dark"] .app-wrapper, .dark .app-wrapper,
+:root[data-theme="dark"] .sidebar, .dark .sidebar,
+:root[data-theme="dark"] .conversations-list-wrap, .dark .conversations-list-wrap,
+:root[data-theme="dark"] .conversation--details, .dark .conversation--details,
+:root[data-theme="dark"] .row, .dark .row {
   background-color: var(--patra-bg1) !important;
   color: var(--patra-text1) !important;
 }
 
 /* Modal surfaces — Chatwoot's modals render into a portal outside the main
    app tree, so the design-token overrides above don't always reach them. */
-:root[data-theme="dark"], .dark .modal-container,
-:root[data-theme="dark"], .dark .modal-body,
-:root[data-theme="dark"], .dark .woot-modal,
-:root[data-theme="dark"], .dark .woot-modal--expand,
-:root[data-theme="dark"], .dark .dialog-contents {
+:root[data-theme="dark"] .modal-container, .dark .modal-container,
+:root[data-theme="dark"] .modal-body, .dark .modal-body,
+:root[data-theme="dark"] .woot-modal, .dark .woot-modal,
+:root[data-theme="dark"] .woot-modal--expand, .dark .woot-modal--expand,
+:root[data-theme="dark"] .dialog-contents, .dark .dialog-contents {
   background-color: var(--patra-bg2) !important;
   color: var(--patra-text1) !important;
 }
 
-:root[data-theme="dark"], .dark .modal-container input,
-:root[data-theme="dark"], .dark .modal-container select,
-:root[data-theme="dark"], .dark .modal-container textarea {
+:root[data-theme="dark"] .modal-container input, .dark .modal-container input,
+:root[data-theme="dark"] .modal-container select, .dark .modal-container select,
+:root[data-theme="dark"] .modal-container textarea, .dark .modal-container textarea {
   background-color: var(--patra-bg3) !important;
   color: var(--patra-text1) !important;
   border-color: var(--patra-border) !important;
 }
 
-:root[data-theme="dark"], .dark label {
+:root[data-theme="dark"] label, .dark label {
   color: var(--patra-text2) !important;
 }
 
 /* Conversation reply box + private-note mode — Chatwoot ships a beige tone
    for private notes that reads as "light card" even when surrounding chrome
    is dark. Pin both to theme tokens. */
-:root[data-theme="dark"], .dark .private-note {
+:root[data-theme="dark"] .private-note, .dark .private-note {
   background-color: #2a1f05 !important;
   color: var(--patra-text1) !important;
 }
 
-:root[data-theme="dark"], .dark .reply-box,
-:root[data-theme="dark"], .dark .reply-box-wrap {
+:root[data-theme="dark"] .reply-box, .dark .reply-box,
+:root[data-theme="dark"] .reply-box-wrap, .dark .reply-box-wrap {
   background-color: var(--patra-bg2) !important;
 }
 
 /* Profile dropdown surfaces — the "Set your availability / Profile / Log out"
    menu and any other foundation-css dropdown. */
-:root[data-theme="dark"], .dark .dropdown-pane,
-:root[data-theme="dark"], .dark .dropdown-menu,
-:root[data-theme="dark"], .dark .menu-item {
+:root[data-theme="dark"] .dropdown-pane, .dark .dropdown-pane,
+:root[data-theme="dark"] .dropdown-menu, .dark .dropdown-menu,
+:root[data-theme="dark"] .menu-item, .dark .menu-item {
   background-color: var(--patra-bg2) !important;
   color: var(--patra-text1) !important;
   border-color: var(--patra-border) !important;
 }
 
-:root[data-theme="dark"], .dark .menu-item:hover {
+:root[data-theme="dark"] .menu-item:hover, .dark .menu-item:hover {
   background-color: var(--patra-bg3) !important;
 }
 
@@ -279,7 +301,7 @@
     transparent 66%
   );
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
   transform: translate(-50%, -50%);
   opacity: 0;
   transition: opacity 0.5s;
@@ -804,7 +826,7 @@
 .dark #patra-spotlight {
   position: fixed; width: 460px; height: 460px; border-radius: 50%;
   background: radial-gradient(circle, rgba(110,86,207,.16), rgba(110,86,207,.04) 42%, transparent 66%);
-  pointer-events: none; z-index: 0; transform: translate(-50%,-50%);
+  pointer-events: none; z-index: 1; transform: translate(-50%,-50%);
   opacity: 0; transition: opacity .5s; mix-blend-mode: screen; filter: blur(12px);
 }
 
@@ -888,6 +910,22 @@
   font-size: 10px;
   color: #8b5cf6;
   opacity: 0.6;
+}
+
+/* Outbound (agent) message bubble — purple gradient per spec */
+.dark .conversation-panel .right .message-text--metadata .content,
+.dark .message-text--metadata .agent .content {
+  background: linear-gradient(135deg, rgba(110,86,207,0.22), rgba(139,92,246,0.10)) !important;
+  border: 1px solid rgba(139,92,246,0.18) !important;
+  border-radius: 14px 14px 4px 14px !important;
+}
+
+/* Inbound (customer) message bubble — dark surface */
+.dark .conversation-panel .left .message-text--metadata .content,
+.dark .message-text--metadata .customer .content {
+  background: var(--patra-surface-2, #131119) !important;
+  border: 1px solid var(--patra-border, #171520) !important;
+  border-radius: 14px 14px 14px 4px !important;
 }
 
 .patra-mobile-note {
@@ -998,4 +1036,149 @@
 .patra-pager-btns button:hover:not(:disabled):not(.active) {
   border-color: #6e56cf;
   color: #a78bfa;
+}
+
+/* ════════════════════════════════════════════
+   LIGHT MODE — Patra spec light theme
+   ════════════════════════════════════════════ */
+:root:not(.dark) {
+  --patra-bg1: #F6F5F9;
+  --patra-bg2: #FFFFFF;
+  --patra-bg3: #F1F0F6;
+  --patra-text1: #16151C;
+  --patra-text2: #56546A;
+  --patra-text3: #86849A;
+  --patra-accent: #6E56CF;
+  --patra-accent-soft: rgba(110,86,207,0.09);
+  --patra-green: #1A7F37;
+  --patra-green-soft: rgba(26,127,55,0.12);
+  --patra-red: #CF222E;
+  --patra-red-soft: rgba(207,34,46,0.12);
+  --patra-amber: #9A6700;
+  --patra-amber-soft: rgba(154,103,0,0.12);
+  --patra-border: rgba(0, 0, 0, 0.08);
+
+  --background-color: 246 245 249 !important;
+  --surface-1: 255 255 255 !important;
+  --surface-2: 241 240 246 !important;
+  --surface-active: 233 231 241 !important;
+  --card-color: 255 255 255 !important;
+  --button-color: 241 240 246 !important;
+  --solid-1: 255 255 255 !important;
+  --solid-2: 241 240 246 !important;
+  --solid-3: 233 231 241 !important;
+  --solid-active: 222 219 235 !important;
+  --border-weak: 231 229 239 !important;
+  --border-strong: 211 207 227 !important;
+  --label-background: 233 231 241 !important;
+
+  --slate-1: 246 245 249 !important;
+  --slate-2: 255 255 255 !important;
+  --slate-3: 241 240 246 !important;
+  --slate-4: 233 231 241 !important;
+  --slate-5: 222 219 235 !important;
+  --slate-6: 211 207 227 !important;
+  --slate-7: 195 190 210 !important;
+  --slate-8: 168 166 184 !important;
+  --slate-9: 134 132 154 !important;
+  --slate-10: 117 114 127 !important;
+  --slate-11: 86 84 106 !important;
+  --slate-12: 22 21 28 !important;
+
+  --violet-9: 110 86 207 !important;
+  --violet-11: 110 86 207 !important;
+  --iris-9: 110 86 207 !important;
+
+  --patra-canvas: #F6F5F9;
+  --patra-surface: #FFFFFF;
+  --patra-surface-2: #F1F0F6;
+  --patra-surface-3: #E9E7F1;
+  --patra-surface-4: #DEDBEB;
+  --patra-border: #E7E5EF;
+  --patra-border-hi: #D3CFE3;
+  --patra-glow: rgba(110,86,207,0.28);
+  --patra-text: #16151C;
+  --patra-text-2: #56546A;
+  --patra-text-3: #86849A;
+
+  --mesh-1: rgba(110,86,207,0.09);
+  --mesh-2: rgba(139,92,246,0.06);
+  --mesh-3: rgba(236,72,153,0.03);
+}
+
+/* Light mode surface fallbacks */
+:root:not(.dark) body,
+:root:not(.dark) #app,
+:root:not(.dark) .app-wrapper,
+:root:not(.dark) .sidebar,
+:root:not(.dark) .conversations-list-wrap,
+:root:not(.dark) .conversation--details {
+  background-color: var(--patra-bg1) !important;
+  color: var(--patra-text1) !important;
+}
+
+:root:not(.dark) .modal-container,
+:root:not(.dark) .modal-body,
+:root:not(.dark) .woot-modal,
+:root:not(.dark) .dialog-contents {
+  background-color: var(--patra-bg2) !important;
+  color: var(--patra-text1) !important;
+}
+
+:root:not(.dark) .modal-container input,
+:root:not(.dark) .modal-container select,
+:root:not(.dark) .modal-container textarea {
+  background-color: var(--patra-bg3) !important;
+  color: var(--patra-text1) !important;
+  border-color: var(--patra-border) !important;
+}
+
+:root:not(.dark) .pat-rail,
+:root:not(.dark) .patra-nav-rail {
+  background: linear-gradient(180deg, var(--patra-surface), var(--patra-canvas)) !important;
+  border-right-color: var(--patra-border) !important;
+}
+
+:root:not(.dark) .conversations-list-wrap {
+  background: var(--patra-surface) !important;
+}
+
+:root:not(.dark) .conversation--header {
+  background: var(--patra-bg2) !important;
+  border-bottom: 1px solid var(--patra-border) !important;
+}
+
+:root:not(.dark) .conversation--messages-list {
+  background: var(--patra-bg1) !important;
+}
+
+:root:not(.dark) .reply-box,
+:root:not(.dark) .reply-box-wrap {
+  background-color: var(--patra-bg2) !important;
+}
+
+:root:not(.dark) .bg-n-background { background: var(--patra-canvas) !important; }
+:root:not(.dark) .bg-n-surface-1 { background: var(--patra-surface) !important; }
+
+:root:not(.dark) .status-pill.ai-on {
+  background: var(--patra-green-soft);
+  color: var(--patra-green);
+}
+:root:not(.dark) .status-pill.needs-attention {
+  background: var(--patra-red-soft);
+  color: var(--patra-red);
+}
+
+:root:not(.dark) .online-status-dot {
+  background: var(--patra-green) !important;
+  border-color: var(--patra-bg2, white);
+}
+
+:root:not(.dark) label {
+  color: var(--patra-text2) !important;
+}
+
+:root:not(.dark) .private-note {
+  background-color: rgba(154,103,0,0.08) !important;
+  color: var(--patra-text1) !important;
 }
