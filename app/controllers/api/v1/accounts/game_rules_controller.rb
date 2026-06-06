@@ -4,7 +4,17 @@ class Api::V1::Accounts::GameRulesController < Api::V1::Accounts::BaseController
   before_action :set_game_rule, only: [:show, :update]
 
   def index
-    @game_rules = Current.account.game_rules.includes(:game)
+    # Find all games linked to this account via agent_games
+    account_game_ids = Current.account.agent_games.pluck(:game_id).uniq
+
+    # Auto-create game_rules for any game that doesn't have one yet
+    account_game_ids.each do |game_id|
+      Current.account.game_rules.find_or_create_by!(game_id: game_id)
+    rescue StandardError => e
+      Rails.logger.error("[GameRulesController] Auto-init failed for game #{game_id}: #{e.message}")
+    end
+
+    @game_rules = Current.account.game_rules.includes(:game).where(game_id: account_game_ids)
     render json: @game_rules.as_json(include: { game: { only: [:id, :name, :slug] } })
   end
 
