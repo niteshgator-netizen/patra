@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 
 import MessageMeta from '../MessageMeta.vue';
 
@@ -15,9 +16,23 @@ const props = defineProps({
   hideMeta: { type: Boolean, default: false },
 });
 
-const { variant, orientation, inReplyTo, shouldGroupWithNext } =
-  useMessageContext();
+const {
+  variant,
+  orientation,
+  inReplyTo,
+  shouldGroupWithNext,
+  contentType,
+  additionalAttributes,
+  conversationId,
+} = useMessageContext();
 const { t } = useI18n();
+const router = useRouter();
+
+const isHandoffMessage = computed(
+  () =>
+    contentType.value === 'ai_handoff' ||
+    additionalAttributes.value?.ai_handoff
+);
 
 const varaintBaseMap = {
   [MESSAGE_VARIANTS.AGENT]: 'patra-conv-bubble--agent',
@@ -119,7 +134,56 @@ const replyToPreview = computed(() => {
     >
       {{ t('PATRA.MESSAGE.INTERNAL_NOTE') }}
     </p>
-    <slot />
+    <!-- Patra AI handoff message -->
+    <div v-if="isHandoffMessage" class="patra-thread-handoff">
+      <div class="patra-th-header">
+        <span class="patra-th-dot" />
+        <span class="patra-th-title">Handed to you by Patra AI</span>
+      </div>
+      <div class="patra-th-grid">
+        <div
+          v-if="additionalAttributes?.intent"
+          class="patra-th-row"
+        >
+          <span class="patra-th-label">Intent</span>
+          <span class="patra-th-value">{{ additionalAttributes.intent }}</span>
+        </div>
+        <div
+          v-if="additionalAttributes?.confidence"
+          class="patra-th-row"
+        >
+          <span class="patra-th-label">Confidence</span>
+          <span class="patra-th-value">{{
+            Math.round(additionalAttributes.confidence * 100)
+          }}%</span>
+        </div>
+        <div
+          v-if="additionalAttributes?.reason"
+          class="patra-th-row"
+        >
+          <span class="patra-th-label">Reason</span>
+          <span class="patra-th-value">{{ additionalAttributes.reason }}</span>
+        </div>
+      </div>
+      <div class="patra-th-actions">
+        <button
+          class="patra-th-btn"
+          @click="
+            router.push({
+              name: 'conversation_through_inbox',
+              params: { conversation_id: conversationId },
+            })
+          "
+        >
+          View conversation
+        </button>
+      </div>
+    </div>
+    <slot v-else />
+    <!-- Message reactions area (placeholder for future feature) -->
+    <div class="patra-reacts">
+      <!-- Reactions will render here when implemented -->
+    </div>
     <MessageMeta
       v-if="shouldShowMeta"
       :class="[
@@ -231,5 +295,81 @@ const replyToPreview = computed(() => {
 
 .patra-conv-bubble--email:hover {
   transform: none;
+}
+
+.patra-thread-handoff {
+  background: rgba(110, 86, 207, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  max-width: 420px;
+}
+
+.patra-th-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.patra-th-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f85149;
+}
+
+.patra-th-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.patra-th-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+}
+
+.patra-th-row {
+  display: contents;
+}
+
+.patra-th-label {
+  font-size: 11px;
+  color: #75727f;
+  font-weight: 600;
+}
+
+.patra-th-value {
+  font-size: 11px;
+  color: #ededf2;
+}
+
+.patra-th-actions {
+  margin-top: 8px;
+}
+
+.patra-th-btn {
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(110, 86, 207, 0.12);
+  color: #a78bfa;
+  border: 1px solid rgba(110, 86, 207, 0.25);
+  cursor: pointer;
+}
+
+.patra-reacts {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+  min-height: 0;
+}
+
+.patra-reacts:empty {
+  display: none;
 }
 </style>

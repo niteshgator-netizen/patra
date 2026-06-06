@@ -51,6 +51,13 @@ const {
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
 const sidebarTab = ref('details');
+const copilotQuery = ref('');
+
+const askCopilot = () => {
+  if (!copilotQuery.value.trim()) return;
+  // Future: send to copilot API
+  copilotQuery.value = '';
+};
 
 const shopifyIntegration = useFunctionGetter(
   'integrations/getIntegration',
@@ -459,6 +466,16 @@ onMounted(() => {
             </div>
             <span class="patra-conf-pct">91%</span>
           </div>
+        </div>
+        <!-- Copilot input -->
+        <div class="patra-copilot-input">
+          <input
+            v-model="copilotQuery"
+            type="text"
+            placeholder="Ask Patra AI anything…"
+            class="patra-cop-input"
+            @keydown.enter="askCopilot"
+          />
         </div>
       </div>
     </div>
@@ -923,5 +940,30 @@ onMounted(() => {
   color: #a78bfa;
   min-width: 30px;
   text-align: right;
+}
+
+.patra-copilot-input {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(110, 86, 207, 0.12);
+}
+
+.patra-cop-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #131119;
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  color: #ededf2;
+  font-size: 12px;
+  outline: none;
+}
+
+.patra-cop-input:focus {
+  border-color: #6e56cf;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
+}
+
+.patra-cop-input::placeholder {
+  color: #54515e;
 }
 </style>

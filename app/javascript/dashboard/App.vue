@@ -234,6 +234,11 @@ export default {
 
     <!-- Dimmer overlay -->
     <div id="patra-dimmer" :style="{ opacity: brightness / 100 }" />
+
+    <!-- Mobile notice -->
+    <div class="patra-mobile-note">
+      📱 Full agent view is desktop-first — mobile gets a stacked layout
+    </div>
   </div>
   <LoadingState v-else />
 </template>

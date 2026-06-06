@@ -59,6 +59,17 @@ const activeAgentsCount = computed(
   () => stats.value?.active_agents?.length ?? 0
 );
 
+const topQuestions = computed(() => {
+  const raw = stats.value?.top_questions || [];
+  if (!raw.length) return [];
+  const max = Math.max(...raw.map(q => Number(q.count) || 0), 1);
+  return raw.map(q => ({
+    question: q.question || q.text || '',
+    count: Number(q.count) || 0,
+    pct: Math.round(((Number(q.count) || 0) / max) * 100),
+  }));
+});
+
 const todayLabel = computed(() =>
   new Intl.DateTimeFormat(undefined, {
     weekday: 'long',
@@ -266,21 +277,25 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="patra-kpi-n n">{{ stats.conversations_today }}</div>
+              <svg
+                class="patra-sparkline"
+                viewBox="0 0 60 20"
+                width="60"
+                height="20"
+              >
+                <polyline
+                  fill="none"
+                  stroke="#6e56cf"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  opacity="0.6"
+                />
+              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.CONVERSATIONS_TODAY') }}
               </div>
-              <svg
-                class="patra-spark"
-                viewBox="0 0 100 30"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,30 100,30"
-                  fill="none"
-                  stroke="var(--patra-2)"
-                  stroke-width="2"
-                />
-              </svg>
             </div>
 
             <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
@@ -297,21 +312,25 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="patra-kpi-n n">{{ stats.messages_in_today }}</div>
+              <svg
+                class="patra-sparkline"
+                viewBox="0 0 60 20"
+                width="60"
+                height="20"
+              >
+                <polyline
+                  fill="none"
+                  stroke="#6e56cf"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  opacity="0.6"
+                />
+              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.MESSAGES_IN') }}
               </div>
-              <svg
-                class="patra-spark"
-                viewBox="0 0 100 30"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,30 100,30"
-                  fill="none"
-                  stroke="var(--patra-2)"
-                  stroke-width="2"
-                />
-              </svg>
             </div>
 
             <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
@@ -328,21 +347,25 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="patra-kpi-n n">{{ stats.messages_out_today }}</div>
+              <svg
+                class="patra-sparkline"
+                viewBox="0 0 60 20"
+                width="60"
+                height="20"
+              >
+                <polyline
+                  fill="none"
+                  stroke="#6e56cf"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  opacity="0.6"
+                />
+              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.MESSAGES_OUT') }}
               </div>
-              <svg
-                class="patra-spark"
-                viewBox="0 0 100 30"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,30 100,30"
-                  fill="none"
-                  stroke="var(--patra-2)"
-                  stroke-width="2"
-                />
-              </svg>
             </div>
 
             <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
@@ -358,21 +381,25 @@ onUnmounted(() => {
               <div class="patra-kpi-n n p patra-kpi-n-accent">
                 {{ formatPercent(stats.ai_handle_rate) }}
               </div>
+              <svg
+                class="patra-sparkline"
+                viewBox="0 0 60 20"
+                width="60"
+                height="20"
+              >
+                <polyline
+                  fill="none"
+                  stroke="#6e56cf"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  opacity="0.6"
+                />
+              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.AI_HANDLE_RATE') }}
               </div>
-              <svg
-                class="patra-spark"
-                viewBox="0 0 100 30"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,30 100,30"
-                  fill="none"
-                  stroke="var(--patra-2)"
-                  stroke-width="2"
-                />
-              </svg>
             </div>
 
             <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
@@ -394,21 +421,25 @@ onUnmounted(() => {
               <div class="patra-kpi-n n a patra-kpi-n-warn">
                 {{ stats.flagged_for_review }}
               </div>
+              <svg
+                class="patra-sparkline"
+                viewBox="0 0 60 20"
+                width="60"
+                height="20"
+              >
+                <polyline
+                  fill="none"
+                  stroke="#6e56cf"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  opacity="0.6"
+                />
+              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.FLAGGED_REVIEW') }}
               </div>
-              <svg
-                class="patra-spark"
-                viewBox="0 0 100 30"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,30 100,30"
-                  fill="none"
-                  stroke="var(--patra-2)"
-                  stroke-width="2"
-                />
-              </svg>
             </div>
 
             <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
@@ -429,21 +460,25 @@ onUnmounted(() => {
               <div class="patra-kpi-n n g patra-kpi-n-green">
                 {{ formattedNetToday }}
               </div>
+              <svg
+                class="patra-sparkline"
+                viewBox="0 0 60 20"
+                width="60"
+                height="20"
+              >
+                <polyline
+                  fill="none"
+                  stroke="#6e56cf"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  opacity="0.6"
+                />
+              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.NET_TODAY') }}
               </div>
-              <svg
-                class="patra-spark"
-                viewBox="0 0 100 30"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points="0,30 100,30"
-                  fill="none"
-                  stroke="var(--patra-2)"
-                  stroke-width="2"
-                />
-              </svg>
             </div>
           </div>
 
@@ -680,6 +715,32 @@ onUnmounted(() => {
                 <p class="patra-empty">
                   {{ $t('OVERVIEW_REPORTS.OWNER_STATS.NO_QUESTIONS') }}
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top questions Patra AI handled -->
+          <div class="patra-card pat-dash-section dash-card">
+            <div class="patra-card-h dash-card-header">
+              <div class="patra-card-t pat-dash-section-title">
+                <span class="patra-card-dot" />
+                <h3 class="patra-topq-title">Top questions Patra AI handled</h3>
+              </div>
+            </div>
+            <div class="patra-topq">
+              <div
+                v-for="(q, i) in topQuestions"
+                :key="i"
+                class="patra-tq-row"
+              >
+                <span class="patra-tq-label">{{ q.question }}</span>
+                <div class="patra-tq-bar-wrap">
+                  <div class="patra-tq-bar" :style="{ width: q.pct + '%' }" />
+                </div>
+                <span class="patra-tq-count">{{ q.count }}</span>
+              </div>
+              <div v-if="!topQuestions.length" class="patra-empty-note">
+                No AI-handled questions yet.
               </div>
             </div>
           </div>
@@ -1154,6 +1215,12 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-3);
   margin-top: 6px;
+}
+
+.patra-sparkline {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.7;
 }
 
 .patra-spark {
@@ -1962,5 +2029,62 @@ onUnmounted(() => {
 }
 .pat-dash-table :deep(tr:hover td) {
   background: var(--surface-2, #131119);
+}
+
+.dash-card-header h3.patra-topq-title {
+  margin: 0;
+  font-family: 'Space Grotesk', Inter, ui-sans-serif, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.patra-topq {
+  padding: 8px 0;
+}
+
+.patra-tq-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.patra-tq-label {
+  flex: 1;
+  font-size: 12px;
+  color: #ededf2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.patra-tq-bar-wrap {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(110, 86, 207, 0.1);
+  overflow: hidden;
+}
+
+.patra-tq-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #6e56cf, #8b5cf6);
+}
+
+.patra-tq-count {
+  font-size: 11px;
+  color: #75727f;
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 28px;
+  text-align: right;
+}
+
+.patra-empty-note {
+  font-size: 0.875rem;
+  color: var(--text-3);
 }
 </style>

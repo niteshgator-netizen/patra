@@ -867,3 +867,135 @@
   cursor: pointer;
   color: #75727f;
 }
+
+/* --- AI MESSAGE STYLING --- */
+.dark .patra-conv-msg-meta[data-sender-type='ai'],
+.dark .message-text--metadata .bot-message .content {
+  background: linear-gradient(
+    135deg,
+    rgba(110, 86, 207, 0.12),
+    rgba(139, 92, 246, 0.08)
+  ) !important;
+  border: 1px solid rgba(139, 92, 246, 0.2) !important;
+  position: relative;
+}
+
+.dark .message-text--metadata .bot-message .content::before {
+  content: '✦';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: #8b5cf6;
+  opacity: 0.6;
+}
+
+.patra-mobile-note {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 16px;
+  background: rgba(110, 86, 207, 0.15);
+  color: #a78bfa;
+  font-size: 11px;
+  text-align: center;
+  z-index: 90;
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 768px) {
+  .patra-mobile-note {
+    display: block;
+  }
+}
+
+/* --- QA quick-action badges on conversation cards --- */
+.patra-convo-qa {
+  position: absolute;
+  top: 9px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: all 0.22s cubic-bezier(0.23, 1, 0.32, 1);
+  z-index: 3;
+}
+
+.dark .conversations-list-wrap .conversation-panel > div:hover .patra-convo-qa,
+.convo-card-v6:hover .patra-convo-qa,
+.convo-card-v6.group:hover .patra-convo-qa {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.patra-qa {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--patra-surface-3, #1b1925);
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  color: #a78bfa;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.patra-qa:hover {
+  color: #fff;
+  background: var(--patra-purple, #6e56cf);
+  transform: scale(1.12);
+}
+
+/* --- Contact list pagination --- */
+.patra-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(110, 86, 207, 0.1);
+}
+
+.patra-pager-info {
+  font-size: 11px;
+  color: #75727f;
+}
+
+.patra-pager-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.patra-pager-btns button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(110, 86, 207, 0.15);
+  background: transparent;
+  color: #a78bfa;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.patra-pager-btns button.active {
+  background: linear-gradient(135deg, #6e56cf, #5b45b0);
+  color: #fff;
+  border-color: transparent;
+}
+
+.patra-pager-btns button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.patra-pager-btns button:hover:not(:disabled):not(.active) {
+  border-color: #6e56cf;
+  color: #a78bfa;
+}
