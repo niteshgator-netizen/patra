@@ -182,7 +182,7 @@ export default {
     <div
       id="patra-spotlight"
       aria-hidden="true"
-      style="position: fixed; pointer-events: none; z-index: 9999"
+      style="position: fixed; pointer-events: none; z-index: 1"
     />
     <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
     <StatusBanner />
