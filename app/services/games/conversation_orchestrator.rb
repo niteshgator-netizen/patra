@@ -103,6 +103,66 @@ module Games
         end
       end
 
+      # Process pending load/cashout confirmations
+      pending_load = conversation.additional_attributes&.dig('pending_load_intent')
+      pending_cashout = conversation.additional_attributes&.dig('pending_cashout')
+      if pending_load.present? || pending_cashout.present?
+        answer = latest_text.to_s.strip.downcase
+        if answer.match?(/\b(yes|yeah|yep|yea|y|confirm|go|do it|send it)\b/i)
+          if pending_load.present?
+            begin
+              intent_data = JSON.parse(pending_load).symbolize_keys
+              # Clear flags
+              attrs = conversation.additional_attributes.dup
+              attrs.delete('pending_load_intent')
+              attrs['load_confirmed'] = true
+              conversation.update_columns(additional_attributes: attrs)
+              return handle_load_intent(intent_data)
+            rescue StandardError => e
+              Rails.logger.error("[Orchestrator] Confirm-load processing failed: #{e.message}")
+            ensure
+              # Clear confirmed flag after processing
+              begin
+                attrs = conversation.additional_attributes.dup
+                attrs.delete('load_confirmed')
+                conversation.update_columns(additional_attributes: attrs)
+              rescue StandardError
+              end
+            end
+          end
+          if pending_cashout.present?
+            begin
+              attrs = conversation.additional_attributes.dup
+              attrs.delete('pending_cashout')
+              attrs['cashout_confirmed'] = true
+              conversation.update_columns(additional_attributes: attrs)
+              # Re-run cashout with confirmed flag (pending_cashout holds game_slug)
+              return handle_cashout_intent({ intent: :cashout, game_slug: pending_cashout })
+            rescue StandardError => e
+              Rails.logger.error("[Orchestrator] Confirm-cashout processing failed: #{e.message}")
+            ensure
+              begin
+                attrs = conversation.additional_attributes.dup
+                attrs.delete('cashout_confirmed')
+                conversation.update_columns(additional_attributes: attrs)
+              rescue StandardError
+              end
+            end
+          end
+        elsif answer.match?(/\b(no|nah|nope|cancel|nevermind|n)\b/i)
+          # Customer declined — clear pending flags
+          begin
+            attrs = conversation.additional_attributes.dup
+            attrs.delete('pending_load_intent')
+            attrs.delete('pending_cashout')
+            conversation.update_columns(additional_attributes: attrs)
+          rescue StandardError
+          end
+          return { reply: 'got it, cancelled', labels: [] }
+        end
+        # If answer is neither yes nor no, fall through to normal intent detection
+      end
+
       # First check latest message alone — this is what the customer just asked NOW
       latest_intent = Games::IntentDetector.detect(latest_text)
 
@@ -379,10 +439,10 @@ module Games
           rescue StandardError => e
             Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
           end
-          return {
+          return apply_receipt_preference({
             reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
             labels: ['auto-load', 'new-account-created']
-          }
+          })
         end
       end
 
@@ -413,10 +473,10 @@ module Games
         rescue StandardError => e
           Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
         end
-        {
+        apply_receipt_preference({
           reply: "loaded $#{requested_amount} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
-        }
+        })
       else
         safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
         safe_telegram do
@@ -556,7 +616,7 @@ module Games
           rescue StandardError => e
             Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
           end
-          { reply: reply_text, labels: [] }
+          apply_receipt_preference({ reply: reply_text, labels: [] })
         else
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
@@ -704,7 +764,7 @@ module Games
           rescue StandardError => e
             Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
           end
-          { reply: reply_text, labels: ['auto-load'] }
+          apply_receipt_preference({ reply: reply_text, labels: ['auto-load'] })
         else
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
@@ -841,6 +901,8 @@ module Games
         pref = ReplyPreference.for_account(account.id)
         if pref&.confirm_before_cashout
           unless conversation.additional_attributes&.dig('cashout_confirmed')
+            attrs = (conversation.additional_attributes || {}).merge('pending_cashout' => game_slug)
+            conversation.update_columns(additional_attributes: attrs)
             return {
               reply: requested_amount ? "confirm cashout $#{requested_amount.to_i} on #{game_slug}? (yes/no)" : "confirm cashout on #{game_slug}? (yes/no)",
               labels: []
@@ -1045,6 +1107,7 @@ module Games
         rescue StandardError => e
           Rails.logger.error("[Orchestrator] New player tier assign failed: #{e.message}")
         end
+        link_referred_on_account_creation
         # Send game download link if configured
         begin
           game = Game.find_by(slug: game_slug) if game_slug
@@ -1108,6 +1171,7 @@ module Games
         rescue StandardError => e
           Rails.logger.error("[Orchestrator] New player tier assign failed: #{e.message}")
         end
+        link_referred_on_account_creation
         # Send game download link if configured
         begin
           game = Game.find_by(slug: game_slug) if game_slug
@@ -1118,7 +1182,7 @@ module Games
         rescue StandardError => e
           Rails.logger.error("[Orchestrator] Download link append failed: #{e.message}")
         end
-        result
+        apply_receipt_preference(result)
       else
         safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
         safe_telegram do
@@ -1138,6 +1202,7 @@ module Games
         rescue StandardError => e
           Rails.logger.error("[Orchestrator] New player tier assign failed: #{e.message}")
         end
+        link_referred_on_account_creation
         # Send game download link if configured
         begin
           game = Game.find_by(slug: game_slug) if game_slug
@@ -2210,6 +2275,39 @@ module Games
       yield
     rescue StandardError => e
       Rails.logger.error("[Orchestrator] Telegram call failed: #{e.class}: #{e.message}")
+    end
+
+    def apply_receipt_preference(result)
+      return result unless result.is_a?(Hash) && result[:reply].present?
+
+      begin
+        pref = ReplyPreference.for_account(account.id)
+        if pref&.auto_send_receipt == false
+          result = result.dup
+          result[:reply] = result[:reply].gsub(/loaded\s*✅?/i, '').gsub(/✅/, '').strip
+          result[:reply] = 'done' if result[:reply].blank?
+        end
+      rescue StandardError
+      end
+      result
+    end
+
+    def link_referred_on_account_creation
+      begin
+        pending_referral = Referral.where(account_id: account.id, status: 'pending')
+                                   .where(referred_contact_id: nil)
+                                   .order(created_at: :desc)
+                                   .first
+        if pending_referral
+          Games::ReferralBonusService.new(account: account).link_referred(
+            referral: pending_referral,
+            referred_contact: contact
+          )
+          Rails.logger.info("[Orchestrator] Linked referral #{pending_referral.id} to #{contact.name}")
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Referral link failed: #{e.message}")
+      end
     end
 
     def store_expected_payment_handle!(platform:, handle:)
