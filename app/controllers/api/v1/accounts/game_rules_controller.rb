@@ -5,16 +5,16 @@ class Api::V1::Accounts::GameRulesController < Api::V1::Accounts::BaseController
 
   def index
     @game_rules = Current.account.game_rules.includes(:game)
-    render json: @game_rules
+    render json: @game_rules.as_json(include: { game: { only: [:id, :name, :slug] } })
   end
 
   def show
-    render json: @game_rule
+    render json: @game_rule.as_json(include: { game: { only: [:id, :name, :slug] } })
   end
 
   def update
     if @game_rule.update(game_rule_params)
-      render json: @game_rule
+      render json: @game_rule.as_json(include: { game: { only: [:id, :name, :slug] } })
     else
       render json: { errors: @game_rule.errors.full_messages }, status: :unprocessable_entity
     end

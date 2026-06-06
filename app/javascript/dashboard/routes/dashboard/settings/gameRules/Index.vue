@@ -16,7 +16,7 @@
             class="w-full flex items-center justify-between p-4 text-left"
             @click="toggleExpand(rule.game_id)"
           >
-            <span class="font-medium">{{ rule.game?.name || rule.game_id }}</span>
+            <span class="font-medium">{{ rule.game?.name || rule.game?.slug || 'Game ' + rule.game_id }}</span>
             <span class="text-xs text-slate-400">{{ expanded === rule.game_id ? '▲' : '▼' }}</span>
           </button>
 
