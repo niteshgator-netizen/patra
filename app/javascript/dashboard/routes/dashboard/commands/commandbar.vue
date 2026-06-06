@@ -232,7 +232,7 @@ onMounted(() => {
 
 <style lang="scss">
 ninja-keys {
-  --ninja-accent-color: rgba(39, 129, 246, 1);
+  --ninja-accent-color: #6E56CF;
   --ninja-font-family: 'Inter';
   z-index: 9999;
 }
@@ -241,14 +241,15 @@ ninja-keys {
 // If OS is in dark theme and app is in light mode, It will prevent showing dark theme in command bar
 body.dark {
   ninja-keys {
-    --ninja-overflow-background: rgba(26, 29, 30, 0.5);
-    --ninja-modal-background: #151718;
-    --ninja-secondary-background-color: #26292b;
-    --ninja-selected-background: #26292b;
-    --ninja-footer-background: #2b2f31;
-    --ninja-text-color: #f8faf9;
-    --ninja-icon-color: #f8faf9;
-    --ninja-secondary-text-color: #c2c9c6;
+    --ninja-overflow-background: rgba(5, 4, 9, 0.6);
+    --ninja-modal-background: #0C0B12;
+    --ninja-secondary-background-color: #131119;
+    --ninja-selected-background: rgba(110, 86, 207, 0.18);
+    --ninja-footer-background: #131119;
+    --ninja-text-color: #EDEDF2;
+    --ninja-icon-color: #EDEDF2;
+    --ninja-secondary-text-color: #75727F;
+    --ninja-accent-color: #6E56CF;
   }
 }
 </style>
