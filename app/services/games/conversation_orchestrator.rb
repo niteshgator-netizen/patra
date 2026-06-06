@@ -230,6 +230,26 @@ module Games
         return handle_load_bonus(intent)
       end
 
+      # Check confirm-before-load preference
+      begin
+        pref = ReplyPreference.for_account(account.id)
+        if pref&.confirm_before_load
+          # Only confirm if we haven't already confirmed (check conversation flag)
+          unless conversation.additional_attributes&.dig('load_confirmed')
+            game_slug_display = chosen_game_slug(intent) || 'your game'
+            amount_display = intent[:amount].to_f > 0 ? "$#{intent[:amount].to_i}" : 'your deposit'
+            attrs = (conversation.additional_attributes || {}).merge('pending_load_intent' => intent.to_json)
+            conversation.update_columns(additional_attributes: attrs)
+            return {
+              reply: "confirm load #{amount_display} on #{game_slug_display}? (yes/no)",
+              labels: []
+            }
+          end
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Confirm-before-load check failed: #{e.message}")
+      end
+
       ag = agent_game_for_intent(intent)
       return ag if ag.is_a?(Hash)
       return nil unless ag
@@ -337,6 +357,28 @@ module Games
 
         if result[:ok]
           mark_payment_loaded(payment[:id], game_slug: ag.game.slug, game_username: username)
+          # Check if deposit bonus applies (auto-bonus without customer saying "bonus")
+          begin
+            game_slug = ag.game.slug
+            game = Game.find_by(slug: game_slug) if game_slug
+            rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+            if rules&.deposit_bonus_enabled && rules.deposit_bonus_eligible?(contact)
+              bonus = rules.calculate_bonus(requested_amount)
+              if bonus > 0
+                Rails.logger.info("[Orchestrator] Auto-bonus: #{bonus} on #{game_slug} for #{contact.name}")
+                # Bonus is informational — load already happened at base amount
+                # Next iteration: load base+bonus together
+              end
+            end
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Auto-bonus check failed: #{e.message}")
+          end
+          # Check if this deposit qualifies contact for VIP auto-promote
+          begin
+            Games::TierAutoPromoteService.check(contact: contact)
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
+          end
           return {
             reply: "created your account! username: #{username}, password: #{generated_password} (save this!) — loaded $#{requested_amount} 🎰",
             labels: ['auto-load', 'new-account-created']
@@ -349,6 +391,28 @@ module Games
 
       if result[:ok]
         mark_payment_loaded(payment[:id], game_slug: ag.game.slug, game_username: username)
+        # Check if deposit bonus applies (auto-bonus without customer saying "bonus")
+        begin
+          game_slug = ag.game.slug
+          game = Game.find_by(slug: game_slug) if game_slug
+          rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+          if rules&.deposit_bonus_enabled && rules.deposit_bonus_eligible?(contact)
+            bonus = rules.calculate_bonus(requested_amount)
+            if bonus > 0
+              Rails.logger.info("[Orchestrator] Auto-bonus: #{bonus} on #{game_slug} for #{contact.name}")
+              # Bonus is informational — load already happened at base amount
+              # Next iteration: load base+bonus together
+            end
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Auto-bonus check failed: #{e.message}")
+        end
+        # Check if this deposit qualifies contact for VIP auto-promote
+        begin
+          Games::TierAutoPromoteService.check(contact: contact)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
+        end
         {
           reply: "loaded $#{requested_amount} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
@@ -486,6 +550,12 @@ module Games
             amount: fp_amount.to_s,
             game: game_slug
           })
+          # Check if this deposit qualifies contact for VIP auto-promote
+          begin
+            Games::TierAutoPromoteService.check(contact: contact)
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
+          end
           { reply: reply_text, labels: [] }
         else
           safe_telegram do
@@ -628,6 +698,12 @@ module Games
             total: total_load.to_s,
             game: game_slug
           })
+          # Check if this deposit qualifies contact for VIP auto-promote
+          begin
+            Games::TierAutoPromoteService.check(contact: contact)
+          rescue StandardError => e
+            Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
+          end
           { reply: reply_text, labels: ['auto-load'] }
         else
           safe_telegram do
@@ -758,6 +834,21 @@ module Games
         rescue StandardError => e
           Rails.logger.error("[Orchestrator] Cashout rules validation failed: #{e.message}")
         end
+      end
+
+      # Check confirm-before-cashout preference
+      begin
+        pref = ReplyPreference.for_account(account.id)
+        if pref&.confirm_before_cashout
+          unless conversation.additional_attributes&.dig('cashout_confirmed')
+            return {
+              reply: requested_amount ? "confirm cashout $#{requested_amount.to_i} on #{game_slug}? (yes/no)" : "confirm cashout on #{game_slug}? (yes/no)",
+              labels: []
+            }
+          end
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] Confirm-before-cashout check failed: #{e.message}")
       end
 
       # All checks passed — escalate to cashier for actual payout
@@ -944,10 +1035,27 @@ module Games
         store_game_username(ag.game.slug, auto_username)
         store_game_password(ag.game.slug, generated_password)
 
-        return {
+        result = {
           reply: "all set! your username: #{auto_username}, password: #{generated_password} (save this!) — #{payment_methods_question}",
           labels: ['account-created', 'awaiting-payment']
         }
+        # Assign new_player tier to first-time contacts
+        begin
+          Games::TierAutoPromoteService.assign_new_player_tier(contact: contact)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] New player tier assign failed: #{e.message}")
+        end
+        # Send game download link if configured
+        begin
+          game = Game.find_by(slug: game_slug) if game_slug
+          rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+          if rules&.auto_send_link_on_create && rules.game_download_url.present?
+            result[:reply] += "\n#{rules.game_download_url}"
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Download link append failed: #{e.message}")
+        end
+        return result
       end
 
       # Customer has confirmed payment — create account with auto-generated username
@@ -990,10 +1098,27 @@ module Games
 
       if result[:ok]
         mark_payment_loaded(recent_payment[:id], game_slug: ag.game.slug, game_username: auto_username)
-        {
+        result = {
           reply: "all set! username: #{auto_username}, password: #{generated_password} (save this!) — loaded $#{recent_payment[:amount]} 🎰 good luck!",
           labels: ['auto-load', 'new-account-created']
         }
+        # Assign new_player tier to first-time contacts
+        begin
+          Games::TierAutoPromoteService.assign_new_player_tier(contact: contact)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] New player tier assign failed: #{e.message}")
+        end
+        # Send game download link if configured
+        begin
+          game = Game.find_by(slug: game_slug) if game_slug
+          rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+          if rules&.auto_send_link_on_create && rules.game_download_url.present?
+            result[:reply] += "\n#{rules.game_download_url}"
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Download link append failed: #{e.message}")
+        end
+        result
       else
         safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
         safe_telegram do
@@ -1003,10 +1128,27 @@ module Games
             conversation: conversation
           )
         end
-        {
+        result = {
           reply: "created your account! username: #{auto_username}, password: #{generated_password} (save this!) — but hit a snag loading your $#{recent_payment[:amount]}. a teammate will load it in a couple minutes.",
           labels: ['account-created', 'load-failed', 'needs-human']
         }
+        # Assign new_player tier to first-time contacts
+        begin
+          Games::TierAutoPromoteService.assign_new_player_tier(contact: contact)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] New player tier assign failed: #{e.message}")
+        end
+        # Send game download link if configured
+        begin
+          game = Game.find_by(slug: game_slug) if game_slug
+          rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+          if rules&.auto_send_link_on_create && rules.game_download_url.present?
+            result[:reply] += "\n#{rules.game_download_url}"
+          end
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Download link append failed: #{e.message}")
+        end
+        result
       end
     end
 
@@ -1970,6 +2112,16 @@ module Games
     end
 
     def handle_referral(intent)
+      # Create referral record for tracking + future bonus payout
+      begin
+        Games::ReferralBonusService.create(
+          account: account,
+          referrer_contact: contact
+        )
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] ReferralBonusService failed: #{e.message}")
+      end
+
       safe_telegram do
         Games::TelegramNotifier.human_escalation(
           account: account,
