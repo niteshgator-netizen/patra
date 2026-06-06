@@ -11,6 +11,8 @@ import { useRouter } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import WootSnackbarBox from './components/SnackbarContainer.vue';
 import { setColorTheme } from './helper/themeHelper';
+import { LocalStorage } from 'shared/helpers/localStorage';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { isOnOnboardingView } from 'v3/helpers/RouteHelper';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useFontSize } from 'dashboard/composables/useFontSize';
@@ -53,6 +55,8 @@ export default {
     return {
       latestChatwootVersion: null,
       reconnectService: null,
+      isDarkMode: document.body.classList.contains('dark'),
+      brightness: 0,
     };
   },
   computed: {
@@ -79,6 +83,11 @@ export default {
   },
   mounted() {
     this.initializeColorTheme();
+    this.syncDarkModeState();
+    const savedBrightness = LocalStorage.get('patra_brightness');
+    if (savedBrightness != null && savedBrightness !== '') {
+      this.brightness = Number(savedBrightness) || 0;
+    }
     this.listenToThemeChanges();
     // If user locale is set, use it; otherwise use account locale
     this.setLocale(
@@ -106,9 +115,29 @@ export default {
     initializeColorTheme() {
       setColorTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
     },
+    syncDarkModeState() {
+      this.isDarkMode = document.body.classList.contains('dark');
+      document.documentElement.setAttribute(
+        'data-theme',
+        this.isDarkMode ? 'dark' : 'light'
+      );
+    },
+    toggleTheme() {
+      const next = this.isDarkMode ? 'light' : 'dark';
+      LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, next);
+      setColorTheme(next === 'dark');
+      this.syncDarkModeState();
+    },
+    applyBrightness(value) {
+      this.brightness = Number(value) || 0;
+      LocalStorage.set('patra_brightness', this.brightness);
+    },
     listenToThemeChanges() {
       const mql = window.matchMedia('(prefers-color-scheme: dark)');
-      mql.onchange = e => setColorTheme(e.matches);
+      mql.onchange = e => {
+        setColorTheme(e.matches);
+        this.syncDarkModeState();
+      };
     },
     setLocale(locale) {
       if (locale) {
@@ -150,6 +179,11 @@ export default {
     class="flex flex-col w-full h-screen min-h-0 bg-n-background"
     :dir="isRTL ? 'rtl' : 'ltr'"
   >
+    <div
+      id="patra-spotlight"
+      aria-hidden="true"
+      style="position: fixed; pointer-events: none; z-index: 9999"
+    />
     <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
     <StatusBanner />
     <template v-if="currentAccountId">
@@ -163,7 +197,43 @@ export default {
     </router-view>
     <WootSnackbarBox />
     <NetworkNotification />
-    <div id="patra-spotlight" aria-hidden="true" />
+
+    <!-- Theme FAB -->
+    <button
+      id="patra-theme-fab"
+      class="patra-theme-fab"
+      type="button"
+      aria-label="Toggle theme"
+      @click="toggleTheme"
+    >
+      {{ isDarkMode ? '☀️' : '🌙' }}
+    </button>
+
+    <!-- Brightness control -->
+    <div id="patra-bright-ctl" class="patra-bright-ctl">
+      <input
+        type="range"
+        min="0"
+        max="80"
+        :value="brightness"
+        class="patra-bright-slider"
+        @input="applyBrightness($event.target.value)"
+      />
+      <span
+        class="patra-bright-toggle"
+        role="button"
+        tabindex="0"
+        @click="applyBrightness(brightness > 0 ? 0 : 30)"
+        @keydown.enter.space.prevent="
+          applyBrightness(brightness > 0 ? 0 : 30)
+        "
+      >
+        🔅
+      </span>
+    </div>
+
+    <!-- Dimmer overlay -->
+    <div id="patra-dimmer" :style="{ opacity: brightness / 100 }" />
   </div>
   <LoadingState v-else />
 </template>

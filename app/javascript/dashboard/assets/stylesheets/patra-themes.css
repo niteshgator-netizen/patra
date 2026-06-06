@@ -552,10 +552,10 @@
 }
 
 /* ============================================
-   PATRA DESIGN SYSTEM — FULL SPEC MATCH
+   PATRA DESIGN SYSTEM v2 — CORRECT SELECTORS
    ============================================ */
 
-/* --- 1. CSS VARIABLES (spec exact tokens) --- */
+/* --- DESIGN TOKENS --- */
 :root, :root[data-theme="dark"], .dark {
   --patra-canvas: #050409;
   --patra-surface: #0C0B12;
@@ -572,163 +572,119 @@
   --patra-text: #EDEDF2;
   --patra-text-2: #A8A6B6;
   --patra-text-3: #75727F;
-  --patra-text-4: #54515E;
   --patra-green: #3FB950;
   --patra-amber: #E3A008;
   --patra-red: #F85149;
   --patra-blue: #58A6FF;
-  --patra-bubble-in: #131119;
-  --patra-mesh-1: rgba(110,86,207,0.16);
-  --patra-mesh-2: rgba(139,92,246,0.10);
 }
 
-/* --- 2. GLOBAL FONT OVERRIDES --- */
-.dark body,
-.dark .app-content {
-  font-family: 'Inter', -apple-system, sans-serif !important;
-  -webkit-font-smoothing: antialiased;
-}
-.dark h1, .dark h2, .dark h3, .dark h4,
-.dark .text-xl, .dark .text-2xl, .dark .text-lg,
-.dark .section-title, .dark .page-title {
-  font-family: 'Space Grotesk', sans-serif !important;
-}
-.dark .mono, .dark code, .dark .conversation-id,
-.dark .time-stamp, .dark .badge, .dark .count {
-  font-family: 'JetBrains Mono', monospace !important;
-  font-variant-numeric: tabular-nums;
-}
+/* --- FONTS --- */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+.dark body { font-family: 'Inter', -apple-system, sans-serif !important; -webkit-font-smoothing: antialiased; }
+.dark h1, .dark h2, .dark h3, .dark h4, .dark .text-xl, .dark .text-2xl, .dark .text-lg { font-family: 'Space Grotesk', sans-serif !important; }
+.dark .mono, .dark code, .dark .time-stamp, .dark .badge { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums; }
 
-/* --- 3. CUSTOM SCROLLBAR --- */
+/* --- SCROLLBAR --- */
 .dark ::-webkit-scrollbar { width: 7px; height: 7px; }
 .dark ::-webkit-scrollbar-track { background: transparent; }
 .dark ::-webkit-scrollbar-thumb { background: var(--patra-surface-3); border-radius: 8px; }
 .dark ::-webkit-scrollbar-thumb:hover { background: var(--patra-border-hi); }
 
-/* --- 4. RAIL / LEFT SIDEBAR STYLING --- */
-.dark .sidebar,
-.dark .primary-sidebar,
-.dark [class*="sidebar"][class*="primary"] {
+/* --- RAIL (actual: .pat-rail, .patra-nav-rail, .pat-rail-item, .pat-rail-logo) --- */
+.dark .pat-rail,
+.dark .patra-nav-rail {
   background: linear-gradient(180deg, var(--patra-surface), var(--patra-canvas)) !important;
   border-right-color: var(--patra-border) !important;
 }
-
-/* Rail logo pulse */
-.dark .sidebar .brand-logo,
-.dark .primary-sidebar .logo {
-  box-shadow: 0 0 22px var(--patra-glow), inset 0 1px 0 rgba(255,255,255,.25);
-  animation: logoPulse 4s ease-in-out infinite;
-}
-@keyframes logoPulse {
-  0%, 100% { box-shadow: 0 0 22px var(--patra-glow), inset 0 1px 0 rgba(255,255,255,.25); }
-  50% { box-shadow: 0 0 38px var(--patra-glow), inset 0 1px 0 rgba(255,255,255,.3); }
-}
-
-/* Rail nav items hover */
-.dark .sidebar .menu-item:hover,
-.dark .primary-sidebar .menu-item:hover {
-  transform: translateY(-2px);
+.dark .pat-rail-logo {
   transition: all .25s cubic-bezier(.34,1.56,.64,1);
 }
-.dark .sidebar .menu-item:hover svg,
-.dark .primary-sidebar .menu-item:hover svg {
+.dark .pat-rail-logo:hover {
+  transform: scale(1.06) rotate(-3deg);
+}
+.dark .pat-rail-item {
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+  position: relative;
+}
+.dark .pat-rail-item:hover {
+  color: var(--patra-text) !important;
+  background: var(--patra-surface-2) !important;
+  transform: translateY(-2px);
+}
+.dark .pat-rail-item:hover svg {
   transform: scale(1.1);
 }
-
-/* Rail active item */
-.dark .sidebar .menu-item.active,
-.dark .primary-sidebar .menu-item.active {
+.dark .pat-rail-item.active,
+.dark .snav-item.active {
   background: linear-gradient(135deg, var(--patra-purple), var(--patra-purple-deep)) !important;
   color: #fff !important;
   box-shadow: 0 6px 18px var(--patra-glow), inset 0 1px 0 rgba(255,255,255,.2);
 }
-.dark .sidebar .menu-item.active::before,
-.dark .primary-sidebar .menu-item.active::before {
+.dark .pat-rail-item.active::before {
   content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 22px;
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 22px;
   background: linear-gradient(180deg, var(--patra-purple-2), var(--patra-purple-3));
   border-radius: 0 3px 3px 0;
   box-shadow: 0 0 8px var(--patra-glow);
 }
 
-/* --- 5. CONVERSATION LIST CARDS --- */
-.dark .conversations-list .conversation {
+/* --- CONVERSATION LIST (actual: .conversations-list-wrap, conversation cards use Tailwind) --- */
+.dark .conversations-list-wrap {
+  background: var(--patra-surface) !important;
+}
+.dark .conversations-list-wrap .conversation-panel > div {
   border-radius: 13px;
-  border: 1px solid transparent;
   transition: all .22s cubic-bezier(.23,1,.32,1);
   position: relative;
-  overflow: hidden;
   animation: convoPop .3s cubic-bezier(.34,1.56,.64,1);
 }
-.dark .conversations-list .conversation:hover {
+.dark .conversations-list-wrap .conversation-panel > div:hover {
   background: var(--patra-surface-2) !important;
   transform: translateX(3px) scale(1.01);
 }
-.dark .conversations-list .conversation.active-chat,
-.dark .conversations-list .conversation.active {
+.dark .conversations-list-wrap .conversation-panel > div.bg-n-alpha-black2,
+.dark .conversations-list-wrap .conversation-panel > div[class*="active"] {
   background: var(--patra-surface-2) !important;
-  border-color: var(--patra-border-hi);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045), 0 0 0 1px rgba(110,86,207,.15), 0 8px 24px -8px var(--patra-glow);
-}
-.dark .conversations-list .conversation.active-chat::before,
-.dark .conversations-list .conversation.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 11px;
-  bottom: 11px;
-  width: 3px;
-  border-radius: 3px;
-  background: linear-gradient(180deg, var(--patra-purple), var(--patra-purple-2));
-  box-shadow: 0 0 8px var(--patra-glow);
+  border: 1px solid var(--patra-border-hi);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045), 0 0 0 1px rgba(110,86,207,.15);
 }
 
-/* --- 6. MESSAGE BUBBLES --- */
-.dark .conversation-wrap .message-text--metadata .agent .content,
-.dark .agent .message-text .wrap .content {
+/* --- FILTER CHIPS / TABS --- */
+.dark .pat-filter-chips button {
+  transition: all .22s cubic-bezier(.23,1,.32,1);
+}
+.dark .pat-filter-chips button:hover {
+  border-color: var(--patra-border-hi);
+  color: var(--patra-text);
+  transform: translateY(-1px);
+}
+.dark .pat-filter-chips button[class*="bg-patra"],
+.dark .pat-filter-chips button.active {
   background: linear-gradient(135deg, var(--patra-purple), var(--patra-purple-deep)) !important;
   color: #fff !important;
-  border: none !important;
-  border-bottom-right-radius: 5px !important;
-  box-shadow: 0 4px 16px var(--patra-glow);
+  box-shadow: 0 3px 12px var(--patra-glow);
 }
-.dark .conversation-wrap .message-text--metadata .user .content,
-.dark .user-message .wrap .content {
-  background: var(--patra-bubble-in) !important;
-  border: 1px solid var(--patra-border) !important;
-  border-bottom-left-radius: 5px !important;
-}
-.dark .conversation-wrap .conversation-panel .message {
+
+/* --- MESSAGE BUBBLES (actual: uses Tailwind prose classes) --- */
+.dark .patra-conv-msg-meta {
   animation: msgIn 0.3s cubic-bezier(.23,1,.32,1);
 }
 
-/* --- 7. HANDOFF CARD SPINNING BORDER --- */
+/* --- HANDOFF CARD SPINNING BORDER --- */
 .dark .ai-handoff-card {
-  position: relative;
-  overflow: hidden;
+  position: relative; overflow: hidden;
   border: 1px solid rgba(139,92,246,.38);
   border-radius: 16px;
 }
 .dark .ai-handoff-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
   background: conic-gradient(from 0deg, transparent, rgba(139,92,246,.08), transparent 30%);
-  animation: patraSpinGlow 8s linear infinite;
-  z-index: 0;
+  animation: patraSpinGlow 8s linear infinite; z-index: 0;
 }
 .dark .ai-handoff-card > * { position: relative; z-index: 1; }
-@keyframes patraSpinGlow { to { transform: rotate(360deg); } }
 
-/* --- 8. COMPOSER STYLING --- */
+/* --- COMPOSER --- */
 .dark .reply-box .reply-box__top {
   border-radius: 13px;
   border: 1px solid var(--patra-border);
@@ -739,257 +695,175 @@
   box-shadow: 0 0 0 3px rgba(110,86,207,.11);
 }
 
-/* --- 9. SIDEBAR STATS — HOVER LIFT + GLOW --- */
-.dark .contact-conversation--panel .stat,
-.dark .contact-panel .ppc-stat,
-.dark .contact-panel .contact-info--row {
+/* --- SEARCH FOCUS --- */
+.dark input:focus,
+.dark .search-input:focus-within {
+  border-color: var(--patra-purple) !important;
+  box-shadow: 0 0 0 3px rgba(110,86,207,.13) !important;
+}
+
+/* --- SIDEBAR STAT HOVER --- */
+.dark .ppc-stat,
+.dark .contact-info--row {
   transition: all .3s cubic-bezier(.34,1.56,.64,1);
   border-radius: 12px;
-  cursor: pointer;
 }
-.dark .contact-conversation--panel .stat:hover,
-.dark .contact-panel .ppc-stat:hover {
+.dark .ppc-stat:hover {
   transform: translateY(-3px) scale(1.02);
   box-shadow: 0 12px 28px rgba(0,0,0,.4), 0 0 18px rgba(110,86,207,.2);
 }
 
-/* --- 10. SIDEBAR ACTION ROWS — HOVER SLIDE + PURPLE BAR --- */
-.dark .conversation--actions .action--item,
-.dark .contact-panel .ctx-action,
-.dark .accordion--title {
+/* --- ACCORDION HOVER --- */
+.dark .accordion--title,
+.dark .snav-item {
   transition: all .26s cubic-bezier(.34,1.56,.64,1);
   border-radius: 10px;
 }
-.dark .conversation--actions .action--item:hover,
-.dark .accordion--title:hover {
+.dark .accordion--title:hover,
+.dark .snav-item:hover {
   background: rgba(110,86,207,.08);
   transform: translateX(3px);
   box-shadow: -3px 0 0 var(--patra-purple);
 }
 
-/* --- 11. FILTER CHIPS / TABS — ACTIVE PURPLE GRADIENT --- */
-.dark .tab--button.active,
-.dark .tabs-title.active {
-  background: linear-gradient(135deg, var(--patra-purple), var(--patra-purple-deep)) !important;
-  color: #fff !important;
-  border-color: transparent !important;
-  box-shadow: 0 3px 12px var(--patra-glow);
-}
-
-/* --- 12. SEARCH INPUT FOCUS --- */
-.dark .search-box input:focus,
-.dark .search-input input:focus,
-.dark input.search-input:focus {
-  border-color: var(--patra-purple) !important;
-  box-shadow: 0 0 0 3px rgba(110,86,207,.13) !important;
-}
-
-/* --- 13. BUTTON HOVER EFFECTS --- */
-.dark .button:hover,
-.dark button.nice:hover,
+/* --- BUTTON HOVER --- */
+.dark button:hover,
 .dark .btn:hover {
   transform: translateY(-2px);
   transition: all .22s cubic-bezier(.23,1,.32,1);
 }
-.dark .button.primary:hover {
-  filter: brightness(1.12);
-  box-shadow: 0 7px 22px var(--patra-glow);
-}
 
-/* --- 14. ICON BUTTON HOVER ROTATE --- */
-.dark .icon-button:hover {
-  transform: translateY(-2px) rotate(90deg);
-  box-shadow: 0 4px 12px var(--patra-glow);
-  transition: all .25s cubic-bezier(.34,1.56,.64,1);
-}
-
-/* --- 15. CURSOR SPOTLIGHT (global) --- */
-.dark #patra-spotlight {
-  position: fixed;
-  width: 460px;
-  height: 460px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(110,86,207,.16), rgba(110,86,207,.04) 42%, transparent 66%);
-  pointer-events: none;
-  z-index: 0;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity .5s;
-  mix-blend-mode: screen;
-  filter: blur(12px);
-}
-
-/* ============================================
-   PATRA DESIGN SYSTEM — PART 2
-   Dashboard, Charts, Tags, Global Polish
-   ============================================ */
-
-/* --- 16. DASHBOARD CARDS — CURSOR GLOW + HOVER LIFT --- */
+/* --- CARD HOVER (dashboard, games, settings) --- */
 .dark .report-card,
 .dark .overview-card,
-.dark .metric-card,
 .dark [class*="card"] {
   transition: transform .35s cubic-bezier(.34,1.56,.64,1), box-shadow .35s, border-color .25s;
-  position: relative;
-  isolation: isolate;
 }
 .dark .report-card:hover,
-.dark .overview-card:hover,
-.dark .metric-card:hover {
+.dark .overview-card:hover {
   transform: translateY(-4px) scale(1.008);
   box-shadow: 0 18px 40px -14px rgba(0,0,0,.55), 0 0 26px rgba(110,86,207,.18);
   border-color: var(--patra-purple) !important;
 }
 
-/* --- 17. HEATMAP CELLS --- */
-.dark .heatmap-cell:hover,
-.dark [class*="heatmap"] [class*="cell"]:hover {
-  transform: scale(1.4);
-  box-shadow: 0 0 10px var(--patra-glow);
-  z-index: 2;
-  border: 1px solid var(--patra-purple-2);
-}
-
-/* --- 18. BAR CHART ANIMATION --- */
-.dark .bar-chart .bar,
-.dark [class*="chart"] [class*="bar"] {
-  animation: barGrow .9s cubic-bezier(.23,1,.32,1) backwards;
-  transition: all .4s cubic-bezier(.34,1.56,.64,1);
-}
-.dark .bar-chart .bar:hover,
-.dark [class*="chart"] [class*="bar"]:hover {
-  filter: brightness(1.2);
-  box-shadow: 0 0 24px var(--patra-glow);
-}
-
-/* --- 19. DONUT CHART ANIMATION --- */
-.dark .donut-chart circle[stroke-dasharray],
-.dark [class*="donut"] circle {
-  animation: donutGrow 1.4s cubic-bezier(.23,1,.32,1);
-}
-
-/* --- 20. GAME CHIPS --- */
-.dark .game-card:hover,
-.dark [class*="game"][class*="chip"]:hover,
-.dark [class*="game"][class*="card"]:hover {
+/* --- VAULT CARD HOVER --- */
+.dark .ppc-vault-card:hover {
   border-color: var(--patra-purple) !important;
   transform: translateX(3px);
   box-shadow: -3px 0 0 var(--patra-purple);
 }
 
-/* --- 22. SURFACE COLORS ENFORCEMENT --- */
-.dark .app-content,
-.dark .main-content {
-  background: var(--patra-canvas) !important;
-}
-.dark .sidebar-panel,
-.dark .contact-panel,
-.dark .conversation-sidebar {
-  background: var(--patra-surface) !important;
-  border-color: var(--patra-border) !important;
+/* --- SURFACE COLORS --- */
+.dark .bg-n-background { background: var(--patra-canvas) !important; }
+.dark .bg-n-surface-1 { background: var(--patra-surface) !important; }
+
+/* --- TAG COLORS --- */
+.dark .label[data-key*="vip"] { background: rgba(227,160,8,.16) !important; color: var(--patra-amber) !important; }
+.dark .label[data-key*="ai"] { background: rgba(110,86,207,.18) !important; color: var(--patra-purple-3) !important; }
+.dark .label[data-key*="sla"] { background: rgba(248,81,73,.16) !important; color: var(--patra-red) !important; }
+.dark .label[data-key*="cashout"] { background: rgba(88,166,255,.16) !important; color: var(--patra-blue) !important; }
+
+/* --- BORDER RADIUS --- */
+.dark .report-card, .dark .overview-card { border-radius: 16px !important; }
+.dark input, .dark select { border-radius: 11px !important; }
+
+/* --- AVATAR DOT --- */
+.dark .user-online-status {
+  background: var(--patra-green) !important;
+  box-shadow: 0 0 6px var(--patra-green);
+  animation: pip 2s infinite;
 }
 
-/* --- 23. TAG STYLING --- */
-.dark .label.label--tag[data-key="vip"],
-.dark .conversation--label .label:has-text("vip") {
-  background: rgba(227,160,8,.16) !important;
-  color: var(--patra-amber) !important;
-}
-.dark .label.label--tag[data-key*="ai"],
-.dark .pat-ai-tag {
-  background: rgba(110,86,207,.18) !important;
-  color: var(--patra-purple-3) !important;
-}
-.dark .label.label--tag[data-key*="sla"] {
-  background: rgba(248,81,73,.16) !important;
-  color: var(--patra-red) !important;
-}
-.dark .label.label--tag[data-key*="cashout"] {
-  background: rgba(88,166,255,.16) !important;
-  color: var(--patra-blue) !important;
-}
-
-/* --- 24. KPI CARD NUMBER STYLING --- */
-.dark .report-card .heading,
-.dark .metric-card .metric-value,
-.dark .kpi-value {
-  font-family: 'Space Grotesk', sans-serif !important;
-  font-weight: 700;
-  font-size: 30px;
-  letter-spacing: -0.02em;
-}
-
-/* --- 25. STAGGERED CARD ENTRANCE --- */
+/* --- STAGGERED ENTRANCE --- */
+.dark .report-card { animation: mIn .5s cubic-bezier(.23,1,.32,1) backwards; }
 .dark .report-card:nth-child(1) { animation-delay: 0s; }
 .dark .report-card:nth-child(2) { animation-delay: 0.04s; }
 .dark .report-card:nth-child(3) { animation-delay: 0.08s; }
 .dark .report-card:nth-child(4) { animation-delay: 0.12s; }
 .dark .report-card:nth-child(5) { animation-delay: 0.16s; }
 .dark .report-card:nth-child(6) { animation-delay: 0.20s; }
-.dark .report-card {
-  animation: mIn .5s cubic-bezier(.23,1,.32,1) backwards;
-}
-@keyframes mIn {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+
+/* --- ALL ANIMATIONS --- */
+@keyframes patraSpinGlow { to { transform: rotate(360deg); } }
+@keyframes logoPulse { 0%,100% { box-shadow: 0 0 22px var(--patra-glow); } 50% { box-shadow: 0 0 38px var(--patra-glow); } }
+@keyframes convoPop { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes msgIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+@keyframes mIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pip { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.5; transform:scale(.8); } }
+@keyframes slaPulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+@keyframes badgePop { from { transform:scale(0); } to { transform:scale(1); } }
+@keyframes sparkPulse { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
+@keyframes barGrow { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+@keyframes donutGrow { from { stroke-dashoffset:100; } to { stroke-dashoffset:0; } }
+@keyframes typing { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes chFill { from { width:0; } to { width:var(--w); } }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+/* --- SPOTLIGHT --- */
+.dark #patra-spotlight {
+  position: fixed; width: 460px; height: 460px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(110,86,207,.16), rgba(110,86,207,.04) 42%, transparent 66%);
+  pointer-events: none; z-index: 0; transform: translate(-50%,-50%);
+  opacity: 0; transition: opacity .5s; mix-blend-mode: screen; filter: blur(12px);
 }
 
-/* --- 26. AGENT ROW HOVER --- */
-.dark .agent-list-item:hover,
-.dark [class*="agent"][class*="row"]:hover {
-  background: var(--patra-surface-2);
-  transform: translateX(3px);
-  padding-left: 8px;
-  border-radius: 8px;
-  transition: all .22s cubic-bezier(.34,1.56,.64,1);
-}
-
-/* --- 27. BORDER RADIUS ENFORCEMENT --- */
-.dark .card,
-.dark .report-card,
-.dark .overview-card {
-  border-radius: 16px !important;
-}
-.dark input,
-.dark .input,
-.dark select {
-  border-radius: 11px !important;
-}
-.dark .button,
-.dark button.nice {
-  border-radius: 10px !important;
-}
-
-/* --- 28. BOX SHADOW ENFORCEMENT --- */
-.dark .card:hover,
-.dark .report-card:hover {
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,.5), 0 0 26px rgba(110,86,207,.22) !important;
-}
-
-/* --- 29. TRANSITION TIMING --- */
-.dark * {
-  transition-timing-function: cubic-bezier(.23,1,.32,1);
-}
-
-/* --- 30. AVATAR ONLINE DOT --- */
-.dark .current-user--avatar .online-dot,
-.dark .avatar-component .user-online-status {
-  background: var(--patra-green) !important;
-  box-shadow: 0 0 6px var(--patra-green);
-  animation: pip 2s infinite;
-}
-@keyframes pip {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .5; transform: scale(.8); }
-}
-
-/* --- BRIGHTNESS DIMMER (spec item 25) --- */
+/* --- DIMMER --- */
 #patra-dimmer {
+  position: fixed; inset: 0; background: #000;
+  opacity: 0; pointer-events: none; z-index: 65; transition: opacity .25s;
+}
+
+/* --- Theme FAB + brightness --- */
+.patra-theme-fab {
   position: fixed;
-  inset: 0;
-  background: #000;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 65;
-  transition: opacity .25s;
+  bottom: 56px;
+  left: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #131119;
+  border: 1px solid rgba(110, 86, 207, 0.25);
+  color: #a78bfa;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.patra-bright-ctl {
+  position: fixed;
+  bottom: 16px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 70;
+}
+
+.patra-bright-slider {
+  width: 60px;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(110, 86, 207, 0.3);
+  border-radius: 2px;
+  outline: none;
+}
+
+.patra-bright-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #6e56cf;
+  cursor: pointer;
+}
+
+.patra-bright-toggle {
+  font-size: 14px;
+  cursor: pointer;
+  color: #75727f;
 }
