@@ -2016,8 +2016,8 @@ class Ai::ReplyService
   # ---------- Grok (xAI) + DeepSeek ----------
 
   def invoke_anthropic(messages, system_prompt, use_deepseek: false)
-    if @rag_examples.present?
-      system_prompt = build_rag_enhanced_prompt(system_prompt, @rag_examples, @reply_pref)
+    if @rag_examples.present? || @reply_pref.present?
+      system_prompt = build_rag_enhanced_prompt(system_prompt, @rag_examples || [], @reply_pref)
     end
 
     llm_messages = use_deepseek ? messages.map { |m| { role: m['role'].to_s == 'assistant' ? 'assistant' : 'user', content: m['content'].to_s } } : messages
@@ -2582,11 +2582,17 @@ class Ai::ReplyService
   end
 
   def build_rag_enhanced_prompt(base_prompt, rag_examples, reply_pref = nil)
-    return base_prompt if rag_examples.blank?
+    return base_prompt if reply_pref.nil? && rag_examples.blank?
 
-    examples_text = rag_examples.map do |ex|
-      "Customer: #{ex[:customer]}\nCashier: #{ex[:cashier]}"
-    end.join("\n---\n")
+    examples_section = if rag_examples.present?
+      examples_text = rag_examples.map do |ex|
+        "Customer: #{ex[:customer]}\nCashier: #{ex[:cashier]}"
+      end.join("\n---\n")
+
+      "\nHere are examples of how real cashiers reply to similar messages:\n#{examples_text}\n\nNow reply to this customer in the SAME style as the examples above."
+    else
+      ""
+    end
 
     tone = reply_pref&.reply_tone || 'casual'
     max_lines = reply_pref&.max_reply_lines || 2
@@ -2608,11 +2614,8 @@ class Ai::ReplyService
       #{tone_instruction}
       Max #{max_lines} lines. #{use_emojis ? 'Emojis OK.' : 'No emojis.'}
       #{"Sign off with: #{sign_off}" if sign_off.present?}
+      #{examples_section}
 
-      Here are examples of how real cashiers reply to similar messages:
-      #{examples_text}
-
-      Now reply to this customer in the SAME style as the examples above.
       Never admit you are AI. Never use bullet points. Never say "certainly" or "great question".
 
       #{base_prompt}
