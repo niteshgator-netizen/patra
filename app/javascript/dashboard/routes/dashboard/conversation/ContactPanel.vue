@@ -315,6 +315,7 @@ onMounted(() => {
                   <span class="patra-media-count"
                     >MEDIA · {{ attachmentCount }}</span
                   >
+                  <a class="patra-media-viewall">View all →</a>
                 </div>
                 <div class="patra-media-grid">
                   <div
@@ -795,6 +796,13 @@ onMounted(() => {
   font-size: 10px;
   color: #75727f;
   text-transform: uppercase;
+}
+
+.patra-media-viewall {
+  font-size: 10px;
+  color: #8b5cf6;
+  cursor: pointer;
+  margin-left: 8px;
 }
 
 .patra-media-grid {

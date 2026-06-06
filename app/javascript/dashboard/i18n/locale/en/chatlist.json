@@ -21,7 +21,8 @@
       "all": "All",
       "patra_ai": "Patra AI",
       "flagged": "Flagged",
-      "ai_handled": "✦ AI handled"
+      "ai_handled": "✦ AI handled",
+      "mentions": "Mentions"
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {

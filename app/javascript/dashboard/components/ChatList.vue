@@ -215,6 +215,12 @@ const assigneeTabItems = computed(() => {
     count: aiHandledCount,
   });
 
+  base.push({
+    key: 'mentions',
+    name: t('CHAT_LIST.ASSIGNEE_TYPE_TABS.mentions') || 'Mentions',
+    count: 0,
+  });
+
   return base;
 });
 
@@ -281,7 +287,9 @@ const conversationFilters = computed(() => {
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType:
-      ['patra_ai', 'flagged', 'ai_handled'].includes(activeAssigneeTab.value)
+      ['patra_ai', 'flagged', 'ai_handled', 'mentions'].includes(
+        activeAssigneeTab.value
+      )
         ? wootConstants.ASSIGNEE_TYPE.ALL
         : activeAssigneeTab.value,
     status: activeStatus.value,
@@ -289,7 +297,10 @@ const conversationFilters = computed(() => {
     page: conversationListPagination.value,
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
-    conversationType: props.conversationType || undefined,
+    conversationType:
+      activeAssigneeTab.value === 'mentions'
+        ? wootConstants.CONVERSATION_TYPE.MENTION
+        : props.conversationType || undefined,
   };
 });
 

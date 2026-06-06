@@ -213,7 +213,11 @@ onUnmounted(() => {
               {{ rangeThirtyDays }}
             </button>
           </div>
-          <button type="button" class="patra-btn" @click="loadStats(false)">
+          <button
+            type="button"
+            class="patra-btn patra-refresh-btn"
+            @click="loadStats(false)"
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -1004,6 +1008,17 @@ onUnmounted(() => {
   border-color: var(--border-hi);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.patra-refresh-btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--patra-surface-2, #131119);
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  color: #a78bfa;
+  cursor: pointer;
 }
 
 .patra-content {

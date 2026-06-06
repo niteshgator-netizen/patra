@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useClipboard } from '@vueuse/core';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import ContactsForm from 'dashboard/components-next/Contacts/ContactsForm/ContactsForm.vue';
 import ConfirmContactDeleteDialog from 'dashboard/components-next/Contacts/ContactsForm/ConfirmContactDeleteDialog.vue';
@@ -25,12 +25,29 @@ const emit = defineEmits(['goToContactsList']);
 const { t } = useI18n();
 const store = useStore();
 const route = useRoute();
+const router = useRouter();
 const { copy, copied } = useClipboard();
 
+const detailTab = ref('attributes');
 const confirmDeleteContactDialogRef = ref(null);
 const contactsFormRef = ref(null);
 const contactData = ref({});
 const playerTiers = ref([]);
+
+const contactAttributeDefs = useMapGetter('attributes/getContactAttributes');
+const contactActivities = ref([]);
+
+const contactAttributes = computed(() => {
+  const defs = contactAttributeDefs.value || [];
+  const custom = props.selectedContact?.customAttributes || {};
+  return defs
+    .filter(attr => attr.attributeKey in custom)
+    .map(attr => ({
+      id: attr.id,
+      attribute_display_name: attr.attributeDisplayName,
+      value: custom[attr.attributeKey] ?? '',
+    }));
+});
 
 const uiFlags = useMapGetter('contacts/getUIFlags');
 const isUpdating = computed(() => uiFlags.value.isUpdating);
@@ -408,6 +425,89 @@ const updateTier = async event => {
       </div>
     </div>
 
+    <div class="patra-dtabs">
+      <button
+        type="button"
+        :class="['patra-dtab', { active: detailTab === 'attributes' }]"
+        @click="detailTab = 'attributes'"
+      >
+        Attributes
+      </button>
+      <button
+        type="button"
+        :class="['patra-dtab', { active: detailTab === 'history' }]"
+        @click="detailTab = 'history'"
+      >
+        History
+      </button>
+      <button
+        type="button"
+        :class="['patra-dtab', { active: detailTab === 'notes' }]"
+        @click="detailTab = 'notes'"
+      >
+        Notes
+      </button>
+      <button
+        type="button"
+        :class="['patra-dtab', { active: detailTab === 'media' }]"
+        @click="detailTab = 'media'"
+      >
+        Media
+      </button>
+    </div>
+
+    <div v-show="detailTab === 'attributes'" class="patra-tabpane">
+      <div
+        v-if="!contactAttributes || contactAttributes.length === 0"
+        class="patra-empty-note"
+      >
+        No custom attributes available.
+        <a @click="router.push({ name: 'settings_custom_attributes' })"
+          >Create one in Settings.</a
+        >
+      </div>
+      <div v-else>
+        <div
+          v-for="attr in contactAttributes"
+          :key="attr.id"
+          class="patra-attr-row"
+        >
+          <span class="patra-attr-key">{{ attr.attribute_display_name }}</span>
+          <span class="patra-attr-val">{{ attr.value || '-' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-show="detailTab === 'history'" class="patra-tabpane">
+      <div
+        v-if="!contactActivities || contactActivities.length === 0"
+        class="patra-empty-note"
+      >
+        No activity history yet.
+      </div>
+      <div v-else class="patra-timeline">
+        <div
+          v-for="act in contactActivities"
+          :key="act.id"
+          class="patra-tl-item"
+        >
+          <div class="patra-tl-dot" />
+          <div class="patra-tl-body">
+            <div class="patra-tl-title">{{ act.activity_type }}</div>
+            <div class="patra-tl-time">{{ act.created_at }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-show="detailTab === 'notes'" class="patra-tabpane">
+      <div class="patra-empty-note">No notes yet.</div>
+    </div>
+
+    <div v-show="detailTab === 'media'" class="patra-tabpane">
+      <div class="patra-empty-note">No media yet.</div>
+    </div>
+
     <div class="card full profile-edit">
       <div class="card-t display">
         <span class="dot" />
@@ -534,5 +634,82 @@ const updateTier = async event => {
   background: var(--surface-2, #131119);
   color: var(--text, #ededf2);
   font-size: 12px;
+}
+
+.patra-dtabs {
+  display: flex;
+  border-bottom: 1px solid rgba(110, 86, 207, 0.15);
+  margin: 8px 0;
+}
+.patra-dtab {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #75727f;
+  cursor: pointer;
+  text-align: center;
+}
+.patra-dtab.active {
+  color: #a78bfa;
+  border-bottom-color: #6e56cf;
+}
+.patra-tabpane {
+  padding: 8px 0;
+  min-height: 60px;
+}
+.patra-empty-note {
+  text-align: center;
+  color: #75727f;
+  font-size: 12px;
+  padding: 20px 12px;
+}
+.patra-empty-note a {
+  color: #8b5cf6;
+  cursor: pointer;
+}
+.patra-timeline {
+  padding: 0 8px;
+}
+.patra-tl-item {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-left: 2px solid rgba(110, 86, 207, 0.2);
+  margin-left: 6px;
+  padding-left: 14px;
+  position: relative;
+}
+.patra-tl-dot {
+  position: absolute;
+  left: -5px;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6e56cf;
+}
+.patra-tl-title {
+  font-size: 12px;
+  color: #ededf2;
+}
+.patra-tl-time {
+  font-size: 10px;
+  color: #75727f;
+}
+.patra-attr-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.patra-attr-key {
+  color: #75727f;
+}
+.patra-attr-val {
+  color: #ededf2;
 }
 </style>
