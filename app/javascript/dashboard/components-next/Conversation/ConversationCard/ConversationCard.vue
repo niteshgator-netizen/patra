@@ -11,6 +11,15 @@ import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
 
+const cardRef = ref(null);
+
+const onMouseMove = (e) => {
+  if (!cardRef.value) return;
+  const rect = cardRef.value.getBoundingClientRect();
+  cardRef.value.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+  cardRef.value.style.setProperty('--my', `${e.clientY - rect.top}px`);
+};
+
 const props = defineProps({
   conversation: {
     type: Object,
@@ -86,9 +95,11 @@ const onCardClick = e => {
 
 <template>
   <div
+    ref="cardRef"
     role="button"
-    class="flex w-full gap-3 px-3 py-4 transition-all duration-300 ease-in-out cursor-pointer"
+    class="patra-conv-card flex w-full gap-3 px-3 py-4 transition-all duration-300 ease-in-out cursor-pointer"
     @click="onCardClick"
+    @mousemove="onMouseMove"
   >
     <Avatar
       :name="currentContactName"
@@ -131,3 +142,41 @@ const onCardClick = e => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.patra-conv-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 13px;
+  isolation: isolate;
+}
+
+.patra-conv-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(110, 86, 207, 0.12),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.patra-conv-card:hover::after {
+  opacity: 1;
+}
+
+.patra-conv-card:hover {
+  transform: translateX(3px) scale(1.01);
+}
+
+.patra-conv-card > * {
+  position: relative;
+  z-index: 1;
+}
+</style>
