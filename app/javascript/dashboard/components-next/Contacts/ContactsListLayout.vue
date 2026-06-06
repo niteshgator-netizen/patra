@@ -73,7 +73,7 @@ const endItem = computed(() =>
   Math.min(startItem.value + props.itemsPerPage - 1, props.totalItems)
 );
 
-const pageNumbers = computed(() => {
+const visiblePages = computed(() => {
   const pages = [];
   const max = Math.min(totalPages.value, 5);
   let start = Math.max(1, props.currentPage - 2);
@@ -83,13 +83,9 @@ const pageNumbers = computed(() => {
   return pages;
 });
 
-const showingLabel = computed(() =>
-  t('CONTACTS_LAYOUT.PAGINATION_FOOTER.SHOWING', {
-    startItem: startItem.value,
-    endItem: endItem.value,
-    totalItems: props.totalItems,
-  })
-);
+const pagerStart = computed(() => startItem.value);
+const pagerEnd = computed(() => endItem.value);
+const totalContacts = computed(() => props.totalItems);
 
 const updateCurrentPage = page => {
   emit('update:currentPage', page);
@@ -196,31 +192,34 @@ const isTabActive = name => route.name === name;
         @load-more="emit('loadMore')"
       />
     </div>
-    <div v-if="showPagination" class="list-foot">
-      <span>{{ showingLabel }}</span>
-      <div class="pager">
+    <!-- Pagination -->
+    <div v-if="showPagination" class="patra-pager list-foot">
+      <span class="patra-pager-info">
+        Showing {{ pagerStart }}–{{ pagerEnd }} of {{ totalContacts }}
+      </span>
+      <div class="patra-pager-btns">
         <button
           type="button"
           :disabled="currentPage <= 1"
           @click="updateCurrentPage(currentPage - 1)"
         >
-          {{ t('CONTACTS_LAYOUT.PAGER.PREV') }}
+          ‹
         </button>
         <button
-          v-for="page in pageNumbers"
-          :key="page"
+          v-for="p in visiblePages"
+          :key="p"
           type="button"
-          :class="{ active: page === currentPage }"
-          @click="updateCurrentPage(page)"
+          :class="{ active: p === currentPage }"
+          @click="updateCurrentPage(p)"
         >
-          {{ page }}
+          {{ p }}
         </button>
         <button
           type="button"
           :disabled="currentPage >= totalPages"
           @click="updateCurrentPage(currentPage + 1)"
         >
-          {{ t('CONTACTS_LAYOUT.PAGER.NEXT') }}
+          ›
         </button>
       </div>
     </div>

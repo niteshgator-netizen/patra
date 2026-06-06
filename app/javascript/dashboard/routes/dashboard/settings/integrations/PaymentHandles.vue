@@ -569,6 +569,10 @@ const toggleLedger = handleId => {
   }
 };
 
+const viewLedger = handle => {
+  toggleLedger(handle.id);
+};
+
 const isLedgerOpen = handleId => expandedLedgerId.value === handleId;
 
 const formatLedgerAmount = amount => {
@@ -1016,7 +1020,10 @@ watch(selectedScoringPlatform, () => {
         :back-button-label="$t('SIDEBAR.INTEGRATIONS')"
       />
 
-      <div v-show="scoringSettingsOpen" class="ph-scoring-panel">
+      <div v-show="scoringSettingsOpen" class="ph-scoring-panel patra-scoring-panel">
+        <p class="patra-scoring-desc">
+          Configure how Patra scores and rotates payment handles.
+        </p>
         <div class="mb-4 flex flex-wrap gap-1 border-b border-[#DDD8F5]">
           <button
             v-for="tab in SCORING_PLATFORM_TABS"
@@ -1387,11 +1394,11 @@ watch(selectedScoringPlatform, () => {
           <div class="card-toolbar-actions">
             <button
               type="button"
-              class="btn sm"
+              class="patra-scoring-btn btn sm"
               :class="{ 'btn-active': scoringSettingsOpen }"
               @click="scoringSettingsOpen = !scoringSettingsOpen"
             >
-              {{ t('PAYMENT_HANDLES.SCORING_BUTTON') }}
+              ⚙️ Scoring Settings
             </button>
             <button type="button" class="btn primary sm" @click="openCreate">
               {{ t('PAYMENT_HANDLES.ADD_BUTTON') }}
@@ -1448,15 +1455,15 @@ watch(selectedScoringPlatform, () => {
                 <td class="ph-last-failed">
                   {{ safeDynamicTime(row.last_failure_at) }}
                 </td>
-                <td>
+                <td class="patra-ph-td">
                   <button
                     type="button"
-                    class="ledger"
+                    class="patra-ledger-btn ledger"
                     :class="{ 'ledger-open': isLedgerOpen(row.id) }"
                     :title="LEDGER_LABELS.ledgerToggle"
-                    @click="toggleLedger(row.id)"
+                    @click="viewLedger(row)"
                   >
-                    {{ t('PAYMENT_HANDLES.LEDGER_VIEW') }}
+                    View
                   </button>
                 </td>
                 <td class="ph-actions">
@@ -2348,5 +2355,44 @@ watch(selectedScoringPlatform, () => {
 
 .ph-ledger-event :deep(.text-n-slate-11) {
   color: var(--text-3);
+}
+
+.patra-scoring-btn {
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(110, 86, 207, 0.08);
+  color: #a78bfa;
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  cursor: pointer;
+}
+
+.patra-scoring-panel {
+  padding: 12px;
+  border: 1px solid rgba(110, 86, 207, 0.12);
+  border-radius: 12px;
+  margin-top: 8px;
+}
+
+.patra-scoring-desc {
+  font-size: 12px;
+  color: #75727f;
+  margin: 0 0 12px;
+}
+
+.patra-ledger-btn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  color: #8b5cf6;
+  border: 1px solid rgba(110, 86, 207, 0.2);
+  cursor: pointer;
+}
+
+.patra-ledger-btn:hover {
+  background: rgba(110, 86, 207, 0.1);
 }
 </style>

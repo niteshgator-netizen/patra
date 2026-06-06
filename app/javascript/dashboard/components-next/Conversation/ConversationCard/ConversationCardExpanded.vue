@@ -30,6 +30,8 @@ const emit = defineEmits([
   'deSelectConversation',
   'click',
   'contextmenu',
+  'resolve',
+  'snooze',
 ]);
 
 const lastMessageInChat = computed(() => getLastMessage(props.chat));
@@ -183,6 +185,8 @@ const paymentDotClass = computed(() => {
         :voice-call-direction="voiceCallData.direction"
         :unread-count="unreadCount"
         :show-expanded-preview="false"
+        @resolve="$emit('resolve')"
+        @snooze="$emit('snooze')"
       />
     </div>
 

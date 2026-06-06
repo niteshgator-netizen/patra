@@ -11,9 +11,31 @@ defineProps({
   unreadCount: { type: Number, default: 0 },
   showExpandedPreview: { type: Boolean, default: false },
 });
+
+defineEmits(['resolve', 'snooze']);
 </script>
 
 <template>
+  <div class="patra-card-content-wrap relative min-w-0">
+    <!-- QA quick actions (show on hover) -->
+    <div class="patra-convo-qa">
+      <button
+        type="button"
+        class="patra-qa"
+        title="Resolve"
+        @click.stop="$emit('resolve')"
+      >
+        ✓
+      </button>
+      <button
+        type="button"
+        class="patra-qa"
+        title="Snooze"
+        @click.stop="$emit('snooze')"
+      >
+        ⏰
+      </button>
+    </div>
   <div
     class="grid grid-cols-[1fr_auto] gap-1.5"
     :class="showExpandedPreview ? 'items-end' : 'items-center'"
@@ -43,5 +65,6 @@ defineProps({
     </span>
 
     <UnreadBadge :count="unreadCount" :align-bottom="showExpandedPreview" />
+  </div>
   </div>
 </template>

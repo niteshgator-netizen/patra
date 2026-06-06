@@ -10,6 +10,7 @@ import ConversationContextMenu from './widgets/conversation/contextMenu/Index.vu
 import SwipeableConversationItem from './widgets/conversation/SwipeableConversationItem.vue';
 import { useWindowSize } from '@vueuse/core';
 import wootConstants from 'dashboard/constants/globals';
+import { findSnoozeTime } from 'dashboard/helper/snoozeHelpers';
 
 const props = defineProps({
   source: { type: Object, required: true },
@@ -191,6 +192,21 @@ const onSwipeMarkRead = chatId => {
 const onSwipeResolve = chatId => {
   updateConversationStatus(chatId, wootConstants.STATUS_TYPE.RESOLVED);
 };
+
+const onQaResolve = () => {
+  onSwipeResolve(props.source.id);
+};
+
+const onQaSnooze = () => {
+  const snoozedUntil = findSnoozeTime(
+    wootConstants.SNOOZE_OPTIONS.AN_HOUR_FROM_NOW
+  );
+  updateConversationStatus(
+    props.source.id,
+    wootConstants.STATUS_TYPE.SNOOZED,
+    snoozedUntil
+  );
+};
 </script>
 
 <template>
@@ -210,6 +226,8 @@ const onSwipeResolve = chatId => {
     @de-select-conversation="onExpandedSelect"
     @click="onCardClick"
     @contextmenu="openContextMenu"
+    @resolve="onQaResolve"
+    @snooze="onQaSnooze"
   />
 
   <!-- Default (condensed) layout -->
@@ -233,6 +251,8 @@ const onSwipeResolve = chatId => {
       @contextmenu="openContextMenu"
       @select-conversation="selectConversation"
       @de-select-conversation="deSelectConversation"
+      @resolve="onQaResolve"
+      @snooze="onQaSnooze"
     />
   </SwipeableConversationItem>
   <ConversationCard
@@ -249,6 +269,8 @@ const onSwipeResolve = chatId => {
     @contextmenu="openContextMenu"
     @select-conversation="selectConversation"
     @de-select-conversation="deSelectConversation"
+    @resolve="onQaResolve"
+    @snooze="onQaSnooze"
   />
 
   <!-- Shared context menu for both layouts -->

@@ -39,6 +39,8 @@ const emit = defineEmits([
   'contextmenu',
   'selectConversation',
   'deSelectConversation',
+  'resolve',
+  'snooze',
 ]);
 
 const { t } = useI18n();
@@ -315,6 +317,25 @@ onUnmounted(() => {
     @click="$emit('click', $event)"
     @contextmenu="$emit('contextmenu', $event)"
   >
+    <!-- QA quick actions (show on hover) -->
+    <div class="patra-convo-qa">
+      <button
+        type="button"
+        class="patra-qa"
+        title="Resolve"
+        @click.stop="$emit('resolve')"
+      >
+        ✓
+      </button>
+      <button
+        type="button"
+        class="patra-qa"
+        title="Snooze"
+        @click.stop="$emit('snooze')"
+      >
+        ⏰
+      </button>
+    </div>
     <div
       class="cv6-avatar relative inline-block shrink-0"
       @mouseenter="onThumbnailHover"

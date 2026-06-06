@@ -22,7 +22,8 @@ class Api::V1::Accounts::Patra::DashboardController < Api::V1::Accounts::BaseCon
       cashouts_today: load_cashout_stats(period)[:cashouts],
       net_today: load_cashout_stats(period)[:net],
       game_performance: game_health_summary,
-      heatmap: heatmap_data
+      heatmap: heatmap_data,
+      top_questions: top_questions_for(period)
     }
 
     render json: stats
@@ -132,5 +133,43 @@ class Api::V1::Accounts::Patra::DashboardController < Api::V1::Accounts::BaseCon
                          "EXTRACT(HOUR FROM created_at AT TIME ZONE 'UTC')")
                   .count
     rows.map { |(dow, hour), count| { dow: dow.to_i, hour: hour.to_i, count: count } }
+  end
+
+  def top_questions_for(period)
+    conv_ids = Message.unscoped.where(
+      account_id: Current.account.id,
+      message_type: :outgoing,
+      source_id: OwnerStats::Aggregator::AI_SOURCE_ID,
+      created_at: period
+    ).distinct.pluck(:conversation_id)
+    return [] if conv_ids.empty?
+
+    handled_ids = Current.account.conversations
+                         .where(id: conv_ids)
+                         .where("COALESCE(cached_label_list, '') NOT LIKE ?", '%needs-human%')
+                         .pluck(:id)
+    return [] if handled_ids.empty?
+
+    texts = Message.unscoped.where(
+      account_id: Current.account.id,
+      conversation_id: handled_ids,
+      message_type: :incoming,
+      private: false,
+      created_at: period
+    ).where.not(content: [nil, '']).pluck(:content)
+
+    rows = texts.map { |c| c.to_s.strip.truncate(80, omission: '...') }
+                .reject(&:blank?)
+                .tally
+                .sort_by { |_text, n| -n }
+                .first(5)
+    max = rows.map(&:last).max || 1
+    rows.map do |text, count|
+      {
+        question: text,
+        count: count,
+        pct: ((count.to_f / max) * 100).round
+      }
+    end
   end
 end
