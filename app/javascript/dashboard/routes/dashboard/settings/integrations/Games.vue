@@ -16,9 +16,13 @@ export default {
       isLoading: true,
       selectedGame: null,
       selectedPlayerActionsGame: null,
+      showAddGameModal: false,
     };
   },
   computed: {
+    inactiveGames() {
+      return this.mergedGames.filter(g => !g.agentGame);
+    },
     mergedGames() {
       return this.availableGames.map(game => {
         const agentGame = this.agentGames.find(
@@ -80,6 +84,10 @@ export default {
     },
     openConfigModal(game) {
       this.selectedGame = game;
+    },
+    selectGameToAdd(game) {
+      this.showAddGameModal = false;
+      this.openConfigModal(game);
     },
     closeConfigModal() {
       this.selectedGame = null;
@@ -146,18 +154,12 @@ export default {
           <h1 class="display">{{ $t('GAMES.HEADER') }}</h1>
           <div class="sub">{{ $t('GAMES.DESCRIPTION') }}</div>
         </div>
-        <button type="button" class="pat-btn" @click="() => {}">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            width="15"
-            height="15"
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Add game
+        <button
+          type="button"
+          class="patra-add-game-btn"
+          @click="showAddGameModal = true"
+        >
+          + Add game
         </button>
       </div>
 
@@ -226,6 +228,38 @@ export default {
       :agent-game="selectedPlayerActionsGame.agentGame"
       @close="closePlayerActions"
     />
+
+    <div
+      v-if="showAddGameModal"
+      class="add-game-backdrop"
+      @click.self="showAddGameModal = false"
+    >
+      <div class="add-game-modal" role="dialog" aria-labelledby="add-game-title">
+        <h2 id="add-game-title" class="add-game-title">Add game</h2>
+        <p v-if="!inactiveGames.length" class="add-game-empty">
+          All available games are already on your account.
+        </p>
+        <ul v-else class="add-game-list">
+          <li v-for="game in inactiveGames" :key="game.slug">
+            <button
+              type="button"
+              class="add-game-pick"
+              @click="selectGameToAdd(game)"
+            >
+              <span class="add-game-name">{{ game.name }}</span>
+              <span class="add-game-slug">{{ game.slug }}</span>
+            </button>
+          </li>
+        </ul>
+        <button
+          type="button"
+          class="add-game-cancel"
+          @click="showAddGameModal = false"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -467,27 +501,109 @@ export default {
   }
 }
 
-.pat-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #6e56cf, #5b45b0);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 18px;
-  font-size: 13px;
+.patra-add-game-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
+  background: linear-gradient(135deg, #6e56cf, #5b45b0);
+  color: white;
+  border: none;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
-  transition: all 0.22s;
   flex-shrink: 0;
   white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.22s;
 }
 
-.pat-btn:hover {
+.patra-add-game-btn:hover {
   filter: brightness(1.12);
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(110, 86, 207, 0.45);
+}
+
+.add-game-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 4, 9, 0.72);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.add-game-modal {
+  width: min(420px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.add-game-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.add-game-empty {
+  font-size: 13px;
+  color: var(--text-3);
+  margin: 0 0 16px;
+}
+
+.add-game-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.add-game-pick {
+  width: 100%;
+  text-align: left;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+
+.add-game-pick:hover {
+  border-color: var(--patra);
+}
+
+.add-game-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-game-slug {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 2px;
+}
+
+.add-game-cancel {
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-hi);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 13px;
 }
 </style>
