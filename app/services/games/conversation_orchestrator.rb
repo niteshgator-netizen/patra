@@ -58,7 +58,10 @@ module Games
       'whats_hitting'             => :whats_hitting,
       'referral'                  => :referral,
       'new_account_reissue'       => :new_account_reissue,
-      'redeem_partial_replay'     => :redeem_partial_replay
+      'redeem_partial_replay'     => :redeem_partial_replay,
+      'replay_from_balance'       => :replay_from_balance,
+      'new_account_new_player'    => :request_account_creation,
+      'new_account_other_game'    => :request_account_creation
     }.freeze
 
     def initialize(account:, contact:, conversation:, messages:)
