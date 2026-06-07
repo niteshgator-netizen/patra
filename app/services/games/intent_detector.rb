@@ -16,6 +16,18 @@ module Games
       /\b(?:load|recharge|top\s*up)\b(?:\s+(?:me|it|please|up|now|my\s+account))*(?:\s+(?:on|to|for|in)\s+[a-z0-9_]{3,20})?/i
     ].freeze
 
+    FREEPLAY_PATTERNS = [
+      /\bfree\s*play\b/i,
+      /\bfp\b/i,
+      /\bfreeplay\b/i
+    ].freeze
+
+    BONUS_PATTERNS = [
+      /\bbonus\b/i,
+      /\bpromo\b/i,
+      /\bpromotion\b/i
+    ].freeze
+
     CASHOUT_PATTERNS = [
       /cash\s*out\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /cashout\s+\$?(\d+(?:\.\d{1,2})?)/i,
@@ -396,6 +408,22 @@ module Games
                       total_points: extract_points(text),
                       tip_amount: extract_tip(text),
                       reload_amount: extract_reload(text)
+                    }
+                  elsif match_any(text, FREEPLAY_PATTERNS)
+                    amt = match_any(text, LOAD_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched load_freeplay')
+                    {
+                      intent: :load_freeplay,
+                      amount: amt && amt[1] ? amt[1].to_f : nil,
+                      game_slug: detect_game(text)
+                    }
+                  elsif match_any(text, BONUS_PATTERNS)
+                    amt = match_any(text, LOAD_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched load_bonus')
+                    {
+                      intent: :load_bonus,
+                      amount: amt && amt[1] ? amt[1].to_f : nil,
+                      game_slug: detect_game(text)
                     }
                   elsif (m = match_any(text, LOAD_PATTERNS))
                     amount = m[1] ? m[1].to_f : nil
