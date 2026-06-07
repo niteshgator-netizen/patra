@@ -14,12 +14,12 @@ class BellaRagPair < ApplicationRecord
   scope :for_persona,  ->(per) { where(persona: per) }
 
   scope :approved, -> { where(approved: true) }
-  scope :for_scope, lambda { |account_id:, industry_slug:|
-    where(account_id: account_id).or(
-      where(account_id: nil, industry_slug: industry_slug)
-    ).or(
-      where(account_id: nil, industry_slug: nil)
-    ).approved
+  scope :for_scope, lambda { |account_id:, industry_slug: nil|
+    base = where(account_id: account_id)
+    if industry_slug.present?
+      base = base.or(where(account_id: nil, industry_slug: industry_slug))
+    end
+    base.or(where(account_id: nil, industry_slug: nil)).approved
   }
 
   # Convenience: chitchat-only rows (action_type IS NULL)
