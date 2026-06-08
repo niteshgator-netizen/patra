@@ -17,12 +17,18 @@
 #  updated_at              :datetime         not null
 #
 class AgentGame < ApplicationRecord
-  STATUSES = %w[active inactive].freeze
+  STATUSES = %w[active inactive degraded].freeze
 
   # Auto-disable threshold: if failure_count >= this AND last_failure_at within window,
   # status flips to 'inactive'. Bella will then skip this panel via pick_agent_game.
   AUTO_DISABLE_FAILURE_THRESHOLD = 5
   AUTO_DISABLE_WINDOW_HOURS = 1
+
+  # Feature 5 (auto-failover): a SEPARATE, simpler failover used by the new money
+  # handlers (transfer v2 etc.) via record_api_failure!/record_api_success!.
+  # 3 consecutive API failures -> 'degraded' + Telegram. Reset count on any success.
+  # Intentionally does NOT touch the existing record_failure!/execute_in_audit path.
+  API_DEGRADE_FAILURE_THRESHOLD = 3
 
   belongs_to :account
   belongs_to :game
@@ -76,6 +82,43 @@ class AgentGame < ApplicationRecord
 
   def reset_failures!
     update!(failure_count: 0, last_failure_at: nil)
+  end
+
+  # Feature 5 auto-failover — increment on a game-API failure. At
+  # API_DEGRADE_FAILURE_THRESHOLD consecutive failures, flip an ACTIVE panel to
+  # 'degraded' (pick_agent_game then skips it) and fire a one-time Telegram alert.
+  def record_api_failure!
+    new_count = failure_count.to_i + 1
+    attrs = { failure_count: new_count, last_failure_at: Time.current }
+
+    just_degraded = false
+    if new_count >= API_DEGRADE_FAILURE_THRESHOLD && status == 'active'
+      attrs[:status] = 'degraded'
+      just_degraded = true
+    end
+
+    update!(attrs)
+
+    if just_degraded
+      begin
+        Games::TelegramNotifier.human_escalation(
+          account: account,
+          contact: nil,
+          reason: "GAME DOWN: #{game&.name || game&.slug} failing repeatedly (#{new_count} consecutive API failures) — set to degraded, review needed."
+        )
+      rescue StandardError => e
+        Rails.logger.error("[AgentGame] degrade Telegram failed: #{e.class}: #{e.message}")
+      end
+    end
+    new_count
+  end
+
+  # Feature 5 — reset the consecutive-failure counter on ANY success.
+  # Status is intentionally left as-is (a degraded panel stays degraded for human
+  # review; pick_agent_game already won't route to it, so no success can arrive
+  # until a human reactivates it).
+  def record_api_success!
+    update!(failure_count: 0) if failure_count.to_i.positive?
   end
 
   def mark_used!

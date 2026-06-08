@@ -184,3 +184,9 @@ payments_handle_health_job:
   cron: '0 * * * *'
   class: 'Payments::HandleHealthMonitorJob'
   queue: low
+
+# Daily at 1700 UTC — win-back sweep for dormant players (Games::WinbackService)
+games_winback_job:
+  cron: '0 17 * * *'
+  class: 'Games::WinbackJob'
+  queue: scheduled_jobs

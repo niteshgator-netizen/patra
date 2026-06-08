@@ -109,7 +109,8 @@ module Games
       # Process pending load/cashout confirmations
       pending_load = conversation.additional_attributes&.dig('pending_load_intent')
       pending_cashout = conversation.additional_attributes&.dig('pending_cashout')
-      if pending_load.present? || pending_cashout.present?
+      pending_transfer_create = (contact.custom_attributes || {})['pending_transfer_create']
+      if pending_load.present? || pending_cashout.present? || pending_transfer_create.present?
         answer = latest_text.to_s.strip.downcase
         if answer.match?(/\b(yes|yeah|yep|yea|y|confirm|go|do it|send it)\b/i)
           if pending_load.present?
@@ -152,6 +153,9 @@ module Games
               end
             end
           end
+          if pending_transfer_create.present?
+            return complete_pending_transfer_create(pending_transfer_create)
+          end
         elsif answer.match?(/\b(no|nah|nope|cancel|nevermind|n)\b/i)
           # Customer declined — clear pending flags
           begin
@@ -159,6 +163,7 @@ module Games
             attrs.delete('pending_load_intent')
             attrs.delete('pending_cashout')
             conversation.update_columns(additional_attributes: attrs)
+            clear_pending_transfer_create if pending_transfer_create.present?
           rescue StandardError
           end
           return { reply: 'got it, cancelled', labels: [] }
@@ -366,6 +371,18 @@ module Games
           reply: "got your $#{requested_amount} payment ✅ what username would you like on #{ag.game.name}? if you've never played, just pick one (3-20 letters/numbers) and i'll set up your account.",
           labels: ['needs-username']
         }
+      end
+
+      # Feature 4 — duplicate-payment guard: don't double-load the same amount within 10 min.
+      if duplicate_payment_check_enabled? && duplicate_recent_load?(requested_amount)
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "DUPLICATE PAYMENT: #{contact&.name} $#{fmt_amt(requested_amount)} twice within 10min — verify before loading again",
+            conversation: conversation
+          )
+        end
+        return { reply: "want to make sure i don't double-load you — having a teammate confirm this one real quick.", labels: %w[duplicate-payment-hold needs-human] }
       end
 
       # Try to load. If username doesn't exist on Game Vault, auto-create it.
@@ -804,6 +821,19 @@ module Games
       # Check if contact tier is blocked
       if contact.player_tier&.blocked?
         return { reply: "sorry, can't process that right now", labels: [] }
+      end
+
+      # Feature 3 — cashout velocity guard. Only blocks ABOVE threshold.
+      cashout_vel = cashout_velocity_state
+      if cashout_vel[:exceeded]
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "VELOCITY FLAG: #{contact&.name} #{cashout_vel[:count]} cashouts/#{cashout_vel[:hours]}h — review",
+            conversation: conversation
+          )
+        end
+        return { reply: 'let me have a teammate check this one.', labels: %w[velocity-flag needs-human] }
       end
 
       unless game_slug
@@ -2163,9 +2193,9 @@ module Games
     end
 
     # Transfer requests do NOT arrive structured — the :transfer_between_games intent
-    # only carries game_slug. We extract the source game, cashout amount, and the list
-    # of (target game, amount) loads from the message. Primary path: the existing
-    # Ai::HaikuClient LLM service returns a JSON plan. Fallback: regex + IntentDetector.
+    # only carries game_slug. We extract {source_slug, targets:[{slug, amount}]} from the
+    # message. Primary path: the shared Ai::DeepseekClient (reasoning_content→content→nil).
+    # Fallback: regex + IntentDetector. Both feed one normalizer.
     TRANSFER_PLAN_SYSTEM_PROMPT = <<~'PROMPT'
       You convert a customer's game-transfer request into JSON. The customer wants to cash out from ONE source game and load the proceeds onto one or more target games.
       Respond with ONLY valid compact JSON, no markdown, no commentary:
@@ -2174,31 +2204,21 @@ module Games
     PROMPT
 
     def handle_transfer_between_games(intent)
-      plan = extract_transfer_plan((latest_customer_text || recent_customer_text).to_s)
+      text = (latest_customer_text || recent_customer_text).to_s
+      plan = extract_transfer_plan(text)
 
-      cashout_amount = plan ? plan[:cashout_amount].to_f : 0.0
-      if plan && cashout_amount <= 0 && plan[:loads].any?
-        cashout_amount = plan[:loads].sum { |l| l[:amount].to_f }
-        Rails.logger.info("[Orchestrator] transfer: inferred cashout=#{cashout_amount} from load total")
-      end
-
-      if plan.nil? || plan[:source_slug].blank? || cashout_amount <= 0
-        return escalate_transfer_unclear(plan)
-      end
-
-      if plan[:loads].empty?
-        return { reply: 'which games do you want me to move it to, and how much on each?', labels: ['transfer-needs-targets'] }
-      end
+      return escalate_transfer_unclear(plan) if plan.nil? || plan[:source_slug].blank?
 
       source_slug = plan[:source_slug]
-      requested_load_total = plan[:loads].sum { |l| l[:amount].to_f }
 
-      # Genius rule 6: never load more than was cashed out. Move nothing, ask them to fix it.
-      if requested_load_total > cashout_amount + 0.001
-        return {
-          reply: "you've got $#{fmt_amt(cashout_amount)} from #{slug_label(source_slug)}, that's short of the $#{fmt_amt(requested_load_total)} you wanted to load.",
-          labels: ['transfer-short']
-        }
+      # Reject source == target.
+      raw_targets = Array(plan[:loads])
+      targets = raw_targets.reject { |t| t[:game_slug].present? && t[:game_slug] == source_slug }
+      if targets.empty? && raw_targets.any?
+        return { reply: "can't transfer a game onto itself — which other game do you want it on?", labels: ['transfer-same-game'] }
+      end
+      if targets.empty?
+        return { reply: 'which games do you want me to move it to, and how much on each?', labels: ['transfer-needs-targets'] }
       end
 
       source_ag = pick_agent_game(source_slug)
@@ -2209,69 +2229,153 @@ module Games
         return { reply: "what's your #{source_ag.game.name} username? need it to cash out and transfer.", labels: ['transfer-needs-username'] }
       end
 
-      # Step 1: cash out from the source game. CHECK success — if it fails, move nothing.
+      # Feature 3 — velocity guard also gates the transfer's cashout step.
+      vel = cashout_velocity_state
+      if vel[:exceeded]
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "VELOCITY FLAG: #{contact&.name} #{vel[:count]} cashouts/#{vel[:hours]}h (transfer) — review",
+            conversation: conversation
+          )
+        end
+        return { reply: 'let me have a teammate check this one.', labels: ['velocity-flag', 'needs-human'] }
+      end
+
+      # STEP 2 — read the source-game balance.
       source_executor = Games::ActionExecutor.new(agent_game: source_ag, contact: contact, conversation: conversation)
+      balance =
+        begin
+          source_executor.check_player_balance(game_username: source_username)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] transfer balance read failed: #{e.message}")
+          nil
+        end
+
+      if balance.nil?
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Transfer: couldn't read #{source_username}'s balance on #{source_ag.game.name}",
+            conversation: conversation
+          )
+        end
+        return { reply: "let me double-check your #{source_ag.game.name} balance — one sec", labels: %w[cashier-action-needed transfer] }
+      end
+
+      balance = balance.to_f
+      if balance <= 0
+        return { reply: "looks like your #{source_ag.game.name} balance is empty — nothing to move right now.", labels: ['transfer-empty'] }
+      end
+
+      requested_total = targets.sum { |t| t[:amount].to_f }
+
+      # STEP 3 — THE FORK. Cashout minimum comes from the source game's GameRule,
+      # the SAME field handle_cashout_intent uses (cashout_min_amount, default 10).
+      source_rules = game_rules_for(source_slug)
+      cashout_min = (source_rules&.cashout_min_amount || 10).to_f
+
+      if balance >= cashout_min
+        # Winnings are cashable — NORMAL CASHOUT of the requested amount.
+        if requested_total <= 0
+          return { reply: "how much do you want to move off #{source_ag.game.name}?", labels: ['transfer-needs-amount'] }
+        end
+        # STEP 6 — over-amount guard: never move more than the balance.
+        if requested_total > balance + 0.001
+          return { reply: "you've got $#{fmt_amt(balance)} on #{source_ag.game.name}, that's short of the $#{fmt_amt(requested_total)} you wanted to load.", labels: ['transfer-short'] }
+        end
+        source_amount = requested_total
+        fork = 'normal_cashout'
+      else
+        # Winnings too small to cash out — move per transfer_mode preference.
+        mode = transfer_mode_pref
+        if mode == 'deposit_only'
+          deposit = original_deposit_on_source(source_slug)
+          source_amount = [deposit, balance].min
+          fork = 'below_min_deposit_only'
+          if source_amount <= 0
+            return { reply: "your #{source_ag.game.name} winnings are below the cashout minimum and i don't see an original deposit to move — a teammate will take a look.", labels: %w[cashier-action-needed transfer] }
+          end
+        else
+          source_amount = balance
+          fork = 'below_min_whole'
+        end
+      end
+
+      # STEP 1 — cash out source_amount from the source game. CHECK success.
       cashout_result = source_executor.cashout_player(
         game_username: source_username,
-        amount: cashout_amount,
-        metadata: { source: 'bella_transfer', conversation_id: conversation&.id }
+        amount: source_amount,
+        metadata: { source: 'bella_transfer', fork: fork, conversation_id: conversation&.id }
       )
+      record_api_result(source_ag, cashout_result)
 
       unless cashout_result[:ok]
+        # approval_required lands here too — move no money, escalate.
         safe_telegram { Games::TelegramNotifier.load_failed(cashout_result[:action]) if cashout_result[:action] }
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "TRANSFER cashout FAILED — $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} (#{source_username}): #{cashout_result[:error]} (code #{cashout_result[:code]}). No money moved.",
+            reason: "TRANSFER cashout FAILED — $#{fmt_amt(source_amount)} from #{source_ag.game.name} (#{source_username}): #{cashout_result[:error]} (code #{cashout_result[:code]}). No money moved.",
             conversation: conversation
           )
         end
-        return {
-          reply: "hit a snag cashing out from #{source_ag.game.name} — flagged a teammate, they'll sort your transfer in a couple minutes.",
-          labels: ['transfer-failed', 'needs-human']
-        }
+        reply = cashout_result[:code].to_s == 'approval_required' ? "your transfer needs a quick review — a teammate's on it." : "hit a snag cashing out from #{source_ag.game.name} — flagged a teammate, they'll sort your transfer in a couple minutes."
+        return { reply: reply, labels: ['transfer-failed', 'needs-human'] }
       end
 
-      # Steps 2-3: cashout succeeded. Load each target; count ONLY what actually loads.
+      # STEPS 4-5 — distribute source_amount across targets in order; count only successes.
+      funds = source_amount
       loaded = []
       failed = []
-      plan[:loads].each do |l|
-        amt = l[:amount].to_f
-        target_slug = l[:game_slug]
+      pending_create = nil
+
+      targets.each do |t|
+        want = t[:amount].to_f
+        load_amt = want > 0 ? [want, funds].min : funds
+        next if load_amt <= 0
+
+        target_slug = t[:game_slug]
+        label = target_slug.present? ? slug_label(target_slug) : (t[:game_text].presence || 'unknown game')
         target_ag = target_slug.present? ? pick_agent_game(target_slug) : nil
 
         unless target_ag
-          label = target_slug.present? ? slug_label(target_slug) : (l[:game_text].presence || 'unknown game')
-          failed << { label: label, amount: amt, reason: 'game unavailable' }
+          failed << { label: label, amount: load_amt, reason: 'game unavailable' }
           next
         end
 
         target_username = find_game_username_for_slug(contact, target_slug)
-        unless target_username
-          failed << { label: target_ag.game.name, amount: amt, reason: 'no account on file' }
+        if target_username.blank?
+          # STEP 4 — no account on target: do NOT auto-create silently. Remember the
+          # first one; the yes/no handler offers setup on the player's next message.
+          pending_create ||= { slug: target_slug, amount: load_amt }
+          failed << { label: target_ag.game.name, amount: load_amt, reason: 'no account (pending setup)' }
           next
         end
 
         target_executor = Games::ActionExecutor.new(agent_game: target_ag, contact: contact, conversation: conversation)
         load_result = target_executor.load_player(
           game_username: target_username,
-          amount: amt,
+          amount: load_amt,
           metadata: { source: 'bella_transfer', conversation_id: conversation&.id }
         )
+        record_api_result(target_ag, load_result)
 
         if load_result[:ok]
-          loaded << { label: target_ag.game.name, amount: amt }
+          loaded << { label: target_ag.game.name, amount: load_amt }
+          funds -= load_amt
         else
-          failed << { label: target_ag.game.name, amount: amt, reason: "#{load_result[:error]} (code #{load_result[:code]})" }
+          failed << { label: target_ag.game.name, amount: load_amt, reason: "#{load_result[:error]} (code #{load_result[:code]})" }
         end
       end
 
-      # Step 4: remaining reflects ONLY successful loads — money never silently vanishes.
       loaded_total = loaded.sum { |x| x[:amount] }
-      remaining = cashout_amount - loaded_total
+      remaining = source_amount - loaded_total
 
-      # Step 5: ALWAYS report the real state to Telegram.
-      report = "TRANSFER — Cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name}."
+      store_pending_transfer_create(pending_create[:slug], pending_create[:amount]) if pending_create
+
+      # STEP 5 — ALWAYS report the real state to Telegram.
+      report = "TRANSFER (#{fork}) — Cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name}."
       report += " Loaded: #{loaded.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} OK" }.join(', ')}." if loaded.any?
       report += " FAILED: #{failed.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} (#{x[:reason]})" }.join(', ')}." if failed.any?
       report += if remaining > 0.001
@@ -2283,18 +2387,34 @@ module Games
         Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: report, conversation: conversation)
       end
 
-      # Step 7: tell the customer what actually happened.
+      # STEP 7 — tell the customer what actually happened.
+      build_transfer_reply(source_ag, source_amount, loaded, failed, remaining, pending_create)
+    end
+
+    def build_transfer_reply(source_ag, source_amount, loaded, failed, remaining, pending_create)
       loaded_phrase = loaded.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')
-      if loaded.any? && failed.empty? && remaining <= 0.001
-        { reply: "done! cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} and loaded #{loaded_phrase}.", labels: ['transfer-complete'] }
-      elsif loaded.any?
-        reply = "cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} and loaded #{loaded_phrase}."
-        reply += " couldn't get #{failed.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')} through — a teammate's on it." if failed.any?
-        reply += " you've got $#{fmt_amt(remaining)} left over, i'll have it ready for you." if remaining > 0.001
-        { reply: reply, labels: failed.any? ? ['transfer-partial', 'needs-human'] : ['transfer-complete'] }
-      else
-        { reply: "cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} but couldn't load the games just now — flagged a teammate, they'll finish your transfer in a couple minutes.", labels: ['transfer-failed', 'needs-human'] }
+
+      if loaded.empty? && pending_create
+        return { reply: "you're not on #{slug_label(pending_create[:slug])} yet — want me to set you up? (your $#{fmt_amt(pending_create[:amount])} is ready to go)", labels: ['transfer-needs-create', 'needs-human'] }
       end
+
+      if loaded.any? && failed.empty? && remaining <= 0.001
+        return { reply: "done! cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name} and loaded #{loaded_phrase}.", labels: ['transfer-complete'] }
+      end
+
+      if loaded.any?
+        reply = "cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name} and loaded #{loaded_phrase}."
+        if pending_create
+          reply += " you're not on #{slug_label(pending_create[:slug])} yet — want me to set you up?"
+        elsif failed.any?
+          reply += " couldn't get #{failed.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')} through — a teammate's on it."
+          reply += " you've got $#{fmt_amt(remaining)} left over, i'll have it ready for you." if remaining > 0.001
+        end
+        labels = (failed.any? || pending_create) ? ['transfer-partial', 'needs-human'] : ['transfer-complete']
+        return { reply: reply, labels: labels }
+      end
+
+      { reply: "cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name} but couldn't load the games just now — flagged a teammate, they'll finish your transfer in a couple minutes.", labels: ['transfer-failed', 'needs-human'] }
     end
 
     def escalate_transfer_unclear(_plan)
@@ -2313,21 +2433,26 @@ module Games
       extract_transfer_plan_via_llm(text) || extract_transfer_plan_via_regex(text)
     end
 
-    # Primary: existing Ai::HaikuClient LLM service. Note its MAX_TOKENS=80 output cap
-    # can truncate large multi-load plans; truncated/invalid JSON falls through to regex.
+    # Primary extractor — shared DeepSeek client (reasoning_content→content→nil).
     def extract_transfer_plan_via_llm(text)
-      return nil unless defined?(Ai::HaikuClient)
+      return nil unless defined?(Ai::DeepseekClient)
 
-      raw = Ai::HaikuClient.new(
+      raw = Ai::DeepseekClient.complete(
         system_prompt: TRANSFER_PLAN_SYSTEM_PROMPT,
-        conversation_history: [{ 'role' => 'user', 'content' => text.to_s }]
-      ).generate_reply
+        user_content: text.to_s,
+        max_tokens: 512,
+        temperature: 0
+      )
       return nil if raw.blank?
 
       json = raw.to_s.sub(/\A```(?:json)?\s*/i, '').sub(/\s*```\z/, '').strip
+      # reasoning_content may wrap JSON in prose — grab the first {...} block.
+      if (brace = json.match(/\{.*\}/m))
+        json = brace[0]
+      end
       normalize_transfer_plan(JSON.parse(json))
     rescue StandardError => e
-      Rails.logger.warn("[Orchestrator] transfer LLM extract failed: #{e.class}: #{e.message}")
+      Rails.logger.warn("[Orchestrator] transfer DeepSeek extract failed: #{e.class}: #{e.message}")
       nil
     end
 
@@ -2343,7 +2468,6 @@ module Games
         next unless l.is_a?(Hash)
         l = l.stringify_keys
         amt = parse_amount(l['amount'])
-        next if amt.nil? || amt <= 0
         g_text = l['game'].to_s
         { game_text: g_text, game_slug: g_text.present? ? Games::IntentDetector.detect_game(g_text) : nil, amount: amt }
       end
@@ -2384,6 +2508,180 @@ module Games
 
       return nil if source_slug.blank? && cashout.nil? && loads.empty?
       { source_text: source_text, source_slug: source_slug, cashout_amount: cashout, loads: loads }
+    end
+
+    # ---- transfer / fraud / failover shared helpers ----
+
+    def reply_pref_cached
+      @reply_pref_cached ||= begin
+        ReplyPreference.for_account(account.id)
+      rescue StandardError
+        nil
+      end
+    end
+
+    def transfer_mode_pref
+      pref = reply_pref_cached
+      return 'whole' unless pref.respond_to?(:transfer_mode)
+      (pref.transfer_mode.presence || 'whole').to_s
+    rescue StandardError
+      'whole'
+    end
+
+    def game_rules_for(slug)
+      game = Game.find_by(slug: slug)
+      game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+    rescue StandardError
+      nil
+    end
+
+    # deposit_only fork — the player's most recent real (non-freeplay) deposit on the
+    # source game. NOT their winnings.
+    def original_deposit_on_source(slug)
+      game_actions_for_slug(contact.id, slug)
+        .where(action_type: 'load', status: 'success')
+        .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+        .order(created_at: :desc)
+        .limit(1)
+        .pluck(:amount)
+        .first.to_f
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] original_deposit_on_source failed: #{e.message}")
+      0.0
+    end
+
+    def record_api_result(agent_game, result)
+      return unless agent_game && result.is_a?(Hash) && result.key?(:ok)
+      result[:ok] ? agent_game.record_api_success! : agent_game.record_api_failure!
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] record_api_result failed: #{e.message}")
+    end
+
+    # Feature 3 — cashout velocity. Returns {exceeded, count, hours, threshold}.
+    def cashout_velocity_state
+      pref = reply_pref_cached
+      threshold = fraud_int(pref, :fraud_cashout_velocity_count, 3)
+      hours = fraud_int(pref, :fraud_cashout_velocity_hours, 24)
+      count = GameAction.where(account_id: account.id, contact_id: contact.id, action_type: 'cashout', status: 'success')
+                        .where('created_at >= ?', hours.hours.ago)
+                        .count
+      { exceeded: threshold.positive? && count >= threshold, count: count, hours: hours, threshold: threshold }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] cashout_velocity_state failed: #{e.message}")
+      { exceeded: false, count: 0, hours: 24, threshold: 3 }
+    end
+
+    def fraud_int(pref, name, default)
+      return default unless pref.respond_to?(name)
+      v = pref.public_send(name)
+      v.nil? ? default : v.to_i
+    rescue StandardError
+      default
+    end
+
+    # Feature 4 — duplicate-payment guard.
+    def duplicate_payment_check_enabled?
+      pref = reply_pref_cached
+      return true unless pref.respond_to?(:fraud_duplicate_payment_check)
+      v = pref.fraud_duplicate_payment_check
+      v.nil? ? true : v
+    rescue StandardError
+      true
+    end
+
+    def duplicate_recent_load?(amount)
+      amt = amount.to_f
+      return false if amt <= 0
+      GameAction.where(account_id: account.id, contact_id: contact.id, action_type: 'load', status: 'success', amount: amt)
+                .where('created_at >= ?', 10.minutes.ago)
+                .exists?
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] duplicate_recent_load? failed: #{e.message}")
+      false
+    end
+
+    # ---- create-on-transfer (wired into the existing yes/no confirmation handler) ----
+
+    def store_pending_transfer_create(slug, amount)
+      attrs = (contact.custom_attributes || {}).merge(
+        'pending_transfer_create' => { 'target_slug' => slug, 'amount' => amount.to_f }
+      )
+      contact.update(custom_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] store_pending_transfer_create failed: #{e.message}")
+    end
+
+    def clear_pending_transfer_create
+      attrs = (contact.custom_attributes || {}).dup
+      attrs.delete('pending_transfer_create')
+      contact.update(custom_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] clear_pending_transfer_create failed: #{e.message}")
+    end
+
+    def complete_pending_transfer_create(pending)
+      pending = pending.is_a?(Hash) ? pending.stringify_keys : {}
+      slug = pending['target_slug']
+      amount = pending['amount'].to_f
+      clear_pending_transfer_create
+
+      ag = pick_agent_game(slug)
+      return { reply: unavailable_game_reply(slug), labels: ['game-unavailable'] } unless ag
+
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      add_result, username, = attempt_auto_add_player(executor, ag.game.slug, metadata: { source: 'bella_transfer_create' })
+      record_api_result(ag, add_result)
+
+      failure_response = add_player_failure_response(ag, add_result)
+      return failure_response if failure_response
+
+      unless add_result[:ok]
+        safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Transfer-create failed on #{ag.game.name}: #{add_result[:error]}",
+            conversation: conversation
+          )
+        end
+        return { reply: "hit a snag setting up your #{ag.game.name} account — flagged a teammate.", labels: ['account-creation-failed', 'needs-human'] }
+      end
+
+      password = add_result[:password]
+      store_game_username(ag.game.slug, username)
+      store_game_password(ag.game.slug, password)
+
+      if amount > 0
+        load_result = executor.load_player(
+          game_username: username,
+          amount: amount,
+          metadata: { source: 'bella_transfer_create', conversation_id: conversation&.id }
+        )
+        record_api_result(ag, load_result)
+
+        if load_result[:ok]
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: "Transfer-create: set up #{username} on #{ag.game.name} and loaded $#{fmt_amt(amount)}",
+              conversation: conversation
+            )
+          end
+          return { reply: "you're all set up on #{ag.game.name}! username: #{username}, password: #{password} (save this!) — loaded $#{fmt_amt(amount)}.", labels: ['transfer-create-complete', 'new-account-created'] }
+        end
+
+        safe_telegram { Games::TelegramNotifier.load_failed(load_result[:action]) if load_result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Transfer-create: created #{username} on #{ag.game.name} but load $#{fmt_amt(amount)} FAILED: #{load_result[:error]}",
+            conversation: conversation
+          )
+        end
+        return { reply: "set up your #{ag.game.name} account (username: #{username}, password: #{password}) but hit a snag loading $#{fmt_amt(amount)} — a teammate will finish it.", labels: ['account-created', 'load-failed', 'needs-human'] }
+      end
+
+      { reply: "you're all set up on #{ag.game.name}! username: #{username}, password: #{password} (save this!)", labels: ['transfer-create-complete', 'new-account-created'] }
     end
 
     def fmt_amt(num)

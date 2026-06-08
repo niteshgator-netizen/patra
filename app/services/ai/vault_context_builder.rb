@@ -3,34 +3,49 @@
 module Ai
   class VaultContextBuilder
     # Reads the SAME custom_attribute keys the orchestrator writes:
-    #   game_username_<slug>  (store_game_username)
-    #   game_password_<slug>  (store_game_password)
-    # and lists EVERY game the player has an account on, with username (+ password if stored),
-    # so when a player asks "what's my login" Bella already has it for every game.
+    #   game_username_<slug> / game_password_<slug>
+    # Lists every game the player has an account on, deduping slug CASING
+    # (e.g. 'Juwa' + 'juwa' -> one row), preferring the entry that has a password.
+    # Display-dedupe only — never mutates custom_attribute data.
     def self.for_contact(contact)
       attrs = contact.custom_attributes.to_h.stringify_keys
-      rows = []
 
-      # Per-game credentials (the real source of truth).
-      slugs = attrs.keys.filter_map do |k|
-        k.start_with?('game_username_') ? k.sub('game_username_', '') : nil
-      end.uniq
-
-      name_by_slug = {}
-      begin
-        name_by_slug = Game.where(slug: slugs).pluck(:slug, :name).to_h if slugs.any?
-      rescue StandardError
-        name_by_slug = {}
-      end
-
-      slugs.each do |slug|
-        username = attrs["game_username_#{slug}"]
+      # One candidate per username key, keyed by normalized (downcased) slug.
+      by_norm = {}
+      attrs.each_key do |k|
+        next unless k.start_with?('game_username_')
+        raw_slug = k.sub('game_username_', '')
+        username = attrs[k]
         next if username.blank?
 
-        password = attrs["game_password_#{slug}"]
-        label = name_by_slug[slug].presence || slug.tr('_', ' ')
-        row = "Game: #{label}, Username: #{username}"
-        row += ", Password: #{password}" if password.present?
+        norm = raw_slug.downcase
+        password = attrs["game_password_#{raw_slug}"]
+        candidate = { slug: raw_slug, norm: norm, username: username, password: password }
+
+        existing = by_norm[norm]
+        # Prefer the entry that actually has a password.
+        if existing.nil? || (existing[:password].blank? && password.present?)
+          by_norm[norm] = candidate
+        end
+      end
+
+      norms = by_norm.keys
+      name_by_norm = {}
+      begin
+        if norms.any?
+          Game.where('LOWER(slug) IN (?)', norms).pluck(:slug, :name).each do |slug, name|
+            name_by_norm[slug.to_s.downcase] ||= name
+          end
+        end
+      rescue StandardError
+        name_by_norm = {}
+      end
+
+      rows = []
+      by_norm.each_value do |c|
+        label = name_by_norm[c[:norm]].presence || c[:norm].tr('_', ' ')
+        row = "Game: #{label}, Username: #{c[:username]}"
+        row += ", Password: #{c[:password]}" if c[:password].present?
         rows << row
       end
 
