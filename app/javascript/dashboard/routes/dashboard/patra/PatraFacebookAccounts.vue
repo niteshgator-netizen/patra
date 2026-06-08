@@ -61,6 +61,7 @@ async function disconnect(identity) {
             v-if="identity.fb_user_avatar_url"
             :src="identity.fb_user_avatar_url"
             class="w-10 h-10 rounded-full"
+            @error="identity.fb_user_avatar_url = ''"
           />
           <div v-else class="w-10 h-10 rounded-full bg-purple-700 flex items-center justify-center text-white font-bold">
             {{ identity.fb_user_name?.[0] }}
