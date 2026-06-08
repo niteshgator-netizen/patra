@@ -105,6 +105,7 @@ export default {
   position: relative;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: pat-mIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) backwards;
 
   &::after {
     content: '';
@@ -271,7 +272,7 @@ export default {
   font-family: 'Inter', sans-serif;
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
   }
 
