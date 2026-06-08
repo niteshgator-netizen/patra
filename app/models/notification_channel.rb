@@ -7,7 +7,11 @@ class NotificationChannel < ApplicationRecord
     'cashout_request' => true,
     'cashout_failed' => true,
     'human_escalation' => true,
-    'api_error' => true
+    'api_error' => true,
+    'payment_pending' => true,
+    'secret_phrase' => true,
+    'low_balance' => true,
+    'winback_manual' => true
   }.freeze
 
   belongs_to :account

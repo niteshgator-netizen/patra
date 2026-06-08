@@ -28,6 +28,8 @@ module Games
     EVENT_PAYMENT_PENDING = 'payment_pending'.freeze
     EVENT_SECRET_PHRASE = 'secret_phrase'.freeze
     EVENT_API_ERROR = 'api_error'.freeze
+    EVENT_LOW_BALANCE = 'low_balance'.freeze
+    EVENT_WINBACK_MANUAL = 'winback_manual'.freeze
 
     class << self
       def cashout_alert(cashout_request)
@@ -112,14 +114,12 @@ module Games
               "Balance: $#{'%.2f' % balance}\n" \
               "Threshold: $#{threshold}\n" \
               "Top up soon!"
-        send_to_cashout_group(msg, account: account)
+        notify(account: account, event: EVENT_LOW_BALANCE, text: msg, plain: true)
       end
 
-      # Win-back manual-send alert. Used when a player is >7 days quiet (no FB tag
-      # can reach them) or the tagged FB send failed — a human copy-pastes this from
-      # the real FB page. Reuses send_to_cashout_group (same token/group as other
-      # alerts for now; per-type routing is a separate future batch). Plain text so
-      # the AI message + URL aren't mangled by MarkdownV2 escaping.
+      # Win-back manual-send alert. Routed through notify() so it fans out to every
+      # group that enables 'winback_manual' (zero channels -> global ENV fallback).
+      # plain: true keeps the AI message + URL from being mangled by MarkdownV2.
       def winback_manual_alert(account:, player:, days_dormant:, tier:, diagnosis:, message:, profile_url: nil)
         lines = []
         lines << '🔄 WIN-BACK (manual send needed)'
@@ -128,9 +128,8 @@ module Games
         lines << 'Suggested message:'
         lines << "\"#{message}\""
         lines << profile_url.to_s if profile_url.present?
-        send_to_cashout_group(lines.join("\n"), account: account)
+        notify(account: account, event: EVENT_WINBACK_MANUAL, text: lines.join("\n"), plain: true)
       end
-OLD
 
       def send_to_cashout_group(text, account: nil)
         token = ENV['TELEGRAM_BOT_TOKEN'].presence
@@ -147,39 +146,84 @@ OLD
 
       private
 
-      def notify(account:, event:, text:, ignore_filters: false)
+      def notify(account:, event:, text:, ignore_filters: false, plain: false)
         Rails.logger.info("[TelegramNotifier] event=#{event} account_id=#{account&.id} text_chars=#{text.to_s.length}")
-        channel = resolve_channel(account, event, ignore_filters: ignore_filters)
-        unless channel
+
+        channels = resolve_channels(account, event, ignore_filters: ignore_filters)
+
+        # FANOUT: per-account channels matched — send to EVERY matching group.
+        if channels.present?
+          any_ok = false
+          channels.each do |channel|
+            result = send_one(channel[:bot_token], channel[:chat_id], text, plain: plain)
+            Rails.logger.info("[TelegramNotifier] sent per-account chat_id=#{channel[:chat_id]} ok=#{result[:ok]}")
+            record_outcome(channel[:record], result)
+            any_ok ||= result[:ok]
+          rescue StandardError => e
+            # Per-channel failure must not stop the other channels.
+            Rails.logger.error("[TelegramNotifier] channel send failed chat_id=#{channel[:chat_id]} #{e.class}: #{e.message}")
+          end
+          return { ok: any_ok, channels: channels.size }
+        end
+
+        # No channel matched. If channels EXIST but none enabled this event, respect
+        # the filters and send nothing. Only when there are ZERO configured channels
+        # do we fall back to the global ENV group (UNCHANGED from before).
+        if any_configured_channel?(account)
+          Rails.logger.info("[TelegramNotifier] event=#{event} suppressed — channels configured but none enabled it")
+          return { ok: true, channels: 0, suppressed: true }
+        end
+
+        env = env_channel
+        unless env
           Rails.logger.warn("[TelegramNotifier] no channel resolved for event=#{event} account=#{account&.id}")
           return { ok: false, reason: 'no channel configured' }
         end
 
-        Rails.logger.info("[TelegramNotifier] sending via #{channel[:record] ? 'per-account' : 'global-env'} chat_id=#{channel[:chat_id]}")
-        result = send_message(channel[:bot_token], channel[:chat_id], text)
-        Rails.logger.info("[TelegramNotifier] result=#{result.inspect}")
-        record_outcome(channel[:record], result)
+        result = send_one(env[:bot_token], env[:chat_id], text, plain: plain)
+        Rails.logger.info("[TelegramNotifier] sent global-env chat_id=#{env[:chat_id]} ok=#{result[:ok]}")
         result
       rescue StandardError => e
         Rails.logger.error("[TelegramNotifier] #{e.class}: #{e.message}")
         { ok: false, error: e.message }
       end
 
-      # Returns hash with :bot_token, :chat_id, :record (or nil if global ENV)
-      def resolve_channel(account, event, ignore_filters: false)
-        Rails.logger.info("[TelegramNotifier] resolving channel for event=#{event} account=#{account&.id} ignore_filters=#{ignore_filters}")
-        # 1. Try per-account NotificationChannel
-        if account && defined?(NotificationChannel)
-          nc = account.notification_channels.active.find_by(channel_type: 'telegram')
-          if nc && nc.configured? && (ignore_filters || event.nil? || nc.should_notify?(event))
-            creds = nc.credentials || {}
-            return { bot_token: creds['bot_token'], chat_id: creds['chat_id'], record: nc }
-          end
-        end
+      def send_one(bot_token, chat_id, text, plain: false)
+        plain ? send_message_plain(bot_token, chat_id, text) : send_message(bot_token, chat_id, text)
+      end
 
-        # 2. Fall back to global ENV
+      # ARRAY of { bot_token, chat_id, record } for EVERY per-account active+configured
+      # channel whose should_notify?(event) is true (all configured when event is nil
+      # or ignore_filters). Empty when none match / none configured.
+      def resolve_channels(account, event, ignore_filters: false)
+        channels = configured_channels(account)
+        channels = channels.select { |nc| nc.should_notify?(event) } unless ignore_filters || event.nil?
+        channels.map { |nc| channel_hash(nc) }
+      end
+
+      def configured_channels(account)
+        return [] unless account && defined?(NotificationChannel)
+        account.notification_channels.active.select(&:configured?)
+      rescue StandardError => e
+        Rails.logger.error("[TelegramNotifier] channel lookup failed account=#{account&.id}: #{e.message}")
+        []
+      end
+
+      def any_configured_channel?(account)
+        configured_channels(account).present?
+      end
+
+      def channel_hash(nc)
+        creds = nc.credentials || {}
+        { bot_token: creds['bot_token'], chat_id: creds['chat_id'], record: nc }
+      end
+
+      # Global ENV group — the no-channel fallback. Keeps the cashout-group id as a
+      # secondary so low_balance/winback (which used it) still resolve if
+      # TELEGRAM_CHAT_ID is unset.
+      def env_channel
         token = ENV['TELEGRAM_BOT_TOKEN'].presence
-        chat_id = ENV['TELEGRAM_CHAT_ID'].presence
+        chat_id = ENV['TELEGRAM_CHAT_ID'].presence || ENV['TELEGRAM_CASHOUT_GROUP_ID'].presence
         return nil if token.blank? || chat_id.blank?
 
         { bot_token: token, chat_id: chat_id, record: nil }
