@@ -71,10 +71,12 @@ const confirmDeletion = () => {
         <img
           :src="`/dashboard/images/integrations/${integrationId}.png`"
           class="max-w-full rounded-md border border-n-weak shadow-sm block dark:hidden bg-n-alpha-3 dark:bg-n-alpha-2"
+          @error="$event.target.style.visibility = 'hidden'"
         />
         <img
           :src="`/dashboard/images/integrations/${integrationId}-dark.png`"
           class="max-w-full rounded-md border border-n-weak shadow-sm hidden dark:block bg-n-alpha-3 dark:bg-n-alpha-2"
+          @error="$event.target.style.visibility = 'hidden'"
         />
       </div>
       <div>
