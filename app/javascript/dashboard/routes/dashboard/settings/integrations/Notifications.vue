@@ -1,57 +1,28 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import NotificationChannelsAPI from 'dashboard/api/notificationChannels';
 
 const { t } = useI18n();
+const showAlert = useAlert();
 
-const channel = ref(null);
-const botToken = ref('');
-const chatId = ref('');
-const filters = ref({
-  load_success: true,
-  load_failed: true,
-  cashout_request: true,
-  cashout_failed: true,
-  human_escalation: true,
-  api_error: true,
-  daily_summary: true,
-  email_flagged: true,
-  game_health_alerts: true,
-});
-const saving = ref(false);
-const testing = ref(false);
-const result = ref('');
-const resultOk = ref(false);
-const loading = ref(true);
-const errorLoading = ref('');
-const spotlight = ref(null);
+// The 10 backend event_filters keys (NotificationChannel::DEFAULT_EVENT_FILTERS),
+// each shown as a toggle. Order = display order.
+const EVENT_KEYS = [
+  'cashout_request',
+  'cashout_failed',
+  'load_success',
+  'load_failed',
+  'human_escalation',
+  'api_error',
+  'payment_pending',
+  'secret_phrase',
+  'low_balance',
+  'winback_manual',
+];
 
-const isConfigured = computed(() => Boolean(channel.value?.configured));
-
-const saveLabel = computed(() =>
-  saving.value
-    ? t('NOTIFICATIONS.FORM.SAVING')
-    : t('NOTIFICATIONS.FORM.SAVE_BTN')
-);
-
-const testLabel = computed(() =>
-  testing.value
-    ? t('NOTIFICATIONS.FORM.TESTING')
-    : t('NOTIFICATIONS.FORM.TEST_BTN')
-);
-
-const eventFilters = computed(() => [
-  {
-    key: 'load_success',
-    label: t('NOTIFICATIONS.FORM.EVENT_LOAD_SUCCESS'),
-    subtitle: t('NOTIFICATIONS.FORM.EVENT_LOAD_SUCCESS_DESC'),
-  },
-  {
-    key: 'load_failed',
-    label: t('NOTIFICATIONS.FORM.EVENT_LOAD_FAILED'),
-    subtitle: t('NOTIFICATIONS.FORM.EVENT_LOAD_FAILED_DESC'),
-  },
+const eventDefs = computed(() => [
   {
     key: 'cashout_request',
     label: t('NOTIFICATIONS.FORM.EVENT_CASHOUT_REQUEST'),
@@ -61,6 +32,16 @@ const eventFilters = computed(() => [
     key: 'cashout_failed',
     label: t('NOTIFICATIONS.FORM.EVENT_CASHOUT_FAILED'),
     subtitle: t('NOTIFICATIONS.FORM.EVENT_CASHOUT_FAILED_DESC'),
+  },
+  {
+    key: 'load_success',
+    label: t('NOTIFICATIONS.FORM.EVENT_LOAD_SUCCESS'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_LOAD_SUCCESS_DESC'),
+  },
+  {
+    key: 'load_failed',
+    label: t('NOTIFICATIONS.FORM.EVENT_LOAD_FAILED'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_LOAD_FAILED_DESC'),
   },
   {
     key: 'human_escalation',
@@ -73,38 +54,90 @@ const eventFilters = computed(() => [
     subtitle: t('NOTIFICATIONS.FORM.EVENT_API_ERROR_DESC'),
   },
   {
-    key: 'daily_summary',
-    label: t('NOTIFICATIONS.FORM.EVENT_DAILY_SUMMARY'),
-    subtitle: t('NOTIFICATIONS.FORM.EVENT_DAILY_SUMMARY_DESC'),
+    key: 'payment_pending',
+    label: t('NOTIFICATIONS.FORM.EVENT_PAYMENT_PENDING'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_PAYMENT_PENDING_DESC'),
   },
   {
-    key: 'email_flagged',
-    label: t('NOTIFICATIONS.FORM.EVENT_EMAIL_FLAGGED'),
-    subtitle: t('NOTIFICATIONS.FORM.EVENT_EMAIL_FLAGGED_DESC'),
+    key: 'secret_phrase',
+    label: t('NOTIFICATIONS.FORM.EVENT_SECRET_PHRASE'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_SECRET_PHRASE_DESC'),
   },
   {
-    key: 'game_health_alerts',
-    label: t('NOTIFICATIONS.FORM.EVENT_GAME_HEALTH_ALERTS'),
-    subtitle: t('NOTIFICATIONS.FORM.EVENT_GAME_HEALTH_ALERTS_DESC'),
+    key: 'low_balance',
+    label: t('NOTIFICATIONS.FORM.EVENT_LOW_BALANCE'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_LOW_BALANCE_DESC'),
+  },
+  {
+    key: 'winback_manual',
+    label: t('NOTIFICATIONS.FORM.EVENT_WINBACK_MANUAL'),
+    subtitle: t('NOTIFICATIONS.FORM.EVENT_WINBACK_MANUAL_DESC'),
   },
 ]);
 
-const toggleFilter = key => {
-  filters.value[key] = !filters.value[key];
+const groups = ref([]);
+const loading = ref(true);
+const errorLoading = ref('');
+const spotlight = ref(null);
+
+const defaultFilters = () => {
+  const f = {};
+  EVENT_KEYS.forEach(k => {
+    f[k] = true;
+  });
+  return f;
 };
 
-const loadChannel = async () => {
+const mapChannel = c => ({
+  id: c.id,
+  name: c.name || '',
+  botToken: '',
+  botTokenMasked: c.credentials?.bot_token || '',
+  chatId: c.credentials?.chat_id || '',
+  configured: Boolean(c.configured),
+  filters: { ...defaultFilters(), ...(c.event_filters || {}) },
+  saving: false,
+  testing: false,
+  result: '',
+  resultOk: false,
+});
+
+const blankGroup = () => ({
+  id: null,
+  name: '',
+  botToken: '',
+  botTokenMasked: '',
+  chatId: '',
+  configured: false,
+  filters: defaultFilters(),
+  saving: false,
+  testing: false,
+  result: '',
+  resultOk: false,
+});
+
+const hasGroups = computed(() => groups.value.length > 0);
+const anyConfigured = computed(() => groups.value.some(g => g.configured));
+
+const saveLabel = group =>
+  group.saving
+    ? t('NOTIFICATIONS.FORM.SAVING')
+    : t('NOTIFICATIONS.FORM.SAVE_BTN');
+
+const testLabel = group =>
+  group.testing
+    ? t('NOTIFICATIONS.FORM.TESTING')
+    : t('NOTIFICATIONS.FORM.TEST_BTN');
+
+const loadGroups = async () => {
   loading.value = true;
   errorLoading.value = '';
   try {
     const { data } = await NotificationChannelsAPI.get();
     const list = data?.data || [];
-    const tg = list.find(c => c.channel_type === 'telegram');
-    if (tg) {
-      channel.value = tg;
-      chatId.value = tg.credentials?.chat_id || '';
-      filters.value = { ...filters.value, ...(tg.event_filters || {}) };
-    }
+    groups.value = list
+      .filter(c => c.channel_type === 'telegram')
+      .map(mapChannel);
   } catch (e) {
     errorLoading.value =
       e.response?.data?.error ||
@@ -115,79 +148,92 @@ const loadChannel = async () => {
   }
 };
 
-const save = async () => {
-  saving.value = true;
-  result.value = '';
+const addGroup = () => {
+  groups.value.push(blankGroup());
+};
+
+const toggleFilter = (group, key) => {
+  group.filters[key] = !group.filters[key];
+};
+
+const saveGroup = async group => {
+  group.saving = true;
+  group.result = '';
   try {
     const payload = {
       channel_type: 'telegram',
-      chat_id: chatId.value,
-      event_filters: filters.value,
+      name: group.name,
+      chat_id: group.chatId,
+      event_filters: group.filters,
     };
-    if (botToken.value) payload.bot_token = botToken.value;
+    // Only send the token when (re)entered — blank keeps the stored one.
+    if (group.botToken) payload.bot_token = group.botToken;
 
-    if (channel.value?.id) {
-      const { data } = await NotificationChannelsAPI.update(
-        channel.value.id,
-        payload
-      );
-      channel.value = data.data;
-    } else {
-      const { data } = await NotificationChannelsAPI.create(payload);
-      channel.value = data.data;
-    }
-    botToken.value = '';
-    result.value = t('NOTIFICATIONS.RESULT.SAVED');
-    resultOk.value = true;
+    const { data } = group.id
+      ? await NotificationChannelsAPI.update(group.id, payload)
+      : await NotificationChannelsAPI.create(payload);
+    Object.assign(group, mapChannel(data.data));
+    group.result = t('NOTIFICATIONS.RESULT.SAVED');
+    group.resultOk = true;
+    showAlert(t('NOTIFICATIONS.RESULT.SAVED'));
   } catch (e) {
-    result.value =
+    const msg =
       t('NOTIFICATIONS.RESULT.SAVE_ERROR') +
       (e.response?.data?.error || e.message);
-    resultOk.value = false;
+    group.result = msg;
+    group.resultOk = false;
+    showAlert(msg);
   } finally {
-    saving.value = false;
+    group.saving = false;
   }
 };
 
-const test = async () => {
-  if (!channel.value?.id) return;
-  testing.value = true;
-  result.value = '';
+const testGroup = async group => {
+  if (!group.id) return;
+  group.testing = true;
+  group.result = '';
   try {
-    const { data } = await NotificationChannelsAPI.testConnection(
-      channel.value.id
-    );
+    const { data } = await NotificationChannelsAPI.testConnection(group.id);
     if (data.ok) {
-      result.value = t('NOTIFICATIONS.RESULT.TEST_SENT');
-      resultOk.value = true;
+      group.result = t('NOTIFICATIONS.RESULT.TEST_SENT');
+      group.resultOk = true;
+      showAlert(t('NOTIFICATIONS.RESULT.TEST_SENT'));
     } else {
-      result.value =
+      const msg =
         t('NOTIFICATIONS.RESULT.TEST_FAILED') + (data.error || 'unknown');
-      resultOk.value = false;
+      group.result = msg;
+      group.resultOk = false;
+      showAlert(msg);
     }
   } catch (e) {
-    result.value =
+    const msg =
       t('NOTIFICATIONS.RESULT.TEST_FAILED') +
       (e.response?.data?.error || e.message);
-    resultOk.value = false;
+    group.result = msg;
+    group.resultOk = false;
+    showAlert(msg);
+  } finally {
+    group.testing = false;
   }
 };
 
-const remove = async () => {
-  if (!channel.value?.id) return;
-  if (!window.confirm(t('NOTIFICATIONS.FORM.DELETE_CONFIRM'))) return;
+const removeGroup = async (group, index) => {
+  if (!group.id) {
+    // Unsaved blank card — just drop it from the list.
+    groups.value.splice(index, 1);
+    return;
+  }
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(t('NOTIFICATIONS.FORM.DELETE_GROUP_CONFIRM'))) return;
   try {
-    await NotificationChannelsAPI.delete(channel.value.id);
-    channel.value = null;
-    botToken.value = '';
-    chatId.value = '';
-    result.value = t('NOTIFICATIONS.RESULT.DELETED');
-    resultOk.value = true;
+    await NotificationChannelsAPI.delete(group.id);
+    groups.value.splice(index, 1);
+    showAlert(t('NOTIFICATIONS.RESULT.DELETED'));
   } catch (e) {
-    result.value =
+    showAlert(
       t('NOTIFICATIONS.RESULT.DELETE_ERROR') +
-      (e.response?.data?.error || e.message);
-    resultOk.value = false;
+        (e.response?.data?.error || e.message)
+    );
   }
 };
 
@@ -212,7 +258,7 @@ const onCardGlow = e => {
   card.style.setProperty('--gy', `${e.clientY - rect.top}px`);
 };
 
-onMounted(loadChannel);
+onMounted(loadGroups);
 </script>
 
 <template>
@@ -230,10 +276,10 @@ onMounted(loadChannel);
         <div class="sub">{{ $t('NOTIFICATIONS.DESCRIPTION') }}</div>
         <span
           class="status-badge"
-          :class="isConfigured ? 'status-on' : 'status-off'"
+          :class="anyConfigured ? 'status-on' : 'status-off'"
         >
           {{
-            isConfigured
+            anyConfigured
               ? $t('NOTIFICATIONS.STATUS.CONFIGURED')
               : $t('NOTIFICATIONS.STATUS.NOT_CONFIGURED')
           }}
@@ -246,13 +292,14 @@ onMounted(loadChannel);
 
       <div v-if="!loading && errorLoading" class="card card-error">
         <p class="error-text">{{ errorLoading }}</p>
-        <button type="button" class="btn sm retry-btn" @click="loadChannel">
+        <button type="button" class="btn sm retry-btn" @click="loadGroups">
           {{ $t('NOTIFICATIONS.FORM.RETRY') }}
         </button>
       </div>
 
       <template v-if="!loading">
-        <div v-if="!isConfigured" class="card card-setup">
+        <!-- Setup steps + empty state when no groups exist yet -->
+        <div v-if="!hasGroups" class="card card-setup">
           <div class="card-t">
             <span class="dot" />
             {{ $t('NOTIFICATIONS.SETUP_STEPS.TITLE') }}
@@ -263,22 +310,40 @@ onMounted(loadChannel);
             <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_3') }}</li>
             <li>{{ $t('NOTIFICATIONS.SETUP_STEPS.STEP_4') }}</li>
           </ol>
+          <p class="loading-note">{{ $t('NOTIFICATIONS.NO_GROUPS') }}</p>
         </div>
 
-        <div class="card">
+        <!-- One card per Telegram group -->
+        <div
+          v-for="(group, index) in groups"
+          :key="group.id || `new-${index}`"
+          class="card"
+        >
+          <div class="fld">
+            <label>{{ $t('NOTIFICATIONS.FORM.NAME_LABEL') }}</label>
+            <input
+              v-model="group.name"
+              type="text"
+              :placeholder="$t('NOTIFICATIONS.FORM.NAME_PLACEHOLDER')"
+            />
+          </div>
+
           <div class="fld">
             <label>{{ $t('NOTIFICATIONS.FORM.BOT_TOKEN_LABEL') }}</label>
             <input
-              v-model="botToken"
+              v-model="group.botToken"
               type="text"
-              :placeholder="$t('NOTIFICATIONS.FORM.BOT_TOKEN_PLACEHOLDER')"
+              :placeholder="
+                group.botTokenMasked ||
+                $t('NOTIFICATIONS.FORM.BOT_TOKEN_PLACEHOLDER')
+              "
             />
           </div>
 
           <div class="fld">
             <label>{{ $t('NOTIFICATIONS.FORM.CHAT_ID_LABEL') }}</label>
             <input
-              v-model="chatId"
+              v-model="group.chatId"
               type="text"
               :placeholder="$t('NOTIFICATIONS.FORM.CHAT_ID_PLACEHOLDER')"
             />
@@ -289,7 +354,7 @@ onMounted(loadChannel);
               {{ $t('NOTIFICATIONS.FORM.EVENT_FILTERS_LABEL') }}
             </div>
 
-            <div v-for="item in eventFilters" :key="item.key" class="tog-row">
+            <div v-for="item in eventDefs" :key="item.key" class="tog-row">
               <div class="tr-l">
                 <div class="tt">{{ item.label }}</div>
                 <div class="ts">{{ item.subtitle }}</div>
@@ -297,9 +362,9 @@ onMounted(loadChannel);
               <button
                 type="button"
                 class="sw"
-                :class="{ off: !filters[item.key] }"
-                :aria-pressed="filters[item.key]"
-                @click="toggleFilter(item.key)"
+                :class="{ off: !group.filters[item.key] }"
+                :aria-pressed="group.filters[item.key]"
+                @click="toggleFilter(group, item.key)"
               >
                 <i />
               </button>
@@ -307,39 +372,44 @@ onMounted(loadChannel);
           </div>
 
           <div
-            v-if="result"
+            v-if="group.result"
             class="result-banner"
-            :class="resultOk ? 'result-ok' : 'result-err'"
+            :class="group.resultOk ? 'result-ok' : 'result-err'"
           >
-            {{ result }}
+            {{ group.result }}
           </div>
 
           <div class="action-row">
             <button
               type="button"
               class="btn primary"
-              :disabled="saving"
-              @click="save"
+              :disabled="group.saving"
+              @click="saveGroup(group)"
             >
-              {{ saveLabel }}
+              {{ saveLabel(group) }}
             </button>
             <button
               type="button"
               class="btn"
-              :disabled="testing || !channel?.id"
-              @click="test"
+              :disabled="group.testing || !group.id"
+              @click="testGroup(group)"
             >
-              {{ testLabel }}
+              {{ testLabel(group) }}
             </button>
             <button
-              v-if="channel?.id"
               type="button"
               class="btn btn-danger"
-              @click="remove"
+              @click="removeGroup(group, index)"
             >
-              {{ $t('NOTIFICATIONS.FORM.DELETE_BTN') }}
+              {{ $t('NOTIFICATIONS.FORM.DELETE_GROUP_BTN') }}
             </button>
           </div>
+        </div>
+
+        <div class="action-row">
+          <button type="button" class="btn primary" @click="addGroup">
+            {{ $t('NOTIFICATIONS.FORM.ADD_GROUP') }}
+          </button>
         </div>
       </template>
     </div>

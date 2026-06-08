@@ -24,6 +24,7 @@ class Api::V1::Accounts::NotificationChannelsController < Api::V1::Accounts::Bas
   def update
     merged = (@channel.credentials || {}).merge(extract_credentials(params))
     @channel.assign_attributes(
+      name: params.key?(:name) ? params[:name] : @channel.name,
       credentials: merged,
       status: params[:status].presence || @channel.status,
       event_filters: params[:event_filters].presence || @channel.event_filters
@@ -71,6 +72,7 @@ class Api::V1::Accounts::NotificationChannelsController < Api::V1::Accounts::Bas
   def create_params
     {
       channel_type: params[:channel_type].presence || 'telegram',
+      name: params[:name],
       credentials: extract_credentials(params),
       event_filters: params[:event_filters] || NotificationChannel::DEFAULT_EVENT_FILTERS
     }
@@ -86,6 +88,7 @@ class Api::V1::Accounts::NotificationChannelsController < Api::V1::Accounts::Bas
   def serialize(c)
     {
       id: c.id,
+      name: c.name,
       channel_type: c.channel_type,
       status: c.status,
       configured: c.configured?,

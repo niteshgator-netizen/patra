@@ -20,7 +20,10 @@ class NotificationChannel < ApplicationRecord
 
   validates :channel_type, inclusion: { in: CHANNEL_TYPES }
   validates :status, inclusion: { in: STATUSES }
-  validates :account_id, uniqueness: { scope: :channel_type }
+  # Multi-group: an account may have MANY telegram channels (the notifier fans out
+  # to every matching one). The old one-channel-per-account uniqueness was removed.
+  # No chat_id uniqueness check here — chat_id lives in encrypted jsonb credentials
+  # (fragile to validate); the UI guards against duplicate chat ids instead.
 
   scope :active, -> { where(status: 'active') }
 
