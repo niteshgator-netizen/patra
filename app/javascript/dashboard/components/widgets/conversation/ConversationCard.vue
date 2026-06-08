@@ -300,6 +300,13 @@ onMounted(startSlaTimer);
 onUnmounted(() => {
   if (slaTimer) clearInterval(slaTimer);
 });
+
+const onCardMouseMove = (e) => {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+  el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+};
 </script>
 
 <template>
@@ -316,6 +323,7 @@ onUnmounted(() => {
     ]"
     @click="$emit('click', $event)"
     @contextmenu="$emit('contextmenu', $event)"
+    @mousemove="onCardMouseMove"
   >
     <!-- QA quick actions (show on hover) -->
     <div class="patra-convo-qa">

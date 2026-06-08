@@ -1862,3 +1862,490 @@
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W2 — DASHBOARD / STATS POLISH
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W3 — W1 FIXES + CONTACTS CLUSTER (dark only; light = W7)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────
+   W1 FIX 1 — RAIL GRADIENT (beat Tailwind bg-n-background)
+   Tailwind utility sets background-color + resets background-image.
+   We write background-image directly so utility can't touch it.
+   ───────────────────────────────────────── */
+.dark .pat-rail.patra-nav-rail,
+.dark aside.pat-rail.patra-nav-rail,
+.dark .patra-nav-rail {
+  background-image: linear-gradient(180deg, var(--surface, #0C0B12) 0%, var(--canvas, #050409) 100%) !important;
+  background-color: var(--canvas, #050409) !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+/* ─────────────────────────────────────────
+   W1 FIX 2 — CONV CARD CURSOR-FOLLOW GLOW on .convo-card-v6
+   (handler injected in ConversationCard.vue sets --mx / --my)
+   ───────────────────────────────────────── */
+.dark .convo-card-v6 {
+  --mx: 50%;
+  --my: 50%;
+  isolation: isolate;
+}
+.dark .convo-card-v6::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(110, 86, 207, 0.18),
+    transparent 70%
+  );
+  z-index: 0;
+}
+.dark .convo-card-v6:hover::after { opacity: 1; }
+.dark .convo-card-v6 > * { position: relative; z-index: 1; }
+
+/* ─────────────────────────────────────────
+   W1 COSMETIC POLISH
+   ───────────────────────────────────────── */
+/* Context panel attr keys → uppercase mono (was capitalize) */
+.dark .patra-attr-key {
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* ⌘K palette — solid-gradient selected row + 14px radius */
+.dark ninja-keys {
+  --border-radius: 14px;
+  --selected-background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0));
+  --selected-text-color: #fff;
+  --modal-shadow: 0 24px 72px rgba(0,0,0,.55), 0 0 0 1px var(--border-hi, #2E2940);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   W3 CONTACTS CLUSTER (10 surfaces)
+   Mockup source = patra-contacts.html. Real classes from
+   ContactsList.vue + ContactDetails.vue. All .dark-scoped.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. CONTACTS LIST CONTAINER ── */
+.dark .contacts-list {
+  background: var(--surface, #0C0B12) !important;
+  padding: 6px 8px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dark .contact-row-wrap { width: 100%; }
+
+/* ── 2. CONTACT CARD (.contact) — hover translateX + cursor glow + active ── */
+.dark .contact {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px !important;
+  border-radius: 13px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  cursor: pointer;
+  isolation: isolate;
+  overflow: hidden;
+  transition: all 0.22s cubic-bezier(.23,1,.32,1) !important;
+}
+.dark .contact::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(110, 86, 207, 0.18),
+    transparent 70%
+  );
+  z-index: 0;
+}
+.dark .contact > * { position: relative; z-index: 1; }
+.dark .contact:hover {
+  background: var(--surface-2, #131119) !important;
+  transform: translateX(3px) scale(1.01);
+}
+.dark .contact:hover::after { opacity: 1; }
+.dark .contact.active,
+.dark .contact.selected {
+  background: var(--surface-2, #131119) !important;
+  border-color: var(--border-hi, #2E2940) !important;
+  box-shadow:
+    inset 0 1px 0 var(--inset, rgba(255,255,255,.045)),
+    0 0 0 1px rgba(110, 86, 207, 0.15),
+    0 8px 24px -8px var(--patra-glow, rgba(110, 86, 207, 0.55)) !important;
+}
+
+/* ── 3. AVATAR + TAGS + ARROW ── */
+.dark .contact .c-ava {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.dark .contact .c-info { flex: 1; min-width: 0; }
+.dark .contact .cn {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13.5px !important;
+  color: var(--text, #EDEDF2) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dark .contact .cm {
+  font-size: 12px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dark .contact .c-tag {
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  padding: 2px 6px !important;
+  border-radius: 5px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.dark .contact .c-tag.vip { background: rgba(227,160,8,.16) !important; color: var(--amber, #E3A008) !important; }
+.dark .contact .c-tag.aioff { background: rgba(248,81,73,.16) !important; color: var(--red, #F85149) !important; }
+.dark .contact .c-tag.tier-badge {
+  background: rgba(110,86,207,.16) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .contact .c-arrow {
+  color: var(--text-4, #54515E) !important;
+  transition: all .2s;
+  font-size: 16px;
+  margin-left: 4px;
+}
+.dark .contact:hover .c-arrow {
+  transform: translateX(3px);
+  color: var(--patra-3, #A78BFA) !important;
+}
+
+/* ── 4. CONTACT DETAIL HERO + ACTIONS ── */
+.dark .contact-details {
+  background: var(--canvas, #050409) !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .patra-contact-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 22px 14px;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.dark .patra-merge-btn,
+.dark .patra-send-msg-btn {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 9px 15px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: var(--surface-2, #131119) !important;
+  color: var(--text, #EDEDF2) !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.23,1,.32,1) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.dark .patra-merge-btn:hover,
+.dark .patra-send-msg-btn:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.dark .patra-send-msg-btn {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .patra-send-msg-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 18px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+
+/* ── 5. STATS GRID (.pat-stats-grid / .pat-sg) ── */
+.dark .contact-details .card.full {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  margin: 18px 22px !important;
+}
+.dark .contact-details .card-t.display,
+.dark .contact-details .card-t {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: var(--text, #EDEDF2) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.dark .contact-details .card-t .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-3, #A78BFA));
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110,86,207,.55));
+  display: inline-block;
+}
+.dark .pat-stats-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+  gap: 8px !important;
+}
+.dark .pat-sg {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 11px !important;
+  padding: 12px 13px !important;
+  cursor: pointer;
+  isolation: isolate;
+  overflow: hidden;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.dark .pat-sg.js-spot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+  background: radial-gradient(140px circle at var(--mx, 50%) var(--my, 50%), rgba(110,86,207,.22), transparent 70%);
+  z-index: 0;
+}
+.dark .pat-sg > * { position: relative; z-index: 1; }
+.dark .pat-sg:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 12px 24px rgba(0,0,0,.45), 0 0 18px rgba(110,86,207,.18);
+}
+.dark .pat-sg:hover.js-spot::after { opacity: 1; }
+.dark .pat-sg-n {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 19px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.dark .pat-sg-n.pat-sg-purple {
+  background: linear-gradient(135deg, var(--patra-2, #8B5CF6), var(--patra-3, #A78BFA));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.dark .pat-sg-n.pat-sg-green { color: var(--green, #3FB950) !important; }
+.dark .pat-sg-n.pat-sg-sm { font-size: 14px !important; }
+.dark .pat-sg-l {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 4px;
+}
+
+/* ── 6. DETAIL SUB-TABS (.patra-dtabs / .patra-dtab) ── */
+.dark .patra-dtabs {
+  display: flex !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 11px !important;
+  margin: 0 22px 14px !important;
+}
+.dark .patra-dtab {
+  flex: 1 !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  padding: 7px 10px !important;
+  border-radius: 8px !important;
+  color: var(--text-3, #75727F) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  transition: all .2s !important;
+  text-align: center;
+}
+.dark .patra-dtab:hover {
+  color: var(--text, #EDEDF2) !important;
+  background: var(--surface-3, #1B1925) !important;
+}
+.dark .patra-dtab.active {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55));
+}
+
+/* ── 7. ATTRIBUTES PANE (.patra-attr-row, key UPPERCASE per QA polish) ── */
+.dark .patra-tabpane { padding: 0 22px 22px; }
+.dark .contact-details .patra-attr-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 10px 13px !important;
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 10px !important;
+  font-size: 12.5px !important;
+  margin-bottom: 6px;
+}
+.dark .contact-details .patra-attr-key {
+  color: var(--text-3, #75727F) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-weight: 500;
+}
+.dark .contact-details .patra-attr-val {
+  color: var(--text, #EDEDF2) !important;
+  font-weight: 500 !important;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-word;
+}
+
+/* ── 8. HISTORY TIMELINE (.patra-timeline / .patra-tl-*) ── */
+.dark .patra-timeline {
+  position: relative;
+  padding-left: 18px;
+}
+.dark .patra-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--patra, #6E56CF), transparent);
+  opacity: 0.5;
+}
+.dark .patra-tl-item {
+  position: relative;
+  padding: 8px 0 12px;
+}
+.dark .patra-tl-dot {
+  position: absolute;
+  left: -18px;
+  top: 12px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--surface-2, #131119);
+  border: 2px solid var(--patra, #6E56CF);
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110,86,207,.55));
+}
+.dark .patra-tl-body { padding-left: 4px; }
+.dark .patra-tl-title {
+  font-size: 12.5px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-weight: 500;
+}
+.dark .patra-tl-time {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 2px;
+}
+
+/* ── 9. EMPTY NOTES / MEDIA STATES (cross-route fallback for .patra-empty-note) ── */
+.dark .contact-details .patra-empty-note,
+.dark .patra-tabpane .patra-empty-note {
+  text-align: center;
+  padding: 22px 12px !important;
+  color: var(--text-3, #75727F) !important;
+  font-size: 12.5px !important;
+  background: var(--surface, #0C0B12);
+  border: 1px dashed var(--border, #171520);
+  border-radius: 11px;
+}
+.dark .contact-details .patra-empty-note a {
+  color: var(--patra-3, #A78BFA) !important;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.dark .contact-details .patra-empty-note a:hover { color: var(--patra-2, #8B5CF6) !important; }
+
+/* ── 10. EXPANDED CONTACT ROW + LIST FOOTER PAGINATION (if rendered) ── */
+.dark .contact-expanded {
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border-hi, #2E2940) !important;
+  border-radius: 13px !important;
+  padding: 12px 14px !important;
+  margin: 4px 0 6px;
+  font-size: 12.5px !important;
+  color: var(--text-2, #A8A6B6) !important;
+}
+.dark .list-foot,
+.dark .contacts-list-foot {
+  padding: 12px 16px !important;
+  border-top: 1px solid var(--border, #171520);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-3, #75727F) !important;
+  font-family: 'JetBrains Mono', monospace;
+}
+.dark .pager { display: flex; gap: 4px; }
+.dark .pager button {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: var(--surface-2, #131119) !important;
+  color: var(--text-2, #A8A6B6) !important;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all .2s;
+}
+.dark .pager button:hover {
+  border-color: var(--patra, #6E56CF) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .pager button.active {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W3 — W1 FIXES + CONTACTS CLUSTER
+   ════════════════════════════════════════════════════════════════════ */
