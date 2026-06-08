@@ -5,6 +5,14 @@ module ContactProfileStats
 
   FINANCE_LOG_KEY = 'patra_finance_logs'
 
+  # Defensive guard: a negative finance-log 'amount' must never persist again (a
+  # garbage value once appeared on reprocessed Chime entries). Registered here so it
+  # runs on EVERY contact save — catching all write paths (ghost_payment_store, IMAP
+  # jobs, image extractor, manual), since they all eventually call contact.save!.
+  included do
+    before_save :sanitize_finance_log_amounts
+  end
+
   def conversation_loyalty_tier
     conv_count = conversations.count
     days_active = created_at ? ((Time.current - created_at) / 1.day).to_i : 0
@@ -64,6 +72,44 @@ module ContactProfileStats
   end
 
   private
+
+  # before_save guard (registered in `included do` above). Normalizes any negative
+  # finance-log 'amount' to the verified email_amount (when positive), else its
+  # absolute value. Null-safe, idempotent, cheap (early-returns when no logs / no
+  # negatives), and NEVER raises — a hiccup here must never block a contact save.
+  def sanitize_finance_log_amounts
+    attrs = custom_attributes
+    return unless attrs.is_a?(Hash)
+
+    logs = attrs[FINANCE_LOG_KEY] || attrs[FINANCE_LOG_KEY.to_sym]
+    return unless logs.is_a?(Array)
+
+    changed = false
+    logs.each do |entry|
+      next unless entry.is_a?(Hash)
+
+      has_string_key = entry.key?('amount')
+      amt = has_string_key ? entry['amount'] : entry[:amount]
+      next unless amt.is_a?(Numeric) && amt.negative?
+
+      # Prefer the verified email_amount (the truth); else fall back to abs.
+      email_amt = entry['email_amount'] || entry[:email_amount]
+      corrected = (email_amt.is_a?(Numeric) && email_amt.positive?) ? email_amt : amt.abs
+
+      if has_string_key
+        entry['amount'] = corrected
+      else
+        entry[:amount] = corrected
+      end
+      changed = true
+    end
+
+    # Only reassign (and dirty the column) when we actually fixed something.
+    self.custom_attributes = attrs if changed
+  rescue StandardError => e
+    Rails.logger.warn("[ContactProfileStats] sanitize_finance_log_amounts skipped: #{e.class}: #{e.message}")
+    nil
+  end
 
   def finance_log_entries
     Array(custom_attributes[FINANCE_LOG_KEY]).filter_map do |raw|
