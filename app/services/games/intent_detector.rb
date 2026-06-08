@@ -28,6 +28,65 @@ module Games
       /\bpromotion\b/i
     ].freeze
 
+    # ---- Info / link / question intents (Batch: AI brain completion) ----
+    # Placed as their own constants; detection branches are ordered in detect()
+    # to avoid stealing from LOAD / CREATE / CASHOUT / payment-pick.
+    REQUEST_GAME_LINK_PATTERNS = [
+      /\blink\s+to\s+play\b/i,
+      /\bwhere\s+(?:do|can)\s+i\s+play\b/i,
+      /\b(?:web|game)\s+link\b/i,
+      /\bplay\s+online\b/i,
+      /\b(?:web\s*site|the\s+site|site\s+link)\b/i,
+      /\blink\s+(?:to|for)\s+(?:the\s+)?(?:game|play)/i
+    ].freeze
+
+    REQUEST_DOWNLOAD_LINK_PATTERNS = [
+      /\bdownload\b/i,
+      /\bapk\b/i,
+      /\binstall\b/i,
+      /\bwhere\s+(?:to|do\s+i)\s+download\b/i
+    ].freeze
+
+    REQUEST_APP_LINK_PATTERNS = [
+      /\bapp\s+link\b/i,
+      /\bsend\s+(?:me\s+)?(?:the\s+)?app\b/i,
+      /\bget\s+(?:the\s+)?app\b/i,
+      /\b(?:the|your|that)\s+app\b/i
+    ].freeze
+
+    # Asking ABOUT cashout limits — NOT requesting a cashout. Checked BEFORE
+    # CASHOUT_PATTERNS so "how much can i cash out" / "minimum cashout" don't
+    # become an actual :cashout. Requires a min/max/limit/rules word, so a real
+    # "cash out 50" or "i wanna cash out" never matches here.
+    CASHOUT_RULES_PATTERNS = [
+      /cash\s*out\s+rules?/i,
+      /(?:minimum|min|max|maximum)\s+(?:cash\s*out|cashout|redeem|withdraw)/i,
+      /(?:cash\s*out|cashout|redeem|withdraw)\s+(?:minimum|min|max|maximum|limit|rules?)/i,
+      /how\s+much\s+(?:can|do)\s+i\s+(?:cash\s*out|cashout|redeem|withdraw)/i,
+      /withdrawal\s+limit/i,
+      /min(?:imum)?\s+to\s+redeem/i
+    ].freeze
+
+    LIST_PLATFORMS_PATTERNS = [
+      /\bwhat\s+games?\b/i,
+      /\bwhich\s+games?\b/i,
+      /\bwhat\s+platforms?\b/i,
+      /\bgames?\s+do\s+you\s+have\b/i,
+      /\blist\s+games?\b/i,
+      /\bwhat\s+do\s+you\s+have\b/i
+    ].freeze
+
+    # Asking ABOUT payment methods — NOT choosing one. PAYMENT_METHOD_PICK_PATTERNS
+    # require a platform name (cashapp/venmo/...), so a generic "what payment
+    # methods?" never matches a pick; these only catch the generic question forms.
+    PAYMENT_METHOD_QUESTION_PATTERNS = [
+      /\bwhat\s+payment/i,
+      /\bhow\s+(?:can|do)\s+i\s+pay\b/i,
+      /\bpayment\s+(?:methods?|options?)\b/i,
+      /\bwhat\s+do\s+you\s+accept\b/i,
+      /\bhow\s+(?:can|do)\s+i\s+(?:send|deposit)\b/i
+    ].freeze
+
     CASHOUT_PATTERNS = [
       /cash\s*out\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /cashout\s+\$?(\d+(?:\.\d{1,2})?)/i,
@@ -397,6 +456,9 @@ module Games
                       game_slug: detect_game(text),
                       game_username: extract_username(text)
                     }
+                  elsif match_any(text, CASHOUT_RULES_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched cashout_rules')
+                    { intent: :cashout_rules, game_slug: detect_game(text) }
                   elsif (m = match_any(text, CASHOUT_PATTERNS))
                     Rails.logger.info("[IntentDetector] matched cashout amount=#{m[1]}")
                     {
@@ -467,6 +529,21 @@ module Games
                   elsif match_any(text, REFERRAL_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched referral')
                     { intent: :referral }
+                  elsif match_any(text, PAYMENT_METHOD_QUESTION_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched payment_method_question')
+                    { intent: :payment_method_question }
+                  elsif match_any(text, REQUEST_DOWNLOAD_LINK_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched request_download_link')
+                    { intent: :request_download_link, game_slug: detect_game(text) }
+                  elsif match_any(text, REQUEST_APP_LINK_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched request_app_link')
+                    { intent: :request_app_link, game_slug: detect_game(text) }
+                  elsif match_any(text, REQUEST_GAME_LINK_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched request_game_link')
+                    { intent: :request_game_link, game_slug: detect_game(text) }
+                  elsif match_any(text, LIST_PLATFORMS_PATTERNS)
+                    Rails.logger.info('[IntentDetector] matched list_platforms')
+                    { intent: :list_platforms, game_slug: detect_game(text) }
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }

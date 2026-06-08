@@ -61,7 +61,13 @@ module Games
       'redeem_partial_replay'     => :redeem_partial_replay,
       'replay_from_balance'       => :replay_from_balance,
       'new_account_new_player'    => :request_account_creation,
-      'new_account_other_game'    => :request_account_creation
+      'new_account_other_game'    => :request_account_creation,
+      'request_game_link'         => :request_game_link,
+      'request_download_link'     => :request_download_link,
+      'request_app_link'          => :request_app_link,
+      'cashout_rules'             => :cashout_rules,
+      'list_platforms'            => :list_platforms,
+      'payment_method_question'   => :payment_method_question
     }.freeze
 
     def initialize(account:, contact:, conversation:, messages:)
@@ -275,6 +281,18 @@ module Games
         handle_new_account_reissue(intent)
       when :replay_from_balance
         handle_replay_from_balance(intent)
+      when :request_game_link
+        handle_request_game_link(intent)
+      when :request_download_link
+        handle_request_download_link(intent)
+      when :request_app_link
+        handle_request_app_link(intent)
+      when :cashout_rules
+        handle_cashout_rules(intent)
+      when :list_platforms
+        handle_list_platforms(intent)
+      when :payment_method_question
+        handle_payment_method_question(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -2728,6 +2746,149 @@ module Games
       games_text = active_games_list_text
       reply = games_text.present? ? "right now we have: #{games_text} — which one do you want loaded?" : "let me check which games are available and get back to you!"
       { reply: reply, labels: [] }
+    end
+
+    # ---- Info / link / question handlers (Batch: AI brain completion) ----
+
+    # [game, game_rule] for a slug, scoped to this account. Either may be nil.
+    def game_and_rule(slug)
+      game = Game.find_by(slug: slug)
+      rule = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+      [game, rule]
+    rescue StandardError
+      [nil, nil]
+    end
+
+    def handle_request_game_link(intent)
+      game_slug = chosen_game_slug(intent)
+      return { reply: "which game you wanna play? we got #{active_games_list_text}", labels: ['needs-game'] } unless game_slug
+
+      game, rule = game_and_rule(game_slug)
+      name = game&.name.presence || game_slug.tr('_', ' ')
+      web = rule&.game_web_url.presence || game&.domain.presence
+      return { reply: "here you go — play #{name} here: #{web}", labels: ['game-link'] } if web.present?
+
+      download = rule&.game_download_url.presence || game&.player_signup_url.presence
+      return { reply: "no web version for #{name} — you can download and play! #{download}", labels: ['game-link'] } if download.present?
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: "Game link requested for #{name} but no web/download URL configured", conversation: conversation)
+      end
+      { reply: 'let me grab that link for you, one sec!', labels: %w[needs-human cashier-action-needed] }
+    end
+
+    def handle_request_download_link(intent)
+      game_slug = chosen_game_slug(intent)
+      return { reply: "which game you wanna download? we got #{active_games_list_text}", labels: ['needs-game'] } unless game_slug
+
+      game, rule = game_and_rule(game_slug)
+      name = game&.name.presence || game_slug.tr('_', ' ')
+      dl = rule&.game_download_url.presence || game&.player_signup_url.presence
+      return { reply: "here's the #{name} download: #{dl}", labels: ['download-link'] } if dl.present?
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: "Download link requested for #{name} but none configured", conversation: conversation)
+      end
+      { reply: 'let me grab that download link for you, one sec!', labels: %w[needs-human cashier-action-needed] }
+    end
+
+    # App link == download link (the app IS the download).
+    def handle_request_app_link(intent)
+      handle_request_download_link(intent)
+    end
+
+    def handle_cashout_rules(intent)
+      game_slug = chosen_game_slug(intent)
+      return { reply: "which game you asking about? we got #{active_games_list_text}", labels: ['needs-game'] } unless game_slug
+
+      game, rule = game_and_rule(game_slug)
+      name = game&.name.presence || game_slug.tr('_', ' ')
+
+      if rule
+        min_amt = rule.cashout_min_amount.to_f
+        max_amt = rule.cashout_max_amount.to_f
+        min_mult = rule.cashout_min_multiplier.to_f
+        if min_amt.positive? || max_amt.positive? || min_mult.positive?
+          parts = []
+          parts << "min cashout is $#{fmt_amt(min_amt)}" if min_amt.positive?
+          parts << "max $#{fmt_amt(max_amt)}" if max_amt.positive?
+          parts << "gotta hit #{fmt_amt(min_mult)}x your deposit" if min_mult.positive?
+          return { reply: "for #{name}: #{parts.join(', ')}", labels: ['cashout-rules'] }
+        end
+        return { reply: rule.cashout_rules_text.to_s, labels: ['cashout-rules'] } if rule.cashout_rules_text.present?
+      end
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: "Cashout rules asked for #{name} but none configured", conversation: conversation)
+      end
+      { reply: 'let me get you the exact cashout rules, one sec!', labels: %w[needs-human cashier-action-needed] }
+    end
+
+    def handle_list_platforms(intent)
+      asked_slug = intent.is_a?(Hash) ? intent[:game_slug] : nil
+      if asked_slug.present? && pick_agent_game(asked_slug).nil?
+        game = Game.find_by(slug: asked_slug)
+        name = game&.name.presence || asked_slug.tr('_', ' ')
+        return { reply: "#{name}'s not active right now — we'll let you know when it's back!", labels: ['list-platforms'] }
+      end
+
+      list = active_games_list_text
+      return { reply: "we got #{list} — which one you want?", labels: ['list-platforms'] } if list.present? && list != 'no games'
+
+      { reply: 'let me pull up our games and get right back to you!', labels: %w[needs-human cashier-action-needed] }
+    end
+
+    # SAFETY: returns platform TYPES only — NEVER a handle, verification_email, or
+    # verification_email_password. The handle is revealed only during real payment
+    # processing (handle_payment_method_chosen), never in answer to a question.
+    def handle_payment_method_question(intent)
+      if payment_reply_source_pref == 'handles'
+        return payment_question_from_platforms
+      end
+
+      canned = begin
+        CannedResponse.find_by(account_id: account.id, short_code: 'payment')
+      rescue StandardError
+        nil
+      end
+      return { reply: canned.content.to_s, labels: ['payment-method-question'] } if canned&.content.present?
+
+      payment_question_from_platforms
+    end
+
+    # Lists DISTINCT active platform names only (no handles).
+    def payment_question_from_platforms
+      platforms = active_payment_platforms.map { |p| pretty_platform(p) }.reject(&:blank?).uniq
+      return { reply: "we take #{humanize_list(platforms)}", labels: ['payment-method-question'] } if platforms.present?
+
+      { reply: "let me check which payment methods we've got active and get right back to you!", labels: %w[needs-human cashier-action-needed] }
+    end
+
+    def payment_reply_source_pref
+      pref = reply_pref_cached
+      return 'canned' unless pref.respond_to?(:payment_reply_source)
+      (pref.payment_reply_source.presence || 'canned').to_s
+    rescue StandardError
+      'canned'
+    end
+
+    def pretty_platform(platform)
+      case platform.to_s.downcase
+      when 'cashapp' then 'cash app'
+      when 'chime'   then 'chime'
+      when 'venmo'   then 'venmo'
+      when 'paypal'  then 'paypal'
+      when 'zelle'   then 'zelle'
+      else platform.to_s
+      end
+    end
+
+    def humanize_list(items)
+      items = Array(items).reject(&:blank?)
+      return '' if items.empty?
+      return items.first if items.size == 1
+      return items.join(' and ') if items.size == 2
+      "#{items[0..-2].join(', ')}, and #{items.last}"
     end
 
     def handle_referral(intent)

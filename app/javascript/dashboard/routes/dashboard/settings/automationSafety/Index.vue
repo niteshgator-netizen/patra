@@ -85,6 +85,22 @@
           <span class="text-xs text-slate-500 block -mt-2">Block double-loading the same amount within 10 minutes.</span>
         </section>
 
+        <hr class="border-slate-700" />
+
+        <!-- PAYMENT -->
+        <section class="space-y-4">
+          <h3 class="text-sm font-medium">Payment</h3>
+
+          <label class="block">
+            <span class="text-sm">Payment-question reply source</span>
+            <select v-model="pref.payment_reply_source" class="w-full mt-1 p-2 bg-slate-800 border border-slate-600 rounded text-sm">
+              <option value="canned">Canned response</option>
+              <option value="handles">Active handles</option>
+            </select>
+            <span class="text-xs text-slate-500">How Bella answers "what payment methods?". Either way, only platform names are shown — never a handle.</span>
+          </label>
+        </section>
+
         <button
           class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-medium"
           @click="save"
@@ -113,6 +129,7 @@ export default {
         fraud_cashout_velocity_count: 3,
         fraud_cashout_velocity_hours: 24,
         fraud_duplicate_payment_check: true,
+        payment_reply_source: 'canned',
       },
       loading: true,
     };

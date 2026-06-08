@@ -27,7 +27,8 @@ class Api::V1::Accounts::ReplyPreferencesController < Api::V1::Accounts::BaseCon
       :winback_enabled, :winback_dormant_days_vip,
       :winback_dormant_days_regular, :winback_dormant_days_new,
       :fraud_cashout_velocity_count, :fraud_cashout_velocity_hours,
-      :fraud_duplicate_payment_check
+      :fraud_duplicate_payment_check,
+      :payment_reply_source
     )
   end
 end
