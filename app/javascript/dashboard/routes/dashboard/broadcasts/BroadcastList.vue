@@ -9,9 +9,15 @@ const loading = ref(true);
 const broadcasts = ref([]);
 
 const load = async () => {
-  const { data } = await BroadcastsAPI.get();
-  broadcasts.value = data;
-  loading.value = false;
+  try {
+    const { data } = await BroadcastsAPI.get();
+    broadcasts.value = data;
+  } catch (error) {
+    broadcasts.value = [];
+  } finally {
+    // Always clear loading so the spinner can never strand on a failed fetch.
+    loading.value = false;
+  }
 };
 
 onMounted(load);
@@ -26,7 +32,7 @@ onMounted(load);
             {{ $t('PATRA.BROADCASTS.TITLE') }}
           </h1>
           <router-link
-            :to="{ name: 'patra_broadcast_compose' }"
+            :to="{ name: 'patra_broadcast_compose_new' }"
             class="px-3 py-2 text-sm text-white rounded-lg bg-n-brand"
           >
             {{ $t('PATRA.BROADCASTS.NEW') }}
@@ -34,6 +40,21 @@ onMounted(load);
         </header>
 
         <Spinner v-if="loading" />
+        <div
+          v-else-if="!broadcasts.length"
+          class="flex flex-col items-center justify-center gap-2 py-16 text-center"
+        >
+          <fluent-icon icon="megaphone" size="36" class="text-n-slate-10" />
+          <p class="text-sm text-n-slate-11">
+            {{ $t('PATRA.BROADCASTS.EMPTY') }}
+          </p>
+          <router-link
+            :to="{ name: 'patra_broadcast_compose_new' }"
+            class="px-3 py-2 mt-1 text-sm text-white rounded-lg bg-n-brand"
+          >
+            {{ $t('PATRA.BROADCASTS.NEW') }}
+          </router-link>
+        </div>
         <div v-else class="grid gap-3">
           <div
             v-for="b in broadcasts"
