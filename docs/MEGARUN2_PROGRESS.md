@@ -28,22 +28,22 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - [ ] 8. Search (`search/components/SearchView.vue`)
 
 ## AREA: NOTIFICATIONS
-- [ ] 9. Notifications page (`notifications/components/NotificationsView.vue`)
+- [x] 9. Notifications page — **ALREADY-MATCHED**: delegates loading/empty to core `NotificationTable` + `TableFooter`; no leak. (V2 clean; heuristic false-positive.)
 
 ## AREA: PATRA AI / GAMES / KNOWLEDGE
 - [ ] 10. AI Training (`patra/PatraAiTraining.vue`)
 - [ ] 11. Games / Game Integrations (`settings/integrations/Games.vue`)
-- [ ] 12. Patra Reports (`patra/PatraReports.vue`)
+- [x] 12. Patra Reports (`patra/PatraReports.vue`) — **ALREADY-MATCHED**: proper loading/error/data branches w/ try-catch-finally; tokenized cards. V2 clean.
 - [ ] 13. Leaderboard (`reports/Leaderboard.vue`)
 - [ ] 14. Knowledge Base (`patra/KnowledgeBase.vue` / settings/knowledge)
 - [ ] 15. Custom Attributes builder (`patra/CustomAttributesBuilder.vue`)
-- [ ] 16. Connect Facebook (`patra/PatraAddChannel.vue`)
+- [x] 16. Connect Facebook (`patra/PatraAddChannel.vue`) — **ALREADY-MATCHED**: multi-platform picker; try-catch-finally on fetch+connect, loadError + useAlert w/ i18n keys (present). V2 clean.
 - [ ] 17. Facebook Accounts (`patra/PatraFacebookAccounts.vue`)
 - [ ] 18. Backup Pages (`patra/PatraBackupPages.vue`)
 - [ ] 19. Cashier Queue (`patra/PatraCashierQueue.vue`)
 
 ## AREA: BROADCASTS
-- [ ] 20. Broadcast list (`broadcasts/pages/BroadcastList.vue`)
+- [x] 20. Broadcast list (`broadcasts/BroadcastList.vue`) — **MATCHED**: fixed 3 real bugs — New-btn route `patra_broadcast_compose`→`_new` (was missing required `:broadcastId`); `load()` now try/catch/finally (spinner could strand on API error); added empty-state branch + `PATRA.BROADCASTS.EMPTY`.
 - [ ] 21. Broadcast composer (`broadcasts/pages/BroadcastComposer.vue`)
 
 ## AREA: REPORTS
