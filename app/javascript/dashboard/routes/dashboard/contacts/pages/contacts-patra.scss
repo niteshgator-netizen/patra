@@ -1125,12 +1125,11 @@
 
 :deep(.pat-vg-stat) {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   font-family: 'JetBrains Mono', monospace;
   color: var(--green, #3fb950);
   background: rgba(63, 185, 80, 0.14);
-  border: 1px solid rgba(63, 185, 80, 0.25);
-  border-radius: 6px;
+  border-radius: 20px;
   padding: 2px 7px;
 }

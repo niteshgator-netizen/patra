@@ -2184,33 +2184,40 @@
 .dark .patra-dtabs {
   display: flex !important;
   gap: 4px !important;
-  padding: 4px !important;
-  background: var(--surface-2, #131119) !important;
-  border: 1px solid var(--border, #171520) !important;
-  border-radius: 11px !important;
-  margin: 0 22px 14px !important;
+  border-bottom: 1px solid var(--border, #171520) !important;
+  margin: 0 22px 15px !important;
 }
 .dark .patra-dtab {
-  flex: 1 !important;
-  font-size: 12.5px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
-  padding: 7px 10px !important;
-  border-radius: 8px !important;
+  padding: 9px 14px !important;
+  border-radius: 9px 9px 0 0 !important;
   color: var(--text-3, #75727F) !important;
   background: transparent !important;
   border: none !important;
   cursor: pointer;
+  position: relative;
   transition: all .2s !important;
-  text-align: center;
 }
 .dark .patra-dtab:hover {
   color: var(--text, #EDEDF2) !important;
-  background: var(--surface-3, #1B1925) !important;
 }
 .dark .patra-dtab.active {
-  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
-  color: #fff !important;
-  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55));
+  background: transparent !important;
+  color: var(--text, #EDEDF2) !important;
+  box-shadow: none !important;
+}
+/* underline indicator — theme-agnostic so it applies in dark + light */
+.patra-dtab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--patra, #6E56CF), var(--patra-2, #8B5CF6));
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110,86,207,.45));
 }
 
 /* ── 7. ATTRIBUTES PANE (.patra-attr-row, key UPPERCASE per QA polish) ── */
@@ -4163,8 +4170,8 @@ body:not(.dark) .patra-dtab,
 [data-theme="light"] .patra-dtab { color: var(--text-3, #75727F) !important; }
 body:not(.dark) .patra-dtab.active,
 [data-theme="light"] .patra-dtab.active {
-  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
-  color: #fff !important;
+  background: transparent !important;
+  color: var(--text, #1A1A24) !important;
 }
 body:not(.dark) .patra-attr-row,
 [data-theme="light"] .patra-attr-row {
