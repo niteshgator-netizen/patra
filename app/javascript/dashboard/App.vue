@@ -102,10 +102,24 @@ export default {
       }
     };
     document.addEventListener('mousemove', this.patraSpotlightMoveHandler);
+    // Global .lrow cursor-glow tracker (W7 — covers all settings pages)
+    this._lrowGlowHandler = e => {
+      const lrow = e.target && e.target.closest && e.target.closest('.lrow');
+      if (!lrow) return;
+      const r = lrow.getBoundingClientRect();
+      lrow.style.setProperty('--mx', `${e.clientX - r.left}px`);
+      lrow.style.setProperty('--my', `${e.clientY - r.top}px`);
+    };
+    document.addEventListener('mousemove', this._lrowGlowHandler, {
+      passive: true,
+    });
   },
   unmounted() {
     if (this.patraSpotlightMoveHandler) {
       document.removeEventListener('mousemove', this.patraSpotlightMoveHandler);
+    }
+    if (this._lrowGlowHandler) {
+      document.removeEventListener('mousemove', this._lrowGlowHandler);
     }
     if (this.reconnectService) {
       this.reconnectService.disconnect();
@@ -114,6 +128,7 @@ export default {
   methods: {
     initializeColorTheme() {
       setColorTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      this.syncDarkModeState();
     },
     syncDarkModeState() {
       this.isDarkMode = document.body.classList.contains('dark');

@@ -3626,3 +3626,464 @@
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W6 — SETTINGS B + CROSS-SHELL UMBRELLA
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W7 — FINALE: W5 folds + theme mount fix + FULL LIGHT MODE
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PART 1 — W5 FOLD FIXES
+   ════════════════════════════════════════════════════════════════════ */
+
+/* W5-8 — Role badges: live classes are compound `.role.admin` / `.role.agent`,
+   not hyphenated. Override scoped style with correct spec colors + mono uppercase. */
+.dark .role.admin,
+.dark .role.administrator {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  background: rgba(227, 160, 8, 0.15) !important;
+  color: var(--amber, #E3A008) !important;
+  white-space: nowrap;
+}
+.dark .role.agent {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  background: rgba(110, 86, 207, 0.16) !important;
+  color: var(--patra-3, #A78BFA) !important;
+  white-space: nowrap;
+}
+.dark .role.custom {
+  background: rgba(167, 139, 250, 0.16) !important;
+  color: var(--patra-2, #8B5CF6) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+}
+
+/* W5-10 — Empty card bare-text-node title styling */
+.dark [class*="pat-"][class*="-wrap"] .empty-card {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  color: var(--text, #EDEDF2) !important;
+  line-height: 1.4 !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .empty-card .ec-ic {
+  font-family: inherit !important;
+  font-size: 44px !important;
+  font-weight: normal !important;
+  line-height: 1 !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .empty-card .btn,
+.dark [class*="pat-"][class*="-wrap"] .empty-card .empty-action {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* W5-6 — .lrow cursor glow now driven by global App.vue mousemove listener
+   that sets --mx/--my on closest .lrow. CSS already reads var(--mx)/var(--my)
+   from W5+W6 — no CSS change required here, just confirming the contract. */
+
+/* ════════════════════════════════════════════════════════════════════
+   PART 2 — LIGHT TOKEN BLOCK
+   ════════════════════════════════════════════════════════════════════ */
+
+:root[data-theme="light"],
+:root:not([data-theme]),
+body:not(.dark) {
+  /* Patra tokens for light mode */
+  --patra-bg1: #F6F5F9;
+  --patra-bg2: #FFFFFF;
+  --patra-bg3: #F2F0F7;
+  --patra-text1: #1A1A24;
+  --patra-text2: #4A4756;
+  --patra-text3: #75727F;
+  --patra-accent: #6E56CF;
+  --patra-accent-soft: rgba(110, 86, 207, 0.10);
+  --patra-green: #16A34A;
+  --patra-green-soft: rgba(22, 163, 74, 0.10);
+  --patra-red: #DC2626;
+  --patra-red-soft: rgba(220, 38, 38, 0.10);
+  --patra-amber: #D97706;
+  --patra-amber-soft: rgba(217, 119, 6, 0.10);
+  --patra-border: rgba(0, 0, 0, 0.08);
+
+  /* Spec design tokens — light mode */
+  --canvas: #F6F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F2F0F7;
+  --surface-3: #ECE9F2;
+  --surface-4: #DDDAE5;
+  --border: #E5E3EB;
+  --border-hi: #D6D3DE;
+  --patra: #6E56CF;
+  --patra-2: #8B5CF6;
+  --patra-3: #7C3AED;
+  --patra-deep: #5B45B0;
+  --patra-glow: rgba(110, 86, 207, 0.35);
+  --inset: rgba(0, 0, 0, 0.035);
+  --text: #1A1A24;
+  --text-2: #4A4756;
+  --text-3: #75727F;
+  --text-4: #A0A0AB;
+  --green: #16A34A;
+  --amber: #D97706;
+  --red: #DC2626;
+  --blue: #2563EB;
+  --pink: #DB2777;
+  --bubble-in: #F2F0F7;
+  --shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.12);
+  --mesh-1: rgba(110, 86, 207, 0.08);
+  --mesh-2: rgba(139, 92, 246, 0.05);
+  --mesh-3: rgba(236, 72, 153, 0.03);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PART 3 — LIGHT MODE MIRRORS (body:not(.dark) scope)
+   Mirror only theme-dependent surfaces. Patra brand gradients/glows work
+   on light backgrounds too — only backgrounds/borders/text need flipping.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── W1 INBOX CLUSTER LIGHT ── */
+body:not(.dark) #app,
+body:not(.dark) .app-wrapper {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24);
+}
+body:not(.dark) .pat-rail.patra-nav-rail {
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #F6F5F9 100%) !important;
+  border-right: 1px solid var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .conversations-list-wrap,
+body:not(.dark) .pat-list-head,
+body:not(.dark) .pat-list-head-top {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .pat-list-title { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .pat-list-count { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .convo-card-v6 {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .convo-card-v6:hover {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border-hi, #D6D3DE) !important;
+}
+body:not(.dark) .conv-sidebar-patra.contact-panel-v6,
+body:not(.dark) .ctx-sidebar-header,
+body:not(.dark) .ctx-body {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .patra-attr-row {
+  background: var(--canvas, #F6F5F9) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .patra-attr-key { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-attr-val { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .reply-box.patra-conv-composer,
+body:not(.dark) .reply-box__top {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .patra-empty-inbox {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text-3, #75727F) !important;
+}
+
+/* ── W2 DASHBOARD LIGHT ── */
+body:not(.dark) .patra-owner-dashboard,
+body:not(.dark) .pat-dash {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .patra-card {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+}
+body:not(.dark) .patra-card:hover {
+  border-color: var(--border-hi, #D6D3DE) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 0 18px rgba(110,86,207,0.08) !important;
+}
+body:not(.dark) .patra-kpi-n { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .patra-kpi-l { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-checklist-wrap {
+  background: linear-gradient(135deg, rgba(110,86,207,.06), rgba(139,92,246,.03)) !important;
+  border-color: rgba(110, 86, 207, 0.18) !important;
+}
+
+/* ── W3 CONTACTS LIGHT ── */
+body:not(.dark) .contacts-list {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .contact {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: transparent !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .contact:hover {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  transform: translateX(3px) scale(1.01) !important;
+}
+body:not(.dark) .contact.selected {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--patra, #6E56CF) !important;
+}
+body:not(.dark) .cn { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .cm { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .contact-details,
+body:not(.dark) .contact-expanded {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .pat-sg {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .pat-sg-n { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .pat-sg-l { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-empty-note {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text-3, #75727F) !important;
+}
+
+/* ── W4 GAMES LIGHT ── */
+body:not(.dark) .games-wrap,
+body:not(.dark) .games-main {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .gsum-card,
+body:not(.dark) .gcard {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .gcard:hover {
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 0 22px rgba(110,86,207,0.10) !important;
+}
+body:not(.dark) .gcard .gn { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .gcard .gd { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .gcard .gcard-ic {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .gcard-sw.off { background: var(--surface-3, #ECE9F2) !important; }
+body:not(.dark) .gcard-btn {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .add-game-backdrop { background: rgba(0, 0, 0, 0.40) !important; }
+body:not(.dark) .add-game-modal {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border-hi, #D6D3DE) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .add-game-pick {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* ── W4 CAPTAIN AI TRAINING — n-* vars under light .pat-page-wrap ── */
+body:not(.dark) .pat-page-wrap,
+body:not(.dark) .pat-settings-section {
+  --n-background: var(--canvas, #F6F5F9);
+  --n-solid-1: var(--surface, #FFFFFF);
+  --n-solid-2: var(--surface-2, #F2F0F7);
+  --n-solid-3: var(--surface-3, #ECE9F2);
+  --n-weak: var(--border, #E5E3EB);
+  --n-strong: var(--border-hi, #D6D3DE);
+  --n-slate-12: var(--text, #1A1A24);
+  --n-slate-11: var(--text-2, #4A4756);
+  --n-slate-10: var(--text-3, #75727F);
+  --n-slate-9: var(--text-4, #A0A0AB);
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* ── W5+W6 SETTINGS SHELLS LIGHT (umbrella) ── */
+body:not(.dark) .pat-list-wrap,
+body:not(.dark) .pat-auto-wrap,
+body:not(.dark) .pat-canned-wrap,
+body:not(.dark) .pat-ph-wrap,
+body:not(.dark) .pat-notif-wrap {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .sec-head {
+  border-bottom-color: var(--border, #E5E3EB);
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .sec-head h1,
+body:not(.dark) [class*="pat-"][class*="-wrap"] .sec-head .display {
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .sec-head .sub {
+  color: var(--text-3, #75727F) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .card {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .card-toolbar {
+  border-bottom-color: var(--border, #E5E3EB);
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .pat-search {
+  background: var(--canvas, #F6F5F9) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .btn {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .lrow {
+  background: transparent !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .lrow:hover {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] .ln { color: var(--text, #1A1A24) !important; }
+body:not(.dark) [class*="pat-"][class*="-wrap"] .le { color: var(--text-3, #75727F) !important; }
+body:not(.dark) [class*="pat-"][class*="-wrap"] .loading-note { color: var(--text-3, #75727F) !important; }
+body:not(.dark) [class*="pat-"][class*="-wrap"] .empty-card {
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] input[type="text"],
+body:not(.dark) [class*="pat-"][class*="-wrap"] input[type="email"],
+body:not(.dark) [class*="pat-"][class*="-wrap"] input[type="url"],
+body:not(.dark) [class*="pat-"][class*="-wrap"] input[type="number"],
+body:not(.dark) [class*="pat-"][class*="-wrap"] input[type="search"],
+body:not(.dark) [class*="pat-"][class*="-wrap"] textarea,
+body:not(.dark) [class*="pat-"][class*="-wrap"] select {
+  background: var(--canvas, #F6F5F9) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) [class*="pat-"][class*="-wrap"] label {
+  color: var(--text-3, #75727F) !important;
+}
+
+/* Light variants of role badges */
+body:not(.dark) .role.admin,
+body:not(.dark) .role.administrator {
+  background: rgba(217, 119, 6, 0.12) !important;
+  color: var(--amber, #D97706) !important;
+}
+body:not(.dark) .role.agent {
+  background: rgba(110, 86, 207, 0.10) !important;
+  color: var(--patra-3, #7C3AED) !important;
+}
+body:not(.dark) .verified {
+  background: rgba(22, 163, 74, 0.12) !important;
+  color: var(--green, #16A34A) !important;
+}
+body:not(.dark) .verified.pending {
+  background: rgba(217, 119, 6, 0.12) !important;
+  color: var(--amber, #D97706) !important;
+}
+body:not(.dark) .pat-notif-wrap .status-badge.status-on {
+  background: rgba(22, 163, 74, 0.12) !important;
+  color: var(--green, #16A34A) !important;
+}
+body:not(.dark) .pat-notif-wrap .status-badge.status-off {
+  background: rgba(220, 38, 38, 0.12) !important;
+  color: var(--red, #DC2626) !important;
+}
+
+/* Payment Handles table light */
+body:not(.dark) .pat-ph-wrap thead th { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .pat-ph-wrap tbody tr {
+  border-bottom-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .pat-ph-wrap tbody tr:hover { background: var(--surface-2, #F2F0F7) !important; }
+body:not(.dark) .pat-ph-wrap tbody td { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .pat-ph-wrap .ph-last-failed { color: var(--red, #DC2626) !important; }
+body:not(.dark) .pat-ph-wrap .ph-ledger-row td {
+  background: var(--canvas, #F6F5F9) !important;
+  border-top-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .patra-scoring-panel {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .patra-scoring-desc { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-scoring-btn {
+  background: var(--surface-3, #ECE9F2) !important;
+  border-color: var(--border-hi, #D6D3DE) !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* Generic Chatwoot fallbacks for body/app shell in light mode */
+body:not(.dark) body,
+body:not(.dark) #app,
+body:not(.dark) .conversation--details,
+body:not(.dark) .row {
+  background-color: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* Modals + dropdowns light */
+body:not(.dark) .modal-container,
+body:not(.dark) .modal-body,
+body:not(.dark) .woot-modal,
+body:not(.dark) .dialog-contents {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .dropdown-pane,
+body:not(.dark) .dropdown-menu,
+body:not(.dark) .menu-item {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .menu-item:hover { background: var(--surface-2, #F2F0F7) !important; }
+
+/* ⌘K palette light */
+body:not(.dark) ninja-keys {
+  --ninja-modal-background: var(--surface, #FFFFFF);
+  --ninja-overflow-background: rgba(0, 0, 0, 0.20);
+  --ninja-text-color: var(--text, #1A1A24);
+  --ninja-accent-color: var(--patra, #6E56CF);
+  --ninja-secondary-background-color: var(--canvas, #F6F5F9);
+  --ninja-secondary-text-color: var(--text-2, #4A4756);
+  --ninja-group-text-color: var(--text-3, #75727F);
+  --ninja-placeholder-color: var(--text-3, #75727F);
+  --ninja-footer-background: var(--canvas, #F6F5F9);
+  --ninja-selected-background: rgba(110, 86, 207, 0.10);
+  --ninja-selected-text-color: var(--patra, #6E56CF);
+  --ninja-modal-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W7 — FINALE
+   ════════════════════════════════════════════════════════════════════ */
