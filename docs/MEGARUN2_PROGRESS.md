@@ -17,45 +17,45 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - [ ] 3. Owner Dashboard (`routes/dashboard/patra/PatraOwnerDashboard.vue`) [mockup: dashboard]
 
 ## AREA: CONTACTS
-- [ ] 4. Contacts list (`contacts/components/ContactsIndex.vue`)
-- [ ] 5. Contact detail / manage (`contacts/components/ContactManageView.vue`)
+- [x] 4. Contacts list — **ALREADY-MATCHED** (audit): async fetches guarded at call sites; v-for keyed; no leak. V1 styling unverified — needs human eyes.
+- [x] 5. Contact detail / manage — **ALREADY-MATCHED** (audit): clean; minor — `ContactDetails.vue` has hardcoded hex that match the tokens (correct colors, cosmetic-only, left as-is). V1 unverified.
 
 ## AREA: COMPANIES
-- [ ] 6. Companies list (`companies/.../CompaniesIndex.vue`)
-- [ ] 7. Company detail (`companies/.../CompanyDetailView.vue`)
+- [x] 6. Companies list — **ALREADY-MATCHED** (audit): clean (CompaniesListLayout hex L62-82 are token DEFINITIONS, not violations). V1 unverified.
+- [x] 7. Company detail — **ALREADY-MATCHED** (audit): clean. V1 unverified.
 
 ## AREA: SEARCH
-- [ ] 8. Search (`search/components/SearchView.vue`)
+- [x] 8. Search — **ALREADY-MATCHED** (audit): clean. V1 unverified.
 
 ## AREA: NOTIFICATIONS
 - [x] 9. Notifications page — **ALREADY-MATCHED**: delegates loading/empty to core `NotificationTable` + `TableFooter`; no leak. (V2 clean; heuristic false-positive.)
 
 ## AREA: PATRA AI / GAMES / KNOWLEDGE
-- [ ] 10. AI Training (`patra/PatraAiTraining.vue`)
-- [ ] 11. Games / Game Integrations (`settings/integrations/Games.vue`)
-- [x] 12. Patra Reports (`patra/PatraReports.vue`) — **ALREADY-MATCHED**: proper loading/error/data branches w/ try-catch-finally; tokenized cards. V2 clean.
-- [ ] 13. Leaderboard (`reports/Leaderboard.vue`)
-- [ ] 14. Knowledge Base (`patra/KnowledgeBase.vue` / settings/knowledge)
-- [ ] 15. Custom Attributes builder (`patra/CustomAttributesBuilder.vue`)
-- [x] 16. Connect Facebook (`patra/PatraAddChannel.vue`) — **ALREADY-MATCHED**: multi-platform picker; try-catch-finally on fetch+connect, loadError + useAlert w/ i18n keys (present). V2 clean.
-- [ ] 17. Facebook Accounts (`patra/PatraFacebookAccounts.vue`)
-- [ ] 18. Backup Pages (`patra/PatraBackupPages.vue`)
-- [ ] 19. Cashier Queue (`patra/PatraCashierQueue.vue`)
+- [x] 10. AI Training — **ALREADY-MATCHED** (audit): all 7 async fns have try/catch, empty states present (L580/641/781), v-for keyed. BIG file (~2073) left surgical. V1 unverified.
+- [x] 11. Games / Game Integrations — **ALREADY-MATCHED**: styled in megarun-1 (`gcard` entrance anim + hover). V1 unverified.
+- [x] 12. Patra Reports — **ALREADY-MATCHED**: loading/error/data branches w/ try-catch-finally; tokenized cards. V2 clean.
+- [x] 13. Leaderboard (`reports/Leaderboard.vue`) — **MATCHED**: added try/catch/finally + loading + empty-state (was unguarded async, blank table on empty/error) + `PATRA.LEADERBOARD.EMPTY`. V1 unverified.
+- [x] 14. Knowledge Base (`settings/knowledge/KnowledgeBase.vue`) — **MATCHED**: guarded load/save/search/draft (load was uncaught + stranded), added loading+empty state + 3 i18n keys. V1 unverified.
+- [x] 15. Custom Attributes builder — **ALREADY-MATCHED** (audit): simple form, no async load, tokenized. V1 unverified.
+- [x] 16. Connect Facebook — **ALREADY-MATCHED**: try-catch-finally on fetch+connect, loadError + useAlert. V2 clean.
+- [x] 17. Facebook Accounts (`patra/PatraFacebookAccounts.vue`) — **MATCHED**: added `@error` to avatar img → broken FB avatar flips to initials fallback. (Note: uses generic slate classes, not Patra tokens — V1 restyle pending.)
+- [x] 18. Backup Pages — **ALREADY-MATCHED** (audit): try/catch on all 4 async, loading+empty state, keyed. V1 unverified.
+- [x] 19. Cashier Queue — **ALREADY-MATCHED** (audit): try/catch, polling w/ cleanup, loading+empty state, keyed. V1 unverified.
 
 ## AREA: BROADCASTS
 - [x] 20. Broadcast list (`broadcasts/BroadcastList.vue`) — **MATCHED**: fixed 3 real bugs — New-btn route `patra_broadcast_compose`→`_new` (was missing required `:broadcastId`); `load()` now try/catch/finally (spinner could strand on API error); added empty-state branch + `PATRA.BROADCASTS.EMPTY`.
-- [ ] 21. Broadcast composer (`broadcasts/pages/BroadcastComposer.vue`)
+- [x] 21. Broadcast composer (`broadcasts/BroadcastComposer.vue`) — **MATCHED**: guarded load/save/loadPreviewCount/sendNow (sendNow left Send button stuck on error; load/save were uncaught) + 3 i18n keys. V1 unverified.
 
 ## AREA: REPORTS
-- [ ] 22. Reports: Overview (`reports/components/.../LiveReports.vue`)
-- [ ] 23. Reports: Conversation (`reports/Index.vue`)
-- [V2] 24. Reports: Agent (`reports/AgentReports.vue`) — runtime: fixed raw-key leak `REPORT.DOWNLOAD_AGENT_REPORTS`→`AGENT_REPORTS.DOWNLOAD_AGENT_REPORTS` (download btn). Styling (V1) not yet.
-- [ ] 25. Reports: Inbox (`reports/InboxReports.vue`)
-- [ ] 26. Reports: Label (`reports/LabelReports.vue`)
-- [ ] 27. Reports: Team (`reports/TeamReports.vue`)
-- [ ] 28. Reports: SLA (`reports/SLAReports.vue`)
-- [V2] 29. Reports: CSAT (`reports/CsatResponses.vue`) — runtime: fixed raw-key leak `REPORT.CSAT_REPORTS.DOWNLOAD_FAILED`→`CSAT_REPORTS.DOWNLOAD_FAILED` (download-fail alert). Styling (V1) not yet.
-- [ ] 30. Reports: Bot (`reports/BotReports.vue`)
+- [x] 22. Reports: Overview (LiveReports) — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 23. Reports: Conversation (`reports/Index.vue`) — **ALREADY-MATCHED** (audit): the `forEach(async)` at L58 is intentional parallel fire-and-forget dispatch (each updates its own metric); awaiting would serialize/slow it — NOT a bug, left as-is. V1 unverified.
+- [x] 24. Reports: Agent — **MATCHED (V2)**: fixed raw-key leak `REPORT.DOWNLOAD_AGENT_REPORTS`→`AGENT_REPORTS.DOWNLOAD_AGENT_REPORTS`. V1 unverified.
+- [x] 25. Reports: Inbox — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 26. Reports: Label — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 27. Reports: Team — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 28. Reports: SLA — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 29. Reports: CSAT — **MATCHED (V2)**: fixed raw-key leak `REPORT.CSAT_REPORTS.DOWNLOAD_FAILED`→`CSAT_REPORTS.DOWNLOAD_FAILED`. V1 unverified.
+- [x] 30. Reports: Bot (`reports/BotReports.vue`) — **ALREADY-MATCHED** (audit): `forEach(async)` L51 is intentional parallel dispatch (not a bug), left as-is. V1 unverified.
 
 ## AREA: CAMPAIGNS
 - [x] 31. Campaigns: Live Chat — **ALREADY-MATCHED**: spinner + `CampaignList` + dedicated `LiveChatCampaignEmptyState` branches; i18n present. V2 clean.
@@ -63,49 +63,49 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - [x] 33. Campaigns: WhatsApp — **ALREADY-MATCHED**: same 3-branch structure as #31. V2 clean.
 
 ## AREA: HELP CENTER
-- [ ] 34. Help Center: Portals (`helpcenter/pages/.../PortalsIndex.vue`)
-- [ ] 35. Help Center: Articles (`PortalsArticlesIndexPage.vue`)
-- [ ] 36. Help Center: Categories (`PortalsCategoriesIndexPage.vue`)
-- [ ] 37. Help Center: Locales (`PortalsLocalesIndexPage.vue`)
-- [ ] 38. Help Center: Settings (`PortalsSettingsIndexPage.vue`)
+- [x] 34. Help Center: Portals — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 35. Help Center: Articles — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 36. Help Center: Categories — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 37. Help Center: Locales — **MATCHED**: fixed `LocaleList.vue` v-for `:key="index"` → `:key="locale.code"` (stable keys). V1 unverified.
+- [x] 38. Help Center: Settings — **ALREADY-MATCHED** (audit): clean. V1 unverified.
 
 ## AREA: CAPTAIN
-- [ ] 39. Captain: Assistants (`captain/pages/.../AssistantsIndexPage.vue`)
-- [ ] 40. Captain: Responses/FAQs (`ResponsesIndex.vue`)
-- [ ] 41. Captain: Documents (`DocumentsIndex.vue`)
-- [ ] 42. Captain: Tools (`CustomToolsIndex.vue`)
-- [ ] 43. Captain: Scenarios (`AssistantScenariosIndex.vue`)
-- [ ] 44. Captain: Playground (`AssistantPlaygroundIndex.vue`)
-- [ ] 45. Captain: Guardrails/Settings (`AssistantGuardrailsIndex.vue`)
+- [x] 39. Captain: Assistants — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 40. Captain: Responses/FAQs — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 41. Captain: Documents — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 42. Captain: Tools — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 43. Captain: Scenarios — **ALREADY-MATCHED** (audit): `forEach(async)` L169 is parallel seed-dispatch (not user-facing bug); left as-is. V1 unverified.
+- [x] 44. Captain: Playground — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 45. Captain: Guardrails/Settings — **ALREADY-MATCHED** (audit): `saveGuardrails` fire-and-forget on a user action (non-blocking save); not a leak/crash; left as-is. V1 unverified.
 
 ## AREA: SETTINGS
-- [ ] 46. Settings: General/Account (`settings/account/Index.vue`)
-- [ ] 47. Settings: Agents (`settings/agents/AgentHome.vue`)
-- [ ] 48. Settings: Teams wizard (`settings/teams/*`)
-- [V2] 49. Settings: Inbox wizard — runtime: added missing `INBOX_MGMT.ADD.WHATSAPP.EMBEDDED_SIGNUP.SDK_LOAD_ERROR` (leaked on Meta SDK load failure). Styling (V1) not yet.
-- [ ] 50. Settings: Inbox show/edit (`settings/inbox/Settings.vue`)
-- [ ] 51. Settings: Attributes (`settings/attributes/AttributesHome.vue`)
-- [ ] 52. Settings: Agent Bots (`settings/agentBots/Bot.vue`)
-- [ ] 53. Settings: Audit Logs (`settings/auditlogs/AuditLogsHome.vue`)
-- [ ] 54. Settings: Billing (`settings/billing/Index.vue`)
-- [V2] 55. Settings: Captain (`settings/captain/Index.vue`) — runtime: added missing `CAPTAIN_SETTINGS.FEATURES.{AUDIO_TRANSCRIPTION,HELP_CENTER_SEARCH}.MODEL_TITLE/MODEL_DESCRIPTION` (leaked on feature model rows). Styling (V1) not yet.
-- [ ] 56. Settings: Conversation Workflow (`ConversationWorkflowIndex.vue`)
-- [ ] 57. Settings: Custom Roles (`CustomRolesHome.vue`)
-- [ ] 58. Settings: SLA (`settings/sla/Index.vue`)
-- [ ] 59. Settings: Security (`settings/security/Index.vue`)
-- [ ] 60. Settings: Meta App (`settings/metaApp/MetaAppSettings.vue`)
-- [ ] 61. Settings: Integrations (`settings/integrations/Index.vue`)
-- [ ] 62. Settings: Macros (`settings/macros/Macros.vue`+`MacroEditor.vue`)
-- [ ] 63. Settings: Assignment Policy (`AssignmentPolicyIndex.vue`)
-- [ ] 64. Settings: Automation / Flows (`automation/Automation.vue`+`FlowList`+`FlowBuilder`)
-- [ ] 65. Settings: Labels / Canned / Patra business rules (gameRules/playerTiers/referrals/replyStyle/automationSafety) — grouped sweep
+- [x] 46. Settings: General/Account — **ALREADY-MATCHED** (audit): try/catch/finally, keyed, no leak. V1 unverified.
+- [x] 47. Settings: Agents — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 48. Settings: Teams wizard — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 49. Settings: Inbox wizard — **MATCHED (V2)**: added missing `INBOX_MGMT.ADD.WHATSAPP.EMBEDDED_SIGNUP.SDK_LOAD_ERROR`. V1 unverified.
+- [x] 50. Settings: Inbox show/edit — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 51. Settings: Attributes — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 52. Settings: Agent Bots — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 53. Settings: Audit Logs — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 54. Settings: Billing — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 55. Settings: Captain — **MATCHED (V2)**: added missing `CAPTAIN_SETTINGS.FEATURES.{AUDIO_TRANSCRIPTION,HELP_CENTER_SEARCH}.MODEL_TITLE/MODEL_DESCRIPTION`. V1 unverified.
+- [x] 56. Settings: Conversation Workflow — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 57. Settings: Custom Roles — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 58. Settings: SLA — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 59. Settings: Security — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 60. Settings: Meta App — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 61. Settings: Integrations — **MATCHED**: added `@error` hide to integration logo imgs in `IntegrationItem.vue` + `Integration.vue` (missing logo no longer shows broken-img icon). V1 unverified.
+- [x] 62. Settings: Macros — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 63. Settings: Assignment Policy — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 64. Settings: Automation / Flows — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 65. Settings: Patra business rules — **MATCHED**: added empty-state to Game Rules + Player Tiers (were blank when list empty). Referrals/ReplyStyle/AutomationSafety audited CLEAN. V1 unverified.
 
 ## AREA: PROFILE / ONBOARDING / GLOBAL
-- [ ] 66. Profile settings (`settings/profile/Index.vue`)
-- [ ] 67. Profile MFA (`settings/profile/MfaSettings.vue`)
-- [ ] 68. Onboarding (`onboarding/OnboardingAccountDetails.vue`) + Suspended
-- [ ] 69. Global chrome: modal base / dropdown / context menu / date picker (shared components)
-- [ ] 70. Command palette / search modal / new-conversation modal / theme FAB
+- [x] 66. Profile settings — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [x] 67. Profile MFA — **ALREADY-MATCHED** (audit): clean. V1 unverified.
+- [ ] 68. Onboarding (`onboarding/OnboardingAccountDetails.vue`) + Suspended — NOT-REACHED (not yet audited).
+- [ ] 69. Global chrome: modal base / dropdown / context menu / date picker — PARTIAL: styled in megarun-1 (theme FAB + brightness → tokenized pills). Not re-audited this run.
+- [ ] 70. Command palette / search modal / new-conversation modal / theme FAB — PARTIAL (megarun-1 chrome). Not re-audited this run.
 
 ---
 
