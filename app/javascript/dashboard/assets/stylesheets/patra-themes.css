@@ -865,17 +865,17 @@
   opacity: 0; pointer-events: none; z-index: 65; transition: opacity .25s;
 }
 
-/* --- Theme FAB + brightness --- */
+/* --- Theme FAB + brightness (bottom-left chrome row, mockup-matched pills) --- */
 .patra-theme-fab {
   position: fixed;
-  bottom: 56px;
-  left: 14px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #131119;
-  border: 1px solid rgba(110, 86, 207, 0.25);
-  color: #a78bfa;
+  bottom: 16px;
+  left: 13px;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--surface-3, #1b1925);
+  border: 1px solid var(--border-hi, #2e2940);
+  color: var(--text-2, #a8a6b6);
   font-size: 16px;
   cursor: pointer;
   z-index: 70;
@@ -883,40 +883,59 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: all .25s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.patra-theme-fab:hover {
+  color: var(--patra-3, #a78bfa);
+  transform: translateY(-3px) rotate(-12deg);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
 .patra-bright-ctl {
   position: fixed;
   bottom: 16px;
-  left: 10px;
+  left: 62px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 9px;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--surface-3, #1b1925);
+  border: 1px solid var(--border-hi, #2e2940);
+  border-radius: 11px;
   z-index: 70;
 }
 
 .patra-bright-slider {
-  width: 60px;
+  width: 90px;
   -webkit-appearance: none;
   height: 4px;
-  background: rgba(110, 86, 207, 0.3);
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--patra, #6e56cf), var(--patra-2, #8b5cf6));
+  border-radius: 3px;
   outline: none;
 }
 
 .patra-bright-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #6e56cf;
+  background: #fff;
+  border: 2px solid var(--patra, #6e56cf);
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
   cursor: pointer;
 }
 
 .patra-bright-toggle {
   font-size: 14px;
   cursor: pointer;
-  color: #75727f;
+  color: var(--text-2, #a8a6b6);
+  transition: color .2s;
+}
+
+.patra-bright-toggle:hover {
+  color: var(--patra-3, #a78bfa);
 }
 
 /* --- AI MESSAGE STYLING --- */
