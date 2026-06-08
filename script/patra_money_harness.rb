@@ -106,18 +106,33 @@ account = Account.find(ACCOUNT_ID)
 actives = account.agent_games.active.joins(:game).to_a
 abort '[harness] no active agent_games on account 2 — cannot run' if actives.empty?
 ag = actives.first
-ag2 = actives[1]   # may be nil
 src_slug = ag.game.slug
-tgt_slug = ag2&.game&.slug
+
+# Transfer's normalizer re-resolves the canned plan's game strings via
+# IntentDetector.detect_game, then pick_agent_game looks them up. Pick games whose
+# slug self-resolves (detect_game(slug)==slug) AND is active, so the plan maps to
+# real active slugs the handler can find. (Fix for the transfer (a) wiring bug.)
+resolvable = actives.select { |a| Games::IntentDetector.detect_game(a.game.slug) == a.game.slug }
+t_src = resolvable[0]&.game&.slug
+t_tgt = resolvable[1]&.game&.slug
 
 # snapshot the real agent_game's mutable fields (restored in ensure)
 snap = { fc: ag.failure_count, lfa: ag.last_failure_at, lua: ag.last_used_at, status: ag.status }
 
 contact = Contact.create!(account: account, name: 'HARNESS_TEST_CONTACT')
-contact.update!(custom_attributes: {
-  "game_username_#{src_slug}" => 'harnessuser',
-  ("game_username_#{tgt_slug}" if tgt_slug) => 'harnessuser2'
-}.compact)
+
+# Re-establish per-scenario state. MUST run before EACH handler scenario because:
+#   (1) handle_new_account_reissue clears stored credentials, so later handlers would
+#       otherwise bail with "no username on file";
+#   (2) accumulated successful-cashout GameActions trip the transfer velocity guard.
+# So this wipes the contact's GameActions (resets velocity + idempotency) and re-sets
+# the stored game usernames for every slug the scenario needs.
+def prime_contact!(contact, slugs)
+  GameAction.where(contact_id: contact.id).delete_all
+  attrs = {}
+  slugs.compact.uniq.each_with_index { |s, i| attrs["game_username_#{s}"] = "harnessuser#{i + 1}" }
+  contact.update!(custom_attributes: attrs)
+end
 
 def exec(ag, contact); Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: nil); end
 def orch(account, contact, msgs); Games::ConversationOrchestrator.new(account: account, contact: contact, conversation: nil, messages: msgs); end
@@ -198,62 +213,62 @@ begin
 
   # ───────────────────────── ORCHESTRATOR: reissue ───────────────────────────
   puts "\n[handle_new_account_reissue]"
-  reset_run
+  reset_run; prime_contact!(contact, [src_slug])
   r = orch(account, contact, []).send(:handle_new_account_reissue, { intent: :new_account_reissue, game_slug: src_slug })
   ok!('reissue SUCCESS => add_user called + reply has username', $FAKE.called?(:add_user) && r[:reply].to_s.include?('username'))
 
-  reset_run(fail_add_user: true)
+  reset_run(fail_add_user: true); prime_contact!(contact, [src_slug])
   r = orch(account, contact, []).send(:handle_new_account_reissue, { intent: :new_account_reissue, game_slug: src_slug })
   ok!('reissue FAIL => needs-human + Telegram escalated', Array(r[:labels]).include?('needs-human') && $TG.any?)
 
   # ───────────────────────── ORCHESTRATOR: replay (READ-ONLY) ─────────────────
   puts "\n[handle_replay_from_balance]  (must move NO money)"
-  reset_run(balance: 75.0)
+  reset_run(balance: 75.0); prime_contact!(contact, [src_slug])
   r = orch(account, contact, []).send(:handle_replay_from_balance, { intent: :replay_from_balance, game_slug: src_slug })
   ok!('replay => reply mentions balance, good to play', r[:reply].to_s.match?(/good to play|\$75/i))
   ok!('replay => NO withdraw/recharge (read-only)', !$FAKE.called?(:withdraw) && !$FAKE.called?(:recharge))
 
   # ───────────────────────── ORCHESTRATOR: redeem-partial ─────────────────────
   puts "\n[handle_redeem_partial_replay]"
-  reset_run
+  reset_run; prime_contact!(contact, [src_slug])
   r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 20 and keep the rest' }])
         .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
   ok!('redeem-partial SUCCESS => withdraw called + partial reply', $FAKE.called?(:withdraw) && r[:reply].to_s.match?(/cashed out/i))
 
-  reset_run
+  reset_run; prime_contact!(contact, [src_slug])
   r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 9999 keep rest' }])
         .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
   ok!('redeem-partial APPROVAL => withdraw NOT called + needs-human', !$FAKE.called?(:withdraw) && Array(r[:labels]).include?('needs-human'))
 
   # ───────────────────────── ORCHESTRATOR: transfer ──────────────────────────
-  if tgt_slug
-    puts "\n[handle_transfer_between_games]"
-    plan = %({"source_game":"#{src_slug}","cashout_amount":50,"loads":[{"game":"#{tgt_slug}","amount":50}]})
-    msgs = [{ 'role' => 'user', 'content' => "transfer 50 from #{src_slug} to #{tgt_slug}" }]
+  if t_src && t_tgt && t_src != t_tgt
+    puts "\n[handle_transfer_between_games]  (src=#{t_src}, tgt=#{t_tgt})"
+    plan = %({"source_game":"#{t_src}","cashout_amount":50,"loads":[{"game":"#{t_tgt}","amount":50}]})
+    msgs = [{ 'role' => 'user', 'content' => "transfer 50 from #{t_src} to #{t_tgt}" }]
 
-    reset_run(balance: 1000.0); $DEEPSEEK = plan
+    reset_run(balance: 1000.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = plan
     r = orch(account, contact, msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
     ok!('transfer SUCCESS => withdraw + recharge both called', $FAKE.called?(:withdraw) && $FAKE.called?(:recharge))
     ok!('transfer SUCCESS => reply says cashed out + loaded', r[:reply].to_s.match?(/cashed out.*loaded|done/i))
 
-    reset_run(balance: 1000.0, fail_recharge: true); $DEEPSEEK = plan
+    reset_run(balance: 1000.0, fail_recharge: true); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = plan
     r = orch(account, contact, msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
     ok!('transfer CASHOUT-OK/LOAD-FAIL => withdraw called (cashout happened)', $FAKE.called?(:withdraw))
     ok!('transfer CASHOUT-OK/LOAD-FAIL => Telegram reports REMAINING (not silently lost)',
         tg?('Remaining') || tg?('cashed out, tell player'))
 
-    reset_run(balance: 0.0); $DEEPSEEK = plan
+    reset_run(balance: 0.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = plan
     r = orch(account, contact, msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
     ok!('transfer EMPTY BALANCE => nothing to move, NO withdraw', !$FAKE.called?(:withdraw) && r[:reply].to_s.match?(/empty|nothing/i))
 
-    reset_run(balance: 1000.0)
-    over = %({"source_game":"#{src_slug}","cashout_amount":50,"loads":[{"game":"#{tgt_slug}","amount":5000}]})
+    reset_run(balance: 1000.0); prime_contact!(contact, [t_src, t_tgt])
+    over = %({"source_game":"#{t_src}","cashout_amount":50,"loads":[{"game":"#{t_tgt}","amount":5000}]})
     $DEEPSEEK = over
-    r = orch(account, contact, [{ 'role' => 'user', 'content' => "move 5000 from #{src_slug} to #{tgt_slug}" }])
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => "move 5000 from #{t_src} to #{t_tgt}" }])
           .send(:handle_transfer_between_games, { intent: :transfer_between_games })
     ok!('transfer OVER-AMOUNT (req>balance) => short guard, NO withdraw', !$FAKE.called?(:withdraw) && r[:reply].to_s.match?(/short of/i))
   else
-    puts "\n[handle_transfer_between_games]  SKIPPED — need a 2nd active agent_game (tgt) on account 2"
+    puts "\n[handle_transfer_between_games]  SKIPPED — need 2 self-resolving active agent_games on account 2"
   end
 
   # ───────────────────────── summary ─────────────────────────────────────────
