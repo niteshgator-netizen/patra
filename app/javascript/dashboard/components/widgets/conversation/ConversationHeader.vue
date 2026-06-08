@@ -895,6 +895,9 @@ const fetchConversationWatchers = () => {
   z-index: 2;
 }
 .pat-conv-head-v6-row {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   padding: 12px 18px;
   display: flex;
   align-items: center;
