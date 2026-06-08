@@ -6,6 +6,7 @@ import PatraReportsAPI from 'dashboard/api/patraReports';
 const { t } = useI18n();
 const agents = ref([]);
 const period = ref('weekly');
+const loading = ref(true);
 
 const sortedAgents = computed(() =>
   [...agents.value].sort((a, b) => (b.resolved || 0) - (a.resolved || 0))
@@ -19,8 +20,14 @@ const badgeFor = index => {
 };
 
 onMounted(async () => {
-  const { data } = await PatraReportsAPI.get();
-  agents.value = data.agent_performance || [];
+  try {
+    const { data } = await PatraReportsAPI.get();
+    agents.value = data.agent_performance || [];
+  } catch (error) {
+    agents.value = [];
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 
@@ -41,8 +48,17 @@ onMounted(async () => {
         </tr>
       </thead>
       <tbody>
+        <tr v-if="loading">
+          <td colspan="4" class="py-6 text-center text-n-slate-11">…</td>
+        </tr>
+        <tr v-else-if="!sortedAgents.length">
+          <td colspan="4" class="py-6 text-center text-n-slate-11">
+            {{ $t('PATRA.LEADERBOARD.EMPTY') }}
+          </td>
+        </tr>
         <tr
           v-for="(agent, idx) in sortedAgents"
+          v-else
           :key="agent.name"
           class="border-t border-n-weak"
         >

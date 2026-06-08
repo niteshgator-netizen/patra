@@ -269,7 +269,8 @@
       "SUBTITLE": "Weekly performance rankings",
       "RANK": "Rank",
       "RESOLVED": "Resolved",
-      "RESPONSE_TIME": "Avg response time"
+      "RESPONSE_TIME": "Avg response time",
+      "EMPTY": "No agent activity yet for this period."
     },
     "KNOWLEDGE": {
       "TITLE": "Knowledge Base",
