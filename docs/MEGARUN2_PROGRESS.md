@@ -49,12 +49,12 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 ## AREA: REPORTS
 - [ ] 22. Reports: Overview (`reports/components/.../LiveReports.vue`)
 - [ ] 23. Reports: Conversation (`reports/Index.vue`)
-- [ ] 24. Reports: Agent (`reports/AgentReports.vue`)
+- [V2] 24. Reports: Agent (`reports/AgentReports.vue`) — runtime: fixed raw-key leak `REPORT.DOWNLOAD_AGENT_REPORTS`→`AGENT_REPORTS.DOWNLOAD_AGENT_REPORTS` (download btn). Styling (V1) not yet.
 - [ ] 25. Reports: Inbox (`reports/InboxReports.vue`)
 - [ ] 26. Reports: Label (`reports/LabelReports.vue`)
 - [ ] 27. Reports: Team (`reports/TeamReports.vue`)
 - [ ] 28. Reports: SLA (`reports/SLAReports.vue`)
-- [ ] 29. Reports: CSAT (`reports/CsatResponses.vue`)
+- [V2] 29. Reports: CSAT (`reports/CsatResponses.vue`) — runtime: fixed raw-key leak `REPORT.CSAT_REPORTS.DOWNLOAD_FAILED`→`CSAT_REPORTS.DOWNLOAD_FAILED` (download-fail alert). Styling (V1) not yet.
 - [ ] 30. Reports: Bot (`reports/BotReports.vue`)
 
 ## AREA: CAMPAIGNS
@@ -82,13 +82,13 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - [ ] 46. Settings: General/Account (`settings/account/Index.vue`)
 - [ ] 47. Settings: Agents (`settings/agents/AgentHome.vue`)
 - [ ] 48. Settings: Teams wizard (`settings/teams/*`)
-- [ ] 49. Settings: Inbox wizard (`settings/inbox/ChannelList`+`ChannelFactory`+`FinishSetup`)
+- [V2] 49. Settings: Inbox wizard — runtime: added missing `INBOX_MGMT.ADD.WHATSAPP.EMBEDDED_SIGNUP.SDK_LOAD_ERROR` (leaked on Meta SDK load failure). Styling (V1) not yet.
 - [ ] 50. Settings: Inbox show/edit (`settings/inbox/Settings.vue`)
 - [ ] 51. Settings: Attributes (`settings/attributes/AttributesHome.vue`)
 - [ ] 52. Settings: Agent Bots (`settings/agentBots/Bot.vue`)
 - [ ] 53. Settings: Audit Logs (`settings/auditlogs/AuditLogsHome.vue`)
 - [ ] 54. Settings: Billing (`settings/billing/Index.vue`)
-- [ ] 55. Settings: Captain (`settings/captain/Index.vue`)
+- [V2] 55. Settings: Captain (`settings/captain/Index.vue`) — runtime: added missing `CAPTAIN_SETTINGS.FEATURES.{AUDIO_TRANSCRIPTION,HELP_CENTER_SEARCH}.MODEL_TITLE/MODEL_DESCRIPTION` (leaked on feature model rows). Styling (V1) not yet.
 - [ ] 56. Settings: Conversation Workflow (`ConversationWorkflowIndex.vue`)
 - [ ] 57. Settings: Custom Roles (`CustomRolesHome.vue`)
 - [ ] 58. Settings: SLA (`settings/sla/Index.vue`)
@@ -120,8 +120,19 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 | 6 | Inbox | Pinned banner not styled to mockup | Section was generic gray collapsible; mockup `.pinned` = amber gradient card | Restyled to mockup amber card (gradient `rgba(227,160,8,.1)→transparent`, amber border/icon, JetBrains-consistent); kept collapse/multi-msg/scroll | **FIXED ✓** |
 | 7 | Inbox | "HANDED TO YOU BY PATRA AI" card not rendering | `PatraAiHandoffCard` was only mounted under the non-default `copilot` sidebar tab (`sidebarTab` defaults to `'details'`) | Also mount it at top of default `details` tab (ContactPanel L189) | **FIXED ✓** (display path; needs live confirm) |
 
-## I18N KEYS ADDED
-- `PATRA.MESSAGE.READ` = "Read" (re-added during dedup merge; `INTERNAL_NOTE` was already authored but unreachable due to the duplicate-key bug)
+## I18N KEYS ADDED / FIXED (app-wide V2/V3 sweep)
+- `PATRA.MESSAGE.READ`="Read" (re-added during dedup merge; INTERNAL_NOTE was authored but unreachable due to duplicate-key bug)
+- `CAPTAIN_SETTINGS.FEATURES.AUDIO_TRANSCRIPTION.MODEL_TITLE`="Audio Transcription Model"
+- `CAPTAIN_SETTINGS.FEATURES.AUDIO_TRANSCRIPTION.MODEL_DESCRIPTION`="Select the AI model to use for transcribing voice messages and call recordings"
+- `CAPTAIN_SETTINGS.FEATURES.HELP_CENTER_SEARCH.MODEL_TITLE`="Help Center Search Model"
+- `CAPTAIN_SETTINGS.FEATURES.HELP_CENTER_SEARCH.MODEL_DESCRIPTION`="Select the AI model to use for indexing and searching your help center articles"
+- `INBOX_MGMT.ADD.WHATSAPP.EMBEDDED_SIGNUP.SDK_LOAD_ERROR`="Could not load the Meta SDK…"
+- **Key-path corrections (component side, not locale):** `REPORT.CSAT_REPORTS.DOWNLOAD_FAILED`→`CSAT_REPORTS.DOWNLOAD_FAILED`; `REPORT.DOWNLOAD_AGENT_REPORTS`→`AGENT_REPORTS.DOWNLOAD_AGENT_REPORTS`
+
+## VERIFICATION TOOLING (reproducible)
+- **Static i18n leak scan** (regex-extract every static `$t/t('A.B.C')`, check vs merged en locale): now reports **0 missing static keys** across all dashboard .vue/.js.
+- **Scope-aware duplicate-key scan** of all en/*.json: now **0 same-scope duplicates** (the `patra.json` MESSAGE dup that broke INTERNAL_NOTE was the only real one; fixed).
+- Note: dynamic keys built via template literals (`t(\`X.${v}\`)`) are not statically checkable and were not exhaustively enumerated.
 
 ## COVERAGE TOTALS (this checkpoint)
 Enumerated N=70 · Verdicts=1 partial (screen 1) · Screens 2–70 NOT-REACHED.
