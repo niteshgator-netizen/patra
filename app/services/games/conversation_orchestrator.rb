@@ -69,6 +69,7 @@ module Games
       'list_platforms'            => :list_platforms,
       'payment_method_question'   => :payment_method_question
     }.freeze
+    RAG_CUTOVER_CONFIDENCE = 0.40   # min RAG confidence to route when regex returns nil (was 0.60; lowered per 73k brain test)
 
     def initialize(account:, contact:, conversation:, messages:)
       @account = account
@@ -202,7 +203,7 @@ module Games
       end
 
       if intent.nil?
-        if _rag && _rag[:confidence].to_f >= 0.60
+        if _rag && _rag[:confidence].to_f >= RAG_CUTOVER_CONFIDENCE
           mapped = RAG_TO_INTENT_MAP[_rag[:intent].to_s]
           if mapped
             intent = { intent: mapped }
