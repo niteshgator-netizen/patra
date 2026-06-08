@@ -139,7 +139,7 @@ def orch(account, contact, msgs); Games::ConversationOrchestrator.new(account: a
 def double(account, game, creds = {}); AgentGame.new(account: account, game: game, status: 'active', credentials: creds); end
 
 begin
-  puts "\n#{'=' * 72}\nPATRA MONEY HARNESS  (account=#{ACCOUNT_ID}, src=#{src_slug}, tgt=#{tgt_slug || 'n/a'})\n#{'=' * 72}"
+  puts "\n#{'=' * 72}\nPATRA MONEY HARNESS  (account=#{ACCOUNT_ID}, src=#{src_slug}, tgt=#{t_tgt || 'n/a'})\n#{'=' * 72}"
 
   # ───────────────────────── DIRECT: load_player ─────────────────────────────
   puts "\n[load_player]"
