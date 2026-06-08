@@ -58,9 +58,9 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - [ ] 30. Reports: Bot (`reports/BotReports.vue`)
 
 ## AREA: CAMPAIGNS
-- [ ] 31. Campaigns: Live Chat (`campaigns/pages/LiveChatCampaignsPage.vue`)
-- [ ] 32. Campaigns: SMS (`campaigns/pages/SMSCampaignsPage.vue`)
-- [ ] 33. Campaigns: WhatsApp (`campaigns/pages/WhatsAppCampaignsPage.vue`)
+- [x] 31. Campaigns: Live Chat — **ALREADY-MATCHED**: spinner + `CampaignList` + dedicated `LiveChatCampaignEmptyState` branches; i18n present. V2 clean.
+- [x] 32. Campaigns: SMS — **ALREADY-MATCHED**: same 3-branch structure as #31 (spinner/list/empty-state). V2 clean.
+- [x] 33. Campaigns: WhatsApp — **ALREADY-MATCHED**: same 3-branch structure as #31. V2 clean.
 
 ## AREA: HELP CENTER
 - [ ] 34. Help Center: Portals (`helpcenter/pages/.../PortalsIndex.vue`)
