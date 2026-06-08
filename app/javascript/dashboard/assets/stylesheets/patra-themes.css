@@ -4562,3 +4562,230 @@ body:not(.dark) [class*="captain"] .bg-n-solid-1,
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W8 — POST-QA CSS FIX BATCH
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W8b — POST-RE-QA SURGICAL LIGHT FIX
+   Root cause: scoped Vue styles locally redefine --canvas/--surface to
+   dark INSIDE component wrappers. W7/W8a `var(--canvas, #fallback)`
+   resolved dark because the var IS defined (just to dark).
+   Fix: override the vars at wrapper level in light scope.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PART 1 — COMPONENT WRAPPER VAR OVERRIDES (THE BIG FIX)
+   In light mode, FORCE the design tokens to light values at every wrapper
+   that locally re-defines them. All internal var(--canvas) references
+   auto-resolve light afterward.
+   ════════════════════════════════════════════════════════════════════ */
+
+html:not(.dark) body:not(.dark) .games-wrap,
+html:not(.dark) body:not(.dark) .patra-owner-dashboard,
+html:not(.dark) body:not(.dark) .pat-dash,
+html:not(.dark) body:not(.dark) .pat-list-wrap,
+html:not(.dark) body:not(.dark) .pat-auto-wrap,
+html:not(.dark) body:not(.dark) .pat-canned-wrap,
+html:not(.dark) body:not(.dark) .pat-ph-wrap,
+html:not(.dark) body:not(.dark) .pat-notif-wrap,
+html:not(.dark) body:not(.dark) .pat-at-root,
+html:not(.dark) body:not(.dark) .pat-at-root.pat-ai-train,
+html[data-theme="light"] body .games-wrap,
+html[data-theme="light"] body .patra-owner-dashboard,
+html[data-theme="light"] body .pat-dash,
+html[data-theme="light"] body .pat-list-wrap,
+html[data-theme="light"] body .pat-auto-wrap,
+html[data-theme="light"] body .pat-canned-wrap,
+html[data-theme="light"] body .pat-ph-wrap,
+html[data-theme="light"] body .pat-notif-wrap,
+html[data-theme="light"] body .pat-at-root,
+html[data-theme="light"] body .pat-at-root.pat-ai-train {
+  --canvas: #F6F5F9 !important;
+  --surface: #FFFFFF !important;
+  --surface-2: #F2F0F7 !important;
+  --surface-3: #ECE9F2 !important;
+  --surface-4: #DDDAE5 !important;
+  --border: #E5E3EB !important;
+  --border-hi: #D6D3DE !important;
+  --text: #1A1A24 !important;
+  --text-2: #4A4756 !important;
+  --text-3: #75727F !important;
+  --text-4: #A0A0AB !important;
+  --inset: rgba(0, 0, 0, 0.04) !important;
+  --shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.12) !important;
+  --mesh-1: rgba(110, 86, 207, 0.08) !important;
+  --mesh-2: rgba(139, 92, 246, 0.05) !important;
+  --mesh-3: rgba(236, 72, 153, 0.03) !important;
+  --bubble-in: #F2F0F7 !important;
+  background-color: #F6F5F9 !important;
+  color: #1A1A24 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PART 2 — DIRECT LITERAL-HEX BACKGROUND OVERRIDES
+   For surfaces NOT inside a patra-wrapper (Contacts, profile menu,
+   conv sidebar, search), force literal hex backgrounds.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* B1. CONTACTS — both parent wrapper (.contacts from ContactsListLayout)
+       AND inner list (.contacts-list from ContactsList).
+       Confirmed via GitHub reads: ContactsListLayout.vue:180 + ContactsList.vue:114 */
+html:not(.dark) body:not(.dark) .contacts,
+html:not(.dark) body:not(.dark) .contacts-list,
+html:not(.dark) body:not(.dark) .contact-row-wrap,
+html[data-theme="light"] body .contacts,
+html[data-theme="light"] body .contacts-list,
+html[data-theme="light"] body .contact-row-wrap {
+  background-color: #FFFFFF !important;
+  color: #1A1A24 !important;
+}
+
+html:not(.dark) body:not(.dark) .contact,
+html[data-theme="light"] body .contact {
+  background-color: #FFFFFF !important;
+  color: #1A1A24 !important;
+  border-color: transparent !important;
+}
+html:not(.dark) body:not(.dark) .contact:hover,
+html[data-theme="light"] body .contact:hover {
+  background-color: #F2F0F7 !important;
+  border-color: #E5E3EB !important;
+}
+html:not(.dark) body:not(.dark) .contact.selected,
+html:not(.dark) body:not(.dark) .contact.active,
+html[data-theme="light"] body .contact.selected,
+html[data-theme="light"] body .contact.active {
+  background-color: #F2F0F7 !important;
+  border-color: #6E56CF !important;
+}
+
+/* B2. .c-arrow colors — re-QA found base #54515E (spec #A0A0AB) + hover #A78BFA (spec #7C3AED) */
+html:not(.dark) body:not(.dark) .c-arrow,
+html[data-theme="light"] body .c-arrow {
+  color: #A0A0AB !important;
+}
+html:not(.dark) body:not(.dark) .contact:hover .c-arrow,
+html[data-theme="light"] body .contact:hover .c-arrow {
+  color: #7C3AED !important;
+}
+
+/* B3. .contact-details, .contact-expanded, .pat-sg, .patra-empty-note */
+html:not(.dark) body:not(.dark) .contact-details,
+html[data-theme="light"] body .contact-details {
+  background-color: #F6F5F9 !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .contact-expanded,
+html[data-theme="light"] body .contact-expanded {
+  background-color: #F2F0F7 !important;
+  border-color: #E5E3EB !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .pat-sg,
+html[data-theme="light"] body .pat-sg {
+  background-color: #FFFFFF !important;
+  border-color: #E5E3EB !important;
+}
+html:not(.dark) body:not(.dark) .pat-sg-n,
+html[data-theme="light"] body .pat-sg-n { color: #1A1A24 !important; }
+html:not(.dark) body:not(.dark) .pat-sg-l,
+html[data-theme="light"] body .pat-sg-l { color: #75727F !important; }
+
+html:not(.dark) body:not(.dark) .patra-empty-note,
+html[data-theme="light"] body .patra-empty-note {
+  background-color: #FFFFFF !important;
+  border: 1px dashed #E5E3EB !important;  /* shorthand to force border-style dashed (re-QA found solid) */
+  color: #75727F !important;
+}
+
+/* B4. CONTEXT PANEL — .conv-sidebar-patra and inner pieces */
+html:not(.dark) body:not(.dark) .conv-sidebar-patra,
+html:not(.dark) body:not(.dark) .conv-sidebar-patra.contact-panel-v6,
+html[data-theme="light"] body .conv-sidebar-patra {
+  background-color: #FFFFFF !important;
+  border-color: #E5E3EB !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .ctx-sidebar-header,
+html:not(.dark) body:not(.dark) .ctx-body,
+html[data-theme="light"] body .ctx-sidebar-header,
+html[data-theme="light"] body .ctx-body {
+  background-color: #FFFFFF !important;
+  color: #1A1A24 !important;
+  border-color: #E5E3EB !important;
+}
+html:not(.dark) body:not(.dark) .patra-attr-row,
+html[data-theme="light"] body .patra-attr-row {
+  background-color: #FFFFFF !important;
+  border-color: #E5E3EB !important;
+}
+html:not(.dark) body:not(.dark) .patra-attr-val,
+html[data-theme="light"] body .patra-attr-val { color: #1A1A24 !important; }
+
+/* B5. PROFILE / AVAILABILITY MENU — .patra-pop */
+html:not(.dark) body:not(.dark) .patra-pop,
+html[data-theme="light"] body .patra-pop {
+  background-color: #FFFFFF !important;
+  border-color: #D6D3DE !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .patra-pop .menu-item,
+html:not(.dark) body:not(.dark) .patra-pop a,
+html:not(.dark) body:not(.dark) .patra-pop button,
+html[data-theme="light"] body .patra-pop .menu-item,
+html[data-theme="light"] body .patra-pop a,
+html[data-theme="light"] body .patra-pop button {
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .patra-pop .menu-item:hover,
+html[data-theme="light"] body .patra-pop .menu-item:hover {
+  background-color: #F2F0F7 !important;
+}
+
+/* B6. SEARCH PANEL — input + results + section headers */
+html:not(.dark) body:not(.dark) .search-results-wrap,
+html:not(.dark) body:not(.dark) .search-wrap,
+html[data-theme="light"] body .search-results-wrap,
+html[data-theme="light"] body .search-wrap {
+  background-color: #FFFFFF !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .search-results-wrap input,
+html:not(.dark) body:not(.dark) .search-wrap input,
+html:not(.dark) body:not(.dark) .search-results-wrap input[type="search"],
+html:not(.dark) body:not(.dark) .search-wrap input[type="search"],
+html[data-theme="light"] body .search-results-wrap input,
+html[data-theme="light"] body .search-wrap input,
+html[data-theme="light"] body .search-results-wrap input[type="search"],
+html[data-theme="light"] body .search-wrap input[type="search"] {
+  background-color: #FFFFFF !important;
+  border-color: #E5E3EB !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) .search-section-header,
+html[data-theme="light"] body .search-section-header {
+  background-color: #F6F5F9 !important;
+  color: #75727F !important;
+  border-bottom-color: #E5E3EB !important;
+}
+
+/* B7. SAFETY DUPLICATE — gcard / patra-card / card surface inner overrides
+       (in case Part 1 var override gets cascade-defeated on inner elements) */
+html:not(.dark) body:not(.dark) .gcard,
+html:not(.dark) body:not(.dark) .gsum-card,
+html:not(.dark) body:not(.dark) .patra-card,
+html[data-theme="light"] body .gcard,
+html[data-theme="light"] body .gsum-card,
+html[data-theme="light"] body .patra-card {
+  background-color: #FFFFFF !important;
+  border-color: #E5E3EB !important;
+  color: #1A1A24 !important;
+}
+html:not(.dark) body:not(.dark) [class*="pat-"][class*="-wrap"] .card,
+html[data-theme="light"] body [class*="pat-"][class*="-wrap"] .card {
+  background-color: #FFFFFF !important;
+  border-color: #E5E3EB !important;
+  color: #1A1A24 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W8b — POST-RE-QA SURGICAL LIGHT FIX
+   ════════════════════════════════════════════════════════════════════ */
