@@ -2787,3 +2787,381 @@
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W4 — GAMES + AI TRAINING
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W5 — FOLD FIXES + SETTINGS A CLUSTER (dark only; light = W7)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────
+   W3-2 FOLD — Contact card hover transform wins over scoped style
+   (cursor glow handler now wired in ContactsList.vue)
+   ───────────────────────────────────────── */
+.dark .contact:hover {
+  transform: translateX(3px) scale(1.01) !important;
+}
+
+/* ─────────────────────────────────────────
+   W1 ⌘K FOLD — correct --ninja-* CSS var names
+   ninja-keys library uses --ninja-* prefix, not bare names
+   ───────────────────────────────────────── */
+.dark ninja-keys {
+  --ninja-modal-background: var(--surface, #0C0B12);
+  --ninja-overflow-background: rgba(5, 4, 9, 0.75);
+  --ninja-text-color: var(--text, #EDEDF2);
+  --ninja-accent-color: var(--patra, #6E56CF);
+  --ninja-secondary-background-color: var(--canvas, #050409);
+  --ninja-secondary-text-color: var(--text-2, #A8A6B6);
+  --ninja-selected-background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0));
+  --ninja-selected-text-color: #fff;
+  --ninja-group-text-color: var(--text-3, #75727F);
+  --ninja-placeholder-color: var(--text-3, #75727F);
+  --ninja-footer-background: var(--canvas, #050409);
+  --ninja-key-border-radius: 6px;
+  --ninja-modal-shadow: 0 24px 72px rgba(0,0,0,.55), 0 0 0 1px var(--border-hi, #2E2940);
+}
+/* Modal radius — ninja-keys has no CSS var for it; try ::part if exposed, otherwise this is no-op (radius stays 8px) */
+.dark ninja-keys::part(ninja-modal),
+.dark ninja-keys::part(modal) {
+  border-radius: 14px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   W5 SETTINGS A — shared shell across account/agents/teams/inboxes/labels
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. SETTINGS LIST WRAP + MAIN ── */
+.dark .pat-list-wrap {
+  background: var(--canvas, #050409) !important;
+  color: var(--text, #EDEDF2) !important;
+  min-height: 100%;
+  position: relative;
+}
+.dark .pat-list-wrap .mesh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 0;
+}
+.dark .pat-list-main {
+  position: relative;
+  z-index: 1;
+  padding: 24px 28px 32px !important;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── 2. SECTION HEADING (.sec-head + .display + .sub + .learn-link) ── */
+.dark .sec-head {
+  margin-bottom: 18px !important;
+  padding-bottom: 16px !important;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.dark .sec-head h1,
+.dark .sec-head .display {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 22px !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text, #EDEDF2) !important;
+  margin: 0 !important;
+}
+.dark .sec-head .sub {
+  font-size: 13px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 5px !important;
+  line-height: 1.5;
+}
+.dark .learn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  color: var(--patra-3, #A78BFA) !important;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: color .2s;
+}
+.dark .learn-link:hover { color: var(--patra-2, #8B5CF6) !important; }
+.dark .learn-icon { width: 12px; height: 12px; }
+
+/* ── 3. CARD CONTAINER ── */
+.dark .pat-list-wrap .card {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  margin-bottom: 14px;
+}
+.dark .pat-list-wrap .card-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 0 0 14px !important;
+  border-bottom: 1px solid var(--border, #171520);
+  margin-bottom: 12px !important;
+}
+
+/* ── 4. SEARCH + COUNT-LABEL ── */
+.dark .pat-search {
+  flex: 1;
+  background: var(--canvas, #050409) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 10px !important;
+  padding: 9px 12px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-size: 13px !important;
+  transition: all .22s;
+}
+.dark .pat-search:focus,
+.dark .pat-search:focus-visible {
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.13) !important;
+  outline: none !important;
+}
+.dark .pat-search::placeholder { color: var(--text-4, #54515E) !important; }
+.dark .count-label {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  color: var(--patra-2, #8B5CF6) !important;
+  background: rgba(110, 86, 207, 0.14) !important;
+  padding: 4px 10px !important;
+  border-radius: 20px !important;
+  white-space: nowrap;
+}
+
+/* ── 5. PRIMARY + SECONDARY BUTTONS ── */
+.dark .pat-list-wrap .btn {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 14px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: var(--surface-2, #131119) !important;
+  color: var(--text, #EDEDF2) !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.23,1,.32,1) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dark .pat-list-wrap .btn:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+.dark .pat-list-wrap .btn.primary {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .pat-list-wrap .btn.primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 18px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .pat-list-wrap .btn.sm {
+  font-size: 12px !important;
+  padding: 6px 11px !important;
+  border-radius: 8px !important;
+}
+
+/* ── 6. LIST ROWS (.lrow) — hover lift + cursor follow ── */
+.dark .pat-list-wrap .lrow {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 14px !important;
+  border-radius: 11px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  transition: all .22s cubic-bezier(.23,1,.32,1) !important;
+  isolation: isolate;
+  overflow: hidden;
+}
+.dark .pat-list-wrap .lrow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(110,86,207,.15), transparent 70%);
+  z-index: 0;
+}
+.dark .pat-list-wrap .lrow > * { position: relative; z-index: 1; }
+.dark .pat-list-wrap .lrow:hover {
+  background: var(--surface-2, #131119) !important;
+  border-color: var(--border, #171520) !important;
+}
+.dark .pat-list-wrap .lrow:hover::after { opacity: 1; }
+
+/* ── 7. AVATAR + NAME + EMAIL ── */
+.dark .pat-list-wrap .la {
+  flex-shrink: 0;
+  position: relative;
+}
+.dark .pat-list-wrap .la-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.dark .pat-list-wrap .li {
+  flex: 1;
+  min-width: 0;
+}
+.dark .pat-list-wrap .ln {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13.5px !important;
+  color: var(--text, #EDEDF2) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dark .pat-list-wrap .le {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 8. ROLE BADGES + VERIFIED PILL ── */
+.dark .pat-list-wrap [class*="agent-role"],
+.dark .pat-list-wrap [class*="role-badge"],
+.dark .pat-list-wrap .role-administrator,
+.dark .pat-list-wrap .role-agent {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(110, 86, 207, 0.15) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .pat-list-wrap .role-administrator {
+  background: rgba(227, 160, 8, 0.15) !important;
+  color: var(--amber, #E3A008) !important;
+}
+.dark .verified {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  background: rgba(63, 185, 80, 0.15) !important;
+  color: var(--green, #3FB950) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dark .verified.pending {
+  background: rgba(227, 160, 8, 0.15) !important;
+  color: var(--amber, #E3A008) !important;
+}
+
+/* ── 9. ROW ACTIONS + ROLE TOOLTIP ── */
+.dark .row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.dark .row-actions button,
+.dark .row-actions [role="button"] {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--text-3, #75727F) !important;
+  border-radius: 7px !important;
+  padding: 5px 7px !important;
+  transition: all .2s !important;
+}
+.dark .row-actions button:hover,
+.dark .row-actions [role="button"]:hover {
+  color: var(--text, #EDEDF2) !important;
+  background: var(--surface-3, #1B1925) !important;
+  border-color: var(--border, #171520) !important;
+}
+.dark .role-tooltip {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border-hi, #2E2940) !important;
+  border-radius: 11px !important;
+  padding: 10px 12px !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.5);
+}
+.dark .role-tooltip-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--text, #EDEDF2) !important;
+  margin-bottom: 6px;
+}
+.dark .role-tooltip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 11.5px;
+  color: var(--text-2, #A8A6B6) !important;
+}
+.dark .role-tooltip-list li { padding: 2px 0; }
+
+/* ── 10. EMPTY STATE (.empty-card + .ec-ic + .empty-action) ── */
+.dark .pat-list-wrap .empty-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center;
+  padding: 56px 24px !important;
+  gap: 14px;
+}
+.dark .pat-list-wrap .ec-ic {
+  font-size: 44px !important;
+  filter: drop-shadow(0 4px 16px var(--patra-glow, rgba(110,86,207,.55)));
+  animation: patraFloat 4s ease-in-out infinite;
+}
+.dark .pat-list-wrap .empty-card h2,
+.dark .pat-list-wrap .empty-card h3 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .pat-list-wrap .empty-card p,
+.dark .pat-list-wrap .empty-card .empty-action-link + p {
+  font-size: 13px !important;
+  color: var(--text-3, #75727F) !important;
+  max-width: 360px;
+  line-height: 1.55;
+}
+.dark .empty-action-link {
+  color: var(--patra-3, #A78BFA) !important;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color .2s;
+}
+.dark .empty-action-link:hover { color: var(--patra-2, #8B5CF6) !important; }
+.dark .pat-list-wrap .loading-note {
+  color: var(--text-3, #75727F) !important;
+  font-size: 13px !important;
+  text-align: center;
+  padding: 28px 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W5 — FOLD FIXES + SETTINGS A CLUSTER
+   ════════════════════════════════════════════════════════════════════ */

@@ -101,6 +101,13 @@ const hasAiOffLabel = contact => {
   const labels = contact.labels || [];
   return labels.includes('ai-off');
 };
+
+const onContactMouseMove = e => {
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+  el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+};
 </script>
 
 <template>
@@ -109,6 +116,7 @@ const hasAiOffLabel = contact => {
       <div
         class="contact"
         :class="{ active: false, selected: isSelected(contact.id) }"
+        @mousemove="onContactMouseMove"
         @click="onClickViewDetails(contact.id)"
       >
         <div
