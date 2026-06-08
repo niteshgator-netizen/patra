@@ -279,7 +279,10 @@
       "SAVE": "Save",
       "CANCEL": "Cancel",
       "EDIT": "Edit",
-      "DRAFT_FROM_CONVERSATIONS": "Draft from conversations"
+      "DRAFT_FROM_CONVERSATIONS": "Draft from conversations",
+      "EMPTY": "No articles yet. Create one or draft from past conversations.",
+      "SAVE_ERROR": "Could not save the article. Please try again.",
+      "DRAFT_ERROR": "Could not draft from conversations. Please try again."
     },
     "ATTRIBUTES": {
       "TITLE": "Custom Attributes",

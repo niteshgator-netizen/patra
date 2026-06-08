@@ -1,36 +1,57 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import KnowledgeArticlesAPI from 'dashboard/api/knowledgeArticles';
 
 const { t } = useI18n();
 const articles = ref([]);
 const editing = ref(null);
 const searchQuery = ref('');
+const loading = ref(true);
 
 const load = async () => {
-  const { data } = await KnowledgeArticlesAPI.get();
-  articles.value = data;
+  loading.value = true;
+  try {
+    const { data } = await KnowledgeArticlesAPI.get();
+    articles.value = data;
+  } catch (error) {
+    articles.value = [];
+  } finally {
+    loading.value = false;
+  }
 };
 
 const save = async () => {
-  if (editing.value.id) {
-    await KnowledgeArticlesAPI.update(editing.value.id, editing.value);
-  } else {
-    await KnowledgeArticlesAPI.create(editing.value);
+  try {
+    if (editing.value.id) {
+      await KnowledgeArticlesAPI.update(editing.value.id, editing.value);
+    } else {
+      await KnowledgeArticlesAPI.create(editing.value);
+    }
+    editing.value = null;
+    await load();
+  } catch (error) {
+    useAlert(t('PATRA.KNOWLEDGE.SAVE_ERROR'));
   }
-  editing.value = null;
-  await load();
 };
 
 const search = async () => {
-  const { data } = await KnowledgeArticlesAPI.search(searchQuery.value);
-  articles.value = data;
+  try {
+    const { data } = await KnowledgeArticlesAPI.search(searchQuery.value);
+    articles.value = data;
+  } catch (error) {
+    articles.value = [];
+  }
 };
 
 const draftFromConversations = async id => {
-  await KnowledgeArticlesAPI.draftFromConversations(id);
-  await load();
+  try {
+    await KnowledgeArticlesAPI.draftFromConversations(id);
+    await load();
+  } catch (error) {
+    useAlert(t('PATRA.KNOWLEDGE.DRAFT_ERROR'));
+  }
 };
 
 onMounted(load);
@@ -86,6 +107,13 @@ onMounted(load);
             </button>
           </div>
         </div>
+
+        <p
+          v-if="!loading && !articles.length"
+          class="py-12 text-sm text-center text-n-slate-11"
+        >
+          {{ $t('PATRA.KNOWLEDGE.EMPTY') }}
+        </p>
 
         <div
           v-for="article in articles"
