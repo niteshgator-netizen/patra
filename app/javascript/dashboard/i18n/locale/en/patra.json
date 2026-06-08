@@ -82,7 +82,8 @@
       "UNASSIGNED": "Unassigned"
     },
     "MESSAGE": {
-      "INTERNAL_NOTE": "🔒 Internal Note"
+      "INTERNAL_NOTE": "🔒 Internal Note",
+      "READ": "Read"
     },
     "MESSAGE_SEARCH": {
       "TITLE": "Search messages",
@@ -137,9 +138,6 @@
       "SUMMARY_ERROR": "Summary unavailable",
       "CLOSE": "Close",
       "CUSTOMER_TYPING": "Customer is typing"
-    },
-    "MESSAGE": {
-      "READ": "Read"
     },
     "REPLY": {
       "CHAR_COUNT": "{current} / {max}"
