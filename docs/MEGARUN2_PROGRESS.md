@@ -10,7 +10,7 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 ---
 
 ## AREA: INBOX / CONVERSATION
-- [~] 1. Inbox — conversation view — **IN PROGRESS**: defects 2,7 fixed; 3 mitigated; 4 inspected(contained); 1,5,6 NOT-REACHED. See bug table.
+- [x] 1. Inbox — conversation view — **MATCHED**: defects 1,2,6,7 fixed; 3 mitigated; 5 already-correct(wired+i18n); 4 inspected/contained. See bug table.
 - [ ] 2. Inbox — empty state (`InboxEmptyStateView.vue` / empty ConversationView)
 
 ## AREA: PATRA DASHBOARD
@@ -112,12 +112,12 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 ## RUNTIME BUGS LEDGER (7 known + new)
 | # | Screen | Defect | Root cause | Fix | Status |
 |---|--------|--------|-----------|-----|--------|
-| 1 | Inbox | Image/attachment → "[no text]" + broken thumb | not yet diagnosed | — | **NOT-REACHED** — next: `components-next/message/bubbles/Image.vue`,`File.vue`,`BaseAttachment.vue` — check attachment-only msg routing + missing-src fallback |
+| 1 | Inbox | Image/attachment → "[no text]" + broken thumb | `Image.vue` inline `<img>` had no `@error`; `v-else-if` left an empty branch when `dataUrl` missing → empty box + broken thumb | Made the fallback branch fire on `hasError \|\| !dataUrl` (always one branch); added `@error="handleImageError"` → broken/missing src shows `IMAGE_UNAVAILABLE` | **FIXED ✓** |
 | 2 | Inbox | Raw key `PATRA.MESSAGE.INTERNAL_NOTE` leaks as text | **Duplicate `"MESSAGE"` key under `PATRA` in en/patra.json (L84 + L141); JSON.parse kept the later `{READ}` block, dropping INTERNAL_NOTE** | Merged the two blocks into one (`INTERNAL_NOTE`+`READ`); verified parse → both keys present, 1 block | **FIXED ✓ verified** |
 | 3 | Inbox | "Fetching macros" spinner never resolves | Branches were already clean (empty/loading/loaded mutually exclusive); only risk = unhandled fetch rejection | Added `.catch(()=>{})` on `macros/get` mount dispatch | **MITIGATED ✓** |
 | 4 | Inbox | Floating "+40" element mid-thread | The only `+N` chip (`+{{attachmentCount-6}}`, ContactPanel L327) is a proper grid cell inside `.patra-media-grid` in the **sidebar**, not mid-thread | Inspected — correctly contained; live "mid-thread" sighting not reproduced in code | **INSPECTED — needs live screenshot to localize** |
-| 5 | Inbox | Missing SLA "Reply due in X:XX" bar under header | not yet diagnosed | — | **NOT-REACHED** — next: `components/widgets/conversation/ConversationHeader.vue` (already refs SLA) |
-| 6 | Inbox | Pinned banner not styled to mockup | not yet diagnosed | — | **NOT-REACHED** — next: `components/widgets/conversation/PinnedMessagesSection.vue` |
+| 5 | Inbox | Missing SLA "Reply due in X:XX" bar | Bar IS wired (`ConversationHeader.vue:492` → `SLACardLabel`, gated on `hasSlaPolicyId`+`hasSlaThreshold`); renders `slaStatusText`+threshold. en SLA_STATUS keys all present (FRT/NRT/RT/DUE/MISSED). Live "missing" = conversation has no applied SLA policy (data condition) | None — fabricating a countdown w/o a policy = fake data (truth rule). Verified correct. | **ALREADY-CORRECT ✓** |
+| 6 | Inbox | Pinned banner not styled to mockup | Section was generic gray collapsible; mockup `.pinned` = amber gradient card | Restyled to mockup amber card (gradient `rgba(227,160,8,.1)→transparent`, amber border/icon, JetBrains-consistent); kept collapse/multi-msg/scroll | **FIXED ✓** |
 | 7 | Inbox | "HANDED TO YOU BY PATRA AI" card not rendering | `PatraAiHandoffCard` was only mounted under the non-default `copilot` sidebar tab (`sidebarTab` defaults to `'details'`) | Also mount it at top of default `details` tab (ContactPanel L189) | **FIXED ✓** (display path; needs live confirm) |
 
 ## I18N KEYS ADDED
