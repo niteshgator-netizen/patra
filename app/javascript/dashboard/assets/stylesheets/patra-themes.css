@@ -2349,3 +2349,441 @@
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W3 — W1 FIXES + CONTACTS CLUSTER
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W4 — GAMES + AI TRAINING (dark only; light = W7)
+   Scoped to .dark + .games-wrap / .pat-page-wrap / .pat-settings-section.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. GAMES SHELL + TOPBAR ── */
+.dark .games-wrap {
+  background: var(--canvas, #050409) !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .games-wrap .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.dark .games-wrap .topbar .display,
+.dark .games-wrap .topbar h1.display {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 24px !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .games-wrap .topbar .sub {
+  font-size: 13px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 4px;
+}
+.dark .patra-add-game-btn {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 9px 16px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(.34,1.56,.64,1) !important;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .patra-add-game-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+
+/* ── 2. GAMES SUMMARY STATS ── */
+.dark .gsum {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  gap: 10px !important;
+  margin: 18px 28px !important;
+}
+.dark .gsum-card {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 13px !important;
+  padding: 16px 18px !important;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.dark .gsum-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-hi, #2E2940) !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,.35), 0 0 18px rgba(110,86,207,.12);
+}
+.dark .gsum-card .n {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 22px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.dark .gsum-card .n.p {
+  background: linear-gradient(135deg, var(--patra-2, #8B5CF6), var(--patra-3, #A78BFA));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.dark .gsum-card .n.g { color: var(--green, #3FB950) !important; }
+.dark .gsum-card .l {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 5px;
+}
+
+/* ── 3. CALLOUT BANNER ── */
+.dark .games-wrap .callout {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 14px 28px 8px !important;
+  padding: 13px 16px !important;
+  background: linear-gradient(135deg, rgba(110,86,207,.10), rgba(139,92,246,.05)) !important;
+  border: 1px solid rgba(139,92,246,.28) !important;
+  border-radius: 13px !important;
+  font-size: 12.5px;
+  color: var(--text-2, #A8A6B6) !important;
+}
+.dark .games-wrap .callout svg {
+  width: 18px;
+  height: 18px;
+  color: var(--patra-3, #A78BFA);
+  flex-shrink: 0;
+}
+
+/* ── 4. GAMES GRID + GAME CARD POLISH ── */
+.dark .games-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 14px !important;
+  padding: 6px 28px 28px !important;
+}
+.dark .gcard {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  transition: all .3s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.dark .gcard:hover {
+  transform: translateY(-3px);
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,.45), 0 0 22px rgba(110,86,207,.18) !important;
+}
+.dark .gcard .gcard-ic {
+  font-size: 28px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-2, #131119);
+  border: 1px solid var(--border, #171520);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.dark .gcard:hover .gcard-ic {
+  transform: scale(1.08) rotate(-4deg);
+  border-color: var(--patra, #6E56CF) !important;
+}
+.dark .gcard .gn {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .gcard .gd {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 2px;
+}
+
+/* ── 5. GAME CARD SWITCH + BADGES ── */
+.dark .gcard-sw {
+  width: 38px;
+  height: 22px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  position: relative;
+  cursor: pointer;
+  transition: all .25s;
+  border: none;
+  flex-shrink: 0;
+}
+.dark .gcard-sw::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  transition: left .25s cubic-bezier(.34,1.56,.64,1);
+}
+.dark .gcard-sw.off {
+  background: var(--surface-3, #1B1925) !important;
+}
+.dark .gcard-sw.off::after {
+  left: 2px;
+}
+.dark .gcard-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 12px;
+}
+.dark .gbadge {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  padding: 3px 9px !important;
+  border-radius: 6px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.dark .gbadge.active {
+  background: rgba(63,185,80,.15) !important;
+  color: var(--green, #3FB950) !important;
+}
+.dark .gbadge.warn {
+  background: rgba(227,160,8,.15) !important;
+  color: var(--amber, #E3A008) !important;
+}
+.dark .gbadge.api {
+  background: rgba(110,86,207,.15) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .gdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* ── 6. GAME CARD BUTTONS ── */
+.dark .gcard-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.dark .gcard-btn {
+  flex: 1;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 8px 12px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: var(--surface-2, #131119) !important;
+  color: var(--text, #EDEDF2) !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.23,1,.32,1) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.dark .gcard-btn:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  background: var(--surface-3, #1B1925) !important;
+  transform: translateY(-1px);
+}
+.dark .gcard-btn.cfg {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55));
+}
+.dark .gcard-btn.cfg:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 5px 16px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+
+/* ── 7. ADD GAME MODAL ── */
+.dark .add-game-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(5, 4, 9, 0.75) !important;
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  animation: patraFadeIn .2s ease-out;
+}
+.dark .add-game-modal {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border-hi, #2E2940) !important;
+  border-radius: 16px !important;
+  padding: 22px 24px !important;
+  width: 92vw;
+  max-width: 460px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 28px 72px rgba(0,0,0,.55), 0 0 0 1px var(--border-hi, #2E2940);
+  animation: patraScaleIn .25s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes patraFadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes patraScaleIn {
+  from { opacity: 0; transform: scale(.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.dark .add-game-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  color: var(--text, #EDEDF2) !important;
+  margin: 0 0 14px !important;
+}
+.dark .add-game-empty {
+  color: var(--text-3, #75727F) !important;
+  font-size: 13px !important;
+  text-align: center;
+  padding: 18px 8px;
+  background: var(--canvas, #050409);
+  border: 1px dashed var(--border, #171520);
+  border-radius: 11px;
+}
+.dark .add-game-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.dark .add-game-pick {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 13px !important;
+  border-radius: 11px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: var(--surface-2, #131119) !important;
+  color: var(--text, #EDEDF2) !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.dark .add-game-pick:hover {
+  border-color: var(--patra, #6E56CF) !important;
+  background: var(--surface-3, #1B1925) !important;
+  transform: translateX(3px);
+  box-shadow: 0 4px 12px rgba(110,86,207,.18);
+}
+.dark .add-game-name {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 13.5px !important;
+}
+.dark .add-game-slug {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  color: var(--text-3, #75727F) !important;
+  text-transform: lowercase;
+}
+.dark .add-game-cancel {
+  display: block;
+  margin: 14px 0 0 auto !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  padding: 8px 16px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: transparent !important;
+  color: var(--text-2, #A8A6B6) !important;
+  cursor: pointer;
+  transition: all .2s !important;
+}
+.dark .add-game-cancel:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  color: var(--text, #EDEDF2) !important;
+  background: var(--surface-2, #131119) !important;
+}
+
+/* ── 8. SETTINGS LAYOUT SHELL (cross-route, fallback for all settings pages) ── */
+.dark .pat-page-wrap {
+  background: var(--canvas, #050409) !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .pat-page-main { background: transparent !important; }
+.dark .pat-settings-section {
+  background: var(--canvas, #050409) !important;
+  padding: 0 !important;
+}
+
+/* ── 9. AI TRAINING (CAPTAIN) — override n-* tokens inside .pat-page-wrap ── */
+.dark .pat-page-wrap,
+.dark .pat-settings-section {
+  --n-background: var(--canvas, #050409);
+  --n-solid-1: var(--surface, #0C0B12);
+  --n-solid-2: var(--surface-2, #131119);
+  --n-solid-3: var(--surface-3, #1B1925);
+  --n-weak: var(--border, #171520);
+  --n-strong: var(--border-hi, #2E2940);
+  --n-slate-12: var(--text, #EDEDF2);
+  --n-slate-11: var(--text-2, #A8A6B6);
+  --n-slate-10: var(--text-3, #75727F);
+  --n-slate-9: var(--text-4, #54515E);
+  --n-alpha-1: rgba(255,255,255,.045);
+  --n-alpha-2: rgba(255,255,255,.08);
+  --n-alpha-3: rgba(255,255,255,.12);
+}
+/* Captain feature/model cards get patra hover */
+.dark .pat-page-wrap [class*="rounded-xl"][class*="border-n-weak"][class*="bg-n-solid"] {
+  transition: all .22s cubic-bezier(.34,1.56,.64,1) !important;
+}
+.dark .pat-page-wrap [class*="rounded-xl"][class*="border-n-weak"][class*="bg-n-solid"]:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  background: var(--surface-2, #131119) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+
+/* ── 10. SETTINGS HEADERS POLISH (BaseSettingsHeader / SectionLayout titles) ── */
+.dark .pat-page-wrap h1,
+.dark .pat-page-wrap h2,
+.dark .pat-page-wrap h3,
+.dark .pat-page-wrap h4,
+.dark .pat-settings-section h1,
+.dark .pat-settings-section h2,
+.dark .pat-settings-section h3,
+.dark .pat-settings-section h4 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  color: var(--text, #EDEDF2) !important;
+  letter-spacing: -0.01em !important;
+}
+.dark .pat-page-wrap .text-sm,
+.dark .pat-settings-section .text-sm { color: var(--text-2, #A8A6B6) !important; }
+.dark .pat-page-wrap a:not([class*="button"]):not([class*="btn"]),
+.dark .pat-settings-section a:not([class*="button"]):not([class*="btn"]) {
+  color: var(--patra-3, #A78BFA) !important;
+  transition: color .2s;
+}
+.dark .pat-page-wrap a:not([class*="button"]):not([class*="btn"]):hover,
+.dark .pat-settings-section a:not([class*="button"]):not([class*="btn"]):hover {
+  color: var(--patra-2, #8B5CF6) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W4 — GAMES + AI TRAINING
+   ════════════════════════════════════════════════════════════════════ */
