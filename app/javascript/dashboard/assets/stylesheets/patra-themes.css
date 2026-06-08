@@ -49,6 +49,7 @@
   --patra-3: #A78BFA;
   --patra-deep: #5B45B0;
   --patra-glow: rgba(110,86,207,0.55);
+  --inset: rgba(255, 255, 255, 0.045);
   --text: #EDEDF2;
   --text-2: #A8A6B6;
   --text-3: #75727F;
@@ -1559,4 +1560,305 @@
 
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W1 — INBOX CLUSTER
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W2 — DASHBOARD / STATS POLISH (dark only; light mode = W7)
+   Scoped to .dark + .patra-owner-dashboard or .pat-dash. Mockup source =
+   PATRA_APP_final.html STATS section. Component already has rich scoped
+   styles — this is additive elevation only.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. DASHBOARD ROUTE SHELL ── */
+.dark .patra-owner-dashboard,
+.dark .pat-dash {
+  background: var(--canvas, #050409) !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .patra-owner-dashboard::-webkit-scrollbar,
+.dark .pat-dash::-webkit-scrollbar { width: 10px; height: 10px; }
+.dark .patra-owner-dashboard::-webkit-scrollbar-track,
+.dark .pat-dash::-webkit-scrollbar-track { background: transparent; }
+.dark .patra-owner-dashboard::-webkit-scrollbar-thumb,
+.dark .pat-dash::-webkit-scrollbar-thumb {
+  background: var(--surface-3, #1B1925);
+  border-radius: 8px;
+  border: 2px solid var(--canvas, #050409);
+}
+.dark .patra-owner-dashboard::-webkit-scrollbar-thumb:hover,
+.dark .pat-dash::-webkit-scrollbar-thumb:hover { background: var(--border-hi, #2E2940); }
+
+/* Topbar title typography */
+.dark .patra-topbar-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .patra-topbar-sub {
+  font-size: 12.5px !important;
+  color: var(--text-3, #75727F) !important;
+}
+
+/* ── 2. KPI CARDS — staggered entrance (delays applied via nth-child) ── */
+.dark .patra-kpis > .patra-kpi:nth-child(1) { animation-delay: 0ms; }
+.dark .patra-kpis > .patra-kpi:nth-child(2) { animation-delay: 60ms; }
+.dark .patra-kpis > .patra-kpi:nth-child(3) { animation-delay: 120ms; }
+.dark .patra-kpis > .patra-kpi:nth-child(4) { animation-delay: 180ms; }
+.dark .patra-kpis > .patra-kpi:nth-child(5) { animation-delay: 240ms; }
+.dark .patra-kpis > .patra-kpi:nth-child(6) { animation-delay: 300ms; }
+
+.dark .patra-grid > .patra-card:nth-child(1) { animation-delay: 360ms; }
+.dark .patra-grid > .patra-card:nth-child(2) { animation-delay: 420ms; }
+.dark .patra-grid > .patra-card:nth-child(3) { animation-delay: 480ms; }
+
+/* ── 3. KPI NUMBER + LABEL TYPOGRAPHY ── */
+.dark .patra-owner-dashboard .patra-kpi-n,
+.dark .patra-owner-dashboard .patra-ms-n {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+}
+.dark .patra-owner-dashboard .patra-kpi-l,
+.dark .patra-owner-dashboard .patra-ms-l {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3, #75727F) !important;
+}
+
+/* ── 4. SPARKLINE STROKE POLISH ── */
+.dark .patra-sparkline path,
+.dark .patra-sparkline polyline {
+  stroke: var(--patra-3, #A78BFA) !important;
+  stroke-width: 1.5 !important;
+  fill: none !important;
+}
+.dark .patra-sparkline .area,
+.dark .patra-sparkline [class*="fill"] {
+  fill: url(#patra-spark-grad) !important;
+  opacity: 0.18;
+}
+
+/* ── 5. TOP-QUESTIONS BAR POLISH ── */
+.dark .patra-topq { padding: 4px 0 !important; }
+.dark .patra-tq-row {
+  padding: 7px 0 !important;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.dark .patra-tq-row:last-child { border-bottom: none; }
+.dark .patra-tq-label {
+  font-size: 12.5px !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .patra-tq-bar-wrap {
+  height: 7px !important;
+  background: var(--surface-3, #1B1925) !important;
+  border-radius: 4px !important;
+}
+.dark .patra-tq-bar {
+  background: linear-gradient(90deg, var(--patra, #6E56CF), var(--patra-2, #8B5CF6), var(--patra-3, #A78BFA)) !important;
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.45);
+}
+.dark .patra-tq-count {
+  font-family: 'JetBrains Mono', monospace !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .patra-topq-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+}
+
+/* ── 6. RANGE PILLS + REFRESH BUTTON CROSS-ROUTE FALLBACK ── */
+.dark .patra-range {
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 10px;
+  padding: 3px;
+  display: inline-flex;
+  gap: 2px;
+}
+.dark .patra-range-btn {
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  padding: 6px 11px !important;
+  border-radius: 7px !important;
+  color: var(--text-3, #75727F) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  transition: all .2s !important;
+}
+.dark .patra-range-btn:hover {
+  color: var(--text, #EDEDF2) !important;
+  background: var(--surface-3, #1B1925) !important;
+}
+.dark .patra-range-btn.active {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55));
+}
+.dark .patra-refresh-btn {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 7px 13px !important;
+  border-radius: 9px !important;
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border, #171520) !important;
+  color: var(--text-2, #A8A6B6) !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dark .patra-refresh-btn:hover {
+  color: var(--text, #EDEDF2) !important;
+  border-color: var(--patra, #6E56CF) !important;
+  background: var(--surface-3, #1B1925) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(110, 86, 207, 0.25);
+}
+.dark .patra-refresh-btn:active { transform: translateY(0) scale(0.98); }
+
+/* ── 7. CHANNEL ROWS + AI PERF ROWS POLISH ── */
+.dark .patra-ch-row {
+  padding: 9px 0 !important;
+  transition: background .2s, padding-left .25s;
+  border-radius: 6px;
+}
+.dark .patra-ch-row:hover {
+  padding-left: 4px;
+}
+.dark .patra-ch-nm {
+  font-size: 12.5px !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .patra-ch-bar {
+  height: 6px !important;
+  background: var(--surface-3, #1B1925) !important;
+  border-radius: 3px !important;
+  overflow: hidden;
+}
+.dark .patra-ch-bar i {
+  background: linear-gradient(90deg, var(--patra, #6E56CF), var(--patra-2, #8B5CF6)) !important;
+  box-shadow: 0 0 6px var(--patra-glow, rgba(110,86,207,.55));
+}
+.dark .patra-ch-val {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12px !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+
+.dark .patra-ap-row {
+  padding: 8px 10px !important;
+  border-radius: 9px;
+  transition: background .2s;
+}
+.dark .patra-ap-row:hover { background: var(--surface-2, #131119) !important; }
+.dark .patra-ap-k {
+  font-size: 12.5px !important;
+  color: var(--text-2, #A8A6B6) !important;
+}
+.dark .patra-ap-v {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 600 !important;
+  color: var(--text, #EDEDF2) !important;
+}
+.dark .patra-ap-warn { color: var(--amber, #E3A008) !important; }
+.dark .patra-ap-sub {
+  font-size: 11px !important;
+  color: var(--text-3, #75727F) !important;
+}
+
+/* ── 8. DONUT CHART CENTER TYPOGRAPHY ── */
+.dark .patra-donut-pct {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 24px !important;
+  color: var(--text, #EDEDF2) !important;
+  background: linear-gradient(135deg, var(--patra-2, #8B5CF6), var(--patra-3, #A78BFA));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.dark .patra-donut-lbl {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3, #75727F) !important;
+}
+.dark .patra-leg-v {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+.dark .patra-leg-sw-ai { background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-2, #8B5CF6)) !important; }
+.dark .patra-leg-sw-amber { background: var(--amber, #E3A008) !important; }
+.dark .patra-leg-sw-muted { background: var(--text-4, #54515E) !important; }
+
+/* ── 9. MINI-STATS HOVER LIFT + EMPTY STATE POLISH ── */
+.dark .patra-ms {
+  transition: all .25s cubic-bezier(.34,1.56,.64,1) !important;
+  border-radius: 11px !important;
+}
+.dark .patra-ms:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-hi, #2E2940) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.dark .patra-ms-empty {
+  color: var(--text-4, #54515E) !important;
+  font-weight: 500 !important;
+}
+.dark .patra-empty-note {
+  text-align: center;
+  padding: 18px 8px;
+  color: var(--text-3, #75727F) !important;
+  font-size: 12.5px !important;
+}
+
+/* ── 10. CARD HEADER POLISH + GLOBAL DASHBOARD SECTION TITLE ── */
+.dark .patra-card-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px !important;
+}
+.dark .patra-card-t,
+.dark .pat-dash-section-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  letter-spacing: -0.005em !important;
+  color: var(--text, #EDEDF2) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dark .patra-card-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-3, #A78BFA));
+  box-shadow: 0 0 8px var(--patra-glow, rgba(110,86,207,.55));
+  display: inline-block;
+}
+.dark .patra-card-more {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3, #75727F) !important;
+}
+.dark .patra-card-more-btn {
+  cursor: pointer;
+  transition: color .2s;
+}
+.dark .patra-card-more-btn:hover { color: var(--patra-3, #A78BFA) !important; }
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W2 — DASHBOARD / STATS POLISH
    ════════════════════════════════════════════════════════════════════ */
