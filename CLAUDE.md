@@ -1,1 +1,85 @@
-﻿# PATRA — CURSOR RULES# Auto-read by Cursor on every prompt. NON-NEGOTIABLE.# ─────────────────────────────────────────────────────# 1. WHO I AM# ─────────────────────────────────────────────────────- Name: Genius. Complete coding beginner.- OS: Windows + PowerShell ONLY. Never give Linux/Mac/bash commands.- Editor: Cursor Pro. Local repo: C:\Users\kam work\patra- Explain in plain English. Define every technical term in one line.- Short, direct answers. No preambles. No filler ("great question", "certainly").- Push back when a request is bad. Explain why. Propose better.- Never suggest taking a break or stopping.# ─────────────────────────────────────────────────────# 2. PROJECT FACTS (do not guess these)# ─────────────────────────────────────────────────────- Patra = forked Chatwoot SaaS unified inbox, live at patrahq.com- Stack: Ruby on Rails + Vue.js + PostgreSQL + PgVector + Redis + SideKiq- Deploy: Railway, 4 services (Chatwoot / SideKiq / PgVector / Redis)- Pre-deploy: bundle exec rails db:chatwoot_prepare && bundle exec rails db:migrate- Railway internal hostname: http://chatwoot.railway.internal:3000- Both Chatwoot AND SideKiq must go green or deploy FAILED.- JWT in localStorage under legacy key `unibox_token` — NEVER rename.- AI: Grok 4.1 primary, Claude Opus 4.x complex, Gemini Flash OCR, DeepSeek complex replies, Voyage embeddings.- Game API calls route through SideKiq (different egress IP than Chatwoot).# ─────────────────────────────────────────────────────# 3. READ BEFORE EDITING ANY CODE# ─────────────────────────────────────────────────────Before ANY edit, read in this order:1. PATRA_MASTER_COMPLETE.md — single source of truth2. BUGS_FIXED.md — what's been fixed; never re-introduce3. PATRA_STATE.md — current state, open threads, next step4. The actual file you're about to edit — in full. No skimming.If any of those don't exist, say so. Do not assume.# ─────────────────────────────────────────────────────# 4. HOT FILES — EXTREME CARE# ─────────────────────────────────────────────────────These crashed Railway before:1. app/services/ai/reply_service.rb (biggest)2. app/services/games/conversation_orchestrator.rb3. app/services/games/intent_detector.rb4. app/services/facebook/chatwoot_bridge_service.rbRules for hot files:- ONE hot file per task. NEVER two hot files in one run.- Read the ENTIRE file before editing.- Verify every def/if/case/do/begin has matching `end` after edits.- Wrap external API calls in `begin/rescue StandardError`.- Wrap ALL Telegram calls in `safe_telegram { ... }` blocks.- If task touches a hot file, START response with:  HOT FILE: <filename>. Reading full file first. Single-file change only.# ─────────────────────────────────────────────────────# 5. DATA SAFETY# ─────────────────────────────────────────────────────NEVER, without showing exactly what will change AND getting explicit "yes":- Delete files- Delete database rows / drop tables- Delete environment variables- Overwrite .env, database.yml, or any credential file- Force-push to main- Delete migrations- Rename variables/methods/files (unless told to)- Reformat unrelated code- Delete commented-out codeBug-fix CODE edits in app/ are fine without extra confirmation.DATA or CONFIG changes need explicit confirmation.# ─────────────────────────────────────────────────────# 6. SCOPE DISCIPLINE# ─────────────────────────────────────────────────────- Do EXACTLY what was asked. No bonus changes.- See something else to fix? Call it out at END, do not fix it.- No premature optimization. No unused features. YAGNI.# ─────────────────────────────────────────────────────# 7. CODE QUALITY# ─────────────────────────────────────────────────────- Production-grade only. NO placeholder, NO TODO, NO dummy data, NO tutorial comments.- Don't know something? STATE it as unknown. Never guess.- Match existing code style. Don't reformat unrelated code.## Ruby / Rails- Service objects in app/services/- 2-space indent, no tabs- snake_case methods, CamelCase classes- `private` for non-public methods- Logging prefix matches service: [ReplyService], [ImagePaymentExtractor], [FacebookBridgeJob], [HaikuClient]- New AI calls: `defined?(ClassName)` + `begin/rescue StandardError`- Rails.logger.info/.warn/.error — NEVER `puts` in app code## Vue (frontend)- Composition API for NEW code; Options API only if file already uses it- Use existing design tokens / CSS variables — no new colors- PascalCase for Vue components## Database- Every new column needs a migration. NEVER edit schema.rb manually.- Migration filename: YYYYMMDDHHMMSS_descriptive_name.rb- Indexes for foreign keys + frequently-queried columns# ─────────────────────────────────────────────────────# 8. END EVERY TASK WITH THIS DUMP# ─────────────────────────────────────────────────────After completing any task, print this dump as your final output.User pastes it back to Claude for verification BEFORE deploy.Do NOT skip this dump.=== CURSOR DUMP ===FILES CHANGED:  - <full path 1>  - <full path 2>DIFF SUMMARY:  <file 1>: +X lines / -Y linesKEY CHANGES (one line each):  - <what changed and why>COMMANDS RUN:  - <command 1>OUTPUT / ERRORS:  <paste test output, syntax errors, lint warnings>HOT FILES STATUS:  - app/services/ai/reply_service.rb [untouched / touched]  - app/services/games/conversation_orchestrator.rb [untouched / touched]  - app/services/games/intent_detector.rb [untouched / touched]  - app/services/facebook/chatwoot_bridge_service.rb [untouched / touched]VERIFY STEPS (PowerShell, exact commands):  1. <command>  2. <expected output>ROLLBACK COMMAND (if this breaks prod):  git revert HEAD && git push=== END DUMP ===# ─────────────────────────────────────────────────────# 9. ENVIRONMENT QUIRKS# ─────────────────────────────────────────────────────- Windows RDP clipboard fails over ~28k chars — split large pastes.- VPS .env: edit via PowerShell `-replace` only. Notepad doubles variable names.- VPS Python: use `python` not `py -3.12`.- Type SSH commands FRESH — PowerShell bracket-paste corrupts them.# ─────────────────────────────────────────────────────# 10. WHEN UNCERTAIN# ─────────────────────────────────────────────────────- STOP. State the uncertainty clearly.- Re-read the relevant file.- Ask ONE specific question.- Do NOT guess and proceed.# ─────────────────────────────────────────────────────# 11. GIT# ─────────────────────────────────────────────────────- Commit format: short imperative + scope. Examples:  fix(reply_service): premature 'loaded' message before IMAP verify  feat(games): add Vegas Sweeps URL config- NEVER force-push to main.- NEVER squash without asking.# ─────────────────────────────────────────────────────# 12. WHAT NOT TO DO# ─────────────────────────────────────────────────────- Do not invent file paths. If file doesn't exist, say so.- Do not invent method names. Check the file first.- Do not write tests unless asked.- Do not refactor unless asked.- Do not "improve" code that wasn't part of the task.- Do not add dependencies (gems, npm packages) without approval.- Do not change Ruby/Rails/Vue/Node versions.# END
+# PATRA — ENGINEERING CONTEXT FOR CLAUDE CODE
+
+## OPERATOR
+Genius — solo founder of Patra. Coding beginner: plain English, define terms in 1 line, no jargon dumps. Windows/PowerShell ONLY — never Linux/Mac commands. Voice-to-text input, so messages may be garbled — infer intent, confirm if ambiguous.
+
+## WHAT PATRA IS
+Chatwoot v4.13 hard fork → unified inbox SaaS. Vertical 1: sweepstakes/gaming ops (automate load/cashout/freeplay, manage FB ban risk). Vertical 2 (next): universal SaaS for any business. Positioning: "Shopify for sweepstakes." Lives at patrahq.com.
+
+## STACK — THESE ARE FACTS, DO NOT GUESS
+Rails (backend) · Vue.js (frontend) · PostgreSQL + PgVector · Redis + Sidekiq · Render (deploy) · Grok 4.1 (primary Bella replies) + Anthropic + DeepSeek · Voyage AI 512-dim embeddings · JWT in localStorage as `unibox_token` (legacy — NEVER rename).
+If you see "Node.js" or "React" or "UniBox" anywhere — stale, ignore. Patra is Rails+Vue.
+
+## TRUTH RULES — STRICTLY ENFORCED
+- ZERO GUESSING. Before any code claim, READ the full file + call sites. Before any runtime claim, verify with real command output.
+- Never say "worked" / "verified" / "fixed" without proof in the current session. Label every claim: (a) verified by me now, (b) Genius-reported, (c) my assumption.
+- Never invent numbers. If you don't have a source, say "I'd be guessing."
+- After ONE failed experiment, STOP. Next step inspects artifacts (read the file, run a diagnostic) — do NOT chain another theory.
+- REGISTERED ≠ FIRES. MANUAL_OK ≠ AUTO_FIRES. ONE_PANEL_GREEN ≠ ALL_HEALTHY. Defined ≠ wired. Prove the actual path.
+- When Genius asks "you sure?" — re-read the output line by line before answering. Don't double down to be agreeable.
+
+## HOT FILES — EXTREME CARE
+These have crashed production before. Edit ONE per change, NEVER batch two hot files together.
+1. app/services/ai/reply_service.rb (~2,706 lines — biggest, most-crashed)
+2. app/services/games/conversation_orchestrator.rb (~2,418 lines)
+3. app/services/games/intent_detector.rb
+4. app/services/facebook/chatwoot_bridge_service.rb
+
+Before editing any hot file: read the FULL current version first. After editing: verify every def/if/case/do has a matching end.
+
+## CODING INVARIANTS (learned from real crashes)
+- Wrap all Telegram calls in `safe_telegram { ... }`.
+- Wrap all external API calls in `begin/rescue StandardError`.
+- `useAlert` is called as `const showAlert = useAlert()` — not destructured.
+- Redis locks in Sidekiq: `Sidekiq.redis { |conn| conn.set(...) }` — never `$redis` or `Redis.current`.
+- `neighbor` gem needs `.to_a` before pgvector COUNT (avoids double-alias SQL bug).
+- DeepSeek reasoning models output in `reasoning_content`, NOT `content` — parser must fall back.
+- Vite bundles are committed to git. Frontend changes don't deploy without `pnpm exec vite build` locally + committing `public/vite/`.
+- FacebookIdentity#inboxes is a custom method, not an association — `includes(:inboxes)` crashes it.
+
+## KEY IDS
+Account 2 · FB Inbox 5 (Channel::Api, working) · Inbox 2 (Channel::FacebookPage, BROKEN — don't use) · Telegram cashout group `-5243223053` · 73,070 RAG pairs in bella_rag_pairs (all account_id=2, all approved=true).
+
+## RAG SYSTEM (current state)
+- `IntentRetriever.predict(text:, account_id:)` → single intent label + confidence.
+- `IntentRetriever.retrieve(text:, account_id:, top_k:)` → array of top-K cashier example hashes.
+- `BellaRagPair.for_scope(account_id:, industry_slug: nil)` — industry_slug is now optional (was a crash bug).
+- RAG cutover: when regex returns nil AND RAG confidence ≥ 0.60, route via RAG_TO_INTENT_MAP.
+- 27 real_intent labels in DB. RAG_TO_INTENT_MAP currently covers 16 — gap.
+
+## HOW WE SHIP — THE LOOP (do not skip)
+1. Read actual live code before proposing any change. Never guess at file contents.
+2. Make the change. Show the diff.
+3. Print a DUMP: files changed, line counts, new method names, exact VERIFY commands, any errors.
+4. STOP. Genius pastes the dump to the planning Claude for verification.
+5. Genius deploys (you do NOT push). Then Genius reports back.
+6. Only then move on — or fix what broke first.
+
+## DEPLOY — GENIUS RUNS THIS, NOT YOU
+Standard sequence:
+  git add <specific files>
+  git add public/vite/
+  git commit --no-verify -m "msg"
+  git push clean main --force      # clean = Render deploy mirror, the one that matters
+  git push origin main             # origin = backup; NO --force
+
+Origin almost always rejects with a non-fast-forward error because GitHub Actions
+auto-commits vite bundles. When that happens, Genius runs:
+  git fetch origin
+  git rebase origin/main
+  git checkout --theirs public/vite/   # accept remote's vite bundles
+  git add public/vite/
+  git rebase --continue                # opens Vim — save with Esc then :wq then Enter
+  git push origin main
+
+NEVER push to clean yourself. Show the diff, print the DUMP, hand off. Genius deploys.
+After both pushes, Genius triggers Manual Deploy on Render (Web Service + Background Worker — both must go green).
+
+## DESTRUCTIVE ACTIONS
+Never delete code/files without showing a diff and getting an explicit yes. Never run a migration or `update_all` on bella_rag_pairs (73K rows) inside Rails — it times out. Use `psql $DATABASE_URL -c "..."` for bulk DB ops.
+
+## AI PERSONA OUTPUT RULES (when writing Bella's replies/prompts)
+Never admit being AI. Max 2 lines. No bullets. No "certainly!" / "great question!". Sound like a human cashier texting on shift, not a chatbot.
+
+## PROMPT/TASK STRUCTURE GENIUS EXPECTS
+Every change request: WHAT (2 lines) / WHY (2 lines, beginner-friendly) / READ THIS FIRST (exact files) / DO THIS (exact code) / VERIFY (exact PowerShell command + what success looks like) / DUMP (files+diffs+errors back).

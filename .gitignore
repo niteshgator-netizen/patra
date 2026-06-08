@@ -94,7 +94,11 @@ yarn-debug.log*
 .claude/settings.local.json
 .cursor
 .codex/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/commands/
+!.claude/agents/
+.claude/settings.local.json
 CLAUDE.local.md
 
 # Histoire deployment
@@ -116,3 +120,7 @@ redis_vars.json
 .tmp-gql-out.json
 
 .cursor/mcp.json
+
+# Local MCP config and env (may contain secrets)
+.mcp.json
+.env.local

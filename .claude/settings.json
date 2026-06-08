@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rebase:*)",
+      "Bash(git checkout --theirs:*)",
+      "Bash(git commit:*)",
+      "Bash(git push origin:*)",
+      "Bash(pnpm exec vite build)",
+      "Bash(pnpm install:*)",
+      "Bash(bundle exec:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(Get-Content:*)",
+      "Bash(Select-String:*)",
+      "Read(*)",
+      "Edit(app/javascript/**)",
+      "Edit(app/views/**)",
+      "Edit(*.md)",
+      "Edit(*.css)",
+      "Edit(*.scss)"
+    ],
+    "deny": [
+      "Bash(psql:*)",
+      "Bash(*psql*DROP*)",
+      "Bash(git push clean:*)",
+      "Bash(git push:* clean:*)",
+      "Bash(rm -rf:*)",
+      "Bash(*update_all*)",
+      "Bash(*bella_rag_pairs*update*)",
+      "Bash(DROP*)",
+      "Bash(TRUNCATE*)",
+      "Edit(app/services/ai/reply_service.rb)",
+      "Edit(app/services/games/conversation_orchestrator.rb)",
+      "Edit(app/services/games/intent_detector.rb)",
+      "Edit(app/services/facebook/chatwoot_bridge_service.rb)"
+    ]
+  }
+}
