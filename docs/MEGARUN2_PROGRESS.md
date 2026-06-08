@@ -135,13 +135,29 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - Note: dynamic keys built via template literals (`t(\`X.${v}\`)`) are not statically checkable and were not exhaustively enumerated.
 
 ## COVERAGE TOTALS (this checkpoint)
-- Enumerated **N=70**.
-- **Full verdict (V1+V2):** screen 1 (Inbox, MATCHED — 7 defects), screen 2 (Inbox empty, ALREADY-MATCHED) = **2**.
-- **Runtime-only verdict (V2/V3, styling V1 pending):** screens 24, 29, 49, 55 = **4** (raw-key leaks fixed).
-- **App-wide V2/V3 partial coverage (all 70):** static i18n key-leak scan = 0 missing; same-scope duplicate-key scan = 0; object/JSON/undefined template-leak class = clean.
-- **NOT-REACHED for styling (V1):** screens 3–23, 25–28, 30–48, 50–54, 56–70 (still need per-screen mockup match).
-- **BUILD (V9/E20):** `pnpm exec vite build` → **exit 0**; bundles committed.
-- Commits this run: 11 (enumeration + 7 Inbox/i18n fix commits + ledger updates + vite bundles).
+- Enumerated **N=70**. Screens with a verdict: **14**.
+- **MATCHED (bugs fixed):** 1 (Inbox, 7 defects), 20 (Broadcasts, 3 bugs).
+- **ALREADY-MATCHED (verified clean, V2):** 2 (Inbox empty), 9 (Notifications), 12 (Patra Reports), 16 (Connect FB), 31/32/33 (Campaigns).
+- **Runtime-fixed (V2 leak), V1 styling pending:** 24 (Agent Reports), 29 (CSAT), 49 (WhatsApp wizard), 55 (Captain settings).
+- **App-wide V2/V3 sweeps (cover all 70), reproducible & clean:**
+  - static i18n key-leak scan → **0 missing** (7 leaks fixed)
+  - scope-aware duplicate-key scan → **0 same-scope dups** (1 fixed = Inbox defect 2)
+  - broken-media (`<img>` no `@error`) → clean (Avatar/SharedFiles/ContactPanel all guarded; Image.vue fixed)
+  - object/JSON/`undefined`/`null` template-leak → clean
+- **NOT-REACHED for styling (V1):** screens 3–8, 10–11, 13–15, 17–19, 21–23, 25–28, 30, 34–48, 50–54, 56–70. Note: many are already well-built (verified pattern: proper loading/empty/error states) — they need a visual V1 mockup-diff pass, not bug fixes.
+- **BUILD (V9/E20):** `pnpm exec vite build` → **exit 0** (run twice); bundles committed.
+- Commits this run: 15.
+
+## NEW BUGS FOUND & FIXED (beyond the 7 known Inbox defects)
+| Screen | Bug | Fix |
+|--------|-----|-----|
+| 20 Broadcasts | "New" btn → route `patra_broadcast_compose` missing required `:broadcastId` | → `patra_broadcast_compose_new` |
+| 20 Broadcasts | `load()` no error handling → spinner strands on API failure | try/catch/finally |
+| 20 Broadcasts | no empty state (blank list) | empty branch + `PATRA.BROADCASTS.EMPTY` |
+| 24 Agent Reports | `REPORT.DOWNLOAD_AGENT_REPORTS` wrong path → leaks | → `AGENT_REPORTS.DOWNLOAD_AGENT_REPORTS` |
+| 29 CSAT Reports | `REPORT.CSAT_REPORTS.DOWNLOAD_FAILED` wrong path → leaks | → `CSAT_REPORTS.DOWNLOAD_FAILED` |
+| 49 WhatsApp wizard | `…EMBEDDED_SIGNUP.SDK_LOAD_ERROR` missing → leaks | added en string |
+| 55 Captain settings | 2 features missing `MODEL_TITLE`/`MODEL_DESCRIPTION` → leak | added 4 en strings |
 
 ## RESUME POINTER
-**RESUME FROM screen 3 of 70** (Owner Dashboard) — screens 1–2 done; do styling-match (V1) for screens 3–70 in list order; screens 24/29/49/55 still need their V1 styling pass (V2 already done). App-wide i18n/dup-key/object-leak sweeps are complete — no need to redo. PRE_MEGARUN2_HASH=42c204662.
+**RESUME FROM screen 3 of 70** (Owner Dashboard) for the V1 styling-match pass. All app-wide V2/V3 runtime-bug sweeps are COMPLETE and clean — do not redo them. Screens 24/29/49/55 still need their V1 styling pass (V2 done). PRE_MEGARUN2_HASH=42c204662.
