@@ -13,4 +13,18 @@ const updateReferral = (accountId, referralId, data) =>
     referral: data,
   });
 
-export default { getReferrals, createReferral, updateReferral };
+const getReferralSettings = accountId =>
+  axios.get(`/api/v1/accounts/${accountId}/referrals/settings`);
+
+const updateReferralSettings = (accountId, data) =>
+  axios.put(`/api/v1/accounts/${accountId}/referrals/settings`, {
+    referral_settings: data,
+  });
+
+export default {
+  getReferrals,
+  createReferral,
+  updateReferral,
+  getReferralSettings,
+  updateReferralSettings,
+};

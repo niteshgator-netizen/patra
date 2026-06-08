@@ -129,7 +129,12 @@ Rails.application.routes.draw do
           resources :game_rules, only: [:index, :show, :update], param: :game_id
           resources :player_tiers, only: [:index, :create, :show, :update, :destroy]
           post 'contacts/bulk_tier', to: 'player_tiers#bulk_assign'
-          resources :referrals, only: [:index, :create, :update]
+          resources :referrals, only: [:index, :create, :update] do
+            collection do
+              get  :settings
+              put  'settings', action: :update_settings
+            end
+          end
           resource :reply_preference, only: [:show, :update]
           resources :automation_rules, only: [:index, :create, :show, :update, :destroy] do
             post :clone
