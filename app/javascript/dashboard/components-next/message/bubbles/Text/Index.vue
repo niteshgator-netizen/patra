@@ -16,7 +16,23 @@ const { hasTranslations, translationContent } =
 
 const renderOriginal = ref(false);
 
+const PLACEHOLDER_BODIES = ['[no text]', '[No text]', '[NO TEXT]'];
+
+const isPlaceholderWithAttachment = computed(() => {
+  const body = (content.value || '').trim();
+  return (
+    PLACEHOLDER_BODIES.includes(body) && attachments.value?.length > 0
+  );
+});
+
 const renderContent = computed(() => {
+  // Suppress the literal "[no text]" placeholder body when the message
+  // actually carries an attachment (a Facebook backfill artifact) — show
+  // the attachment alone, like a normal photo message.
+  if (isPlaceholderWithAttachment.value) {
+    return '';
+  }
+
   if (renderOriginal.value) {
     return content.value;
   }
