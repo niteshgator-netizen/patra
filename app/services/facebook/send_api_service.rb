@@ -65,7 +65,8 @@ class Facebook::SendApiService
     Messaging::OutboundDispatcher.send(
       inbox: @inbox_record,
       conversation: @conversation_record,
-      text: @message_content
+      text: @message_content,
+      **winback_tag_opts
     )
     Rails.logger.info("[FbReply] routed via #{@inbox_record.messaging_provider} provider conv=#{@conversation_id} inbox=#{@inbox_record.id}")
     true
@@ -81,6 +82,32 @@ class Facebook::SendApiService
   rescue StandardError => e
     Rails.logger.error("[FbReply] OutboundDispatcher unexpected #{e.class} conv=#{@conversation_id}: #{e.message}")
     false
+  end
+
+  # Win-back outreach messages are created with additional_attributes['winback']
+  # == true. Only those get the HUMAN_AGENT message tag (so they reach the 7-day
+  # window). Normal replies have no such flag -> returns {} -> sent untagged,
+  # exactly as before this change.
+  def winback_tag_opts
+    return {} unless @conversation_record
+
+    msg = @conversation_record.messages
+                              .where(message_type: :outgoing)
+                              .order(created_at: :desc)
+                              .limit(5)
+                              .detect { |m| m.content.to_s == @message_content && winback_flagged?(m) }
+    return {} unless msg
+
+    Rails.logger.info("[FbReply] win-back message detected conv=#{@conversation_id} — sending with HUMAN_AGENT tag")
+    { messaging_type: 'MESSAGE_TAG', message_tag: 'HUMAN_AGENT' }
+  rescue StandardError => e
+    Rails.logger.warn("[FbReply] winback flag check failed conv=#{@conversation_id}: #{e.class}: #{e.message}")
+    {}
+  end
+
+  def winback_flagged?(message)
+    aa = message.additional_attributes
+    aa.is_a?(Hash) && (aa['winback'] == true || aa['winback'].to_s == 'true')
   end
 
   def fetch_conversation_payload

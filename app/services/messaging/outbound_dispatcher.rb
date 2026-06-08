@@ -2,7 +2,7 @@
 
 module Messaging
   class OutboundDispatcher
-    def self.send(inbox:, conversation:, text:, attachments: [])
+    def self.send(inbox:, conversation:, text:, attachments: [], messaging_type: nil, message_tag: nil)
       raise ArgumentError, 'inbox required' if inbox.blank?
       raise ArgumentError, 'conversation required' if conversation.blank?
 
@@ -22,11 +22,12 @@ module Messaging
       end
       Rails.logger.info("[OutboundDispatcher] inbox=#{inbox.id} conv=#{conversation.id} provider=#{provider.class.name} text_len=#{text.to_s.length}")
 
-      provider.send_message(
-        conversation_id: external_conv_id,
-        text: text,
-        attachments: attachments
-      )
+      send_opts = { conversation_id: external_conv_id, text: text, attachments: attachments }
+      # Only thread the tag through when present (win-back). Normal callers pass
+      # nothing -> provider is invoked exactly as before, so replies stay untagged.
+      send_opts[:messaging_type] = messaging_type if messaging_type
+      send_opts[:message_tag] = message_tag if message_tag
+      provider.send_message(**send_opts)
     rescue Messaging::SendError => e
       Rails.logger.error("[OutboundDispatcher] send failed inbox=#{inbox.id} conv=#{conversation.id} #{e.message}")
       raise

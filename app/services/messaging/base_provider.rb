@@ -8,7 +8,7 @@ module Messaging
       @inbox = inbox
     end
 
-    def send_message(conversation_id:, text: nil, attachments: [])
+    def send_message(conversation_id:, text: nil, attachments: [], messaging_type: nil, message_tag: nil)
       raise NotImplementedError, "#{self.class.name} must implement #send_message"
     end
 

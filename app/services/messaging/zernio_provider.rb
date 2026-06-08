@@ -12,12 +12,19 @@ module Messaging
       Errno::ETIMEDOUT, SocketError
     ].freeze
 
-    def send_message(conversation_id:, text: nil, attachments: [])
+    def send_message(conversation_id:, text: nil, attachments: [], messaging_type: nil, message_tag: nil)
       raise Messaging::PermanentSendError, 'text required' if text.blank?
       raise Messaging::PermanentSendError, 'zernio_account_id missing' if zernio_account_id.blank?
 
       body = { accountId: zernio_account_id, message: text }
       body[:attachments] = attachments if attachments.present?
+
+      # Win-back only: HUMAN_AGENT message tag lets sends reach the customer in the
+      # 24h-7day window. Normal in-window replies pass nil -> body stays untagged.
+      if messaging_type.present? && message_tag.present?
+        body[:messagingType] = messaging_type
+        body[:messageTag] = message_tag
+      end
 
       # Show "..." typing dots to the customer before the message lands so the
       # reply feels like a real human typing, not a bot answer. Best-effort;

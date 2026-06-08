@@ -115,6 +115,23 @@ module Games
         send_to_cashout_group(msg, account: account)
       end
 
+      # Win-back manual-send alert. Used when a player is >7 days quiet (no FB tag
+      # can reach them) or the tagged FB send failed — a human copy-pastes this from
+      # the real FB page. Reuses send_to_cashout_group (same token/group as other
+      # alerts for now; per-type routing is a separate future batch). Plain text so
+      # the AI message + URL aren't mangled by MarkdownV2 escaping.
+      def winback_manual_alert(account:, player:, days_dormant:, tier:, diagnosis:, message:, profile_url: nil)
+        lines = []
+        lines << '🔄 WIN-BACK (manual send needed)'
+        lines << "Player: #{player} | Tier: #{tier} | Quiet: #{days_dormant}d"
+        lines << "Why: #{diagnosis}"
+        lines << 'Suggested message:'
+        lines << "\"#{message}\""
+        lines << profile_url.to_s if profile_url.present?
+        send_to_cashout_group(lines.join("\n"), account: account)
+      end
+OLD
+
       def send_to_cashout_group(text, account: nil)
         token = ENV['TELEGRAM_BOT_TOKEN'].presence
         chat_id = ENV['TELEGRAM_CASHOUT_GROUP_ID'].presence || ENV['TELEGRAM_CHAT_ID'].presence
