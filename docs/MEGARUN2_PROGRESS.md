@@ -11,7 +11,7 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 
 ## AREA: INBOX / CONVERSATION
 - [x] 1. Inbox — conversation view — **MATCHED**: defects 1,2,6,7 fixed; 3 mitigated; 5 already-correct(wired+i18n); 4 inspected/contained. See bug table.
-- [ ] 2. Inbox — empty state (`InboxEmptyStateView.vue` / empty ConversationView)
+- [x] 2. Inbox — empty state (`inbox/InboxEmptyState.vue`) — **ALREADY-MATCHED**: clean spinner branch + empty branch (icon + `INBOX.LIST.NOTE` msg, key confirmed present). No leak; centered empty state. V1 reasonable.
 
 ## AREA: PATRA DASHBOARD
 - [ ] 3. Owner Dashboard (`routes/dashboard/patra/PatraOwnerDashboard.vue`) [mockup: dashboard]
@@ -135,8 +135,13 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 - Note: dynamic keys built via template literals (`t(\`X.${v}\`)`) are not statically checkable and were not exhaustively enumerated.
 
 ## COVERAGE TOTALS (this checkpoint)
-Enumerated N=70 · Verdicts=1 partial (screen 1) · Screens 2–70 NOT-REACHED.
-Commits this run: 5 (1 enumeration + 1 per defect 2/7/3 + this ledger update).
+- Enumerated **N=70**.
+- **Full verdict (V1+V2):** screen 1 (Inbox, MATCHED — 7 defects), screen 2 (Inbox empty, ALREADY-MATCHED) = **2**.
+- **Runtime-only verdict (V2/V3, styling V1 pending):** screens 24, 29, 49, 55 = **4** (raw-key leaks fixed).
+- **App-wide V2/V3 partial coverage (all 70):** static i18n key-leak scan = 0 missing; same-scope duplicate-key scan = 0; object/JSON/undefined template-leak class = clean.
+- **NOT-REACHED for styling (V1):** screens 3–23, 25–28, 30–48, 50–54, 56–70 (still need per-screen mockup match).
+- **BUILD (V9/E20):** `pnpm exec vite build` → **exit 0**; bundles committed.
+- Commits this run: 11 (enumeration + 7 Inbox/i18n fix commits + ledger updates + vite bundles).
 
 ## RESUME POINTER
-**RESUME FROM screen 1 of 70** — finish Inbox defects 1, 5, 6 (pointers in bug table), then screen 2 (empty state) → 70 in list order. PRE_MEGARUN2_HASH=42c204662.
+**RESUME FROM screen 3 of 70** (Owner Dashboard) — screens 1–2 done; do styling-match (V1) for screens 3–70 in list order; screens 24/29/49/55 still need their V1 styling pass (V2 already done). App-wide i18n/dup-key/object-leak sweeps are complete — no need to redo. PRE_MEGARUN2_HASH=42c204662.
