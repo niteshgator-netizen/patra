@@ -4087,3 +4087,478 @@ body:not(.dark) ninja-keys {
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W7 — FINALE
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W8 — POST-QA CSS FIX BATCH (light component overrides + scope
+   broadening + spec tweaks)
+   Companion JS-side fixes ship in W8b (separate prompt).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PART A — LIGHT MODE COMPONENT OVERRIDES
+   Beats hardcoded-dark scoped styles via !important on light-only scope.
+   Symmetric scope: body:not(.dark) + [data-theme="light"] so both keying
+   patterns trigger the rules.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── A1. CONTACTS LIST + DETAIL (.contacts-list / .contact / .contact-details) ── */
+body:not(.dark) .contacts-list,
+[data-theme="light"] .contacts-list {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .contact,
+[data-theme="light"] .contact {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+  border-color: transparent !important;
+}
+body:not(.dark) .contact:hover,
+[data-theme="light"] .contact:hover {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .contact.selected,
+body:not(.dark) .contact.active,
+[data-theme="light"] .contact.selected,
+[data-theme="light"] .contact.active {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--patra, #6E56CF) !important;
+}
+body:not(.dark) .contact-details,
+[data-theme="light"] .contact-details {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .contact-expanded,
+[data-theme="light"] .contact-expanded {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .cn,
+[data-theme="light"] .cn { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .cm,
+[data-theme="light"] .cm { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .c-arrow,
+[data-theme="light"] .c-arrow { color: var(--text-4, #A0A0AB) !important; }
+body:not(.dark) .contact:hover .c-arrow,
+[data-theme="light"] .contact:hover .c-arrow { color: var(--patra-3, #7C3AED) !important; }
+body:not(.dark) .pat-sg,
+[data-theme="light"] .pat-sg {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .pat-sg-n,
+[data-theme="light"] .pat-sg-n { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .pat-sg-l,
+[data-theme="light"] .pat-sg-l { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-empty-note,
+[data-theme="light"] .patra-empty-note {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text-3, #75727F) !important;
+}
+body:not(.dark) .patra-dtab,
+[data-theme="light"] .patra-dtab { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-dtab.active,
+[data-theme="light"] .patra-dtab.active {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+}
+body:not(.dark) .patra-attr-row,
+[data-theme="light"] .patra-attr-row {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .patra-attr-val,
+[data-theme="light"] .patra-attr-val { color: var(--text, #1A1A24) !important; }
+
+/* W7 spec carry-over: force UPPERCASE on attr keys in light (QA found capitalize) */
+body:not(.dark) .patra-attr-key,
+[data-theme="light"] .patra-attr-key {
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  color: var(--text-3, #75727F) !important;
+}
+
+/* ── A2. CONTEXT PANEL (.conv-sidebar-patra / context tabs) ── */
+body:not(.dark) .conv-sidebar-patra,
+body:not(.dark) .conv-sidebar-patra.contact-panel-v6,
+[data-theme="light"] .conv-sidebar-patra {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .ctx-sidebar-header,
+body:not(.dark) .ctx-body,
+[data-theme="light"] .ctx-sidebar-header,
+[data-theme="light"] .ctx-body {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .patra-sidebar-tabs,
+[data-theme="light"] .patra-sidebar-tabs { border-color: var(--border, #E5E3EB) !important; }
+body:not(.dark) .patra-sidebar-tab,
+[data-theme="light"] .patra-sidebar-tab { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-sidebar-tab.active,
+[data-theme="light"] .patra-sidebar-tab.active {
+  color: var(--patra, #6E56CF) !important;
+  background: rgba(110, 86, 207, 0.08) !important;
+}
+
+/* ── A3. PROFILE / AVAILABILITY MENU (.patra-pop) ── */
+body:not(.dark) .patra-pop,
+[data-theme="light"] .patra-pop {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+  border-color: var(--border-hi, #D6D3DE) !important;
+}
+body:not(.dark) .patra-pop .menu-item,
+body:not(.dark) .patra-pop a,
+[data-theme="light"] .patra-pop .menu-item,
+[data-theme="light"] .patra-pop a { color: var(--text, #1A1A24) !important; }
+/* Spec deviations applied in BOTH themes: 13px items + border-hi outline */
+.patra-pop {
+  border-color: var(--border-hi) !important;
+}
+.patra-pop .menu-item,
+.patra-pop a,
+.patra-pop button,
+.patra-pop li {
+  font-size: 13px !important;
+}
+
+/* ── A4. AI TRAINING (.pat-at-root + .pat-at-card + sub-elements) ── */
+body:not(.dark) .pat-at-root,
+body:not(.dark) .pat-at-root.pat-ai-train,
+[data-theme="light"] .pat-at-root {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .pat-at-main,
+body:not(.dark) .pat-at-topbar,
+body:not(.dark) .pat-at-content,
+[data-theme="light"] .pat-at-main,
+[data-theme="light"] .pat-at-topbar,
+[data-theme="light"] .pat-at-content {
+  background: transparent !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .pat-at-card,
+[data-theme="light"] .pat-at-card {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+}
+body:not(.dark) .pat-at-title,
+[data-theme="light"] .pat-at-title { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .pat-at-sub,
+body:not(.dark) .pat-at-bc,
+[data-theme="light"] .pat-at-sub,
+[data-theme="light"] .pat-at-bc { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .pat-at-mesh,
+body:not(.dark) .pat-at-spotlight,
+[data-theme="light"] .pat-at-mesh,
+[data-theme="light"] .pat-at-spotlight { opacity: 0.35 !important; }
+
+/* ── A5. GAMES MODULE (.games-wrap / .gcard / .gsum-card / .gcard-btn) ── */
+body:not(.dark) .games-wrap,
+body:not(.dark) .games-main,
+[data-theme="light"] .games-wrap,
+[data-theme="light"] .games-main {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .gsum-card,
+body:not(.dark) .gcard,
+[data-theme="light"] .gsum-card,
+[data-theme="light"] .gcard {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+}
+body:not(.dark) .gcard:hover,
+[data-theme="light"] .gcard:hover {
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 0 22px rgba(110,86,207,0.10) !important;
+}
+body:not(.dark) .gcard .gn,
+[data-theme="light"] .gcard .gn { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .gcard .gd,
+[data-theme="light"] .gcard .gd { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .gcard .gcard-ic,
+[data-theme="light"] .gcard .gcard-ic {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+}
+body:not(.dark) .gcard-btn.mp,
+[data-theme="light"] .gcard-btn.mp {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+/* CRITICAL FIX — .gcard-btn.cfg loses gradient in light. Restore brand gradient. */
+body:not(.dark) .gcard-btn.cfg,
+[data-theme="light"] .gcard-btn.cfg {
+  background-color: transparent !important;
+  background-image: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+body:not(.dark) .gcard-sw.off,
+[data-theme="light"] .gcard-sw.off { background: var(--surface-3, #ECE9F2) !important; }
+
+/* CRITICAL FIX — .games-wrap .callout flips to amber in light. Keep patra-tinted. */
+body:not(.dark) .games-wrap .callout,
+body:not(.dark) .callout,
+[data-theme="light"] .games-wrap .callout,
+[data-theme="light"] .callout {
+  background-color: transparent !important;
+  background-image: linear-gradient(135deg, rgba(110, 86, 207, 0.08), rgba(139, 92, 246, 0.04)) !important;
+  border-color: rgba(110, 86, 207, 0.22) !important;
+  color: var(--text-2, #4A4756) !important;
+}
+body:not(.dark) .games-wrap .callout svg,
+body:not(.dark) .callout svg,
+[data-theme="light"] .games-wrap .callout svg,
+[data-theme="light"] .callout svg {
+  color: var(--patra-3, #7C3AED) !important;
+}
+
+/* ── A6. SETTINGS SHELLS (.pat-list-wrap / .pat-auto-wrap / .pat-canned-wrap / .pat-ph-wrap / .pat-notif-wrap) ── */
+body:not(.dark) .pat-list-wrap,
+body:not(.dark) .pat-auto-wrap,
+body:not(.dark) .pat-canned-wrap,
+body:not(.dark) .pat-ph-wrap,
+body:not(.dark) .pat-notif-wrap,
+[data-theme="light"] .pat-list-wrap,
+[data-theme="light"] .pat-auto-wrap,
+[data-theme="light"] .pat-canned-wrap,
+[data-theme="light"] .pat-ph-wrap,
+[data-theme="light"] .pat-notif-wrap {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* Force max-width 1200px in light state (QA observed 760px regression on settings list pages) */
+body:not(.dark) [class*="pat-"][class$="-main"],
+[data-theme="light"] [class*="pat-"][class$="-main"],
+body:not(.dark) .pat-list-main,
+body:not(.dark) .pat-auto-main,
+body:not(.dark) .pat-canned-main,
+body:not(.dark) .pat-notif-main,
+body:not(.dark) .pat-page-main {
+  max-width: 1200px !important;
+}
+
+/* Settings cards in light must be white + light border + 16px radius (QA found 14px regression) */
+body:not(.dark) [class*="pat-"][class*="-wrap"] .card,
+[data-theme="light"] [class*="pat-"][class*="-wrap"] .card,
+body:not(.dark) .pat-settings-section .card {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  border-radius: 16px !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* Count-label pill must stay a pill in light (QA found flat-text regression) */
+body:not(.dark) [class*="pat-"][class*="-wrap"] .count-label,
+[data-theme="light"] [class*="pat-"][class*="-wrap"] .count-label,
+body:not(.dark) .count-label,
+[data-theme="light"] .count-label {
+  background: rgba(110, 86, 207, 0.10) !important;
+  color: var(--patra-2, #8B5CF6) !important;
+  border-radius: 20px !important;
+  padding: 4px 10px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+}
+
+/* ── A7. DASHBOARD (.patra-owner-dashboard / .pat-dash / cards / KPIs) ── */
+body:not(.dark) .patra-owner-dashboard,
+body:not(.dark) .pat-dash,
+[data-theme="light"] .patra-owner-dashboard,
+[data-theme="light"] .pat-dash {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .patra-card,
+[data-theme="light"] .patra-card {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06) !important;
+}
+body:not(.dark) .patra-card:hover,
+[data-theme="light"] .patra-card:hover {
+  border-color: var(--border-hi, #D6D3DE) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 0 18px rgba(110,86,207,0.08) !important;
+}
+body:not(.dark) .patra-kpi-n,
+[data-theme="light"] .patra-kpi-n { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .patra-kpi-l,
+[data-theme="light"] .patra-kpi-l { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-tq-label,
+body:not(.dark) .patra-ch-name,
+body:not(.dark) .patra-ms-l,
+body:not(.dark) .patra-ap-k,
+[data-theme="light"] .patra-tq-label,
+[data-theme="light"] .patra-ch-name,
+[data-theme="light"] .patra-ms-l,
+[data-theme="light"] .patra-ap-k { color: var(--text-3, #75727F) !important; }
+body:not(.dark) .patra-tq-count,
+body:not(.dark) .patra-ch-count,
+body:not(.dark) .patra-ms-n,
+body:not(.dark) .patra-ap-v,
+[data-theme="light"] .patra-tq-count,
+[data-theme="light"] .patra-ch-count,
+[data-theme="light"] .patra-ms-n,
+[data-theme="light"] .patra-ap-v { color: var(--text, #1A1A24) !important; }
+body:not(.dark) .patra-range-btn,
+[data-theme="light"] .patra-range-btn {
+  background: var(--surface-2, #F2F0F7) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text-2, #4A4756) !important;
+}
+body:not(.dark) .patra-range-btn.active,
+[data-theme="light"] .patra-range-btn.active {
+  background-image: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* ── A8. SEARCH PANEL (scoped, not broad) ── */
+body:not(.dark) .search-results-wrap,
+body:not(.dark) .search-wrap,
+[data-theme="light"] .search-results-wrap,
+[data-theme="light"] .search-wrap {
+  background: var(--surface, #FFFFFF) !important;
+  color: var(--text, #1A1A24) !important;
+}
+body:not(.dark) .search-section-header,
+[data-theme="light"] .search-section-header {
+  background: var(--canvas, #F6F5F9) !important;
+  color: var(--text-3, #75727F) !important;
+  border-bottom-color: var(--border, #E5E3EB) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PART B — BROADEN .dark SCOPES THAT NEVER FIRE
+   Add [data-theme="dark"] mirrors for selectors where the .dark ancestor
+   doesn't always apply.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Notifications status badge + glowing dot — was .dark-only, now also data-theme=dark */
+[data-theme="dark"] .pat-notif-wrap .status-badge,
+.dark .pat-notif-wrap .status-badge {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 20px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+[data-theme="dark"] .pat-notif-wrap .status-badge.status-on,
+.dark .pat-notif-wrap .status-badge.status-on {
+  background: rgba(63, 185, 80, 0.15) !important;
+  color: var(--green, #3FB950) !important;
+}
+[data-theme="dark"] .pat-notif-wrap .status-badge.status-on::before,
+.dark .pat-notif-wrap .status-badge.status-on::before {
+  content: '' !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: var(--green, #3FB950) !important;
+  box-shadow: 0 0 6px var(--green, #3FB950) !important;
+  display: inline-block !important;
+}
+[data-theme="dark"] .pat-notif-wrap .status-badge.status-off,
+.dark .pat-notif-wrap .status-badge.status-off {
+  background: rgba(248, 81, 73, 0.15) !important;
+  color: var(--red, #F85149) !important;
+}
+[data-theme="dark"] .pat-notif-wrap .status-badge.status-off::before,
+.dark .pat-notif-wrap .status-badge.status-off::before {
+  content: '' !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: var(--red, #F85149) !important;
+  display: inline-block !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PART C — SPEC DEVIATIONS (Tier 3 / Tier 4)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* C1. KPI fonts — Cyan QA confirmed swapped families on dashboard.
+   .patra-kpi-n should be Space Grotesk (was JetBrains Mono).
+   .patra-kpi-l should be JetBrains Mono (was Inter). */
+.patra-kpi-n,
+.patra-owner-dashboard .patra-kpi-n,
+.pat-dash .patra-kpi-n {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+}
+.patra-kpi-l,
+.patra-owner-dashboard .patra-kpi-l,
+.pat-dash .patra-kpi-l {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* C2. Agents .display weight 700 (was 600 — inconsistent with teams/inboxes/labels at 700) */
+[data-theme="dark"] .pat-list-wrap .sec-head h1.display,
+[data-theme="dark"] .pat-list-wrap .sec-head .display,
+body:not(.dark) .pat-list-wrap .sec-head h1.display,
+body:not(.dark) .pat-list-wrap .sec-head .display,
+.dark .pat-list-wrap .sec-head h1.display,
+.pat-list-wrap .sec-head h1.display,
+.pat-list-wrap .sec-head .display {
+  font-weight: 700 !important;
+}
+
+/* C3. Agents .ln Space Grotesk (was Inter) */
+.pat-list-wrap .ln,
+[class*="pat-"][class*="-wrap"] .ln {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+}
+
+/* C4. General settings card radius 16 (was 14 — W7 .card override didn't reach Account page) */
+.pat-settings-section .card,
+.settings-section .card,
+.column.settings-box .card,
+body:not(.dark) .pat-settings-section .card,
+[data-theme="dark"] .pat-settings-section .card {
+  border-radius: 16px !important;
+}
+
+/* C5. Scoring panel button JetBrains Mono (was Inter) */
+.patra-scoring-btn,
+.ph-scoring-save .patra-scoring-btn,
+.patra-scoring-panel .patra-scoring-btn {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* C6. Captain assistants list surface light fallback (Yellow QA: dark surface bleeds in light) */
+body:not(.dark) .captain-assistants-list,
+body:not(.dark) [class*="captain"] .bg-n-solid-1,
+[data-theme="light"] .captain-assistants-list,
+[data-theme="light"] [class*="captain"] .bg-n-solid-1 {
+  background: var(--surface, #FFFFFF) !important;
+  border-color: var(--border, #E5E3EB) !important;
+  color: var(--text, #1A1A24) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W8 — POST-QA CSS FIX BATCH
+   ════════════════════════════════════════════════════════════════════ */
