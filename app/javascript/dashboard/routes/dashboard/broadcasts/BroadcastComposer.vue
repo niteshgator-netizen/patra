@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import BroadcastsAPI from 'dashboard/api/broadcasts';
 
 const { t } = useI18n();
@@ -19,33 +20,51 @@ const sending = ref(false);
 
 const load = async () => {
   if (!route.params.broadcastId) return;
-  const { data } = await BroadcastsAPI.show(route.params.broadcastId);
-  broadcast.value = data;
+  try {
+    const { data } = await BroadcastsAPI.show(route.params.broadcastId);
+    broadcast.value = data;
+  } catch (error) {
+    useAlert(t('PATRA.BROADCASTS.LOAD_ERROR'));
+  }
 };
 
 const save = async () => {
-  if (route.params.broadcastId) {
-    await BroadcastsAPI.update(route.params.broadcastId, broadcast.value);
-  } else {
-    const { data } = await BroadcastsAPI.create(broadcast.value);
-    router.replace({
-      name: 'patra_broadcast_compose',
-      params: { broadcastId: data.id },
-    });
+  try {
+    if (route.params.broadcastId) {
+      await BroadcastsAPI.update(route.params.broadcastId, broadcast.value);
+    } else {
+      const { data } = await BroadcastsAPI.create(broadcast.value);
+      router.replace({
+        name: 'patra_broadcast_compose',
+        params: { broadcastId: data.id },
+      });
+    }
+  } catch (error) {
+    useAlert(t('PATRA.BROADCASTS.SAVE_ERROR'));
   }
 };
 
 const loadPreviewCount = async () => {
   if (!route.params.broadcastId) return;
-  const { data } = await BroadcastsAPI.previewCount(route.params.broadcastId);
-  previewCount.value = data.count;
+  try {
+    const { data } = await BroadcastsAPI.previewCount(route.params.broadcastId);
+    previewCount.value = data.count;
+  } catch (error) {
+    previewCount.value = null;
+  }
 };
 
 const sendNow = async () => {
   sending.value = true;
-  await BroadcastsAPI.sendNow(route.params.broadcastId);
-  sending.value = false;
-  router.push({ name: 'patra_broadcast_list' });
+  try {
+    await BroadcastsAPI.sendNow(route.params.broadcastId);
+    router.push({ name: 'patra_broadcast_list' });
+  } catch (error) {
+    useAlert(t('PATRA.BROADCASTS.SEND_ERROR'));
+  } finally {
+    // Always reset so the Send button can't stay stuck on "Sending…".
+    sending.value = false;
+  }
 };
 
 onMounted(async () => {

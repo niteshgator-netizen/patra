@@ -242,7 +242,10 @@
       "SAVE": "Save",
       "SEND_NOW": "Send now",
       "MATCHING_CONTACTS": "{count} contacts match this segment",
-      "EMPTY": "No broadcasts yet. Create one to message a segment of contacts at once."
+      "EMPTY": "No broadcasts yet. Create one to message a segment of contacts at once.",
+      "LOAD_ERROR": "Could not load this broadcast.",
+      "SAVE_ERROR": "Could not save the broadcast. Please try again.",
+      "SEND_ERROR": "Could not send the broadcast. Please try again."
     },
     "AI": {
       "SUGGESTED": "Suggested",
