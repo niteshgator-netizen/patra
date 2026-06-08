@@ -10,7 +10,7 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 ---
 
 ## AREA: INBOX / CONVERSATION
-- [ ] 1. Inbox — conversation view (`routes/dashboard/conversation/ConversationView.vue` + ConversationBox/Message tree) — **fix 7 known defects first**
+- [~] 1. Inbox — conversation view — **IN PROGRESS**: defects 2,7 fixed; 3 mitigated; 4 inspected(contained); 1,5,6 NOT-REACHED. See bug table.
 - [ ] 2. Inbox — empty state (`InboxEmptyStateView.vue` / empty ConversationView)
 
 ## AREA: PATRA DASHBOARD
@@ -112,16 +112,20 @@ Verdict legend: `[ ]` NOT-REACHED · `[x]` MATCHED / ALREADY-MATCHED (with evide
 ## RUNTIME BUGS LEDGER (7 known + new)
 | # | Screen | Defect | Root cause | Fix | Status |
 |---|--------|--------|-----------|-----|--------|
-| 1 | Inbox | Image/attachment → "[no text]" + broken thumb | — | — | open |
-| 2 | Inbox | Raw key `PATRA.MESSAGE.INTERNAL_NOTE` leaks | missing en string | — | open |
-| 3 | Inbox | "Fetching macros" spinner never resolves | — | — | open |
-| 4 | Inbox | Floating "+40" element mid-thread | — | — | open |
-| 5 | Inbox | Missing SLA "Reply due in X:XX" bar | — | — | open |
-| 6 | Inbox | Pinned banner not styled to mockup | — | — | open |
-| 7 | Inbox | "HANDED TO YOU BY PATRA AI" card not rendering (`PatraAiHandoffCard.vue`) | — | — | open |
+| 1 | Inbox | Image/attachment → "[no text]" + broken thumb | not yet diagnosed | — | **NOT-REACHED** — next: `components-next/message/bubbles/Image.vue`,`File.vue`,`BaseAttachment.vue` — check attachment-only msg routing + missing-src fallback |
+| 2 | Inbox | Raw key `PATRA.MESSAGE.INTERNAL_NOTE` leaks as text | **Duplicate `"MESSAGE"` key under `PATRA` in en/patra.json (L84 + L141); JSON.parse kept the later `{READ}` block, dropping INTERNAL_NOTE** | Merged the two blocks into one (`INTERNAL_NOTE`+`READ`); verified parse → both keys present, 1 block | **FIXED ✓ verified** |
+| 3 | Inbox | "Fetching macros" spinner never resolves | Branches were already clean (empty/loading/loaded mutually exclusive); only risk = unhandled fetch rejection | Added `.catch(()=>{})` on `macros/get` mount dispatch | **MITIGATED ✓** |
+| 4 | Inbox | Floating "+40" element mid-thread | The only `+N` chip (`+{{attachmentCount-6}}`, ContactPanel L327) is a proper grid cell inside `.patra-media-grid` in the **sidebar**, not mid-thread | Inspected — correctly contained; live "mid-thread" sighting not reproduced in code | **INSPECTED — needs live screenshot to localize** |
+| 5 | Inbox | Missing SLA "Reply due in X:XX" bar under header | not yet diagnosed | — | **NOT-REACHED** — next: `components/widgets/conversation/ConversationHeader.vue` (already refs SLA) |
+| 6 | Inbox | Pinned banner not styled to mockup | not yet diagnosed | — | **NOT-REACHED** — next: `components/widgets/conversation/PinnedMessagesSection.vue` |
+| 7 | Inbox | "HANDED TO YOU BY PATRA AI" card not rendering | `PatraAiHandoffCard` was only mounted under the non-default `copilot` sidebar tab (`sidebarTab` defaults to `'details'`) | Also mount it at top of default `details` tab (ContactPanel L189) | **FIXED ✓** (display path; needs live confirm) |
 
 ## I18N KEYS ADDED
-(none yet)
+- `PATRA.MESSAGE.READ` = "Read" (re-added during dedup merge; `INTERNAL_NOTE` was already authored but unreachable due to the duplicate-key bug)
+
+## COVERAGE TOTALS (this checkpoint)
+Enumerated N=70 · Verdicts=1 partial (screen 1) · Screens 2–70 NOT-REACHED.
+Commits this run: 5 (1 enumeration + 1 per defect 2/7/3 + this ledger update).
 
 ## RESUME POINTER
-RESUME FROM screen 1 of 70
+**RESUME FROM screen 1 of 70** — finish Inbox defects 1, 5, 6 (pointers in bug table), then screen 2 (empty state) → 70 in list order. PRE_MEGARUN2_HASH=42c204662.
