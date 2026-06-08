@@ -7,6 +7,9 @@
       <div v-if="loading" class="text-sm text-slate-400">Loading...</div>
 
       <div v-else class="space-y-4">
+        <p v-if="!gameRules.length" class="text-sm text-slate-400 py-8 text-center">
+          No games configured yet. Connect a game integration to set freeplay, deposit, and cashout rules.
+        </p>
         <div
           v-for="rule in gameRules"
           :key="rule.id || rule.game_id"

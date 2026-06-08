@@ -57,6 +57,9 @@
       <div v-if="loading" class="text-sm text-slate-400">Loading...</div>
 
       <div v-else class="space-y-3">
+        <p v-if="!tiers.length" class="text-sm text-slate-400 py-8 text-center">
+          No player tiers yet. Create one to segment players by deposit volume or activity.
+        </p>
         <div
           v-for="tier in tiers"
           :key="tier.id"
