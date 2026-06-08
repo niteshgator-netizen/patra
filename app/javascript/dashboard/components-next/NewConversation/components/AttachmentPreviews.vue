@@ -52,6 +52,7 @@ const removeAttachment = id => {
         <img
           class="object-cover w-[4.5rem] h-[4.5rem] rounded-lg"
           :src="attachment.thumb"
+          @error="$event.target.style.visibility = 'hidden'"
         />
         <Button
           variant="ghost"
