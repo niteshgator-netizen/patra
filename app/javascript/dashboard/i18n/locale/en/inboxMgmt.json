@@ -292,6 +292,7 @@
         },
         "SUBMIT_BUTTON": "Create WhatsApp Channel",
         "EMBEDDED_SIGNUP": {
+          "SDK_LOAD_ERROR": "Could not load the Meta SDK. Check your connection or disable ad blockers and try again.",
           "TITLE": "Quick setup with Meta",
           "DESC": "Use the WhatsApp Embedded Signup flow to quickly connect new numbers. You will be redirected to Meta to log into your WhatsApp Business account. Having admin access will help make the setup smooth and easy.",
           "BENEFITS": {

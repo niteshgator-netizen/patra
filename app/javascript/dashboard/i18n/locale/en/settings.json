@@ -416,11 +416,15 @@
       "DESCRIPTION": "Enable or disable AI-powered features.",
       "AUDIO_TRANSCRIPTION": {
         "TITLE": "Audio Transcription",
-        "DESCRIPTION": "Automatically convert voice messages and call recordings into searchable text transcripts."
+        "DESCRIPTION": "Automatically convert voice messages and call recordings into searchable text transcripts.",
+        "MODEL_TITLE": "Audio Transcription Model",
+        "MODEL_DESCRIPTION": "Select the AI model to use for transcribing voice messages and call recordings"
       },
       "HELP_CENTER_SEARCH": {
         "TITLE": "Help Center Search Indexing",
-        "DESCRIPTION": "Use AI for context aware search inside your help center articles."
+        "DESCRIPTION": "Use AI for context aware search inside your help center articles.",
+        "MODEL_TITLE": "Help Center Search Model",
+        "MODEL_DESCRIPTION": "Select the AI model to use for indexing and searching your help center articles"
       },
       "LABEL_SUGGESTION": {
         "TITLE": "Label Suggestion",
