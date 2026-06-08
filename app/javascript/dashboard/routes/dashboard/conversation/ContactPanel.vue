@@ -187,6 +187,7 @@ onMounted(() => {
         </button>
       </div>
       <div v-show="sidebarTab === 'details'">
+        <PatraAiHandoffCard :conversation-id="conversationId" />
         <ContactProfileStats :contact="contact" />
         <div class="sidebar-accordions">
         <Draggable
