@@ -54,18 +54,22 @@ const handleImageError = () => {
     data-bubble-name="image"
     @click="showGallery = true"
   >
-    <div v-if="hasError" class="flex items-center gap-1 text-center rounded-lg">
+    <div
+      v-if="hasError || !attachment?.dataUrl"
+      class="flex items-center gap-1 text-center rounded-lg"
+    >
       <Icon icon="i-lucide-circle-off" class="text-n-slate-11" />
       <p class="mb-0 text-n-slate-11">
         {{ $t('COMPONENTS.MEDIA.IMAGE_UNAVAILABLE') }}
       </p>
     </div>
-    <div v-else-if="isLoaded || attachment.dataUrl" class="relative group rounded-lg overflow-hidden">
+    <div v-else class="relative group rounded-lg overflow-hidden">
       <img
         class="skip-context-menu"
         :src="attachment.dataUrl"
         :width="attachment.width"
         :height="attachment.height"
+        @error="handleImageError"
       />
       <div
         class="inset-0 p-2 pointer-events-none absolute bg-gradient-to-tl from-n-slate-12/30 dark:from-n-slate-1/50 via-transparent to-transparent hidden group-hover:flex"
