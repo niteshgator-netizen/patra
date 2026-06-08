@@ -221,6 +221,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="patra-range-btn"
+              :class="{ active: activeRange === '7d' }"
               @click="setRange('7d')"
             >
               {{ rangeSevenDays }}
@@ -229,6 +230,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="patra-range-btn"
+              :class="{ active: activeRange === '30d' }"
               @click="setRange('30d')"
             >
               {{ rangeThirtyDays }}

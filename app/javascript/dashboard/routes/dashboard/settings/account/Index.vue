@@ -128,7 +128,7 @@ export default {
           this.$root.$i18n.locale = effectiveLocale;
         }
         this.name = name || 'Patra';
-        this.locale = locale;
+        this.locale = locale || 'en';
         this.id = id;
         this.domain = domain;
         this.supportEmail = support_email;

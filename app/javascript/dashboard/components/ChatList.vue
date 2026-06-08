@@ -257,10 +257,10 @@ const conversationCustomAttributes = useFunctionGetter(
 );
 
 const activeAssigneeTabCount = computed(() => {
-  const count = assigneeTabItems.value.find(
-    item => item.key === activeAssigneeTab.value
-  ).count;
-  return count;
+  const item = assigneeTabItems.value.find(
+    i => i.key === activeAssigneeTab.value
+  );
+  return item ? item.count : 0;
 });
 
 const conversationListPagination = computed(() => {
@@ -280,7 +280,7 @@ const conversationListPagination = computed(() => {
     return 1;
   }
 
-  return currentPage.value + 1;
+  return (currentPage.value || 0) + 1;
 });
 
 const conversationFilters = computed(() => {
