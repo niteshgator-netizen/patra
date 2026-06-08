@@ -60,7 +60,10 @@ const onDragEnd = () => {
 };
 
 onMounted(() => {
-  store.dispatch('macros/get');
+  // Guard the fetch so a rejected promise can't strand the "Fetching macros"
+  // spinner — the store clears isFetching, but an unhandled rejection here
+  // would otherwise bubble. Empty/loaded branches below handle every outcome.
+  store.dispatch('macros/get').catch(() => {});
 });
 </script>
 
