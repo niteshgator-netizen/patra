@@ -61,26 +61,79 @@ const sectionTitle = computed(() =>
 </script>
 
 <template>
-  <div v-if="pinnedMessages.length" class="border-b border-n-weak">
+  <div v-if="pinnedMessages.length" class="patra-pinned">
     <button
       type="button"
-      class="w-full px-4 py-2 text-xs font-medium text-n-slate-11 flex items-center gap-2"
+      class="patra-pinned-head"
       @click="showPinned = !showPinned"
     >
-      <Icon icon="i-lucide-pin" class="size-3.5 text-amber-400" />
-      {{ sectionTitle }}
-      <span>{{ showPinned ? '▼' : '▶' }}</span>
+      <Icon icon="i-lucide-pin" class="patra-pinned-icon" />
+      <span class="patra-pinned-title">{{ sectionTitle }}</span>
+      <span class="patra-pinned-caret">{{ showPinned ? '▼' : '▶' }}</span>
     </button>
-    <div v-if="showPinned" class="max-h-40 overflow-y-auto px-4 pb-2">
+    <div v-if="showPinned" class="patra-pinned-list">
       <div
         v-for="message in pinnedMessages"
         :key="message.id"
-        class="text-sm py-1 cursor-pointer hover:bg-n-alpha-2 rounded px-2"
+        class="patra-pinned-item"
         @click="emit('scrollToMessage', message.id)"
       >
-        <span class="font-medium">{{ senderName(message) }}:</span>
+        <b class="patra-pinned-sender">{{ senderName(message) }}:</b>
         {{ truncate(message.content, 80) }}
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Matches PATRA_APP_final.html .pinned banner (amber accent) */
+.patra-pinned {
+  margin: 8px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(227, 160, 8, 0.25);
+  background: linear-gradient(135deg, rgba(227, 160, 8, 0.1), transparent);
+}
+.patra-pinned-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #a8a6b6;
+}
+.patra-pinned-icon {
+  width: 14px;
+  height: 14px;
+  color: #e3a008;
+  flex-shrink: 0;
+}
+.patra-pinned-title {
+  flex: 1;
+  text-align: left;
+}
+.patra-pinned-caret {
+  font-size: 10px;
+  color: #75727f;
+}
+.patra-pinned-list {
+  max-height: 10rem;
+  overflow-y: auto;
+  padding: 0 13px 9px;
+}
+.patra-pinned-item {
+  font-size: 12.5px;
+  color: #a8a6b6;
+  padding: 4px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.patra-pinned-item:hover {
+  background: rgba(227, 160, 8, 0.08);
+}
+.patra-pinned-sender {
+  color: #ededf2;
+  font-weight: 600;
+}
+</style>
