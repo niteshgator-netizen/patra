@@ -2162,15 +2162,240 @@ module Games
       end
     end
 
+    # Transfer requests do NOT arrive structured — the :transfer_between_games intent
+    # only carries game_slug. We extract the source game, cashout amount, and the list
+    # of (target game, amount) loads from the message. Primary path: the existing
+    # Ai::HaikuClient LLM service returns a JSON plan. Fallback: regex + IntentDetector.
+    TRANSFER_PLAN_SYSTEM_PROMPT = <<~'PROMPT'
+      You convert a customer's game-transfer request into JSON. The customer wants to cash out from ONE source game and load the proceeds onto one or more target games.
+      Respond with ONLY valid compact JSON, no markdown, no commentary:
+      {"source_game":"<name>","cashout_amount":<number>,"loads":[{"game":"<name>","amount":<number>}]}
+      Amounts are plain numbers, no dollar sign. If the source game or amount is not stated, use null. Copy game names exactly as the customer wrote them. Never invent loads.
+    PROMPT
+
     def handle_transfer_between_games(intent)
+      plan = extract_transfer_plan((latest_customer_text || recent_customer_text).to_s)
+
+      cashout_amount = plan ? plan[:cashout_amount].to_f : 0.0
+      if plan && cashout_amount <= 0 && plan[:loads].any?
+        cashout_amount = plan[:loads].sum { |l| l[:amount].to_f }
+        Rails.logger.info("[Orchestrator] transfer: inferred cashout=#{cashout_amount} from load total")
+      end
+
+      if plan.nil? || plan[:source_slug].blank? || cashout_amount <= 0
+        return escalate_transfer_unclear(plan)
+      end
+
+      if plan[:loads].empty?
+        return { reply: 'which games do you want me to move it to, and how much on each?', labels: ['transfer-needs-targets'] }
+      end
+
+      source_slug = plan[:source_slug]
+      requested_load_total = plan[:loads].sum { |l| l[:amount].to_f }
+
+      # Genius rule 6: never load more than was cashed out. Move nothing, ask them to fix it.
+      if requested_load_total > cashout_amount + 0.001
+        return {
+          reply: "you've got $#{fmt_amt(cashout_amount)} from #{slug_label(source_slug)}, that's short of the $#{fmt_amt(requested_load_total)} you wanted to load.",
+          labels: ['transfer-short']
+        }
+      end
+
+      source_ag = pick_agent_game(source_slug)
+      return { reply: unavailable_game_reply(source_slug), labels: ['game-unavailable'] } unless source_ag
+
+      source_username = find_game_username_for_slug(contact, source_slug)
+      unless source_username
+        return { reply: "what's your #{source_ag.game.name} username? need it to cash out and transfer.", labels: ['transfer-needs-username'] }
+      end
+
+      # Step 1: cash out from the source game. CHECK success — if it fails, move nothing.
+      source_executor = Games::ActionExecutor.new(agent_game: source_ag, contact: contact, conversation: conversation)
+      cashout_result = source_executor.cashout_player(
+        game_username: source_username,
+        amount: cashout_amount,
+        metadata: { source: 'bella_transfer', conversation_id: conversation&.id }
+      )
+
+      unless cashout_result[:ok]
+        safe_telegram { Games::TelegramNotifier.load_failed(cashout_result[:action]) if cashout_result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "TRANSFER cashout FAILED — $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} (#{source_username}): #{cashout_result[:error]} (code #{cashout_result[:code]}). No money moved.",
+            conversation: conversation
+          )
+        end
+        return {
+          reply: "hit a snag cashing out from #{source_ag.game.name} — flagged a teammate, they'll sort your transfer in a couple minutes.",
+          labels: ['transfer-failed', 'needs-human']
+        }
+      end
+
+      # Steps 2-3: cashout succeeded. Load each target; count ONLY what actually loads.
+      loaded = []
+      failed = []
+      plan[:loads].each do |l|
+        amt = l[:amount].to_f
+        target_slug = l[:game_slug]
+        target_ag = target_slug.present? ? pick_agent_game(target_slug) : nil
+
+        unless target_ag
+          label = target_slug.present? ? slug_label(target_slug) : (l[:game_text].presence || 'unknown game')
+          failed << { label: label, amount: amt, reason: 'game unavailable' }
+          next
+        end
+
+        target_username = find_game_username_for_slug(contact, target_slug)
+        unless target_username
+          failed << { label: target_ag.game.name, amount: amt, reason: 'no account on file' }
+          next
+        end
+
+        target_executor = Games::ActionExecutor.new(agent_game: target_ag, contact: contact, conversation: conversation)
+        load_result = target_executor.load_player(
+          game_username: target_username,
+          amount: amt,
+          metadata: { source: 'bella_transfer', conversation_id: conversation&.id }
+        )
+
+        if load_result[:ok]
+          loaded << { label: target_ag.game.name, amount: amt }
+        else
+          failed << { label: target_ag.game.name, amount: amt, reason: "#{load_result[:error]} (code #{load_result[:code]})" }
+        end
+      end
+
+      # Step 4: remaining reflects ONLY successful loads — money never silently vanishes.
+      loaded_total = loaded.sum { |x| x[:amount] }
+      remaining = cashout_amount - loaded_total
+
+      # Step 5: ALWAYS report the real state to Telegram.
+      report = "TRANSFER — Cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name}."
+      report += " Loaded: #{loaded.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} OK" }.join(', ')}." if loaded.any?
+      report += " FAILED: #{failed.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} (#{x[:reason]})" }.join(', ')}." if failed.any?
+      report += if remaining > 0.001
+                  " Remaining: $#{fmt_amt(remaining)} — cashed out, tell player to request it."
+                else
+                  ' Remaining: $0 — fully loaded.'
+                end
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: report, conversation: conversation)
+      end
+
+      # Step 7: tell the customer what actually happened.
+      loaded_phrase = loaded.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')
+      if loaded.any? && failed.empty? && remaining <= 0.001
+        { reply: "done! cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} and loaded #{loaded_phrase}.", labels: ['transfer-complete'] }
+      elsif loaded.any?
+        reply = "cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} and loaded #{loaded_phrase}."
+        reply += " couldn't get #{failed.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')} through — a teammate's on it." if failed.any?
+        reply += " you've got $#{fmt_amt(remaining)} left over, i'll have it ready for you." if remaining > 0.001
+        { reply: reply, labels: failed.any? ? ['transfer-partial', 'needs-human'] : ['transfer-complete'] }
+      else
+        { reply: "cashed out $#{fmt_amt(cashout_amount)} from #{source_ag.game.name} but couldn't load the games just now — flagged a teammate, they'll finish your transfer in a couple minutes.", labels: ['transfer-failed', 'needs-human'] }
+      end
+    end
+
+    def escalate_transfer_unclear(_plan)
       safe_telegram do
         Games::TelegramNotifier.human_escalation(
-          account: account,
-          contact: contact,
-          reason: 'Transfer between games requested — needs cashier'
+          account: account, contact: contact,
+          reason: "Transfer request unclear (couldn't parse source/amount): #{(latest_customer_text || recent_customer_text).to_s.truncate(160)}",
+          conversation: conversation
         )
       end
-      { reply: "transfers between games need manual processing — getting a cashier to help you now!", labels: ['cashier-action-needed', 'needs-human'] }
+      { reply: 'want to make sure i get this right — which game am i cashing out from, how much, and which games should it go to?', labels: ['transfer-unclear', 'needs-human'] }
+    end
+
+    def extract_transfer_plan(text)
+      return nil if text.blank?
+      extract_transfer_plan_via_llm(text) || extract_transfer_plan_via_regex(text)
+    end
+
+    # Primary: existing Ai::HaikuClient LLM service. Note its MAX_TOKENS=80 output cap
+    # can truncate large multi-load plans; truncated/invalid JSON falls through to regex.
+    def extract_transfer_plan_via_llm(text)
+      return nil unless defined?(Ai::HaikuClient)
+
+      raw = Ai::HaikuClient.new(
+        system_prompt: TRANSFER_PLAN_SYSTEM_PROMPT,
+        conversation_history: [{ 'role' => 'user', 'content' => text.to_s }]
+      ).generate_reply
+      return nil if raw.blank?
+
+      json = raw.to_s.sub(/\A```(?:json)?\s*/i, '').sub(/\s*```\z/, '').strip
+      normalize_transfer_plan(JSON.parse(json))
+    rescue StandardError => e
+      Rails.logger.warn("[Orchestrator] transfer LLM extract failed: #{e.class}: #{e.message}")
+      nil
+    end
+
+    def normalize_transfer_plan(data)
+      return nil unless data.is_a?(Hash)
+      data = data.stringify_keys
+
+      src_text = data['source_game'].to_s
+      source_slug = src_text.present? ? Games::IntentDetector.detect_game(src_text) : nil
+      cashout = parse_amount(data['cashout_amount'])
+
+      loads = Array(data['loads']).filter_map do |l|
+        next unless l.is_a?(Hash)
+        l = l.stringify_keys
+        amt = parse_amount(l['amount'])
+        next if amt.nil? || amt <= 0
+        g_text = l['game'].to_s
+        { game_text: g_text, game_slug: g_text.present? ? Games::IntentDetector.detect_game(g_text) : nil, amount: amt }
+      end
+
+      return nil if source_slug.blank? && cashout.nil? && loads.empty?
+      { source_text: src_text, source_slug: source_slug, cashout_amount: cashout, loads: loads }
+    end
+
+    def extract_transfer_plan_via_regex(text)
+      str = text.to_s
+      source_slug = nil
+      source_text = nil
+      cashout = nil
+      if (m = str.match(/(?:cash\s*out|cashout|redeem|withdraw|transfer|move)\s+\$?(\d+(?:\.\d{1,2})?)\s+(?:from|off|out of|outta|on)\s+([a-z0-9 _]+?)(?:,|;|\band\b|\bload\b|\bto\b|\bonto\b|$)/i))
+        cashout = m[1].to_f
+        source_text = m[2].strip
+        source_slug = Games::IntentDetector.detect_game(source_text)
+      end
+
+      loads = []
+      section = nil
+      if (idx = (str =~ /\bload\b/i))
+        section = str[idx..]
+      elsif (idx2 = (str =~ /\b(?:to|onto)\b/i))
+        section = str[idx2..]
+      end
+      if section
+        section = section.sub(/\A(?:load|onto|to)\b/i, '')
+        section.split(/,|;|\band\b/i).each do |seg|
+          sm = seg.match(/\$?(\d+(?:\.\d{1,2})?)\s+([a-z0-9 _]+)/i)
+          next unless sm
+          amt = sm[1].to_f
+          next if amt <= 0
+          g_text = sm[2].strip
+          loads << { game_text: g_text, game_slug: Games::IntentDetector.detect_game(g_text), amount: amt }
+        end
+      end
+
+      return nil if source_slug.blank? && cashout.nil? && loads.empty?
+      { source_text: source_text, source_slug: source_slug, cashout_amount: cashout, loads: loads }
+    end
+
+    def fmt_amt(num)
+      f = num.to_f
+      f == f.to_i ? f.to_i.to_s : format('%.2f', f)
+    end
+
+    def slug_label(slug)
+      return 'that game' if slug.blank?
+      (Game.find_by(slug: slug)&.name.presence || slug.to_s.tr('_', ' '))
+    rescue StandardError
+      slug.to_s.tr('_', ' ')
     end
 
     def handle_whats_hitting(intent)
@@ -2201,36 +2426,137 @@ module Games
     end
 
     def handle_redeem_partial_replay(intent)
-      safe_telegram do
-        Games::TelegramNotifier.human_escalation(
-          account: account,
-          contact: contact,
-          reason: 'Partial cashout + replay requested — needs manual cashier calculation'
-        )
+      game_slug = chosen_game_slug(intent)
+      return { reply: 'which game do you want to cash part of out from?', labels: ['partial-needs-game'] } unless game_slug
+
+      msg = (latest_customer_text || recent_customer_text).to_s
+      amount = msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+      if amount.nil? || amount <= 0
+        return { reply: 'how much do you want to cash out? the rest stays in to play', labels: ['partial-needs-amount'] }
       end
-      { reply: "got it — partial cashout with a reload needs manual processing, getting a cashier on it now!", labels: ['cashier-action-needed', 'needs-human'] }
+
+      username = find_game_username_for_slug(contact, game_slug)
+      unless username
+        return { reply: "what's your #{game_slug} username? need it to cash out part of your balance.", labels: ['partial-needs-username'] }
+      end
+
+      ag = pick_agent_game(game_slug)
+      return { reply: unavailable_game_reply(game_slug), labels: ['game-unavailable'] } unless ag
+
+      # Cash out ONLY the requested partial amount; the rest stays in the game to play.
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      result = executor.cashout_player(
+        game_username: username,
+        amount: amount,
+        metadata: { source: 'bella_partial_replay', conversation_id: conversation&.id }
+      )
+
+      if result[:ok]
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "#{contact.name} partial cashout $#{fmt_amt(amount)} on #{ag.game.name}, rest left to play",
+            conversation: conversation
+          )
+        end
+        {
+          reply: "cashed out $#{fmt_amt(amount)} — the rest is still in your #{ag.game.name} account to play!",
+          labels: ['partial-cashout', 'cashier-action-needed']
+        }
+      else
+        safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Partial cashout FAILED for #{username} $#{fmt_amt(amount)} on #{ag.game.name}: #{result[:error]} (code #{result[:code]})",
+            conversation: conversation
+          )
+        end
+        {
+          reply: "hit a snag cashing out your $#{fmt_amt(amount)} — flagged a teammate, they'll sort it in a couple minutes.",
+          labels: ['cashout-failed', 'needs-human']
+        }
+      end
     end
 
     def handle_new_account_reissue(intent)
-      safe_telegram do
-        Games::TelegramNotifier.human_escalation(
-          account: account,
-          contact: contact,
-          reason: 'Account reissue requested — existing account broken, needs replacement'
-        )
+      game_slug = chosen_game_slug(intent)
+      ag = pick_agent_game(game_slug)
+      return { reply: unavailable_game_reply(game_slug), labels: ['game-unavailable'] } unless ag
+
+      # Existing account is broken/locked — clear the stale creds, then mint a fresh one
+      # using the exact same replace-path helper handle_account_creation_request uses.
+      clear_game_credentials(ag.game.slug)
+
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      add_result, auto_username, = attempt_auto_add_player(executor, ag.game.slug, metadata: { source: 'bella_account_reissue' })
+
+      failure_response = add_player_failure_response(ag, add_result)
+      return failure_response if failure_response
+
+      unless add_result[:ok]
+        safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Account reissue failed on #{ag.game.name}: #{add_result[:error]}",
+            conversation: conversation
+          )
+        end
+        return {
+          reply: "hit a snag setting up your new #{ag.game.name} account — flagged a teammate, they'll sort it in a couple minutes.",
+          labels: ['account-creation-failed', 'needs-human', 'account-reissue']
+        }
       end
-      { reply: "no worries! let me get someone to sort out your account replacement right away", labels: ['needs-human', 'account-reissue'] }
+
+      generated_password = add_result[:password]
+      store_game_username(ag.game.slug, auto_username)
+      store_game_password(ag.game.slug, generated_password)
+
+      {
+        reply: "all fixed! your new #{ag.game.name} account — username: #{auto_username}, password: #{generated_password} (save this!)",
+        labels: ['account-reissued', 'new-account-created']
+      }
     end
 
     def handle_replay_from_balance(intent)
-      safe_telegram do
-        Games::TelegramNotifier.human_escalation(
-          account: account,
-          contact: contact,
-          reason: 'Replay from existing balance requested — needs cashier to verify and load'
-        )
+      # Read-only: confirms the player's existing in-game balance. Moves NO money.
+      game_slug = chosen_game_slug(intent)
+      return { reply: 'which game do you want to keep playing on?', labels: ['replay-needs-game'] } unless game_slug
+
+      username = find_game_username_for_slug(contact, game_slug)
+      unless username
+        return { reply: "I don't have your #{game_slug} account on file — what's your username?", labels: ['replay-needs-username'] }
       end
-      { reply: "got it — loading from your existing balance needs a quick check, cashier will handle it now!", labels: ['cashier-action-needed', 'needs-human'] }
+
+      ag = pick_agent_game(game_slug)
+      return { reply: unavailable_game_reply(game_slug), labels: ['game-unavailable'] } unless ag
+
+      balance =
+        begin
+          Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+                               .check_player_balance(game_username: username)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] replay_from_balance balance read failed: #{e.message}")
+          nil
+        end
+
+      if balance.nil?
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: "Replay-from-balance: couldn't read #{username}'s balance on #{ag.game.name}",
+            conversation: conversation
+          )
+        end
+        return { reply: "let me double-check your #{ag.game.name} balance — one sec", labels: %w[cashier-action-needed replay-from-balance] }
+      end
+
+      if balance.to_f <= 0
+        return { reply: "looks like your #{ag.game.name} balance is empty — want to load up?", labels: ['replay-from-balance'] }
+      end
+
+      { reply: "you've got $#{fmt_amt(balance)} on #{ag.game.name} — you're good to play!", labels: ['replay-from-balance'] }
     end
 
     # Bug 7 fix: payment_request_reply now mirrors handle_payment_method_chosen
