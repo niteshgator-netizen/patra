@@ -337,6 +337,26 @@ module Games
       /(?:send\s+(?:me\s+)?(?:your\s+|the\s+|a\s+|me\s+)?|gimme\s+(?:your\s+)?|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*(?:tag|handle|info|link|address|id)?/i
     ].freeze
 
+    # Tag/handle requests + bare-platform questions ("chime tag", "cash tag", "PayPal?",
+    # "do you have apple pay") — asks for OUR handle / what we accept. Group 1 captures
+    # the platform for downstream normalization. Checked alongside the PICK patterns.
+    PAYMENT_TAG_REQUEST_PATTERNS = [
+      /\b(chime|cashapp|cash\s*app|cash|venmo|paypal|zelle)\s+(?:tag|handle|info|address)\b/i,
+      /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i,
+      /\bdo\s+(?:you|u|yall|y'?all)\s+(?:have|take|accept|do)\s+(apple\s*pay|cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
+    ].freeze
+
+    # Stand-downs: mentions a platform/handle but is NOT a method pick — cashout
+    # request-direction, the customer's OWN $/@/+ handle, or a load question.
+    PAYMENT_PICK_STANDDOWN_PATTERNS = [
+      /\bwho\s+do\s+i\s+(?:send|request)/i,
+      /\bsend\s+(?:the\s+)?request\b/i,
+      /\brequest\s+\$?\d+\s+(?:to\s+)?(?:cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
+      /\A\s*[$+@][a-z0-9][a-z0-9._\-]{2,}\s*\z/i,
+      /\bwhere\s+do\s+i\s+(?:deposit|load|reload|put|add)\b/i,
+      /\bhow\s+(?:do\s+i|u|to|can\s+i)\s+(?:load|deposit|reload)\b/i
+    ].freeze
+
     # Bug 2 fix: if the customer's message ends with "?", treat it as a
     # question and DO NOT match payment_method_chosen. "you have only cash
     # app?" no longer fires the intent.
@@ -389,7 +409,26 @@ module Games
       /what\s+is\s+my\s+(?:balance|points?|credits?)/i,
       /how\s+(?:much|many)\s+(?:do\s+i\s+have|points?|credits?|money)/i,
       /check\s+my\s+(?:balance|points?|credits?|account)/i,
-      /how\s+many\s+(?:points?|credits?)\s+(?:do\s+i\s+have|are\s+left)/i
+      /how\s+many\s+(?:points?|credits?)\s+(?:do\s+i\s+have|are\s+left)/i,
+      /\bnothing\s+(?:on|in|left)\b/i,
+      /\bno\s+(?:money|balance|points?|credits?)\b/i,
+      /\b(?:0|zero)\s+balance\b/i,
+      /\bbalance\s+(?:is\s+)?(?:0|zero|empty)\b/i,
+      /says?\s+i\s+(?:got|have)\s+(?:a\s+)?(?:0|zero|no)\b/i,
+      /\bonly\s+\.?\d+\s*cents?\b/i,
+      /\balmost\s+a\s+dollar\b/i,
+      /what'?s?\s+my\s+max\b/i,
+      /how\s+much\s+is\s+my\s+(?:cash\s*out|max)\b/i
+    ].freeze
+
+    # Balance REPORTS that include a number ("22 on there", "5 dollars on gv") — these
+    # would otherwise be stolen by LOAD's broad number pattern. Checked BEFORE load via
+    # balance_report? which ALSO vetoes any imperative load verb (load/add/put/etc).
+    BALANCE_REPORT_PATTERNS = [
+      /\b(?:i\s+(?:have|got)|i\s+still\s+(?:have|got)|theres?|there\s+is|only|just)\s+\$?\d+(?:\.\d{1,2})?\s*(?:dollars?|bucks?|cents?)?\s+(?:on|left|in)\b/i,
+      /\b\$?\d+(?:\.\d{1,2})?\s*(?:dollars?|bucks?|cents?)\s+(?:on|left|in)\b/i,
+      /\b\d+(?:\.\d{1,2})?\s+(?:on\s+there|left\s+(?:on|in)|still\s+(?:on|in|there))\b/i,
+      /\bstill\s+(?:have|got)\s+\$?\d+/i
     ].freeze
 
     TRANSFER_PATTERNS = [
@@ -487,6 +526,9 @@ module Games
                       amount: amt && amt[1] ? amt[1].to_f : nil,
                       game_slug: detect_game(text)
                     }
+                  elsif balance_report?(text)
+                    Rails.logger.info('[IntentDetector] matched balance_check (report, pre-load)')
+                    { intent: :balance_check, game_slug: detect_game(text) }
                   elsif (m = match_any(text, LOAD_PATTERNS))
                     amount = m[1] ? m[1].to_f : nil
                     # Some patterns capture username in group 2
@@ -502,7 +544,7 @@ module Games
                     new_acct
                   elsif (m = match_payment_method_pick(text))
                     raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
-                    normalized = raw_platform == 'cashapp' ? 'cashapp' : raw_platform
+                    normalized = %w[cash cashapp].include?(raw_platform) ? 'cashapp' : raw_platform
                     Rails.logger.info("[IntentDetector] matched payment_method_chosen platform=#{normalized}")
                     {
                       intent: :payment_method_chosen,
@@ -690,12 +732,29 @@ module Games
       # the pick patterns. A question or a negation about a platform is
       # NEVER a pick.
       def match_payment_method_pick(text)
-        return nil if text =~ PAYMENT_METHOD_QUESTION_GUARD
+        # Relaxed question-guard: a BARE platform question ("PayPal?", "Chime?") is an
+        # ask for our handle, so it's allowed through; longer questions ("you only have
+        # cashapp?") still bail via the unchanged guard.
+        bare_platform_q = text.match?(/\A\s*(?:cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i)
+        return nil if !bare_platform_q && text =~ PAYMENT_METHOD_QUESTION_GUARD
         return nil if text =~ PAYMENT_METHOD_NEGATION_GUARD
         # Game name in message (e.g. Cash Machine) — not a payment-platform pick
         return nil if resolve_game_slug(text).present?
+        # Request-direction / own-handle / load-question — not a pick.
+        return nil if payment_pick_standdown?(text)
 
-        match_any(text, PAYMENT_METHOD_PICK_PATTERNS)
+        match_any(text, PAYMENT_METHOD_PICK_PATTERNS + PAYMENT_TAG_REQUEST_PATTERNS)
+      end
+
+      def payment_pick_standdown?(text)
+        PAYMENT_PICK_STANDDOWN_PATTERNS.any? { |re| text.match?(re) }
+      end
+
+      # True only for clear balance REPORTS; vetoes any imperative load verb so that
+      # "load 22 on juwa" / "add 20" / "put 5 on gv" still route to :load.
+      def balance_report?(text)
+        return false if text.match?(/\b(?:load|add|recharge|top\s*up|deposit|put)\b/i)
+        match_any(text, BALANCE_REPORT_PATTERNS) ? true : false
       end
 
       def match_any(text, patterns)
