@@ -3165,3 +3165,464 @@
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W5 — FOLD FIXES + SETTINGS A CLUSTER
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W6 — SETTINGS B + CROSS-SHELL UMBRELLA (dark only; light = W7)
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────
+   1. SETTINGS B SHELLS — Automation / Canned / Payment Handles / Notifications
+   ───────────────────────────────────────── */
+.dark .pat-auto-wrap,
+.dark .pat-canned-wrap,
+.dark .pat-ph-wrap,
+.dark .pat-notif-wrap {
+  background: var(--canvas, #050409) !important;
+  color: var(--text, #EDEDF2) !important;
+  min-height: 100%;
+  position: relative;
+}
+.dark .pat-auto-wrap .mesh,
+.dark .pat-canned-wrap .mesh,
+.dark .pat-ph-wrap .mesh,
+.dark .pat-notif-wrap .mesh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 0;
+}
+.dark .pat-auto-main,
+.dark .pat-canned-main,
+.dark .pat-ph-wrap > .pat-ph-main,
+.dark .pat-notif-main {
+  position: relative;
+  z-index: 1;
+  padding: 24px 28px 32px !important;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ─────────────────────────────────────────
+   2. CROSS-SHELL UMBRELLA — extend W5 inner classes to ALL .pat-*-wrap shells
+   Matches: pat-list-wrap (W5), pat-auto-wrap, pat-canned-wrap, pat-ph-wrap, pat-notif-wrap, pat-page-wrap (captain)
+   ───────────────────────────────────────── */
+.dark [class*="pat-"][class*="-wrap"] .sec-head {
+  margin-bottom: 18px !important;
+  padding-bottom: 16px !important;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.dark [class*="pat-"][class*="-wrap"] .sec-head h1,
+.dark [class*="pat-"][class*="-wrap"] .sec-head .display {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 22px !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text, #EDEDF2) !important;
+  margin: 0 !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .sec-head .sub {
+  font-size: 13px !important;
+  color: var(--text-3, #75727F) !important;
+  margin-top: 5px !important;
+  line-height: 1.5;
+}
+.dark [class*="pat-"][class*="-wrap"] .card {
+  background: var(--surface, #0C0B12) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  margin-bottom: 14px;
+}
+.dark [class*="pat-"][class*="-wrap"] .card-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 0 0 14px !important;
+  border-bottom: 1px solid var(--border, #171520);
+  margin-bottom: 12px !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .pat-search {
+  flex: 1;
+  background: var(--canvas, #050409) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 10px !important;
+  padding: 9px 12px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-size: 13px !important;
+  transition: all .22s;
+}
+.dark [class*="pat-"][class*="-wrap"] .pat-search:focus,
+.dark [class*="pat-"][class*="-wrap"] .pat-search:focus-visible {
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.13) !important;
+  outline: none !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .count-label {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  color: var(--patra-2, #8B5CF6) !important;
+  background: rgba(110, 86, 207, 0.14) !important;
+  padding: 4px 10px !important;
+  border-radius: 20px !important;
+  white-space: nowrap;
+}
+.dark [class*="pat-"][class*="-wrap"] .btn {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 14px !important;
+  border-radius: 9px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: var(--surface-2, #131119) !important;
+  color: var(--text, #EDEDF2) !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.23,1,.32,1) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dark [class*="pat-"][class*="-wrap"] .btn:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+.dark [class*="pat-"][class*="-wrap"] .btn.primary {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .btn.primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 6px 18px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .btn.sm {
+  font-size: 12px !important;
+  padding: 6px 11px !important;
+  border-radius: 8px !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .lrow {
+  --mx: 50%;
+  --my: 50%;
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 14px !important;
+  border-radius: 11px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  transition: all .22s cubic-bezier(.23,1,.32,1) !important;
+  isolation: isolate;
+  overflow: hidden;
+}
+.dark [class*="pat-"][class*="-wrap"] .lrow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .3s;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 50%), rgba(110,86,207,.15), transparent 70%);
+  z-index: 0;
+}
+.dark [class*="pat-"][class*="-wrap"] .lrow > * { position: relative; z-index: 1; }
+.dark [class*="pat-"][class*="-wrap"] .lrow:hover {
+  background: var(--surface-2, #131119) !important;
+  border-color: var(--border, #171520) !important;
+}
+.dark [class*="pat-"][class*="-wrap"] .lrow:hover::after { opacity: 1; }
+.dark [class*="pat-"][class*="-wrap"] .empty-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center;
+  padding: 56px 24px !important;
+  gap: 14px;
+}
+.dark [class*="pat-"][class*="-wrap"] .ec-ic {
+  font-size: 44px !important;
+  filter: drop-shadow(0 4px 16px var(--patra-glow, rgba(110,86,207,.55)));
+  animation: patraFloat 4s ease-in-out infinite;
+}
+.dark [class*="pat-"][class*="-wrap"] .loading-note {
+  color: var(--text-3, #75727F) !important;
+  font-size: 13px !important;
+  text-align: center;
+  padding: 28px 0;
+}
+
+/* ─────────────────────────────────────────
+   3. NOTIFICATIONS STATUS BADGE
+   ───────────────────────────────────────── */
+.dark .pat-notif-wrap .status-badge {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 20px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dark .pat-notif-wrap .status-badge.status-on {
+  background: rgba(63, 185, 80, 0.15) !important;
+  color: var(--green, #3FB950) !important;
+}
+.dark .pat-notif-wrap .status-badge.status-on::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green, #3FB950);
+  box-shadow: 0 0 6px var(--green, #3FB950);
+}
+.dark .pat-notif-wrap .status-badge.status-off {
+  background: rgba(248, 81, 73, 0.15) !important;
+  color: var(--red, #F85149) !important;
+}
+.dark .pat-notif-wrap .status-badge.status-off::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red, #F85149);
+}
+
+/* ─────────────────────────────────────────
+   4. AUTOMATION ROW META + CANNED CODE CHIP
+   ───────────────────────────────────────── */
+.dark .pat-auto-wrap .lrow-meta {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  color: var(--text-3, #75727F) !important;
+}
+.dark .pat-canned-wrap .cr-code {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  border-radius: 6px !important;
+  background: var(--surface-3, #1B1925) !important;
+  color: var(--patra-3, #A78BFA) !important;
+  border: 1px solid var(--border, #171520);
+}
+
+/* ─────────────────────────────────────────
+   5-6. PAYMENT HANDLES TABLE
+   ───────────────────────────────────────── */
+.dark .pat-ph-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.dark .pat-ph-wrap thead th {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3, #75727F) !important;
+  text-align: left;
+  padding: 10px 13px !important;
+  border-bottom: 1px solid var(--border, #171520);
+  background: transparent !important;
+}
+.dark .pat-ph-wrap tbody tr {
+  transition: background .2s;
+  border-bottom: 1px solid var(--border, #171520);
+}
+.dark .pat-ph-wrap tbody tr:hover {
+  background: var(--surface-2, #131119);
+}
+.dark .pat-ph-wrap tbody td,
+.dark .pat-ph-wrap .patra-ph-td {
+  padding: 11px 13px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-size: 12.5px !important;
+  vertical-align: middle;
+}
+.dark .pat-ph-wrap .ph-display-name {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+.dark .pat-ph-wrap .ph-last-failed {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  color: var(--red, #F85149) !important;
+}
+.dark .pat-ph-wrap .ph-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────
+   7. PAYMENT HANDLES LEDGER + DELETE + EXPANDED ROW
+   ───────────────────────────────────────── */
+.dark .pat-ph-wrap .patra-ledger-btn {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  padding: 5px 10px !important;
+  border-radius: 7px !important;
+  background: rgba(110, 86, 207, 0.14) !important;
+  color: var(--patra-3, #A78BFA) !important;
+  border: 1px solid rgba(110, 86, 207, 0.28) !important;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all .2s;
+}
+.dark .pat-ph-wrap .patra-ledger-btn:hover {
+  background: rgba(110, 86, 207, 0.22) !important;
+  border-color: var(--patra, #6E56CF) !important;
+  transform: translateY(-1px);
+}
+.dark .pat-ph-wrap .ph-delete-btn {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--text-3, #75727F) !important;
+  border-radius: 7px !important;
+  padding: 5px 7px !important;
+  cursor: pointer;
+  transition: all .2s;
+}
+.dark .pat-ph-wrap .ph-delete-btn:hover {
+  color: var(--red, #F85149) !important;
+  background: rgba(248, 81, 73, 0.10) !important;
+  border-color: rgba(248, 81, 73, 0.25) !important;
+}
+.dark .pat-ph-wrap .ph-ledger-row td {
+  background: var(--canvas, #050409) !important;
+  padding: 14px !important;
+  border-top: 1px dashed var(--border, #171520);
+}
+
+/* ─────────────────────────────────────────
+   8. SCORING SETTINGS PANEL
+   ───────────────────────────────────────── */
+.dark .patra-scoring-panel,
+.dark .ph-scoring-panel {
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 14px !important;
+  padding: 16px 18px !important;
+  margin: 12px 0 18px !important;
+  animation: patraFadeIn .25s ease-out;
+}
+.dark .patra-scoring-desc {
+  font-size: 12.5px !important;
+  color: var(--text-3, #75727F) !important;
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+.dark .patra-scoring-btn {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  background: var(--surface-3, #1B1925) !important;
+  border: 1px solid var(--border-hi, #2E2940) !important;
+  color: var(--text, #EDEDF2) !important;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all .2s;
+}
+.dark .patra-scoring-btn:hover {
+  border-color: var(--patra, #6E56CF) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .ph-scoring-save {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #171520);
+}
+
+/* ─────────────────────────────────────────
+   9. ONBOARDING CHECKLIST (dashboard-embedded)
+   ───────────────────────────────────────── */
+.dark .patra-checklist-wrap {
+  background: linear-gradient(135deg, rgba(110,86,207,.08), rgba(139,92,246,.04)) !important;
+  border: 1px solid rgba(110,86,207,.22) !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  margin-bottom: 16px;
+}
+.dark .patra-checklist-wrap :deep(h2),
+.dark .patra-checklist-wrap h2 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  color: var(--text, #EDEDF2) !important;
+  margin-bottom: 10px !important;
+}
+.dark .patra-checklist-wrap button {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  padding: 8px 14px !important;
+  border-radius: 9px !important;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  border: none !important;
+  color: #fff !important;
+  cursor: pointer;
+  transition: all .22s cubic-bezier(.34,1.56,.64,1);
+  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55));
+}
+.dark .patra-checklist-wrap button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px var(--patra-glow, rgba(110,86,207,.55)) !important;
+  filter: brightness(1.1);
+}
+
+/* ─────────────────────────────────────────
+   10. FORM INPUTS — cross-cutting polish for settings forms
+   (inputs/textarea/select inside any pat-*-wrap)
+   ───────────────────────────────────────── */
+.dark [class*="pat-"][class*="-wrap"] input[type="text"],
+.dark [class*="pat-"][class*="-wrap"] input[type="email"],
+.dark [class*="pat-"][class*="-wrap"] input[type="url"],
+.dark [class*="pat-"][class*="-wrap"] input[type="number"],
+.dark [class*="pat-"][class*="-wrap"] input[type="search"],
+.dark [class*="pat-"][class*="-wrap"] textarea,
+.dark [class*="pat-"][class*="-wrap"] select {
+  background: var(--canvas, #050409) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 9px !important;
+  color: var(--text, #EDEDF2) !important;
+  font-size: 13px !important;
+  padding: 9px 11px !important;
+  transition: all .22s;
+}
+.dark [class*="pat-"][class*="-wrap"] input:focus,
+.dark [class*="pat-"][class*="-wrap"] textarea:focus,
+.dark [class*="pat-"][class*="-wrap"] select:focus {
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.13) !important;
+  outline: none !important;
+}
+.dark [class*="pat-"][class*="-wrap"] label {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3, #75727F) !important;
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W6 — SETTINGS B + CROSS-SHELL UMBRELLA
+   ════════════════════════════════════════════════════════════════════ */
