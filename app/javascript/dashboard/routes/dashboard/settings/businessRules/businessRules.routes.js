@@ -4,6 +4,7 @@ import GameRulesIndex from '../gameRules/Index.vue';
 import PlayerTiersIndex from '../playerTiers/Index.vue';
 import ReferralsIndex from '../referrals/Index.vue';
 import ReplyStyleIndex from '../replyStyle/Index.vue';
+import AutomationSafetyIndex from '../automationSafety/Index.vue';
 
 const meta = {
   permissions: ['administrator'],
@@ -55,6 +56,18 @@ export default {
           path: '',
           name: 'settings_reply_style',
           component: ReplyStyleIndex,
+          meta,
+        },
+      ],
+    },
+    {
+      path: frontendURL('accounts/:accountId/settings/automation-safety'),
+      component: SettingsWrapper,
+      children: [
+        {
+          path: '',
+          name: 'settings_automation_safety',
+          component: AutomationSafetyIndex,
           meta,
         },
       ],

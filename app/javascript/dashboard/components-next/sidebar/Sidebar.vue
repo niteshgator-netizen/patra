@@ -600,6 +600,13 @@ const menuItems = computed(() => {
           activeOn: ['settings_reply_style'],
         },
         {
+          name: 'Settings Automation Safety',
+          label: t('PATRA.SETTINGS.NAV_AUTOMATION_SAFETY'),
+          icon: 'i-lucide-shield-check',
+          to: accountScopedRoute('settings_automation_safety'),
+          activeOn: ['settings_automation_safety'],
+        },
+        {
           name: 'Settings AI Training',
           label: t('PATRA.SETTINGS.NAV_AI_TRAINING'),
           icon: 'i-lucide-brain',

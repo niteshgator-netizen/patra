@@ -2290,12 +2290,32 @@ module Games
         # Winnings too small to cash out — move per transfer_mode preference.
         mode = transfer_mode_pref
         if mode == 'deposit_only'
-          deposit = original_deposit_on_source(source_slug)
-          source_amount = [deposit, balance].min
-          fork = 'below_min_deposit_only'
-          if source_amount <= 0
+          deposit_amount = original_deposit_on_source(source_slug)
+          if deposit_amount <= 0
             return { reply: "your #{source_ag.game.name} winnings are below the cashout minimum and i don't see an original deposit to move — a teammate will take a look.", labels: %w[cashier-action-needed transfer] }
           end
+
+          # Reuse the balance already read at STEP 2 — do NOT call check_player_balance again.
+          if balance >= deposit_amount
+            source_amount = deposit_amount
+          elsif transfer_deposit_shortfall_mode == 'refuse'
+            # Current balance is below their original deposit — refuse and flag.
+            safe_telegram do
+              Games::TelegramNotifier.human_escalation(
+                account: account, contact: contact,
+                reason: "DEPOSIT-ONLY SHORTFALL (refuse): #{contact&.name} has $#{fmt_amt(balance)} on #{source_ag.game.name}, less than $#{fmt_amt(deposit_amount)} deposit — not transferred.",
+                conversation: conversation
+              )
+            end
+            return { reply: "you've got $#{fmt_amt(balance)} on #{source_ag.game.name}, less than your $#{fmt_amt(deposit_amount)} deposit — want me to flag it for a teammate?", labels: %w[transfer-deposit-shortfall needs-human] }
+          else
+            # 'transfer_available' — move only what they actually have.
+            source_amount = balance
+          end
+
+          # MONEY-SAFETY CAP: never move more than the current balance, ever.
+          source_amount = [source_amount, balance].min
+          fork = 'below_min_deposit_only'
         else
           source_amount = balance
           fork = 'below_min_whole'
@@ -2526,6 +2546,14 @@ module Games
       (pref.transfer_mode.presence || 'whole').to_s
     rescue StandardError
       'whole'
+    end
+
+    def transfer_deposit_shortfall_mode
+      pref = reply_pref_cached
+      return 'transfer_available' unless pref.respond_to?(:transfer_deposit_shortfall_mode)
+      (pref.transfer_deposit_shortfall_mode.presence || 'transfer_available').to_s
+    rescue StandardError
+      'transfer_available'
     end
 
     def game_rules_for(slug)
