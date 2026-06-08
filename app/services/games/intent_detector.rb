@@ -13,7 +13,11 @@ module Games
       /load\s+(\d+(?:\.\d{1,2})?)\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
       /(\d+(?:\.\d{1,2})?)\s*\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
       # Amount-less: "load please on gameroom", "load it", "load on juwa", "load me up"
-      /\b(?:load|recharge|top\s*up)\b(?:\s+(?:me|it|please|up|now|my\s+account))*(?:\s+(?:on|to|for|in)\s+[a-z0-9_]{3,20})?/i
+      /\b(?:load|recharge|top\s*up)\b(?:\s+(?:me|it|please|up|now|my\s+account))*(?:\s+(?:on|to|for|in)\s+[a-z0-9_]{3,20})?/i,
+      # "put 5 on gv" — imperative load via "put" (game token like "gv" is only 2 chars,
+      # so the bare-number fallback's {3,20} can't catch it). Captures the amount; the
+      # game is resolved separately by detect_game.
+      /put\s+(?:me\s+)?\$?(\d+(?:\.\d{1,2})?)/i
     ].freeze
 
     FREEPLAY_PATTERNS = [
@@ -334,7 +338,12 @@ module Games
     PAYMENT_METHOD_PICK_PATTERNS = [
       /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*[!.]*\s*\z/i,
       /(?:i'?ll\s+|i\s+wanna\s+|i\s+want\s+to\s+|let'?s\s+(?:do\s+)?|try\s+|gimme\s+|with\s+|do\s+|i\s+got\s+)(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
-      /(?:send\s+(?:me\s+)?(?:your\s+|the\s+|a\s+|me\s+)?|gimme\s+(?:your\s+)?|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*(?:tag|handle|info|link|address|id)?/i
+      /(?:send\s+(?:me\s+)?(?:your\s+|the\s+|a\s+|me\s+)?|gimme\s+(?:your\s+)?|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*(?:tag|handle|info|link|address|id)?/i,
+      # "i'll use paypal" / "i wanna use cashapp" / "let's go with venmo" — lead-in + an
+      # OPTIONAL verb + platform (PICK idx1 above needs the platform immediately, so a
+      # verb broke it). Reached only AFTER the negation/question guards, so it never
+      # overrides "i don't want to use cashapp" or a real question.
+      /(?:i'?ll|i\s+wanna|i\s+want\s+to|let'?s|gonna|imma)\s+(?:use\s+|do\s+|go\s+with\s+|pay\s+(?:with|via)\s+)?(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
     ].freeze
 
     # Tag/handle requests + bare-platform questions ("chime tag", "cash tag", "PayPal?",
