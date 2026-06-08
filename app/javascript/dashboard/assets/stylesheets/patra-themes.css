@@ -1237,3 +1237,326 @@
   font-family: 'JetBrains Mono', monospace !important;
   font-variant-numeric: tabular-nums;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   PATRA W1 — INBOX CLUSTER (dark mode only; light mode = W7)
+   Scoped to .dark + real production classes. Mockup source = patra-inbox-v5.html.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. SHELL + MESH BACKDROP ── */
+.dark body { background-color: var(--canvas, #050409) !important; }
+.dark #app { background-color: transparent !important; }
+.dark .patra-mesh-bg { z-index: 0 !important; }
+
+/* ── 2. RAIL — refine existing token usage to spec ── */
+.dark .pat-rail,
+.dark .patra-nav-rail {
+  background: linear-gradient(180deg, var(--surface, #0C0B12), var(--canvas, #050409)) !important;
+  border-right: 1px solid var(--border, #171520) !important;
+}
+
+/* ── 3. LIST PANEL SURFACE ── */
+.dark .conversations-list-wrap {
+  background: var(--surface, #0C0B12) !important;
+  border-right: 1px solid var(--border, #171520) !important;
+}
+
+/* ── 4. LIST HEADER (port mockup .list-head onto .pat-list-head) ── */
+.dark .pat-list-head {
+  padding: 18px 16px 10px !important;
+  border-bottom: 1px solid var(--border, #171520) !important;
+  background: transparent !important;
+}
+.dark .pat-list-head-top {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+.dark .pat-list-title-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  min-width: 0;
+}
+.dark .pat-list-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 19px !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text, #EDEDF2) !important;
+  margin: 0 !important;
+}
+.dark .pat-list-count {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+  color: var(--patra-2, #8B5CF6) !important;
+  background: rgba(110, 86, 207, 0.14) !important;
+  padding: 3px 9px !important;
+  border-radius: 20px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+.dark .pat-list-actions { gap: 6px !important; }
+
+/* + New conversation button (mockup .icon-btn taste, pill version) */
+.dark .patra-new-conv-btn {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 6px 12px !important;
+  border-radius: 9px !important;
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(.34,1.56,.64,1) !important;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .patra-new-conv-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+
+/* ── 5. FILTER CHIPS (port mockup .chip onto .pat-filter-chips buttons) ── */
+.dark .pat-filter-chips { padding: 10px 12px !important; gap: 6px !important; }
+.dark .pat-filter-chips button {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 6px 12px !important;
+  border-radius: 20px !important;
+  border: 1px solid var(--border, #171520) !important;
+  background: transparent !important;
+  color: var(--text-2, #A8A6B6) !important;
+  transition: all 0.22s cubic-bezier(.23,1,.32,1) !important;
+  white-space: nowrap;
+}
+.dark .pat-filter-chips button:hover {
+  border-color: var(--border-hi, #2E2940) !important;
+  color: var(--text, #EDEDF2) !important;
+  transform: translateY(-1px);
+}
+.dark .pat-filter-chips button[aria-pressed="true"],
+.dark .pat-filter-chips button.active,
+.dark .pat-filter-chips button[class*="bg-patra"] {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 3px 12px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+
+/* ── 6. CONVERSATION CARDS — ACTIVE + PRIORITY (base hover+glow already in component scoped style) ── */
+.dark .patra-conv-card {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  margin: 2px 6px !important;
+}
+.dark .patra-conv-card:hover {
+  background: var(--surface-2, #131119) !important;
+}
+.dark .patra-conv-card.active,
+.dark .patra-conv-card[class*="bg-n-alpha-black2"],
+.dark .conversations-list-wrap .conversation-panel > div.active {
+  background: var(--surface-2, #131119) !important;
+  border-color: var(--border-hi, #2E2940) !important;
+  box-shadow:
+    inset 0 1px 0 var(--inset, rgba(255,255,255,.045)),
+    0 0 0 1px rgba(110, 86, 207, 0.15),
+    0 8px 24px -8px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+/* Priority bar (priority='urgent' adds .priority-urgent or use existing CardPriorityIcon — keep additive) */
+.dark .patra-conv-card.priority-urgent::before,
+.dark .patra-conv-card[data-priority="urgent"]::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 11px; bottom: 11px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--red, #F85149), var(--amber, #E3A008));
+  z-index: 2;
+}
+
+/* ── 7. EMPTY STATE (.patra-empty-inbox cluster) ── */
+.dark .patra-empty-inbox {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 56px 24px !important;
+  text-align: center;
+  flex: 1;
+}
+.dark .patra-empty-icon {
+  font-size: 44px !important;
+  margin-bottom: 14px !important;
+  filter: drop-shadow(0 4px 16px var(--patra-glow, rgba(110,86,207,.55)));
+  animation: patraFloat 4s ease-in-out infinite;
+}
+.dark .patra-empty-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  font-size: 17px !important;
+  color: var(--text, #EDEDF2) !important;
+  margin-bottom: 6px !important;
+}
+.dark .patra-empty-text {
+  font-size: 12.5px !important;
+  color: var(--text-3, #75727F) !important;
+  line-height: 1.55 !important;
+  max-width: 280px;
+}
+@keyframes patraFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ── 8. CONTEXT / COPILOT PANEL ── */
+.dark .conv-sidebar-patra,
+.dark .contact-panel-v6 {
+  background: var(--surface, #0C0B12) !important;
+  border-left: 1px solid var(--border, #171520) !important;
+}
+.dark .ctx-sidebar-header {
+  padding: 16px 18px 12px !important;
+  border-bottom: 1px solid var(--border, #171520) !important;
+}
+.dark .ctx-body { padding: 14px 16px !important; }
+
+/* Details/Copilot tab switcher */
+.dark .patra-sidebar-tabs {
+  display: flex !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  background: var(--surface-2, #131119) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 10px !important;
+  margin-bottom: 14px !important;
+}
+.dark .patra-sidebar-tab {
+  flex: 1 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 6px 10px !important;
+  border-radius: 7px !important;
+  color: var(--text-3, #75727F) !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  transition: all 0.2s !important;
+  text-align: center;
+}
+.dark .patra-sidebar-tab:hover {
+  color: var(--text, #EDEDF2) !important;
+  background: var(--surface-3, #1B1925) !important;
+}
+.dark .patra-sidebar-tab.active {
+  background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0)) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+
+/* Contact attrs rows */
+.dark .patra-contact-attrs { display: flex; flex-direction: column; gap: 8px; }
+.dark .patra-attr-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 8px 11px !important;
+  background: var(--canvas, #050409) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 9px !important;
+  font-size: 12.5px !important;
+}
+.dark .patra-attr-key {
+  color: var(--text-3, #75727F) !important;
+  text-transform: capitalize;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px !important;
+}
+.dark .patra-attr-val {
+  color: var(--text, #EDEDF2) !important;
+  font-weight: 500 !important;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-word;
+}
+
+/* Media gallery */
+.dark .patra-media-section { margin-top: 14px; }
+.dark .patra-media-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--patra-3, #A78BFA) !important;
+  background: rgba(110,86,207,.12);
+  padding: 2px 7px;
+  border-radius: 20px;
+  margin-left: 6px;
+}
+.dark .patra-media-viewall {
+  font-size: 11.5px;
+  color: var(--patra-3, #A78BFA) !important;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.dark .patra-media-viewall:hover { opacity: 0.8; text-decoration: underline; }
+.dark .patra-media-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  margin-top: 8px;
+}
+.dark .patra-media-thumb {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border, #171520);
+  background: var(--surface-2, #131119);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.dark .patra-media-thumb:hover {
+  border-color: var(--patra, #6E56CF);
+  transform: scale(1.04);
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+
+/* ── 9. COMPOSER POLISH (component already has scoped styles — refine surface only) ── */
+.dark .reply-box.patra-conv-composer.pat-composer {
+  border-top: 1px solid var(--border, #171520) !important;
+  background: color-mix(in srgb, var(--surface, #0C0B12) 80%, transparent) !important;
+  backdrop-filter: blur(14px);
+}
+.dark .reply-box__top.patra-conv-composer-box {
+  background: var(--canvas, #050409) !important;
+  border: 1px solid var(--border, #171520) !important;
+  border-radius: 13px !important;
+  transition: all .25s;
+}
+.dark .reply-box__top.patra-conv-composer-box:focus-within {
+  border-color: var(--patra, #6E56CF) !important;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11) !important;
+}
+.dark .pat-charcount {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  color: var(--text-4, #54515E) !important;
+}
+
+/* ── 10. ⌘K PALETTE (ninja-keys CSS variables — host-level vars on the custom element) ── */
+.dark ninja-keys {
+  --background: var(--surface, #0C0B12);
+  --text-color: var(--text, #EDEDF2);
+  --secondary-text-color: var(--text-2, #A8A6B6);
+  --accent: var(--patra, #6E56CF);
+  --modal-background: var(--surface, #0C0B12);
+  --modal-shadow: 0 24px 72px rgba(0,0,0,.55), 0 0 0 1px var(--border-hi, #2E2940);
+  --border-radius: 14px;
+  --input-background: var(--canvas, #050409);
+  --input-text-color: var(--text, #EDEDF2);
+  --selected-background: linear-gradient(135deg, var(--patra, #6E56CF), var(--patra-deep, #5B45B0));
+  --selected-text-color: #fff;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   END PATRA W1 — INBOX CLUSTER
+   ════════════════════════════════════════════════════════════════════ */

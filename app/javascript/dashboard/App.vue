@@ -184,6 +184,7 @@ export default {
       aria-hidden="true"
       style="position: fixed; pointer-events: none; z-index: 1"
     />
+    <div class="patra-mesh-bg" aria-hidden="true" />
     <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
     <StatusBanner />
     <template v-if="currentAccountId">
