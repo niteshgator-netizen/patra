@@ -182,31 +182,12 @@ onMounted(() => {
           :class="{ active: sidebarTab === 'copilot' }"
           @click="sidebarTab = 'copilot'"
         >
-          Copilot
+          <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px;flex-shrink:0;"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"/></svg>
+          Patra AI
         </button>
       </div>
       <div v-show="sidebarTab === 'details'">
         <ContactProfileStats :contact="contact" />
-        <div
-          v-if="
-            contact?.custom_attributes &&
-            Object.keys(contact.custom_attributes).length
-          "
-          class="patra-contact-attrs"
-        >
-          <div class="card-t display">
-            <span class="dot" />
-            Contact Attributes
-          </div>
-          <div
-            v-for="(val, key) in contact.custom_attributes"
-            :key="key"
-            class="patra-attr-row"
-          >
-            <span class="patra-attr-key">{{ key.replace(/_/g, ' ') }}</span>
-            <span class="patra-attr-val">{{ val }}</span>
-          </div>
-        </div>
         <div class="sidebar-accordions">
         <Draggable
           :list="conversationSidebarItems"
@@ -880,14 +861,33 @@ onMounted(() => {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #75727f;
+  color: var(--text-3, #75727f);
   cursor: pointer;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  position: relative;
+  transition: color 0.2s;
 }
 
 .patra-sidebar-tab.active {
-  color: #a78bfa;
-  border-bottom-color: #6e56cf;
+  color: var(--patra-3, #a78bfa);
+  border-bottom-color: transparent;
+  position: relative;
+}
+
+.patra-sidebar-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--patra, #6e56cf), var(--patra-2, #8b5cf6));
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.4);
 }
 
 .patra-copilot-tab {
