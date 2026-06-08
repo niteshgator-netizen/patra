@@ -157,8 +157,8 @@ const handleAction = ({ action }, localeCode) => {
 <template>
   <ul role="list" class="w-full h-full space-y-4">
     <LocaleCard
-      v-for="(locale, index) in locales"
-      :key="index"
+      v-for="locale in locales"
+      :key="locale.code"
       :locale="locale.name"
       :is-default="isLocaleDefault(locale.code)"
       :is-draft="locale.isDraft"
