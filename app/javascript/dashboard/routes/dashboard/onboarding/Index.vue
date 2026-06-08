@@ -351,6 +351,7 @@ const handleSubmit = async () => {
                   :src="companyLogo"
                   :alt="accountName"
                   class="size-4 object-contain"
+                  @error="$event.target.style.display = 'none'"
                 />
                 <span class="text-sm font-medium text-n-slate-12">
                   {{ accountName }}
