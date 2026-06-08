@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 /**
  * Patra theme overrides — dark only.
  *
@@ -34,6 +35,34 @@
   --patra-amber: #E3A008;
   --patra-amber-soft: rgba(227,160,8,0.14);
   --patra-border: rgba(255, 255, 255, 0.05);
+
+  /* Spec design tokens (canonical names from patra-inbox-v5.html) */
+  --canvas: #050409;
+  --surface: #0C0B12;
+  --surface-2: #131119;
+  --surface-3: #1B1925;
+  --surface-4: #252233;
+  --border: #171520;
+  --border-hi: #2E2940;
+  --patra: #6E56CF;
+  --patra-2: #8B5CF6;
+  --patra-3: #A78BFA;
+  --patra-deep: #5B45B0;
+  --patra-glow: rgba(110,86,207,0.55);
+  --text: #EDEDF2;
+  --text-2: #A8A6B6;
+  --text-3: #75727F;
+  --text-4: #54515E;
+  --green: #3FB950;
+  --amber: #E3A008;
+  --red: #F85149;
+  --blue: #58A6FF;
+  --pink: #EC4899;
+  --bubble-in: #131119;
+  --shadow: 0 24px 60px -20px rgba(0,0,0,.8);
+  --mesh-1: rgba(110,86,207,0.16);
+  --mesh-2: rgba(139,92,246,0.10);
+  --mesh-3: rgba(236,72,153,0.05);
 
   /* Chatwoot semantic tokens — RGB triplets mapped to Patra spec */
   --background-color: 5 4 9 !important;
@@ -601,7 +630,6 @@
 }
 
 /* --- FONTS --- */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 .dark body { font-family: 'Inter', -apple-system, sans-serif !important; -webkit-font-smoothing: antialiased; }
 .dark h1, .dark h2, .dark h3, .dark h4, .dark .text-xl, .dark .text-2xl, .dark .text-lg { font-family: 'Space Grotesk', sans-serif !important; }
 .dark .mono, .dark code, .dark .time-stamp, .dark .badge { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums; }
@@ -1181,4 +1209,31 @@
 :root:not(.dark) .private-note {
   background-color: rgba(154,103,0,0.08) !important;
   color: var(--patra-text1) !important;
+}
+
+/* ===== PREMIUM TYPOGRAPHY — match spec (Space Grotesk titles, JetBrains Mono numbers) ===== */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5,
+.dark .text-lg, .dark .text-xl, .dark .text-2xl, .dark .text-3xl,
+.dark .page-title, .dark .conversation--header h1, .dark .conversation--header h2,
+.dark .list-title, .dark .pat-dash-section-title, .dark .dash-card-header h3 {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  letter-spacing: -0.01em;
+}
+.dark .mono, .dark code, .dark .time-stamp, .dark .timestamp,
+.dark .badge, .dark .count, .dark .conversation--meta .timestamp,
+.dark [class*="count"], .dark .unread-count, .dark .label-count {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-variant-numeric: tabular-nums;
+}
+/* Light-mode equivalents */
+:root:not(.dark) h1, :root:not(.dark) h2, :root:not(.dark) h3, :root:not(.dark) h4,
+:root:not(.dark) .text-lg, :root:not(.dark) .text-xl, :root:not(.dark) .text-2xl,
+:root:not(.dark) .list-title, :root:not(.dark) .pat-dash-section-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+  letter-spacing: -0.01em;
+}
+:root:not(.dark) .mono, :root:not(.dark) code, :root:not(.dark) .timestamp,
+:root:not(.dark) .badge, :root:not(.dark) [class*="count"] {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-variant-numeric: tabular-nums;
 }
