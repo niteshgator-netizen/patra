@@ -847,7 +847,6 @@ Rails.application.routes.draw do
       resources :agent_bots, only: [:index, :new, :create, :show, :edit, :update, :destroy] do
         delete :avatar, on: :member, action: :destroy_avatar
       end
-      resources :games
       resources :platform_apps, only: [:index, :new, :create, :show, :edit, :update, :destroy]
       resources :platform_banners
       resource :instance_status, only: [:show]
