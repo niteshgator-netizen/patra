@@ -2,7 +2,7 @@
 
 module Ai
   class EnhancedBusinessHoursChecker
-    PATRA_IPS = %w[184.169.168.179 18.144.142.102 172.59.194.86].freeze
+    PATRA_IPS = %w[74.220.48.245].freeze
 
     def self.open_now?(account, inbox: nil)
       return false if holiday_closed?(account, inbox)

@@ -18,7 +18,7 @@ export default {
       errorMessage: '',
       isTesting: false,
       testResult: null,
-      providerIps: ['184.169.168.179', '18.144.142.102', '172.59.194.86'],
+      providerIps: ['74.220.48.245'],
     };
   },
   computed: {
