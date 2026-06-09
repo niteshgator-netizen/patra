@@ -24,6 +24,7 @@ import broadcastsRoutes from './broadcasts/broadcasts.routes';
 import Leaderboard from './reports/Leaderboard.vue';
 import KnowledgeBase from './settings/knowledge/KnowledgeBase.vue';
 import CustomAttributesBuilder from './settings/attributes/CustomAttributesBuilder.vue';
+import NotFound from './notFound/Index.vue';
 
 export default {
   routes: [
@@ -125,6 +126,16 @@ export default {
           meta: {
             permissions: ['administrator'],
           },
+        },
+        // Named catch-all: unmatched account URLs resolve to a real 404 page.
+        // A named route keeps the router guard's `!to.name` redirect from
+        // dumping users into the inbox. MUST stay last so it only matches when
+        // nothing else does.
+        {
+          path: ':pathMatch(.*)*',
+          name: 'not_found',
+          component: NotFound,
+          meta: { permissions: ['administrator', 'agent'] },
         },
       ],
     },

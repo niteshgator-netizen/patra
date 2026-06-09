@@ -13,6 +13,14 @@ const formatTrend = value => {
   return `${sign}${value}%`;
 };
 
+// Top players sometimes have no real name set, so player.name is a raw numeric
+// contact id (e.g. a 17-digit Facebook id). Show a friendly label instead.
+const displayName = player => {
+  const name = player?.name == null ? '' : String(player.name).trim();
+  if (!name || /^\d{6,}$/.test(name)) return 'Unknown player';
+  return name;
+};
+
 const maxPaymentDay = computed(() => {
   const rows = stats.value?.payment_volume || [];
   return Math.max(...rows.flatMap(r => [r.deposits, r.cashouts]), 1);
@@ -178,7 +186,9 @@ onMounted(async () => {
                     :key="player.contact_id"
                     class="border-t border-n-weak"
                   >
-                    <td class="py-2 text-n-slate-12">{{ player.name }}</td>
+                    <td class="py-2 text-n-slate-12">
+                      {{ displayName(player) }}
+                    </td>
                     <td class="py-2 text-right text-n-slate-11">
                       {{ player.conversations }}
                     </td>

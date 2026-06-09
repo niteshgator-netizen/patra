@@ -108,12 +108,13 @@ export default {
       path: getPortalRoute(),
       component: HelpCenterPageRouteView,
       redirect: to => {
+        // Legacy Chatwoot /portals landing renders a blank void; send it to
+        // the real Patra Knowledge Base. Only the bare /portals path hits this
+        // redirect — child portal routes match their own paths and are
+        // unaffected.
         return {
-          name: 'portals_index',
-          params: {
-            navigationPath: 'portals_articles_index',
-            ...to.params,
-          },
+          name: 'patra_knowledge',
+          params: { accountId: to.params.accountId },
         };
       },
       children: [...portalRoutes],
