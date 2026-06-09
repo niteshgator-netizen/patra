@@ -240,6 +240,21 @@ begin
         .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
   ok!('redeem-partial APPROVAL => withdraw NOT called + needs-human', !$FAKE.called?(:withdraw) && Array(r[:labels]).include?('needs-human'))
 
+  # DEDUP (Finding-2): a 2nd identical cashout within the window must be BLOCKED. Note we
+  # do NOT prime_contact! between the paired calls — the 1st cashout's GameAction must persist.
+  reset_run; prime_contact!(contact, [src_slug])   # clean slate, then call once (success)
+  dmsg = [{ 'role' => 'user', 'content' => 'cash out 20 and keep the rest' }]
+  orch(account, contact, dmsg).send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  reset_run   # clears fake call-log/cfg but KEEPS the GameAction just created
+  r = orch(account, contact, dmsg).send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  ok!('redeem-partial DUPLICATE => 2nd withdraw BLOCKED', !$FAKE.called?(:withdraw))
+  ok!('redeem-partial DUPLICATE => reply says already processing', r[:reply].to_s.match?(/already processing|hang tight/i))
+  # CONTROL: a DIFFERENT amount must still go through (guard is not over-blocking)
+  reset_run
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 35 keep rest' }])
+        .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  ok!('redeem-partial CONTROL (diff amount) => still withdraws', $FAKE.called?(:withdraw))
+
   # ───────────────────────── ORCHESTRATOR: transfer ──────────────────────────
   if t_src && t_tgt && t_src != t_tgt
     puts "\n[handle_transfer_between_games]  (src=#{t_src}, tgt=#{t_tgt})"
@@ -267,6 +282,16 @@ begin
     r = orch(account, contact, [{ 'role' => 'user', 'content' => "move 5000 from #{t_src} to #{t_tgt}" }])
           .send(:handle_transfer_between_games, { intent: :transfer_between_games })
     ok!('transfer OVER-AMOUNT (req>balance) => short guard, NO withdraw', !$FAKE.called?(:withdraw) && r[:reply].to_s.match?(/short of/i))
+
+    # DEDUP (Finding-2): a 2nd identical transfer within the window must skip BOTH the
+    # cashout AND the load. Do NOT prime between the paired calls (the cashout must persist).
+    reset_run(balance: 1000.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = plan   # clean, call once
+    orch(account, contact, msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    reset_run(balance: 1000.0); $DEEPSEEK = plan   # keep GameActions, reset fake
+    r = orch(account, contact, msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!('transfer DUPLICATE => 2nd cashout BLOCKED (no withdraw)', !$FAKE.called?(:withdraw))
+    ok!('transfer DUPLICATE => no load either (returned before STEP 1)', !$FAKE.called?(:recharge))
+    ok!('transfer DUPLICATE => reply says already processing', r[:reply].to_s.match?(/already processing|hang tight/i))
   else
     puts "\n[handle_transfer_between_games]  SKIPPED — need 2 self-resolving active agent_games on account 2"
   end

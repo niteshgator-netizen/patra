@@ -70,6 +70,9 @@ module Games
       'payment_method_question'   => :payment_method_question
     }.freeze
     RAG_CUTOVER_CONFIDENCE = 0.40   # min RAG confidence to route when regex returns nil (was 0.60; lowered per 73k brain test)
+    # Finding-2 fix: block an identical cashout (same game + amount) within this window —
+    # guards against duplicate-message double-pay in redeem-partial + transfer.
+    CASHOUT_DEDUP_WINDOW_SECONDS = 120
 
     def initialize(account:, contact:, conversation:, messages:)
       @account = account
@@ -2341,6 +2344,13 @@ module Games
         end
       end
 
+      # Dedup guard (Finding-2): a rapid identical cashout (same game + amount) within the
+      # window is a double-send — skip BOTH the cashout AND the downstream load.
+      if recent_cashout_duplicate?(agent_game: source_ag, amount: source_amount)
+        Rails.logger.info("[Orchestrator] transfer DEDUP: $#{fmt_amt(source_amount)} on #{source_ag.game.name} within #{CASHOUT_DEDUP_WINDOW_SECONDS}s — skipping duplicate")
+        return { reply: "already processing your $#{fmt_amt(source_amount)} transfer — hang tight!", labels: ['transfer-duplicate-skipped', 'needs-human'] }
+      end
+
       # STEP 1 — cash out source_amount from the source game. CHECK success.
       cashout_result = source_executor.cashout_player(
         game_username: source_username,
@@ -2557,6 +2567,22 @@ module Games
       rescue StandardError
         nil
       end
+    end
+
+    # Finding-2 dedup: true if an identical cashout (same contact + agent_game + amount,
+    # status pending/success) was recorded within CASHOUT_DEDUP_WINDOW_SECONDS. FAIL-OPEN:
+    # on a query error return false (proceed with the normal cashout) rather than block a
+    # legitimate payout — the velocity guard + Telegram escalation still backstop a true
+    # double, and wrongly blocking a real cashout is worse UX. The error is logged loudly.
+    def recent_cashout_duplicate?(agent_game:, amount:)
+      GameAction.where(account_id: account.id, contact_id: contact.id,
+                       agent_game_id: agent_game.id, action_type: 'cashout',
+                       status: %w[pending success], amount: amount)
+                .where('created_at >= ?', CASHOUT_DEDUP_WINDOW_SECONDS.seconds.ago)
+                .exists?
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] recent_cashout_duplicate? FAILED — failing open (proceeding): #{e.class}: #{e.message}")
+      false
     end
 
     def transfer_mode_pref
@@ -2933,6 +2959,10 @@ module Games
 
       # Cash out ONLY the requested partial amount; the rest stays in the game to play.
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      if recent_cashout_duplicate?(agent_game: ag, amount: amount)
+        Rails.logger.info("[Orchestrator] redeem-partial DEDUP: $#{fmt_amt(amount)} on #{ag.game.name} within #{CASHOUT_DEDUP_WINDOW_SECONDS}s — skipping duplicate")
+        return { reply: "already processing your $#{fmt_amt(amount)} cashout — hang tight!", labels: ['partial-cashout', 'duplicate-skipped'] }
+      end
       result = executor.cashout_player(
         game_username: username,
         amount: amount,
