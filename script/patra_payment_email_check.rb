@@ -100,14 +100,20 @@ handles.each do |handle|
       next unless looks_like_payment?(mail)
       looked += 1
       subj = trunc(mail.subject)
+      # DIAGNOSTIC: reveal the real FROM domain + whether the platform's domain
+      # signature appears anywhere — so we can SEE if forwarding strips the provider FROM.
+      from_dom = Array(mail.from).map { |a| a.to_s.downcase.split('@', 2).last }.compact.first.to_s
+      sig_doms = (Payments::PaymentNotificationEmailParser::PAYMENT_DOMAINS[handle.platform] || [])
+      sig = sig_doms.any? { |d| "#{mail.subject}\n#{mail.body}".downcase.include?(d) }
+      diag = "[from=#{from_dom.empty? ? '?' : from_dom} sig=#{sig}]"
       begin
         result = Payments::PaymentNotificationEmailParser.new(mail: mail, platform: handle.platform).parse
         if result && result[:amount].to_f.positive?
           parsed += 1
           sample_parse ||= { handle: handle, result: result, subject: subj }
-          puts "    ✓ PARSE  $#{result[:amount]}  from #{redact_name(result[:sender_name])}  | subj: #{subj}"
+          puts "    ✓ PARSE  $#{result[:amount]}  from #{redact_name(result[:sender_name])}  #{diag} | subj: #{subj}"
         else
-          puts "    ✗ MISS   (no match)                         | subj: #{subj}"
+          puts "    ✗ MISS   (no match)  #{diag}               | subj: #{subj}"
         end
       rescue StandardError => e
         puts "    ! PARSE-ERR #{e.class}: #{e.message[0, 60]}     | subj: #{subj}"

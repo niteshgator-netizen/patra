@@ -26,81 +26,113 @@ module Payments
     private
 
     def payment_notification?
-      subject = @mail.subject.to_s
+      subj = subject_clean
       body = mail_body
-      return true if subject.match?(PAYMENT_SUBJECT_PATTERN) || body.match?(PAYMENT_SUBJECT_PATTERN)
-      return true if subject.match?(/\$\d/) && body.match?(/\$\d/)
+      has_phrase = subj.match?(PAYMENT_SUBJECT_PATTERN) || body.match?(PAYMENT_SUBJECT_PATTERN)
+      return false unless has_phrase
 
-      false
+      # A clean payment-verb SUBJECT is trusted on its own. Real provider emails are
+      # FORWARDED into a gmail inbox, so the outer FROM is the forwarder, not the
+      # provider — requiring a provider FROM here would reject the real payments.
+      return true if subj.match?(PAYMENT_SUBJECT_PATTERN)
+
+      # Body-only phrase (subject had no payment verb): only trust it if the email is
+      # actually from / signed by a real payment provider. Kills marketing mail that
+      # merely mentions a dollar amount.
+      from_is_payment_source?
     end
 
-    def platform_parse(text)
-      case @platform
-      when 'cashapp' then parse_cashapp(text)
-      when 'chime' then parse_chime(text)
-      when 'venmo' then parse_venmo(text)
-      when 'paypal' then parse_paypal(text)
-      when 'zelle' then parse_zelle(text)
-      else parse_generic(text)
-      end
+    def platform_parse(_text)
+      amount = extract_amount
+      return nil if amount.nil?
+
+      base_result(amount: amount, sender_name: extract_name, note: extract_note(combined_text))
     end
 
-    def parse_cashapp(text)
-      if (m = text.match(/you paid\s+(.+?)\s+\$?\s*(\d+(?:\.\d{1,2})?)/im))
-        return base_result(amount: m[2], sender_name: m[1], note: extract_note(text))
-      end
-      if (m = text.match(/(.+?)\s+paid you\s+\$?\s*(\d+(?:\.\d{1,2})?)/im))
-        return base_result(amount: m[2], sender_name: m[1])
-      end
+    # ── name + amount extraction (subject-first, tight capture) ────────────────
+    # Names: 1-4 words, each starting with a letter; letters/space/'/-/. only.
+    # No digits, no "$", no multi-line garbage — so titleize can never receive junk.
+    NAME_LAZY   = "([A-Za-z][A-Za-z.'\-]*(?:[ \t]+[A-Za-z][A-Za-z.'\-]*){0,3}?)"
+    NAME_GREEDY = "([A-Za-z][A-Za-z.'\-]*(?:[ \t]+[A-Za-z][A-Za-z.'\-]*){0,3})"
+    NAME_STOPWORDS = %w[you your the a an our us this that money payment funds account
+                        cash chime venmo paypal cashapp zelle someone customer support].freeze
 
-      parse_generic(text)
+    def name_patterns
+      [
+        /#{NAME_LAZY}\s+(?:just\s+)?(?:sent|paid)\s+you/i,
+        /(?:received|payment of|sent|got)\s+\$?\s*\d[\d.]*\s+from\s+#{NAME_GREEDY}/i,
+        /\bfrom\s+#{NAME_GREEDY}(?=\s*(?:\n|\z|[.,!]))/i
+      ]
     end
 
-    def parse_chime(text)
-      if (m = text.match(/(.+?)\s+sent you\s+\$?\s*(\d+(?:\.\d{1,2})?)/im))
-        return base_result(amount: m[2], sender_name: m[1], note: extract_note(text))
+    def extract_amount
+      [subject_clean, mail_body].each do |src|
+        if (m = src.match(/\$\s*(\d+(?:\.\d{1,2})?)/))
+          return m[1]
+        end
       end
-      if (m = text.match(/received\s+\$?\s*(\d+(?:\.\d{1,2})?)\s+from\s+(.+?)(?:\n|\.|$)/im))
-        return base_result(amount: m[1], sender_name: m[2], note: extract_note(text))
-      end
-
-      parse_generic(text)
+      nil
     end
 
-    def parse_venmo(text)
-      if (m = text.match(/(.+?)\s+paid you\s+\$?\s*(\d+(?:\.\d{1,2})?)(?:\s+for\s+(.+?))?(?:\n|\.|$)/im))
-        return base_result(amount: m[2], sender_name: m[1], note: m[3] || extract_note(text))
-      end
+    def extract_name
+      [subject_clean, mail_body].each do |src|
+        name_patterns.each do |re|
+          next unless (m = src.match(re))
 
-      parse_generic(text)
+          name = clean_name(m[1])
+          return name if plausible_name?(name)
+        end
+      end
+      nil
     end
 
-    def parse_paypal(text)
-      if (m = text.match(/(.+?)\s+sent you\s+\$?\s*(\d+(?:\.\d{1,2})?)/im))
-        return base_result(amount: m[2], sender_name: m[1], note: extract_note(text))
-      end
-      if (m = text.match(/payment of\s+\$?\s*(\d+(?:\.\d{1,2})?)\s+from\s+(.+?)(?:\n|\.|$)/im))
-        return base_result(amount: m[1], sender_name: m[2], note: extract_note(text))
-      end
-
-      parse_generic(text)
+    def clean_name(raw)
+      raw.to_s.gsub(/\s+/, ' ').strip.sub(/\A[^A-Za-z]+/, '').sub(/[^A-Za-z]+\z/, '')
     end
 
-    def parse_zelle(text)
-      if (m = text.match(/\$?\s*(\d+(?:\.\d{1,2})?)\s+from\s+(.+?)(?:\n|\.|$)/im))
-        return base_result(amount: m[1], sender_name: m[2], note: extract_note(text))
-      end
+    def plausible_name?(name)
+      return false if name.blank?
+      return false unless name.length.between?(2, 40)
+      return false if name.match?(/[0-9$]/)
 
-      parse_generic(text)
+      first = name.split.first.to_s.downcase
+      return false if NAME_STOPWORDS.include?(first)
+      return false if NAME_STOPWORDS.include?(name.downcase)
+
+      true
     end
 
-    def parse_generic(text)
-      amount = text[/\$?\s*(\d+(?:\.\d{1,2})?)/, 1]
-      sender = text[/(?:from|by|sender)[:\s]+(.+?)(?:\n|\.|$)/im, 1] ||
-               text[/(.+?)\s+(?:sent you|paid you)/im, 1]
-      return nil if amount.blank? || sender.blank?
+    # ── sender-domain allowlist (forwarding-aware) ─────────────────────────────
+    PAYMENT_DOMAINS = {
+      'cashapp' => %w[cash.app square.com squareup.com],
+      'chime'   => %w[chime.com],
+      'venmo'   => %w[venmo.com],
+      'paypal'  => %w[paypal.com],
+      'zelle'   => %w[zellepay.com zelle.com]
+    }.freeze
 
-      base_result(amount: amount, sender_name: sender, note: extract_note(text))
+    def from_is_payment_source?
+      domains = PAYMENT_DOMAINS[@platform] || []
+      return true if from_addresses.any? { |addr| domains.any? { |d| addr.include?(d) } }
+
+      # Forwarded mail: the provider domain shows up in the quoted body/headers instead.
+      # Zelle is bank-forwarded, so accept the literal word "zelle" as its signature.
+      signatures = domains.dup
+      signatures << 'zelle' if @platform == 'zelle'
+      haystack = "#{subject_clean}\n#{mail_body}".downcase
+      signatures.any? { |s| haystack.include?(s) }
+    end
+
+    def from_addresses
+      Array(@mail.from).map { |a| a.to_s.downcase }
+    rescue StandardError
+      []
+    end
+
+    def subject_clean
+      s = @mail.subject.to_s
+      s = s.sub(/\A\s*(?:fwd?|re)\s*:\s*/i, '') while s.match?(/\A\s*(?:fwd?|re)\s*:/i)
+      s.strip
     end
 
     def base_result(amount:, sender_name:, note: nil)
@@ -134,7 +166,7 @@ module Payments
     end
 
     def combined_text
-      [@mail.subject.to_s, mail_body].join("\n")
+      [subject_clean, mail_body].join("\n")
     end
 
     def mail_body
