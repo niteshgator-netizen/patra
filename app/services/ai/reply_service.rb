@@ -19,7 +19,7 @@ class Ai::ReplyService
   # Override with XAI_MODEL in ENV if xAI renames IDs; grok-4 alone is often rejected/deprecated upstream.
   MODEL = ENV.fetch('XAI_MODEL', 'grok-4.3').freeze
   MAX_TOKENS = 80
-  HISTORY_LIMIT = 5
+  HISTORY_LIMIT = 50
   # Chatwoot bridge (internal REST) — keep snappy; unrelated to LLM latency.
   HTTP_TIMEOUT = 10
   # xAI Grok can be slow on complex prompts
@@ -1296,6 +1296,7 @@ class Ai::ReplyService
     response = HTTParty.get(
       "#{base_url}/api/v1/accounts/#{account_id}/conversations/#{@conversation_id}/messages",
       headers: chatwoot_headers,
+      query: { after: 0, before: 2_147_483_647 },
       timeout: HTTP_TIMEOUT
     )
 
