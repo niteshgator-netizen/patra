@@ -824,7 +824,7 @@ provideMessageContext({
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 18px;
+  padding: 3px 12px;
   font-size: 11px;
   color: var(--text-4, #54515e);
   font-family: 'JetBrains Mono', monospace;
