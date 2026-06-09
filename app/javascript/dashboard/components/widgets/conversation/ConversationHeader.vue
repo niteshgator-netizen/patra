@@ -549,8 +549,8 @@ const fetchConversationWatchers = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
-  flex: 1;
+  min-width: 140px;
+  flex: 1 1 auto;
 }
 
 .patra-conv-head-back {
