@@ -75,7 +75,7 @@ onUnmounted(() => {
         ],
       },
     ]"
-    class="ctx conv-sidebar-patra h-full overflow-hidden flex flex-col fixed top-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out ltr:right-0 rtl:left-0 md:static md:w-[360px] md:min-w-[360px] ltr:border-l rtl:border-r border-n-weak shadow-lg md:shadow-none"
+    class="ctx conv-sidebar-patra h-full overflow-hidden flex flex-col fixed top-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out ltr:right-0 rtl:left-0 xl:static xl:w-[360px] xl:min-w-[360px] ltr:border-l rtl:border-r border-n-weak shadow-lg xl:shadow-none"
     :class="[
       {
         'md:flex': activeTab === 0,
