@@ -190,3 +190,9 @@ games_winback_job:
   cron: '0 17 * * *'
   class: 'Games::WinbackJob'
   queue: scheduled_jobs
+
+# Daily at 0330 UTC — fold older player history into per-player AI memory (1000 -> 500 rotation)
+rotate_player_memory_job:
+  cron: '30 3 * * *'
+  class: 'RotatePlayerMemoryJob'
+  queue: low

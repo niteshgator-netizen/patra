@@ -1480,6 +1480,7 @@ class Ai::ReplyService
     parts << "Customer's game username: #{game_username}" if game_username.present?
     parts << "Previous interactions: #{conversations_count}"
     parts.concat(player_vault_lines(custom_attrs))
+    parts.concat(player_memory_lines(custom_attrs))
     tone = player_tone_directive(custom_attrs)
     parts << tone if tone.present?
     notes = (additional_attrs['notes'] || custom_attrs['notes']).to_s.strip
@@ -1533,6 +1534,27 @@ class Ai::ReplyService
     return [] if rows.empty?
 
     ['Player profile vault (structured):', *rows]
+  end
+
+  # Lines from the player's permanent AI memory (custom_attributes
+  # ['patra_player_memory'], distilled by Ai::PlayerMemoryWriter) so Bella
+  # replies in a way tailored to who this player is. [] when none distilled yet.
+  def player_memory_lines(custom_attrs)
+    mem = custom_attrs.stringify_keys['patra_player_memory']
+    return [] unless mem.is_a?(Hash)
+
+    h = mem.stringify_keys
+    rows = []
+    summary = h['summary'].to_s.strip
+    rows << "Who this player is (from past history): #{summary}" if summary.present?
+
+    traits = h['traits'].is_a?(Hash) ? h['traits'].stringify_keys : {}
+    trait_bits = %w[style patience attitude].filter_map do |k|
+      "#{k}: #{traits[k].to_s.strip}" if traits[k].to_s.strip.present?
+    end
+    rows << "Player traits — #{trait_bits.join(', ')}" if trait_bits.any?
+
+    rows
   end
 
   # Short directive so Bella adjusts warmth without naming the customer.
