@@ -199,7 +199,7 @@ const toggleConversationLayout = () => {
 .pat-list-title {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
-  font-size: 19px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   margin: 0;
 }
