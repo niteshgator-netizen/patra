@@ -663,7 +663,8 @@ const fetchConversationWatchers = () => {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
   width: 100%;
 }
 
