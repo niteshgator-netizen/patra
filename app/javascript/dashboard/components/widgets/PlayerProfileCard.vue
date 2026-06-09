@@ -561,6 +561,136 @@ const toggleVault = () => {
   vaultOpen.value = !vaultOpen.value;
 };
 
+const memoryOpen = ref(true);
+const toggleMemory = () => {
+  memoryOpen.value = !memoryOpen.value;
+};
+
+const playerMemory = computed(() => {
+  const raw = attrs.value.patra_player_memory;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const traits = raw.traits && typeof raw.traits === 'object' ? raw.traits : {};
+  return {
+    summary: typeof raw.summary === 'string' ? raw.summary : '',
+    traits: {
+      style: traits.style || '',
+      patience: traits.patience || '',
+      attitude: traits.attitude || '',
+    },
+    updatedAt: raw.updated_at || null,
+    messagesSummarized: Number(raw.messages_summarized) || 0,
+  };
+});
+
+const hasMemory = computed(() => {
+  const m = playerMemory.value;
+  if (!m) return false;
+  return Boolean(
+    (m.summary && m.summary.trim()) ||
+      m.traits.style ||
+      m.traits.patience ||
+      m.traits.attitude
+  );
+});
+
+const memoryTraitChips = computed(() => {
+  const m = playerMemory.value;
+  if (!m) return [];
+  return [
+    { label: 'Style', value: m.traits.style },
+    { label: 'Patience', value: m.traits.patience },
+    { label: 'Attitude', value: m.traits.attitude },
+  ].filter(c => c.value && String(c.value).trim());
+});
+
+function memoryTimeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const day = 86400000;
+  if (diffMs < 0) return formatDate(iso);
+  if (diffMs < day) return 'today';
+  if (diffMs < 2 * day) return 'yesterday';
+  const days = Math.floor(diffMs / day);
+  if (days < 30) return `${days} days ago`;
+  return formatDate(iso);
+}
+
+const memoryEditing = ref(false);
+const savingMemory = ref(false);
+const memoryDraft = ref({ summary: '', style: '', patience: '', attitude: '' });
+
+function startEditMemory() {
+  const m = playerMemory.value || { summary: '', traits: {} };
+  memoryDraft.value = {
+    summary: m.summary || '',
+    style: m.traits.style || '',
+    patience: m.traits.patience || '',
+    attitude: m.traits.attitude || '',
+  };
+  memoryEditing.value = true;
+}
+
+function cancelEditMemory() {
+  memoryEditing.value = false;
+}
+
+async function saveMemory() {
+  if (!props.contact?.id) return;
+  savingMemory.value = true;
+  try {
+    const prev = playerMemory.value;
+    const memory = {
+      summary: memoryDraft.value.summary.trim(),
+      traits: {
+        style: memoryDraft.value.style.trim(),
+        patience: memoryDraft.value.patience.trim(),
+        attitude: memoryDraft.value.attitude.trim(),
+      },
+      updated_at: new Date().toISOString(),
+      messages_summarized: prev?.messagesSummarized || 0,
+    };
+    await store.dispatch('contacts/update', {
+      id: props.contact.id,
+      custom_attributes: {
+        ...attrs.value,
+        patra_player_memory: memory,
+      },
+    });
+    memoryEditing.value = false;
+    useAlert(t('PATRA.SETTINGS.SAVED'));
+  } catch {
+    useAlert(t('PATRA.SETTINGS.SAVE_ERROR'));
+  } finally {
+    savingMemory.value = false;
+  }
+}
+
+async function clearMemory() {
+  if (!props.contact?.id) return;
+  const msg =
+    'Clear what Patra has learned about this player? It will re-learn as they chat.';
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(msg)) return;
+  savingMemory.value = true;
+  try {
+    await store.dispatch('contacts/update', {
+      id: props.contact.id,
+      custom_attributes: {
+        ...attrs.value,
+        patra_player_memory: {},
+      },
+    });
+    memoryEditing.value = false;
+    useAlert(t('PATRA.SETTINGS.SAVED'));
+  } catch {
+    useAlert(t('PATRA.SETTINGS.SAVE_ERROR'));
+  } finally {
+    savingMemory.value = false;
+  }
+}
+
 onMounted(loadExtras);
 watch(() => props.contact?.id, loadExtras);
 </script>
@@ -826,6 +956,120 @@ watch(() => props.contact?.id, loadExtras);
       </div>
     </AccordionItem>
 
+    <AccordionItem patra :is-open="memoryOpen" compact @toggle="toggleMemory">
+      <template #title>
+        AI memory
+        <span
+          v-if="playerMemory && playerMemory.messagesSummarized"
+          class="acc-badge"
+        >
+          {{ playerMemory.messagesSummarized }} learned
+        </span>
+      </template>
+
+      <template v-if="!memoryEditing">
+        <template v-if="hasMemory">
+          <p class="pat-mem-summary">{{ playerMemory.summary || '—' }}</p>
+          <div v-if="memoryTraitChips.length" class="pat-mem-traits">
+            <span
+              v-for="chip in memoryTraitChips"
+              :key="chip.label"
+              class="tag pat-mem-chip"
+            >
+              {{ chip.label }}: {{ chip.value }}
+            </span>
+          </div>
+          <p class="pat-mem-meta">
+            <span v-if="playerMemory.updatedAt">
+              updated {{ memoryTimeAgo(playerMemory.updatedAt) }}
+            </span>
+            <span v-if="playerMemory.messagesSummarized">
+              · {{ playerMemory.messagesSummarized }} messages learned from
+            </span>
+          </p>
+          <div class="pat-mem-actions">
+            <button type="button" class="vault-copy" @click="startEditMemory">
+              Edit
+            </button>
+            <button
+              type="button"
+              class="vault-copy pat-mem-clear"
+              :disabled="savingMemory"
+              @click="clearMemory"
+            >
+              Clear
+            </button>
+          </div>
+        </template>
+        <div v-else class="empty-note">
+          Patra hasn't built a memory for this player yet — it learns as they
+          chat.
+          <div class="pat-mem-actions">
+            <button type="button" class="vault-copy" @click="startEditMemory">
+              Add memory
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <div v-else class="pat-mem-edit">
+        <div class="pat-mem-flabel">Summary</div>
+        <textarea
+          v-model="memoryDraft.summary"
+          class="pat-mem-input"
+          rows="4"
+          placeholder="Who this player is, their style, attitude, notable history…"
+        />
+        <div class="pat-mem-edit-grid">
+          <label class="pat-mem-field">
+            <span class="pat-mem-flabel">Style</span>
+            <input
+              v-model="memoryDraft.style"
+              type="text"
+              class="pat-mem-input"
+              placeholder="chatty / terse"
+            />
+          </label>
+          <label class="pat-mem-field">
+            <span class="pat-mem-flabel">Patience</span>
+            <input
+              v-model="memoryDraft.patience"
+              type="text"
+              class="pat-mem-input"
+              placeholder="high / low"
+            />
+          </label>
+          <label class="pat-mem-field">
+            <span class="pat-mem-flabel">Attitude</span>
+            <input
+              v-model="memoryDraft.attitude"
+              type="text"
+              class="pat-mem-input"
+              placeholder="friendly / demanding"
+            />
+          </label>
+        </div>
+        <div class="pat-mem-actions-edit">
+          <button
+            type="button"
+            class="save-btn"
+            :disabled="savingMemory"
+            @click="saveMemory"
+          >
+            {{ savingMemory ? '…' : $t('PATRA.SETTINGS.SAVE') }}
+          </button>
+          <button
+            type="button"
+            class="vault-copy"
+            :disabled="savingMemory"
+            @click="cancelEditMemory"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </AccordionItem>
+
     <div class="ctx-section">
       <div class="ctx-label">{{ $t('PLAYER_PROFILE.AGENT_NOTES') }}</div>
       <textarea
@@ -993,5 +1237,79 @@ watch(() => props.contact?.id, loadExtras);
 
 .ppc-value {
   color: var(--text, #ededf2);
+}
+
+/* ── AI memory section ── */
+.pat-mem-summary {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #ededf2);
+  margin: 4px 16px 8px;
+  white-space: pre-wrap;
+}
+.pat-mem-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 16px 8px;
+}
+.pat-mem-chip {
+  font-size: 10px;
+  background: rgba(110, 86, 207, 0.16);
+  color: var(--patra-3, #a78bfa);
+}
+.pat-mem-meta {
+  font-size: 10px;
+  color: var(--text-3, #75727f);
+  margin: 0 16px 6px;
+}
+.pat-mem-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 16px 2px;
+}
+.pat-mem-actions-edit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pat-mem-clear:hover {
+  color: var(--red, #f85149);
+  background: rgba(248, 81, 73, 0.12);
+}
+.pat-mem-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 16px 4px;
+}
+.pat-mem-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+.pat-mem-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pat-mem-flabel {
+  font-size: 10px;
+  color: var(--text-3, #75727f);
+}
+.pat-mem-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  background: var(--surface-2, #131119);
+  border: 1px solid var(--border, #171520);
+  border-radius: 6px;
+  color: var(--text, #ededf2);
+  box-sizing: border-box;
+}
+.pat-mem-input:focus {
+  outline: none;
+  border-color: var(--patra, #6e56cf);
 }
 </style>
