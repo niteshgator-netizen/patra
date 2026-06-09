@@ -631,6 +631,7 @@
 }
 
 :deep(.att-thumb) {
+  position: relative;
   aspect-ratio: 1;
   background: var(--surface-2);
   border: 1px solid var(--border);
