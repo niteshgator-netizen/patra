@@ -240,11 +240,12 @@ else
   end
 
   # FB Inbox 5 exists + channel type
-  ping('FB Inbox 5 exists and is Channel::Api') do
-    ib = Inbox.find_by(id: 5)
-    raise 'Inbox 5 not found' if ib.nil?
+  ping('FB bridge inbox exists and is Channel::Api') do
+    inbox_id = ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '5').to_i
+    ib = Inbox.find_by(id: inbox_id)
+    raise "bridge inbox #{inbox_id} not found" if ib.nil?
 
-    puts "        inbox5 name=#{ib.name.inspect} channel_type=#{ib.channel_type}"
+    puts "        inbox#{inbox_id} name=#{ib.name.inspect} channel_type=#{ib.channel_type}"
     ib.channel_type == 'Channel::Api'
   end
 
