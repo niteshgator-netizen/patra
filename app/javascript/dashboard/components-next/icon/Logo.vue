@@ -12,15 +12,13 @@ const attrs = useAttrs();
     viewBox="0 0 100 100"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <circle cx="50" cy="50" r="50" fill="#534AB7" />
-    <text
-      x="50"
-      y="68"
-      font-family="Arial,sans-serif"
-      font-size="60"
-      font-weight="700"
-      fill="white"
-      text-anchor="middle"
-    >P</text>
+    <defs>
+      <linearGradient id="patraLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#7D3DF5" />
+        <stop offset="100%" stop-color="#5748ED" />
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="100" height="100" rx="26" fill="url(#patraLogoGrad)" />
+    <text x="50" y="51" font-family="Georgia, 'Times New Roman', serif" font-size="64" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">P</text>
   </svg>
 </template>
