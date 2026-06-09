@@ -1900,6 +1900,14 @@
   background-size: 100% 100% !important;
 }
 
+/* The theme FAB + brightness pills are position:fixed at bottom-left (z-70).
+   Reserve space at the bottom of the nav rail so its profile footer clears
+   them and isn't overlapped. `aside.` keeps specificity above the rail's
+   `padding: 14px 0` rule in Sidebar.vue. */
+aside.pat-rail.patra-nav-rail {
+  padding-bottom: 64px;
+}
+
 /* ─────────────────────────────────────────
    W1 FIX 2 — CONV CARD CURSOR-FOLLOW GLOW on .convo-card-v6
    (handler injected in ConversationCard.vue sets --mx / --my)

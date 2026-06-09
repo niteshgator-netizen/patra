@@ -197,6 +197,7 @@ export default {
 <template>
   <section class="pat-page-wrap flex w-full h-full min-w-0">
     <ChatList
+      :class="conversationId ? 'max-md:hidden' : 'max-md:w-full'"
       :show-conversation-list="showConversationList"
       :conversation-inbox="inboxId"
       :label="label"
@@ -208,6 +209,7 @@ export default {
     />
     <ConversationBox
       v-if="showMessageView"
+      :class="conversationId ? '' : 'max-md:hidden'"
       :inbox-id="inboxId"
       :is-on-expanded-layout="isOnExpandedLayout"
     >
