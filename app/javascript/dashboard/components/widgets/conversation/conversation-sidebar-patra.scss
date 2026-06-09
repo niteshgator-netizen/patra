@@ -26,6 +26,26 @@
   background: var(--surface);
 }
 
+/* FIX 2: the block above redefines these tokens with DARK values on the bare
+   `.conv-sidebar-patra` class (applies in every theme), so right-panel section
+   headers and body text rendered `var(--text)` = #ededf2 even in light. Give
+   the tokens light values in light mode (higher specificity wins). */
+body:not(.dark) .conv-sidebar-patra,
+[data-theme="light"] .conv-sidebar-patra {
+  --canvas: #F6F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F6F5F9;
+  --surface-3: #ECEAF4;
+  --surface-4: #E2DFEF;
+  --border: #E5E3EE;
+  --border-hi: #D5D1E4;
+  --text: #1A1A24;
+  --text-2: #4A4756;
+  --text-3: #75727F;
+  --text-4: #908DA0;
+  --inset: rgba(0, 0, 0, 0.04);
+}
+
 #spotlight {
   position: fixed;
   width: 460px;

@@ -608,7 +608,10 @@
    ============================================ */
 
 /* --- DESIGN TOKENS --- */
-:root, :root[data-theme="dark"], .dark {
+/* FIX 1a: removed bare `:root,` — it made these dark v2 values apply in EVERY
+   theme (root cause of right-panel/cards staying dark in light mode). Now
+   dark-only; light values live in PART 2b. */
+:root[data-theme="dark"], .dark {
   --patra-canvas: #050409;
   --patra-surface: #0C0B12;
   --patra-surface-2: #131119;
@@ -3827,7 +3830,28 @@ html[data-theme="light"] body {
   --patra-text1: #1A1A24;
   --patra-text2: #4A4756;
   --patra-text3: #75727F;
-  --patra-border: rgba(0, 0, 0, 0.07);
+  --patra-border: #E5E3EE;
+
+  /* FIX 1b — Patra Design System v2 token names (were dark-only via the bare
+     `:root` selector above). Light values so nothing is undefined in light. */
+  --patra-canvas: #F6F5F9;
+  --patra-surface: #FFFFFF;
+  --patra-surface-2: #F6F5F9;
+  --patra-surface-3: #ECEAF4;
+  --patra-surface-4: #E2DFEF;
+  --patra-border-hi: #D5D1E4;
+  --patra-text: #1A1A24;
+  --patra-text-2: #4A4756;
+  --patra-text-3: #75727F;
+  --patra-purple: #6E56CF;
+  --patra-purple-2: #8B5CF6;
+  --patra-purple-3: #A78BFA;
+  --patra-purple-deep: #5B45B0;
+  --patra-glow: rgba(110, 86, 207, 0.35);
+  --patra-green: #1A7F37;
+  --patra-amber: #9A6700;
+  --patra-red: #CF222E;
+  --patra-blue: #0969DA;
 }
 
 /* ════════════════════════════════════════════════════════════════════

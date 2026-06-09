@@ -41,7 +41,7 @@ onMounted(async () => {
     </header>
 
     <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
-      <table class="w-full text-sm">
+      <table class="w-full text-sm lb-table">
       <thead>
         <tr class="text-left text-n-slate-11">
           <th class="pb-2">{{ $t('PATRA.LEADERBOARD.RANK') }}</th>
@@ -75,3 +75,15 @@ onMounted(async () => {
     </section>
   </div>
 </template>
+
+<style scoped>
+/* FIX 3: the tbody <td>s carry no explicit text color, so in light mode they
+   inherited a dark-theme value (#EDEDF2). text-n-slate-12 resolves through
+   --n-slate-12, which only gets a light value inside .pat-page-wrap /
+   .pat-settings-section (patra-themes.css:2793 / :4025) — this bare route is in
+   neither. Pin the table to the globally theme-aware --text token (light
+   #1A1A24 / dark #EDEDF2). The thead keeps its own text-n-slate-11. */
+.lb-table {
+  color: var(--text, #EDEDF2);
+}
+</style>
