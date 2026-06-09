@@ -414,7 +414,7 @@ const fetchConversationWatchers = () => {
             />
           </svg>
         </span>
-        {{ aiToggleLabel }}
+        <span class="pat-hbtn-label">{{ aiToggleLabel }}</span>
         <span class="patra-conv-head-ai-sw pat-ai-sw" aria-hidden="true">
           <i />
         </span>
@@ -426,7 +426,7 @@ const fetchConversationWatchers = () => {
         :class="{ active: autoReplyEnabled }"
         @click="toggleAutoReply"
       >
-        Auto-reply {{ autoReplyEnabled ? 'on' : 'off' }}
+        <span class="pat-hbtn-label">Auto-reply {{ autoReplyEnabled ? 'on' : 'off' }}</span>
       </button>
 
       <button
@@ -454,7 +454,7 @@ const fetchConversationWatchers = () => {
         >
           <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
         </svg>
-        {{ pinButtonLabel }}
+        <span class="pat-hbtn-label">{{ pinButtonLabel }}</span>
       </button>
 
       <button
@@ -476,7 +476,7 @@ const fetchConversationWatchers = () => {
           <circle cx="9" cy="7" r="4" />
           <path d="M20 8v6M23 11h-6" />
         </svg>
-        {{ $t('PATRA.CONVERSATION.TAKE_OVER') }}
+        <span class="pat-hbtn-label">{{ $t('PATRA.CONVERSATION.TAKE_OVER') }}</span>
       </button>
 
       <MoreActions :conversation-id="currentChat.id" />
@@ -659,7 +659,7 @@ const fetchConversationWatchers = () => {
 
 .patra-conv-head-r {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
@@ -672,6 +672,27 @@ const fetchConversationWatchers = () => {
   .patra-conv-head-r {
     justify-content: flex-end;
     width: auto;
+  }
+}
+
+/* Responsive header: progressively simplify instead of wrapping */
+/* Tablet and below: hide button text labels, keep icons */
+@media (max-width: 1100px) {
+  .pat-hbtn-label {
+    display: none;
+  }
+  .patra-conv-head-ai-toggle,
+  .patra-auto-reply-toggle,
+  .patra-conv-head-btn {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+}
+
+/* Phone: hide low-priority Pin + Take over (MoreActions ⋮ remains as overflow) */
+@media (max-width: 760px) {
+  .patra-conv-head-btn.pat-hbtn {
+    display: none;
   }
 }
 
