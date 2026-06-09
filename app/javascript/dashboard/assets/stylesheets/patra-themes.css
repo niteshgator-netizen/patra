@@ -1339,7 +1339,7 @@
 }
 
 /* ── 5. FILTER CHIPS (port mockup .chip onto .pat-filter-chips buttons) ── */
-.dark .pat-filter-chips { padding: 10px 12px !important; gap: 6px !important; }
+.dark .pat-filter-chips { padding: 0 12px !important; gap: 6px !important; }
 .dark .pat-filter-chips button {
   font-size: 12px !important;
   font-weight: 500 !important;
