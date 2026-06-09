@@ -29,6 +29,8 @@ class RotatePlayerMemoryJob < ApplicationJob
 
   def perform
     Account.find_each do |account|
+      next unless memory_enabled_for?(account)
+
       account.contacts.find_each do |contact|
         rotate_contact(account, contact)
       rescue StandardError => e
@@ -38,6 +40,15 @@ class RotatePlayerMemoryJob < ApplicationJob
   end
 
   private
+
+  # Account-level kill switch. Defaults to ENABLED if the pref can not be read
+  # so a lookup failure never silently stops summarization for everyone.
+  def memory_enabled_for?(account)
+    pref = ReplyPreference.find_by(account_id: account.id)
+    pref.nil? || pref.memory_enabled != false
+  rescue StandardError
+    true
+  end
 
   def rotate_contact(account, contact)
     conversation_ids = contact.conversations.pluck(:id)

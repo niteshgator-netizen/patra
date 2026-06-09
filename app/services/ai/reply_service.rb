@@ -1540,6 +1540,16 @@ class Ai::ReplyService
   # ['patra_player_memory'], distilled by Ai::PlayerMemoryWriter) so Bella
   # replies in a way tailored to who this player is. [] when none distilled yet.
   def player_memory_lines(custom_attrs)
+    # Account-level kill switch: skip memory injection when an operator turned
+    # it off in AI settings. Defaults to ENABLED on any lookup error so a
+    # pref-read failure never silently disables a working feature.
+    begin
+      pref = ReplyPreference.find_by(account_id: account_id)
+      return [] if pref && pref.memory_enabled == false
+    rescue StandardError
+      nil
+    end
+
     mem = custom_attrs.stringify_keys['patra_player_memory']
     return [] unless mem.is_a?(Hash)
 

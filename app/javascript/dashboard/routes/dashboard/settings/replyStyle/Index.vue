@@ -46,6 +46,19 @@
         <hr class="border-slate-700" />
 
         <label class="flex items-center gap-2">
+          <input v-model="pref.memory_enabled" type="checkbox" />
+          <span class="text-sm">Remember each player (AI builds a memory of who they are)</span>
+        </label>
+        <p class="text-xs text-slate-500 -mt-2 leading-relaxed">
+          Recent messages always stay word-for-word. Older history is distilled
+          into a short per-player memory — who they are, their style, attitude.
+          You can view or edit it on each contact in the conversation panel.
+          Turn this off to stop building and using player memory.
+        </p>
+
+        <hr class="border-slate-700" />
+
+        <label class="flex items-center gap-2">
           <input v-model="pref.confirm_before_load" type="checkbox" />
           <span class="text-sm">Confirm before loading credits</span>
         </label>
@@ -88,6 +101,7 @@ export default {
         confirm_before_load: false,
         confirm_before_cashout: true,
         auto_send_receipt: true,
+        memory_enabled: true,
       },
       loading: true,
     };
