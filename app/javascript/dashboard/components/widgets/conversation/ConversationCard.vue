@@ -371,7 +371,7 @@ const onCardMouseMove = (e) => {
       </Avatar>
       <span
         v-if="slaDotColor"
-        class="absolute top-0 ltr:left-0 rtl:right-0 w-2.5 h-2.5 rounded-full border-2 border-n-background z-[3]"
+        class="absolute top-0 ltr:left-0 rtl:right-0 w-[10px] h-[10px] rounded-full border-2 border-n-background z-[3]"
         :class="slaDotColor"
         :title="$t('PATRA.CONVERSATION_CARD.SLA_WAITING')"
       />

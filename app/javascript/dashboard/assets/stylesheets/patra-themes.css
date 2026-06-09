@@ -869,7 +869,7 @@
 .patra-theme-fab {
   position: fixed;
   bottom: 16px;
-  left: 13px;
+  left: 76px;
   width: 40px;
   height: 40px;
   border-radius: 11px;
@@ -895,7 +895,7 @@
 .patra-bright-ctl {
   position: fixed;
   bottom: 16px;
-  left: 62px;
+  left: 124px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -4663,11 +4663,13 @@ html[data-theme="light"] body .pat-at-root.pat-ai-train {
    selector is :not(.dark) / [data-theme="light"], so dark is untouched. */
 html:not(.dark) body:not(.dark) .pat-settings-shell,
 html:not(.dark) body:not(.dark) .pat-settings-body,
+html:not(.dark) body:not(.dark) .pat-overview-wrap,
 html:not(.dark) body:not(.dark) .account-wrap,
 html:not(.dark) body:not(.dark) .pat-page-wrap,
 html:not(.dark) body:not(.dark) .pat-list-wrap,
 html[data-theme="light"] body .pat-settings-shell,
 html[data-theme="light"] body .pat-settings-body,
+html[data-theme="light"] body .pat-overview-wrap,
 html[data-theme="light"] body .account-wrap,
 html[data-theme="light"] body .pat-page-wrap,
 html[data-theme="light"] body .pat-list-wrap {
