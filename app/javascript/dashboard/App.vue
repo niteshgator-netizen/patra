@@ -96,8 +96,10 @@ export default {
     this.patraSpotlightMoveHandler = e => {
       const spot = document.getElementById('patra-spotlight');
       if (spot) {
-        spot.style.left = `${e.clientX}px`;
-        spot.style.top = `${e.clientY}px`;
+        // Compositor-only transform — avoids per-move layout/repaint of the
+        // 460px blurred layer that left/top triggered. The translate(-50%,-50%)
+        // re-centers the glow on the cursor (was a static CSS transform).
+        spot.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
         spot.style.opacity = '1';
       }
     };

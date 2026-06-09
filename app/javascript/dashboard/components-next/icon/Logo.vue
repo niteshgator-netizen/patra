@@ -2,23 +2,18 @@
 import { useAttrs } from 'vue';
 
 const attrs = useAttrs();
+// Runtime URL (not a static src) so Vite serves it from the Rails public root
+// instead of trying to bundle it. Mirrors ShareModal.vue's '/brand-assets/...'.
+const logoSrc = '/brand-assets/patra-logo-tile.png';
 </script>
 
 <template>
-  <svg
+  <img
     v-bind="attrs"
+    :src="logoSrc"
+    alt="Patra"
     width="24"
     height="24"
-    viewBox="0 0 100 100"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <defs>
-      <linearGradient id="patraLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#7D3DF5" />
-        <stop offset="100%" stop-color="#5748ED" />
-      </linearGradient>
-    </defs>
-    <rect x="0" y="0" width="100" height="100" rx="26" fill="url(#patraLogoGrad)" />
-    <text x="50" y="51" font-family="Georgia, 'Times New Roman', serif" font-size="64" font-weight="700" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">P</text>
-  </svg>
+    style="object-fit: contain"
+  />
 </template>

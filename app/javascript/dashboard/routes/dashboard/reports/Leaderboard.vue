@@ -34,11 +34,14 @@ onMounted(async () => {
 <template>
   <div class="flex flex-col gap-4 p-6">
     <header>
-      <h1 class="text-2xl font-semibold">{{ $t('PATRA.LEADERBOARD.TITLE') }}</h1>
+      <h1 class="text-2xl font-semibold text-n-slate-12">
+        {{ $t('PATRA.LEADERBOARD.TITLE') }}
+      </h1>
       <p class="text-sm text-n-slate-11">{{ $t('PATRA.LEADERBOARD.SUBTITLE') }}</p>
     </header>
 
-    <table class="w-full text-sm">
+    <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+      <table class="w-full text-sm">
       <thead>
         <tr class="text-left text-n-slate-11">
           <th class="pb-2">{{ $t('PATRA.LEADERBOARD.RANK') }}</th>
@@ -68,6 +71,7 @@ onMounted(async () => {
           <td class="py-2">{{ agent.avg_response_time || '—' }}</td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </section>
   </div>
 </template>

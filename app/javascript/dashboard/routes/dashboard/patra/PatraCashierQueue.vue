@@ -59,53 +59,71 @@ onUnmounted(() => clearInterval(pollInterval));
 </script>
 
 <template>
-  <div>
-    <h2>Cashier Queue</h2>
+  <div class="flex flex-col gap-4 p-6">
+    <header>
+      <h2 class="text-2xl font-semibold text-n-slate-12">Cashier Queue</h2>
+      <p class="text-sm text-n-slate-11">
+        Pending load, cashout and freeplay claims.
+      </p>
+    </header>
 
-    <div v-if="loading">Loading...</div>
+    <div v-if="loading" class="text-sm text-n-slate-11">Loading…</div>
 
     <template v-else>
-      <p v-if="claims.length === 0">No pending claims.</p>
+      <p
+        v-if="claims.length === 0"
+        class="rounded-xl border border-n-weak bg-n-solid-1 py-12 text-center text-sm text-n-slate-11"
+      >
+        No pending claims.
+      </p>
 
-      <table v-else border="1" cellpadding="6">
-        <thead>
-          <tr>
-            <th>Action</th>
-            <th>Amount</th>
-            <th>Game</th>
-            <th>Contact</th>
-            <th>Expires</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="claim in claims" :key="claim.id">
-            <td>{{ claim.action_type }}</td>
-            <td>{{ claim.amount }}</td>
-            <td>{{ claim.game_slug || '—' }}</td>
-            <td>{{ contactName(claim) }}</td>
-            <td>{{ claim.expires_at || '—' }}</td>
-            <td>
-              <button
-                v-if="claim.status === 'pending'"
-                type="button"
-                :disabled="acting === claim.id"
-                @click="claimItem(claim.id)"
-              >
-                {{ acting === claim.id ? 'Claiming...' : 'Claim' }}
-              </button>
-              <button
-                v-if="claim.status === 'claimed'"
-                type="button"
-                :disabled="acting === claim.id"
-                @click="completeItem(claim.id)"
-              >
-                {{ acting === claim.id ? 'Completing...' : 'Complete' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <section v-else class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-n-slate-11">
+              <th class="pb-2 font-medium">Action</th>
+              <th class="pb-2 font-medium">Amount</th>
+              <th class="pb-2 font-medium">Game</th>
+              <th class="pb-2 font-medium">Contact</th>
+              <th class="pb-2 font-medium">Expires</th>
+              <th class="pb-2" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="claim in claims"
+              :key="claim.id"
+              class="border-t border-n-weak text-n-slate-12"
+            >
+              <td class="py-2">{{ claim.action_type }}</td>
+              <td class="py-2">{{ claim.amount }}</td>
+              <td class="py-2">{{ claim.game_slug || '—' }}</td>
+              <td class="py-2">{{ contactName(claim) }}</td>
+              <td class="py-2 text-n-slate-11">{{ claim.expires_at || '—' }}</td>
+              <td class="py-2 text-right">
+                <button
+                  v-if="claim.status === 'pending'"
+                  type="button"
+                  :disabled="acting === claim.id"
+                  class="px-3 py-1 rounded-lg bg-n-brand text-white text-xs font-medium disabled:opacity-50"
+                  @click="claimItem(claim.id)"
+                >
+                  {{ acting === claim.id ? 'Claiming…' : 'Claim' }}
+                </button>
+                <button
+                  v-if="claim.status === 'claimed'"
+                  type="button"
+                  :disabled="acting === claim.id"
+                  class="px-3 py-1 rounded-lg border border-n-weak text-n-slate-12 text-xs font-medium disabled:opacity-50"
+                  @click="completeItem(claim.id)"
+                >
+                  {{ acting === claim.id ? 'Completing…' : 'Complete' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </template>
   </div>
 </template>

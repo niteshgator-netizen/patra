@@ -612,6 +612,14 @@ const onCardMouseMove = (e) => {
   height: 40px !important;
 }
 
+/* Root-cause dot fix: the rule above force-sizes EVERY span in the avatar box
+   to 40px. The SLA waiting dot is the only bg-red-500 span here, so pin it back
+   to 10px without touching the avatar sizing. */
+.cv6-avatar :deep(span.bg-red-500) {
+  width: 10px !important;
+  height: 10px !important;
+}
+
 .cv6-name {
   font-weight: 600;
   font-size: 13.5px;

@@ -558,7 +558,7 @@
 .patra-empty-title {
   font-size: 16px;
   font-weight: 600;
-  color: #ededf2;
+  color: var(--text, #EDEDF2);
   margin-bottom: 6px;
   font-family: 'Space Grotesk', sans-serif;
 }
@@ -587,7 +587,7 @@
 .dark .command-bar input,
 .dark .ninja-keys input {
   background: #131119 !important;
-  color: #ededf2 !important;
+  color: var(--text, #EDEDF2) !important;
   border-color: rgba(110, 86, 207, 0.2) !important;
 }
 
@@ -855,7 +855,7 @@
 .dark #patra-spotlight {
   position: fixed; width: 460px; height: 460px; border-radius: 50%;
   background: radial-gradient(circle, rgba(110,86,207,.16), rgba(110,86,207,.04) 42%, transparent 66%);
-  pointer-events: none; z-index: 1; transform: translate(-50%,-50%);
+  pointer-events: none; z-index: 1; left: 0; top: 0; will-change: transform;
   opacity: 0; transition: opacity .5s; mix-blend-mode: screen; filter: blur(12px);
 }
 
@@ -905,6 +905,18 @@
   border: 1px solid var(--border-hi, #2e2940);
   border-radius: 11px;
   z-index: 70;
+  /* Auto-hide: revealed only while hovering the theme FAB or the control. */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#patra-theme-fab:hover ~ .patra-bright-ctl,
+.patra-bright-ctl:hover {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .patra-bright-slider {
@@ -3784,6 +3796,38 @@ body:not(.dark) {
   --mesh-1: rgba(110, 86, 207, 0.08);
   --mesh-2: rgba(139, 92, 246, 0.05);
   --mesh-3: rgba(236, 72, 153, 0.03);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   PART 2b — LIGHT TOKEN LAYER (canonical values, BOTH selector chains)
+   The root token set (:root[data-theme="dark"], .dark) was dark-only and all
+   usages carry dark-hex fallbacks, so light mode never had real values. This
+   defines them for light, scoped to BOTH html:not(.dark) body:not(.dark) AND
+   html[data-theme="light"] body. Purple (--patra*) and status colors
+   (--green/--amber/--red/--blue) are intentionally left to inherit (they read
+   fine on light). ADD ONLY — no dark rule touched.
+   ════════════════════════════════════════════════════════════════════ */
+html:not(.dark) body:not(.dark),
+html[data-theme="light"] body {
+  --canvas: #F6F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F6F5F9;
+  --surface-3: #ECEAF4;
+  --surface-4: #E2DFEF;
+  --border: #E5E3EE;
+  --border-hi: #D5D1E4;
+  --inset: rgba(0, 0, 0, 0.04);
+  --text: #1A1A24;
+  --text-2: #4A4756;
+  --text-3: #75727F;
+  --text-4: #908DA0;
+  --patra-bg1: #F6F5F9;
+  --patra-bg2: #FFFFFF;
+  --patra-bg3: #F1EFF7;
+  --patra-text1: #1A1A24;
+  --patra-text2: #4A4756;
+  --patra-text3: #75727F;
+  --patra-border: rgba(0, 0, 0, 0.07);
 }
 
 /* ════════════════════════════════════════════════════════════════════

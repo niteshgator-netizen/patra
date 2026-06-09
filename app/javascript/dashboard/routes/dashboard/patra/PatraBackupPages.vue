@@ -93,81 +93,124 @@ async function removePage(page) {
 </script>
 
 <template>
-  <div>
-    <h2>Backup Pages</h2>
+  <div class="flex flex-col gap-6 p-6">
+    <header>
+      <h2 class="text-2xl font-semibold text-n-slate-12">Backup Pages</h2>
+      <p class="text-sm text-n-slate-11">
+        Standby Facebook / Instagram pages to fail over to if one gets banned.
+      </p>
+    </header>
 
-    <div v-if="loading">Loading...</div>
+    <div v-if="loading" class="text-sm text-n-slate-11">Loading…</div>
 
     <template v-else>
-      <p v-if="pages.length === 0">No backup pages yet.</p>
+      <p
+        v-if="pages.length === 0"
+        class="rounded-xl border border-n-weak bg-n-solid-1 py-12 text-center text-sm text-n-slate-11"
+      >
+        No backup pages yet.
+      </p>
 
-      <table v-else border="1" cellpadding="6">
-        <thead>
-          <tr>
-            <th>Platform</th>
-            <th>Page ID</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Position</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="page in pages" :key="page.id">
-            <td>{{ page.platform }}</td>
-            <td>{{ page.page_id }}</td>
-            <td>{{ page.page_name || '—' }}</td>
-            <td>
-              <select
-                :value="page.status"
-                :disabled="updatingStatus === page.id"
-                @change="changeStatus(page, $event.target.value)"
-              >
-                <option v-for="s in STATUSES" :key="s" :value="s">
-                  {{ s }}
-                </option>
-              </select>
-            </td>
-            <td>{{ page.position }}</td>
-            <td>
-              <button
-                type="button"
-                :disabled="removing === page.id"
-                @click="removePage(page)"
-              >
-                {{ removing === page.id ? 'Removing...' : 'Remove' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <section v-else class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-n-slate-11">
+              <th class="pb-2 font-medium">Platform</th>
+              <th class="pb-2 font-medium">Page ID</th>
+              <th class="pb-2 font-medium">Name</th>
+              <th class="pb-2 font-medium">Status</th>
+              <th class="pb-2 font-medium">Position</th>
+              <th class="pb-2" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="page in pages"
+              :key="page.id"
+              class="border-t border-n-weak text-n-slate-12"
+            >
+              <td class="py-2 capitalize">{{ page.platform }}</td>
+              <td class="py-2">{{ page.page_id }}</td>
+              <td class="py-2">{{ page.page_name || '—' }}</td>
+              <td class="py-2">
+                <select
+                  :value="page.status"
+                  :disabled="updatingStatus === page.id"
+                  class="p-1.5 rounded-lg bg-n-alpha-2 border border-n-weak text-xs text-n-slate-12 capitalize"
+                  @change="changeStatus(page, $event.target.value)"
+                >
+                  <option v-for="s in STATUSES" :key="s" :value="s">
+                    {{ s }}
+                  </option>
+                </select>
+              </td>
+              <td class="py-2 text-n-slate-11">{{ page.position }}</td>
+              <td class="py-2 text-right">
+                <button
+                  type="button"
+                  :disabled="removing === page.id"
+                  class="px-3 py-1 rounded-lg border border-n-weak text-n-ruby-11 text-xs font-medium disabled:opacity-50"
+                  @click="removePage(page)"
+                >
+                  {{ removing === page.id ? 'Removing…' : 'Remove' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-      <h3>Add backup page</h3>
-      <form @submit.prevent="addPage">
-        <div>
-          <label>Platform</label>
-          <select v-model="newPage.platform">
-            <option v-for="p in PLATFORMS" :key="p" :value="p">
-              {{ p }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label>Page ID</label>
-          <input v-model="newPage.page_id" type="text" required />
-        </div>
-        <div>
-          <label>Page name (optional)</label>
-          <input v-model="newPage.page_name" type="text" />
-        </div>
-        <div>
-          <label>Access token (optional)</label>
-          <input v-model="newPage.access_token" type="password" autocomplete="off" />
-        </div>
-        <button type="submit" :disabled="saving">
-          {{ saving ? 'Adding...' : 'Add page' }}
-        </button>
-      </form>
+      <section
+        class="max-w-xl rounded-xl border border-n-weak bg-n-solid-1 p-4 flex flex-col gap-3"
+      >
+        <h3 class="text-sm font-semibold text-n-slate-12">Add backup page</h3>
+        <form class="flex flex-col gap-3" @submit.prevent="addPage">
+          <label class="block">
+            <span class="text-xs text-n-slate-11">Platform</span>
+            <select
+              v-model="newPage.platform"
+              class="w-full mt-1 p-2 rounded-lg bg-n-alpha-2 border border-n-weak text-sm text-n-slate-12 capitalize"
+            >
+              <option v-for="p in PLATFORMS" :key="p" :value="p">
+                {{ p }}
+              </option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs text-n-slate-11">Page ID</span>
+            <input
+              v-model="newPage.page_id"
+              type="text"
+              required
+              class="w-full mt-1 p-2 rounded-lg bg-n-alpha-2 border border-n-weak text-sm text-n-slate-12"
+            />
+          </label>
+          <label class="block">
+            <span class="text-xs text-n-slate-11">Page name (optional)</span>
+            <input
+              v-model="newPage.page_name"
+              type="text"
+              class="w-full mt-1 p-2 rounded-lg bg-n-alpha-2 border border-n-weak text-sm text-n-slate-12"
+            />
+          </label>
+          <label class="block">
+            <span class="text-xs text-n-slate-11">Access token (optional)</span>
+            <input
+              v-model="newPage.access_token"
+              type="password"
+              autocomplete="off"
+              class="w-full mt-1 p-2 rounded-lg bg-n-alpha-2 border border-n-weak text-sm text-n-slate-12"
+            />
+          </label>
+          <button
+            type="submit"
+            :disabled="saving"
+            class="self-start px-4 py-2 rounded-lg bg-n-brand text-white text-sm font-medium disabled:opacity-50"
+          >
+            {{ saving ? 'Adding…' : 'Add page' }}
+          </button>
+        </form>
+      </section>
     </template>
   </div>
 </template>

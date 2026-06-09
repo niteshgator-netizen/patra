@@ -717,6 +717,15 @@ const fetchConversationWatchers = () => {
   box-shadow: 0 4px 12px var(--ph-patra-glow);
 }
 
+/* Light mode: the --ph-* vars above are dark-only, so the resting icon button
+   stays a dark box on the light header. Give it a light surface. Hover (purple
+   gradient + white) is correct in both modes and is left untouched. */
+body:not(.dark) .patra-conv-head-icon-btn {
+  background: #ffffff;
+  border: 1px solid var(--border, #e5e3ee);
+  color: var(--text-2, #4a4756);
+}
+
 .patra-conv-head-ai-toggle {
   display: inline-flex;
   align-items: center;
