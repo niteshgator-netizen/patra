@@ -608,7 +608,7 @@
       "GROWTH_CASHOUTS_COUNT": "Cashouts (entries)",
       "GROWTH_CASHOUTS_TOTAL": "Cashouts (total $)",
       "TOOLTIP_AI_RATE": "Share of conversations with customer messages in this period where Patra AI replied and the conversation is not marked needs-human.",
-      "TOOLTIP_FINANCE": "Populate contact custom attribute patra_finance_logs (array of kind, amount, logged_at)."
+      "TOOLTIP_FINANCE": "Total deposits and cashouts logged for players in this period."
     }
   },
   "DAYS_OF_WEEK": {
