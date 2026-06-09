@@ -34,6 +34,13 @@ const setAppearance = theme => {
     '(prefers-color-scheme: dark)'
   ).matches;
   setColorTheme(isOSOnDarkMode);
+  // Keep html[data-theme] in sync with body's `dark` class. setColorTheme only
+  // toggles body.dark; without this, switching theme via the command bar leaves
+  // data-theme stale, so body:not(.dark) / [data-theme="light"] rules misfire.
+  document.documentElement.setAttribute(
+    'data-theme',
+    document.body.classList.contains('dark') ? 'dark' : 'light'
+  );
 };
 
 export function useAppearanceHotKeys() {

@@ -457,6 +457,57 @@ const menuItems = computed(() => {
       activeOn: ['patra_ai_training'],
     },
     {
+      // Working feature routes that previously had no rail entry (URL-only).
+      // Grouped under one expandable item so the icon rail doesn't overflow.
+      name: 'PatraMore',
+      label: 'More',
+      icon: 'i-lucide-layout-grid',
+      children: [
+        {
+          name: 'Knowledge Base',
+          label: 'Knowledge Base',
+          icon: 'i-lucide-book-open',
+          to: accountScopedRoute('patra_knowledge'),
+          activeOn: ['patra_knowledge'],
+        },
+        {
+          name: 'Cashier Queue',
+          label: 'Cashier Queue',
+          icon: 'i-lucide-coins',
+          to: accountScopedRoute('patra_cashier_queue'),
+          activeOn: ['patra_cashier_queue'],
+        },
+        {
+          name: 'Leaderboard',
+          label: 'Leaderboard',
+          icon: 'i-lucide-trophy',
+          to: accountScopedRoute('patra_leaderboard'),
+          activeOn: ['patra_leaderboard'],
+        },
+        {
+          name: 'Backup Pages',
+          label: 'Backup Pages',
+          icon: 'i-lucide-archive',
+          to: accountScopedRoute('patra_backup_pages'),
+          activeOn: ['patra_backup_pages'],
+        },
+        {
+          name: 'Broadcasts',
+          label: 'Broadcasts',
+          icon: 'i-lucide-megaphone',
+          to: accountScopedRoute('campaigns_livechat_index'),
+          activeOn: ['campaigns_livechat_index'],
+        },
+        {
+          name: 'Audit Logs',
+          label: 'Audit Logs',
+          icon: 'i-lucide-scroll-text',
+          to: accountScopedRoute('auditlogs_list'),
+          activeOn: ['auditlogs_list'],
+        },
+      ],
+    },
+    {
       name: 'Settings',
       label: t('PATRA.SETTINGS.NAV_TITLE'),
       icon: 'i-lucide-bolt',

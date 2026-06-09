@@ -4654,6 +4654,57 @@ html[data-theme="light"] body .pat-at-root.pat-ai-train {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   LIGHT MODE — global canvas/text override for Patra wrappers
+   ADDITIVE. Covers the shells that still resolve dark component-scoped
+   tokens in light mode and were missing from the block above:
+   settings shells, account, page-wrap, list-wrap, inputs. Mirrors the
+   token values above; the html…body… chains + !important beat the
+   component [data-v-*] token declarations. Light-mode only — every
+   selector is :not(.dark) / [data-theme="light"], so dark is untouched. */
+html:not(.dark) body:not(.dark) .pat-settings-shell,
+html:not(.dark) body:not(.dark) .pat-settings-body,
+html:not(.dark) body:not(.dark) .account-wrap,
+html:not(.dark) body:not(.dark) .pat-page-wrap,
+html:not(.dark) body:not(.dark) .pat-list-wrap,
+html[data-theme="light"] body .pat-settings-shell,
+html[data-theme="light"] body .pat-settings-body,
+html[data-theme="light"] body .account-wrap,
+html[data-theme="light"] body .pat-page-wrap,
+html[data-theme="light"] body .pat-list-wrap {
+  --canvas: #F6F5F9 !important;
+  --surface: #FFFFFF !important;
+  --surface-2: #F2F0F7 !important;
+  --surface-3: #ECE9F2 !important;
+  --surface-4: #DDDAE5 !important;
+  --border: #E5E3EB !important;
+  --border-hi: #D6D3DE !important;
+  --text: #1A1A24 !important;
+  --text-2: #4A4756 !important;
+  --text-3: #75727F !important;
+  --text-4: #A0A0AB !important;
+  --bubble-in: #F2F0F7 !important;
+  background-color: #F6F5F9 !important;
+  color: #1A1A24 !important;
+}
+
+/* .pat-input is a field, not a full-page shell — flip its tokens only so
+   the input's own var(--surface-2) background + var(--text) stay light/readable,
+   without forcing a canvas-grey background on the field. */
+html:not(.dark) body:not(.dark) .pat-input,
+html[data-theme="light"] body .pat-input {
+  --canvas: #F6F5F9 !important;
+  --surface: #FFFFFF !important;
+  --surface-2: #F2F0F7 !important;
+  --surface-3: #ECE9F2 !important;
+  --border: #E5E3EB !important;
+  --border-hi: #D6D3DE !important;
+  --text: #1A1A24 !important;
+  --text-2: #4A4756 !important;
+  --text-3: #75727F !important;
+  --text-4: #A0A0AB !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
    PART 2 — DIRECT LITERAL-HEX BACKGROUND OVERRIDES
    For surfaces NOT inside a patra-wrapper (Contacts, profile menu,
    conv sidebar, search), force literal hex backgrounds.
