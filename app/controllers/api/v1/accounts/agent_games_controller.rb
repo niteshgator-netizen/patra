@@ -55,6 +55,9 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
 
     result = client.test_connection
 
+    # Persist the result so the games dashboard badge reflects the REAL last test.
+    @agent_game.record_connection_test!(ok: result[:ok], message: result[:message])
+
     if result[:ok]
       @agent_game.reset_failures! if @agent_game.failure_count > 0
       @agent_game.mark_used!
@@ -265,6 +268,10 @@ class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseControlle
       notes: ag.notes,
       ip_whitelist_confirmed: ag.ip_whitelist_confirmed,
       api_configured: ag.api_configured?,
+      last_connection_ok: ag.last_connection_ok,
+      last_connection_checked_at: ag.last_connection_checked_at,
+      last_connection_message: ag.last_connection_message,
+      connection_status: ag.connection_status,
       credentials: ag.safe_credentials,
       failure_count: ag.failure_count,
       last_used_at: ag.last_used_at,

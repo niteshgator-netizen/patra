@@ -4,14 +4,30 @@ export default {
   props: {
     game: { type: Object, required: true },
     agentGame: { type: Object, default: null },
+    testing: { type: Boolean, default: false },
   },
-  emits: ['configure', 'toggle', 'managePlayers'],
+  emits: ['configure', 'toggle', 'managePlayers', 'test'],
   computed: {
     isActive() {
       return this.agentGame?.status === 'active';
     },
     showManagePlayers() {
       return this.isActive && this.agentGame && this.agentGame.api_configured;
+    },
+    // REAL connection state from the stored last test_connection result:
+    // connected (ok===true) / failed (ok===false) / untested (null = never tested).
+    connectionState() {
+      if (!this.isActive || !this.game.has_api) return null;
+      const ok = this.agentGame?.last_connection_ok;
+      if (ok === true) return 'connected';
+      if (ok === false) return 'failed';
+      return 'untested';
+    },
+    connectionTitle() {
+      return this.agentGame?.last_connection_message || '';
+    },
+    canTest() {
+      return !!(this.agentGame && this.game.has_registry_client);
     },
   },
   methods: {
@@ -52,20 +68,37 @@ export default {
       <span v-else class="gbadge warn">
         <span class="gdot" />{{ $t('GAMES.STATUS.INACTIVE') }}
       </span>
-      <span
-        v-if="isActive && agentGame && agentGame.api_configured"
-        class="gbadge api"
-      >
-        <span class="gdot" />{{ $t('GAMES.STATUS.API_CONNECTED') }}
+      <span v-if="connectionState === 'connected'" class="gbadge api">
+        <span class="gdot" />{{ $t('GAMES.STATUS.CONNECTED') }}
       </span>
-      <span v-else-if="isActive && game.has_api" class="gbadge warn">
-        <span class="gdot" />{{ $t('GAMES.STATUS.API_PENDING') }}
+      <span
+        v-else-if="connectionState === 'failed'"
+        class="gbadge fail"
+        :title="connectionTitle"
+      >
+        <span class="gdot" />{{ $t('GAMES.STATUS.CONNECTION_FAILED') }}
+      </span>
+      <span v-else-if="connectionState === 'untested'" class="gbadge idle">
+        <span class="gdot" />{{ $t('GAMES.STATUS.NOT_TESTED') }}
       </span>
     </div>
 
     <div class="gcard-btns">
       <button type="button" class="gcard-btn cfg" @click="$emit('configure')">
         {{ $t('GAMES.ACTIONS.CONFIGURE') }}
+      </button>
+      <button
+        v-if="canTest"
+        type="button"
+        class="gcard-btn test"
+        :disabled="testing"
+        @click.stop="$emit('test')"
+      >
+        {{
+          testing
+            ? $t('GAMES.CARD_ACTIONS.TESTING')
+            : $t('GAMES.CARD_ACTIONS.TEST')
+        }}
       </button>
       <button
         v-if="showManagePlayers"
@@ -245,6 +278,16 @@ export default {
     color: var(--amber);
   }
 
+  &.fail {
+    background: rgba(248, 81, 73, 0.16);
+    color: #f85149;
+  }
+
+  &.idle {
+    background: rgba(117, 114, 127, 0.16);
+    color: var(--text-3);
+  }
+
   .gdot {
     width: 6px;
     height: 6px;
@@ -279,6 +322,23 @@ export default {
   &.cfg:hover {
     border-color: var(--patra);
     color: var(--patra-3);
+  }
+
+  &.test {
+    flex: 0 0 auto;
+    padding: 9px 14px;
+
+    &:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
   }
 
   &.mp {

@@ -125,6 +125,23 @@ class AgentGame < ApplicationRecord
     update!(last_used_at: Time.current)
   end
 
+  # Persist the result of a READ-ONLY test_connection so the dashboard badge can
+  # reflect the REAL last connection state (not the static api_configured? flag).
+  def record_connection_test!(ok:, message: nil)
+    update!(
+      last_connection_ok: ok,
+      last_connection_checked_at: Time.current,
+      last_connection_message: message.to_s[0, 255].presence
+    )
+  end
+
+  # :connected / :failed / :untested  (nil last_connection_ok = never tested)
+  def connection_status
+    return :untested if last_connection_ok.nil?
+
+    last_connection_ok ? :connected : :failed
+  end
+
   # Returns credentials without exposing actual secret values
   # Useful for API responses where we don't want to leak secrets
   def safe_credentials

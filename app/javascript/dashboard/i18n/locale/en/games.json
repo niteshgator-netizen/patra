@@ -12,13 +12,18 @@
       "AVAILABLE": "Available",
       "ACTIVATED": "Activated",
       "API_CONNECTED": "API connected",
-      "PENDING_SETUP": "Pending setup"
+      "CONNECTED": "Connected",
+      "PENDING_SETUP": "Pending setup",
+      "NEEDS_ATTENTION": "Needs attention"
     },
     "STATUS": {
       "ACTIVE": "Active",
       "INACTIVE": "Inactive",
       "API_CONNECTED": "API connected",
-      "API_PENDING": "API pending"
+      "API_PENDING": "API pending",
+      "CONNECTED": "Connected",
+      "CONNECTION_FAILED": "Connection failed",
+      "NOT_TESTED": "Not tested"
     },
     "ACTIONS": {
       "CONFIGURE": "Configure",
@@ -69,8 +74,12 @@
       "USERNAME_REQUIRED": "Enter a username first"
     },
     "CARD_ACTIONS": {
-      "MANAGE_PLAYERS": "Manage Players"
+      "MANAGE_PLAYERS": "Manage Players",
+      "TEST": "Test",
+      "TESTING": "Testing…"
     },
+    "TEST_ALL": "Test all",
+    "TESTING_ALL": "Testing all…",
     "MODAL": {
       "TITLE": "Configure {gameName}",
       "CREDENTIALS_TAB": "API Credentials",

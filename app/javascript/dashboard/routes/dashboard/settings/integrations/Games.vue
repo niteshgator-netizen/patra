@@ -17,6 +17,8 @@ export default {
       selectedGame: null,
       selectedPlayerActionsGame: null,
       showAddGameModal: false,
+      testingIds: [],
+      isTestingAll: false,
     };
   },
   computed: {
@@ -35,12 +37,20 @@ export default {
       return this.mergedGames.filter(g => g.agentGame?.status === 'active')
         .length;
     },
-    apiConnectedCount() {
-      return this.mergedGames.filter(g => g.agentGame?.api_configured).length;
-    },
-    pendingSetupCount() {
+    // CONNECTED = the REAL last test_connection succeeded (not the static config flag).
+    connectedCount() {
       return this.mergedGames.filter(
-        g => g.agentGame?.status === 'active' && !g.agentGame?.api_configured
+        g =>
+          g.agentGame?.status === 'active' &&
+          g.agentGame?.last_connection_ok === true
+      ).length;
+    },
+    // NEEDS ATTENTION = activated but the last test failed OR was never run.
+    needsAttentionCount() {
+      return this.mergedGames.filter(
+        g =>
+          g.agentGame?.status === 'active' &&
+          g.agentGame?.last_connection_ok !== true
       ).length;
     },
   },
@@ -114,6 +124,46 @@ export default {
         useAlert(this.$t('GAMES.TOAST.ERROR'));
       }
     },
+    // Per-card "Test": run the READ-ONLY test_connection, which persists the result
+    // server-side, then reload so the badge reflects the fresh stored status.
+    async testGame(game) {
+      const ag = game.agentGame;
+      if (!ag || this.testingIds.includes(ag.id)) return;
+      this.testingIds.push(ag.id);
+      try {
+        await GamesAPI.testConnection(ag.id);
+      } catch {
+        // result (or its failure) is persisted server-side; reload reflects it
+      } finally {
+        this.testingIds = this.testingIds.filter(id => id !== ag.id);
+        await this.loadData();
+      }
+    },
+    // "Test all": sequentially test every activated game that has a client, then
+    // reload once. Sequential (not parallel) to avoid hammering panels / CapSolver.
+    async testAll() {
+      if (this.isTestingAll) return;
+      this.isTestingAll = true;
+      try {
+        const targets = this.mergedGames.filter(
+          g =>
+            g.agentGame &&
+            g.agentGame.status === 'active' &&
+            g.has_registry_client
+        );
+        for (const g of targets) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await GamesAPI.testConnection(g.agentGame.id);
+          } catch {
+            // keep going; each result is persisted server-side
+          }
+        }
+      } finally {
+        this.isTestingAll = false;
+        await this.loadData();
+      }
+    },
     onAgentGameSaved() {
       this.closeConfigModal();
       this.loadData();
@@ -154,13 +204,23 @@ export default {
           <h1 class="display">{{ $t('GAMES.HEADER') }}</h1>
           <div class="sub">{{ $t('GAMES.DESCRIPTION') }}</div>
         </div>
-        <button
-          type="button"
-          class="patra-add-game-btn"
-          @click="showAddGameModal = true"
-        >
-          + Add game
-        </button>
+        <div class="topbar-actions">
+          <button
+            type="button"
+            class="patra-test-all-btn"
+            :disabled="isTestingAll"
+            @click="testAll"
+          >
+            {{ isTestingAll ? $t('GAMES.TESTING_ALL') : $t('GAMES.TEST_ALL') }}
+          </button>
+          <button
+            type="button"
+            class="patra-add-game-btn"
+            @click="showAddGameModal = true"
+          >
+            + Add game
+          </button>
+        </div>
       </div>
 
       <div class="content">
@@ -174,12 +234,12 @@ export default {
             <div class="l">{{ $t('GAMES.STATS.ACTIVATED') }}</div>
           </div>
           <div class="gsum-card">
-            <div class="n g">{{ apiConnectedCount }}</div>
-            <div class="l">{{ $t('GAMES.STATS.API_CONNECTED') }}</div>
+            <div class="n g">{{ connectedCount }}</div>
+            <div class="l">{{ $t('GAMES.STATS.CONNECTED') }}</div>
           </div>
           <div class="gsum-card">
-            <div class="n">{{ pendingSetupCount }}</div>
-            <div class="l">{{ $t('GAMES.STATS.PENDING_SETUP') }}</div>
+            <div class="n">{{ needsAttentionCount }}</div>
+            <div class="l">{{ $t('GAMES.STATS.NEEDS_ATTENTION') }}</div>
           </div>
         </div>
 
@@ -205,9 +265,14 @@ export default {
             :key="game.slug"
             :game="game"
             :agent-game="game.agentGame"
+            :testing="
+              isTestingAll ||
+              (game.agentGame && testingIds.includes(game.agentGame.id))
+            "
             @configure="openConfigModal(game)"
             @toggle="toggleGameStatus(game)"
             @manage-players="openPlayerActions(game)"
+            @test="testGame(game)"
           />
         </div>
       </div>
@@ -220,6 +285,7 @@ export default {
       @close="closeConfigModal"
       @saved="onAgentGameSaved"
       @disconnected="onAgentGameDisconnected"
+      @tested="loadData"
     />
 
     <GamePlayerActionsModal
@@ -499,6 +565,37 @@ export default {
   .mesh::after {
     animation: none !important;
   }
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.patra-test-all-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border-hi);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.22s;
+}
+
+.patra-test-all-btn:hover:not(:disabled) {
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+.patra-test-all-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .patra-add-game-btn {

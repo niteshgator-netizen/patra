@@ -9,7 +9,7 @@ export default {
     game: { type: Object, required: true },
     agentGame: { type: Object, default: null },
   },
-  emits: ['close', 'saved', 'disconnected'],
+  emits: ['close', 'saved', 'disconnected', 'tested'],
   data() {
     return {
       credentials: {},
@@ -136,6 +136,9 @@ export default {
         };
       } finally {
         this.isTesting = false;
+        // The result is now persisted server-side — tell the parent to refresh
+        // so the card badge reflects the new stored connection status.
+        this.$emit('tested');
       }
     },
     closeModal() {
