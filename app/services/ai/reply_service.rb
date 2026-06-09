@@ -307,7 +307,7 @@ class Ai::ReplyService
       "[ReplyService] attachments_count=#{@attachments.size} first_url=#{@attachments.first&.[](:url)}"
     )
 
-    return log_and_nil('XAI_API_KEY not configured') if api_key.blank?
+    return log_and_nil('DEEPSEEK_API_KEY not configured') if ENV['DEEPSEEK_API_KEY'].to_s.strip.empty?
     return log_and_nil('CHATWOOT_BRIDGE_API_TOKEN not configured') if chatwoot_token.blank?
 
     # Pulled up so the freshness check (which needs @latest_timestamp from the
@@ -751,9 +751,9 @@ class Ai::ReplyService
               return guard_against_false_load_claim(reply)
             end
 
-            Rails.logger.warn('[ReplyService] DeepSeek returned nil, falling back to Grok')
+            Rails.logger.warn('[ReplyService] DeepSeek (simple) returned nil, falling through to full deepseek path')
           when :complex
-            Rails.logger.info('[ReplyService] routed=grok')
+            Rails.logger.info('[ReplyService] routed=deepseek')
           end
         end
       end
@@ -766,13 +766,13 @@ class Ai::ReplyService
       deepseek_system = "#{deepseek_system}\n\n#{rag_examples_block}" unless rag_examples_block.to_s.strip.empty?
       reply = invoke_anthropic(build_conversation_history, deepseek_system, use_deepseek: true)
       if reply.blank?
-        Rails.logger.warn('[ReplyService] DeepSeek returned nil, falling back to Grok')
+        Rails.logger.warn('[ReplyService] DeepSeek (simple) returned nil, falling through to full deepseek path')
       else
         Rails.logger.info("[ReplyService] routed=deepseek reply_len=#{reply.length}")
         return guard_against_false_load_claim(reply)
       end
     when :complex
-      Rails.logger.info('[ReplyService] routed=grok')
+      Rails.logger.info('[ReplyService] routed=deepseek')
     end
 
     if (text_failover_reply = maybe_reply_for_text_payment_failure(messages)).present?
@@ -805,7 +805,7 @@ class Ai::ReplyService
     system_prompt = "#{system_prompt}\n#{emoji_guard}\n" unless empathy_hint
 
     grok_messages = apply_grok_payment_injection(messages)
-    reply = invoke_anthropic(grok_messages, system_prompt)
+    reply = invoke_anthropic(grok_messages, system_prompt, use_deepseek: true)
     return nil if reply.blank?
 
     if escalation?(reply)
@@ -2057,30 +2057,63 @@ class Ai::ReplyService
 
     Rails.logger.info("[ReplyService] GROK_HTTP_TIMEOUT=#{GROK_HTTP_TIMEOUT}s xAI conv=#{@conversation_id}") unless use_deepseek
 
-    response = HTTParty.post(
-      use_deepseek ? 'https://api.deepseek.com/v1/chat/completions' : XAI_URL,
-      headers: {
-        'Authorization' => "Bearer #{use_deepseek ? ENV['DEEPSEEK_API_KEY'] : api_key}",
-        'Content-Type' => 'application/json'
-      },
-      body: {
-        model: use_deepseek ? 'deepseek-v4-flash' : MODEL,
-        max_tokens: use_deepseek ? 1024 : MAX_TOKENS,
-        messages: [{ role: 'system', content: system_prompt }, *llm_messages],
-        **(use_deepseek ? { temperature: 0.7 } : {})
-      }.to_json,
-      timeout: use_deepseek ? 8 : GROK_HTTP_TIMEOUT
-    )
+    # BATCH C: Grok/xAI retired (credits exhausted). DeepSeek is the only live brain.
+    # The grok ternary branches below are dead (no caller passes use_deepseek:false)
+    # but kept intact so XAI_URL/MODEL/api_key constants stay referenced.
+    llm_url = use_deepseek ? 'https://api.deepseek.com/v1/chat/completions' : XAI_URL
+    llm_headers = {
+      'Authorization' => "Bearer #{use_deepseek ? ENV['DEEPSEEK_API_KEY'] : api_key}",
+      'Content-Type' => 'application/json'
+    }
+    # DeepSeek flash can emit reasoning_content; max_tokens caps reasoning+answer,
+    # so keep generous headroom or the reply gets starved to empty. ENV-tunable.
+    llm_body = {
+      model: use_deepseek ? ENV.fetch('DEEPSEEK_MODEL', 'deepseek-v4-flash') : MODEL,
+      max_tokens: use_deepseek ? ENV.fetch('DEEPSEEK_MAX_TOKENS', 800).to_i : MAX_TOKENS,
+      messages: [{ role: 'system', content: system_prompt }, *llm_messages],
+      **(use_deepseek ? { temperature: 0.7 } : {})
+    }.to_json
+    llm_timeout = use_deepseek ? ENV.fetch('DEEPSEEK_HTTP_TIMEOUT', 30).to_i : GROK_HTTP_TIMEOUT
+    provider = use_deepseek ? 'DeepSeek' : 'xAI'
+
+    response = nil
+    attempt = 0
+    begin
+      attempt += 1
+      response = HTTParty.post(llm_url, headers: llm_headers, body: llm_body, timeout: llm_timeout)
+    rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, EOFError, SocketError => e
+      if attempt < 2
+        Rails.logger.warn("[AiReply] #{provider} network #{e.class} attempt #{attempt}, retrying conv=#{@conversation_id}")
+        retry
+      end
+      Rails.logger.error("[AiReply] #{provider} network error conv=#{@conversation_id}: #{e.class}: #{e.message}")
+      return nil
+    end
+
+    # Retry once on 5xx ONLY (never on 4xx — auth/quota won't fix on retry).
+    if !response.success? && response.code.to_i >= 500 && attempt < 2
+      Rails.logger.warn("[AiReply] #{provider} HTTP #{response.code} attempt #{attempt}, retrying conv=#{@conversation_id}")
+      attempt += 1
+      response = begin
+        HTTParty.post(llm_url, headers: llm_headers, body: llm_body, timeout: llm_timeout)
+      rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, EOFError, SocketError => e
+        Rails.logger.error("[AiReply] #{provider} retry network error conv=#{@conversation_id}: #{e.class}: #{e.message}")
+        nil
+      end
+      return nil if response.nil?
+    end
 
     unless response.success?
-      provider = use_deepseek ? 'DeepSeek' : 'xAI'
       Rails.logger.error("[AiReply] #{provider} HTTP #{response.code} conversation=#{@conversation_id}: #{response.body}")
       return nil
     end
 
-    text = response.parsed_response.dig('choices', 0, 'message', 'content')
+    # DeepSeek flash may put the answer in reasoning_content with content blank;
+    # mirror Ai::DeepseekClient — prefer reasoning_content, fall back to content.
+    msg = response.parsed_response.dig('choices', 0, 'message') || {}
+    text = msg['reasoning_content'].to_s.strip
+    text = msg['content'].to_s.strip if text.blank?
     if text.blank?
-      provider = use_deepseek ? 'DeepSeek' : 'xAI'
       Rails.logger.warn("[AiReply] #{provider} returned no text conversation=#{@conversation_id} body=#{response.body}")
       return nil
     end

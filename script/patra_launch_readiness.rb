@@ -71,22 +71,26 @@ section('1. ENV PRESENCE (names only — never values)')
 # ─────────────────────────── 2. EXTERNAL PINGS ────────────────────────────────
 section('2. EXTERNAL PINGS (cheap — ~1 token or metadata only)')
 
-ping('Grok/xAI 1-token completion (SURFACES CREDIT EXHAUSTION 429/402)') do
+# Grok/xAI is RETIRED (Batch C) — no longer in the live reply path. WARN-only.
+begin
   key = ENV['XAI_API_KEY'].to_s
-  raise 'XAI_API_KEY missing' if key.empty?
-
-  r = HTTParty.post(
-    'https://api.x.ai/v1/chat/completions',
-    headers: { 'Authorization' => "Bearer #{key}", 'Content-Type' => 'application/json' },
-    body: { model: ENV.fetch('XAI_MODEL', 'grok-4.3'), max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }.to_json,
-    timeout: 30
-  )
-  raise "HTTP #{r.code}: #{r.body.to_s[0..160]}" unless r.code == 200
-
-  true
+  if key.empty?
+    warn!('Grok/xAI (RETIRED — not in live path): XAI_API_KEY absent (fine, retired)')
+  else
+    r = HTTParty.post(
+      'https://api.x.ai/v1/chat/completions',
+      headers: { 'Authorization' => "Bearer #{key}", 'Content-Type' => 'application/json' },
+      body: { model: ENV.fetch('XAI_MODEL', 'grok-4.3'), max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }.to_json,
+      timeout: 30
+    )
+    note = r.code == 200 ? ' (still has credits, but unused)' : ' (down/no credits — OK, retired)'
+    warn!("Grok/xAI (RETIRED — not in live path): HTTP #{r.code}#{note}")
+  end
+rescue StandardError => e
+  warn!("Grok/xAI (RETIRED — not in live path): #{e.class} (OK, retired)")
 end
 
-ping('DeepSeek 1-token completion') do
+ping('DeepSeek 1-token completion (PRIMARY BRAIN — FAIL if down)') do
   key = ENV['DEEPSEEK_API_KEY'].to_s
   raise 'DEEPSEEK_API_KEY missing' if key.empty?
 
