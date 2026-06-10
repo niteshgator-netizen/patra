@@ -90,7 +90,15 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   Proof (a): tmp/self_tests/h7_redirect_follow_test.rb ALL PASS (9 asserts incl. orion-style
   no-redirect path untouched: zero behavior change when no redirect occurs) + ruby -c OK x2.
   RSpec spec/services/games/asp_net_panel/base_client_redirect_spec.rb (SPECS-UNRUN locally).
-- [ ] H8 FB token expiry alerting (1/token/day idempotent)
+- [x] H8 FB token expiry alerting — refresh_fb_tokens_job now fires ONE
+  Games::TelegramNotifier.api_error per inbox token per day (Redis stamp
+  patra:fb_token_alert:<inbox_id>, 24h TTL) on: refresh returning blank, refresh raising
+  (alert then re-raise into the existing per-inbox rescue), or token expiring with NO refresh
+  path (no fb_user_long_lived_token AND obtained_at older than 53d = 60d Meta lifetime − 7d
+  warning window — lifetime is (c) assumption, documented in-code; unknown-age tokens also
+  warn). Healthy refreshes stay silent. Alert helper never raises.
+  Proof (a): tmp/self_tests/h8_fb_token_alert_test.rb ALL PASS (12 asserts) + ruby -c OK.
+  RSpec spec/jobs/patra/refresh_fb_tokens_job_spec.rb written (SPECS-UNRUN locally).
 - [ ] H9 stuck-pending sweeper alert (verify + spec — alert already exists)
 - [ ] H10 ReplyJob rescue posture (lock release on transient, bounded permanent)
 - [ ] H11 re-engagement shared cooldown (verify existing + PATRA_REENGAGE_MAP.md + spec)
@@ -169,6 +177,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
 - H7: `bundle exec rspec spec/services/games/asp_net_panel/base_client_redirect_spec.rb`
   (local equivalent ran: `ruby tmp/self_tests/h7_redirect_follow_test.rb` → ALL PASS 9)
   + MORNING SHELL: `bundle exec rails runner script/patra_panda_probe.rb` (the deciding artifact)
+- H8: `bundle exec rspec spec/jobs/patra/refresh_fb_tokens_job_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h8_fb_token_alert_test.rb` → ALL PASS 12)
 
 ## COMMITS
 (one line per item as committed)

@@ -6,6 +6,10 @@ class Patra::RefreshFbTokensJob < ApplicationJob
   queue_as :low
 
   TOKEN_REFRESH_AGE = 50.days
+  # Meta long-lived page tokens live ~60 days; warn when one is inside the
+  # final week and we have no way to refresh it ourselves.
+  TOKEN_EXPIRY_WARNING_AGE = 53.days
+  ALERT_STAMP_TTL = 24.hours # one Telegram alert per token per day
 
   def perform
     fb_api_inboxes.find_each do |inbox|
@@ -33,11 +37,29 @@ class Patra::RefreshFbTokensJob < ApplicationJob
     page_id = attrs['fb_page_id'].to_s
     user_token = attrs['fb_user_long_lived_token'].to_s
     obtained = parse_obtained_at(attrs['fb_page_token_obtained_at'])
-    return if page_id.blank? || user_token.blank?
+    return if page_id.blank?
+
+    if user_token.blank?
+      # No refresh path at all — warn while there's still time to reconnect.
+      if obtained.blank? || obtained <= TOKEN_EXPIRY_WARNING_AGE.ago
+        alert_token_issue(inbox, page_id,
+                          "token #{obtained.blank? ? 'age unknown' : "obtained #{obtained.to_date}"} and no " \
+                          'fb_user_long_lived_token to refresh with — reconnect the page')
+      end
+      return
+    end
     return if obtained.present? && obtained > TOKEN_REFRESH_AGE.ago
 
-    new_page_token = Facebook::PatraGraphService.refresh_page_access_token(page_id, user_token)
-    return if new_page_token.blank?
+    new_page_token = begin
+      Facebook::PatraGraphService.refresh_page_access_token(page_id, user_token)
+    rescue StandardError => e
+      alert_token_issue(inbox, page_id, "refresh raised #{e.class}: #{e.message}")
+      raise # per-inbox rescue in perform logs it; alert already stamped
+    end
+    if new_page_token.blank?
+      alert_token_issue(inbox, page_id, 'refresh returned no token — user token likely expired, reconnect the page')
+      return
+    end
 
     attrs = attrs.merge(
       'fb_page_access_token' => new_page_token,
@@ -53,6 +75,23 @@ class Patra::RefreshFbTokensJob < ApplicationJob
     Time.zone.parse(raw.to_s)
   rescue ArgumentError
     nil
+  end
+
+  # ONE Telegram alert per inbox token per day (idempotent Redis stamp).
+  # Never raises — alerting must not break the refresh sweep.
+  def alert_token_issue(inbox, page_id, reason)
+    stamp_key = "patra:fb_token_alert:#{inbox.id}"
+    return if Redis::Alfred.get(stamp_key)
+
+    Redis::Alfred.set(stamp_key, '1', ex: ALERT_STAMP_TTL.to_i)
+
+    Games::TelegramNotifier.api_error(
+      account: inbox.account,
+      message: "FB page token problem - inbox #{inbox.name}",
+      details: "page_id=#{page_id} #{reason}"
+    )
+  rescue StandardError => e
+    Rails.logger.error("[PatraFB] token alert failed inbox=#{inbox.id}: #{e.class}: #{e.message}")
   end
 
   def update_identity_statuses
