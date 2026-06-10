@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::ReplyPreferencesController < Api::V1::Accounts::BaseController
+  include Patra::MoneyActionGuard
+
+  # Dark flag (HANDOFF-B-3): reads stay open; mutations admin-only when flag is ON
+  # (reply preferences include money-adjacent toggles like confirm_before_cashout).
+  before_action :check_money_action_authorization, only: [:update]
+
   def show
     @pref = ReplyPreference.for_account(Current.account.id)
     render json: @pref

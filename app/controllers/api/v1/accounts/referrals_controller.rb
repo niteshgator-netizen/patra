@@ -1,10 +1,15 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::ReferralsController < Api::V1::Accounts::BaseController
+  include Patra::MoneyActionGuard
+
   before_action :set_referral, only: [:update]
   # Bonus amounts/eligibility are account-wide money config — admins only.
   # create/update stay agent-accessible: agents log and verify referrals mid-chat.
   before_action :check_admin_authorization?, only: [:update_settings]
+  # Dark flag (HANDOFF-B-3): when ON, referral mutations also become admin-only
+  # (agents can mark referrals verified → triggers auto-pay).
+  before_action :check_money_action_authorization, only: [:create, :update]
 
   def index
     @referrals = Current.account.referrals.includes(:referrer_contact, :referred_contact)

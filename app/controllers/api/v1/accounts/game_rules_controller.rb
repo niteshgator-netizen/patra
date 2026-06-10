@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::GameRulesController < Api::V1::Accounts::BaseController
+  include Patra::MoneyActionGuard
+
   before_action :set_game_rule, only: [:show, :update]
+  # Dark flag (HANDOFF-B-3): reads stay open; mutations admin-only when flag is ON.
+  before_action :check_money_action_authorization, only: [:update]
 
   def index
     # Find all games linked to this account via agent_games

@@ -1,5 +1,9 @@
 class Api::V1::Accounts::AgentGamesController < Api::V1::Accounts::BaseController
+  include Patra::MoneyActionGuard
+
   before_action :fetch_agent_game, only: [:show, :update, :destroy]
+  # Dark flag (HANDOFF-B-3): no-op unless PATRA_RESTRICT_MONEY_ACTIONS=true.
+  before_action :check_money_action_authorization, only: [:load_player, :cashout_player, :add_player, :reset_player_password]
 
   def index
     @agent_games = Current.account.agent_games.includes(:game)

@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::PlayerTiersController < Api::V1::Accounts::BaseController
+  include Patra::MoneyActionGuard
+
   before_action :set_player_tier, only: [:show, :update, :destroy]
+  # Dark flag (HANDOFF-B-3): reads stay open; mutations admin-only when flag is ON.
+  before_action :check_money_action_authorization, only: [:create, :update, :destroy, :bulk_assign]
 
   def index
     @player_tiers = Current.account.player_tiers.ordered

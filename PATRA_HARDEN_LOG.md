@@ -129,7 +129,17 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   Proof (a): tmp/self_tests/h11_shared_cooldown_test.rb ALL PASS (12 asserts — REAL job + REAL
   service cross-sender both directions + 71h/73h window boundaries + env override/garbage)
   + ruby -c OK. RSpec spec/services/reengagement/contact_cooldown_spec.rb (SPECS-UNRUN locally).
-- [ ] H12 role guards dark flag (PATRA_RESTRICT_MONEY_ACTIONS, default OFF)
+- [x] H12 role guards dark flag — HANDOFF-B-3 applied as shared concern
+  Patra::MoneyActionGuard (exact `ENV['PATRA_RESTRICT_MONEY_ACTIONS'].to_s == 'true'`
+  semantics from the logged diff; default OFF = the before_action returns immediately, zero
+  behavior change). Guarded when ON (admin-only): agent_games
+  load_player/cashout_player/add_player/reset_player_password; game_rules#update;
+  player_tiers create/update/destroy/bulk_assign; reply_preference#update;
+  referrals create/update (update_settings was already admin-only). All reads stay open.
+  Proof (a): tmp/self_tests/h12_money_guard_test.rb ALL PASS (5 asserts — unset/false/1/TRUE
+  are no-ops, only exact 'true' guards) + ruby -c OK x6. RSpec request spec
+  spec/controllers/api/v1/accounts/patra/money_action_guard_spec.rb covers both flag states
+  + admin pass + reads-open (SPECS-UNRUN locally).
 - [ ] H13 terms/privacy pages (already exist — verify + OPERATOR-CONFIRM markers)
 - [ ] FINAL self-audit + DUMP
 
@@ -212,6 +222,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   `ruby tmp/self_tests/h10_reply_job_lock_test.rb` → ALL PASS 10)
 - H11: `bundle exec rspec spec/services/reengagement/contact_cooldown_spec.rb` (local
   equivalent ran: `ruby tmp/self_tests/h11_shared_cooldown_test.rb` → ALL PASS 12)
+- H12: `bundle exec rspec spec/controllers/api/v1/accounts/patra/money_action_guard_spec.rb`
+  (local equivalent ran: `ruby tmp/self_tests/h12_money_guard_test.rb` → ALL PASS 5)
 
 ## COMMITS
 (one line per item as committed)
