@@ -242,6 +242,8 @@
       "SAVE": "Save",
       "SEND_NOW": "Send now",
       "MATCHING_CONTACTS": "{count} contacts match this segment",
+      "PREVIEW": "Preview",
+      "PREVIEW_EMPTY": "Your broadcast message will appear here...",
       "EMPTY": "No broadcasts yet. Create one to message a segment of contacts at once.",
       "LOAD_ERROR": "Could not load this broadcast.",
       "SAVE_ERROR": "Could not save the broadcast. Please try again.",

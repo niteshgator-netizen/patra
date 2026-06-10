@@ -76,56 +76,81 @@ onMounted(async () => {
 <template>
   <div class="pat-page-wrap">
     <div class="pat-page-main">
-      <div class="flex flex-col gap-4 p-6 max-w-2xl">
+      <div class="flex flex-col gap-4 p-6">
         <h1 class="text-2xl font-semibold">
           {{ $t('PATRA.BROADCASTS.COMPOSE') }}
         </h1>
 
-        <input
-          v-model="broadcast.name"
-          class="p-2 border rounded-lg border-n-weak"
-          :placeholder="$t('PATRA.BROADCASTS.NAME')"
-        />
+        <div class="bc-grid">
+          <section class="bc-card">
+            <div class="bc-card-h">
+              <span class="bc-dot" />
+              {{ $t('PATRA.BROADCASTS.COMPOSE') }}
+            </div>
 
-        <select
-          v-model="broadcast.channel"
-          class="p-2 border rounded-lg border-n-weak"
-        >
-          <option value="facebook">Facebook</option>
-          <option value="instagram">Instagram</option>
-          <option value="sms">SMS</option>
-          <option value="email">Email</option>
-          <option value="whatsapp">WhatsApp</option>
-        </select>
+            <input
+              v-model="broadcast.name"
+              class="p-2 border rounded-lg border-n-weak"
+              :placeholder="$t('PATRA.BROADCASTS.NAME')"
+            />
 
-        <textarea
-          v-model="broadcast.content"
-          class="p-2 border rounded-lg border-n-weak"
-          rows="6"
-          :placeholder="$t('PATRA.BROADCASTS.CONTENT')"
-        />
+            <select
+              v-model="broadcast.channel"
+              class="p-2 border rounded-lg border-n-weak"
+            >
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+              <option value="sms">SMS</option>
+              <option value="email">Email</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
 
-        <p v-if="previewCount !== null" class="text-sm text-n-slate-11">
-          {{
-            $t('PATRA.BROADCASTS.MATCHING_CONTACTS', { count: previewCount })
-          }}
-        </p>
+            <textarea
+              v-model="broadcast.content"
+              class="p-2 border rounded-lg border-n-weak"
+              rows="6"
+              :placeholder="$t('PATRA.BROADCASTS.CONTENT')"
+            />
 
-        <div class="flex gap-2">
-          <button
-            class="px-3 py-2 text-sm rounded-lg border border-n-weak"
-            @click="save"
-          >
-            {{ $t('PATRA.BROADCASTS.SAVE') }}
-          </button>
-          <button
-            v-if="route.params.broadcastId"
-            class="px-3 py-2 text-sm text-white rounded-lg bg-n-brand"
-            :disabled="sending"
-            @click="sendNow"
-          >
-            {{ $t('PATRA.BROADCASTS.SEND_NOW') }}
-          </button>
+            <div class="flex gap-2">
+              <button
+                class="px-3 py-2 text-sm rounded-lg border border-n-weak"
+                @click="save"
+              >
+                {{ $t('PATRA.BROADCASTS.SAVE') }}
+              </button>
+              <button
+                v-if="route.params.broadcastId"
+                class="px-3 py-2 text-sm text-white rounded-lg bg-n-brand"
+                :disabled="sending"
+                @click="sendNow"
+              >
+                {{ $t('PATRA.BROADCASTS.SEND_NOW') }}
+              </button>
+            </div>
+          </section>
+
+          <section class="bc-card">
+            <div class="bc-card-h">
+              <span class="bc-dot" />
+              {{ $t('PATRA.BROADCASTS.PREVIEW') }}
+            </div>
+            <div class="bc-preview">
+              <div class="bc-preview-row">
+                <div class="bc-preview-ava">P</div>
+                <div class="bc-preview-bubble" :class="{ empty: !broadcast.content }">
+                  {{ broadcast.content || $t('PATRA.BROADCASTS.PREVIEW_EMPTY') }}
+                </div>
+              </div>
+              <p v-if="previewCount !== null" class="bc-preview-count">
+                {{
+                  $t('PATRA.BROADCASTS.MATCHING_CONTACTS', {
+                    count: previewCount,
+                  })
+                }}
+              </p>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -298,5 +323,98 @@ onMounted(async () => {
 
 .pat-page-wrap :deep(.animate-loader-pulse) {
   background: var(--surface-3) !important;
+}
+
+/* B5: spec Broadcast Composer two-card layout (Message + Preview) */
+.bc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1100px;
+}
+
+@media (max-width: 900px) {
+  .bc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.bc-card-h {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.bc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--patra-3, #a78bfa);
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.4);
+}
+
+.bc-preview {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.bc-preview-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bc-preview-ava {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--patra), #5b45b0);
+}
+
+.bc-preview-bubble {
+  background: var(--surface-3);
+  padding: 10px 14px;
+  border-radius: 14px 14px 14px 4px;
+  font-size: 13px;
+  max-width: 80%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bc-preview-bubble.empty {
+  color: var(--text-4);
+}
+
+.bc-preview-count {
+  color: var(--text-4);
+  font-size: 12px;
+  text-align: center;
+  margin-top: auto;
+  padding-top: 20px;
 }
 </style>
