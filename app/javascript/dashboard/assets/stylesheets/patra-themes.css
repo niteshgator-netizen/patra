@@ -5187,3 +5187,39 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
     transform: none;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   E1 — THEMED SKELETON SHIMMER (generalized v3 F3)
+   One loading treatment everywhere: token surfaces (light shimmer in
+   light, dark in dark via the wrapper token flips), transform-only
+   sweep, neutral alpha fallback outside Patra wrappers.
+   ════════════════════════════════════════════════════════════════════ */
+.pat-skel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}
+.pat-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--surface-3, rgba(127, 127, 127, 0.18)),
+    transparent
+  );
+  animation: pat-skel-sweep 1.4s ease infinite;
+}
+@keyframes pat-skel-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pat-skel::after {
+    animation: none;
+  }
+}
