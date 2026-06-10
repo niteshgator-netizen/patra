@@ -40,7 +40,7 @@ module Ai
       return 'Summary unavailable' unless response.success?
 
       msg = response.parsed_response.dig('choices', 0, 'message') || {}
-      (msg['reasoning_content'].to_s.strip.presence || msg['content'].to_s.strip.presence) || 'No summary available'
+      (msg['content'].to_s.strip.presence || msg['reasoning_content'].to_s.strip.presence) || 'No summary available'
     rescue StandardError => e
       Rails.logger.error("[ConversationSummaryService] failed: #{e.message}")
       'Summary unavailable'

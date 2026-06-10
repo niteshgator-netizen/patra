@@ -52,9 +52,11 @@ module Ai
       end
 
       message = response.parsed_response.dig('choices', 0, 'message') || {}
-      # reasoning_content FIRST (reasoning models), then content, then fail safe.
-      text = message['reasoning_content'].to_s.strip
-      text = message['content'].to_s.strip if text.blank?
+      # content FIRST (the real answer); reasoning_content only as a fallback when
+      # content is empty. deepseek-v4-flash returns the answer in content + the
+      # chain-of-thought in reasoning_content; preferring reasoning leaked CoT.
+      text = message['content'].to_s.strip
+      text = message['reasoning_content'].to_s.strip if text.blank?
       return nil if text.blank?
 
       text

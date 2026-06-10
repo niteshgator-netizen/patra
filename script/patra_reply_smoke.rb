@@ -179,7 +179,7 @@ begin
     chk(!reply.strip.empty?, 'non-empty reply')
     chk(ln.size <= 2, "<= 2 lines (got #{ln.size})")
     chk(!admits_ai?(reply), 'no AI admission (no "as an AI" / "language model" / "im a bot")')
-    puts "  WOULD SEND: #{reply.inspect}"
+    puts "  WOULD SEND: #{reply.inspect}  (raw_field=#{field} content_len=#{ct_len} reasoning_len=#{rc_len})"
   end
 
   puts "\n#{'=' * 72}\nREPLY SMOKE: #{$pass} pass / #{$fail} fail"

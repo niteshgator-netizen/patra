@@ -2108,11 +2108,12 @@ class Ai::ReplyService
       return nil
     end
 
-    # DeepSeek flash may put the answer in reasoning_content with content blank;
-    # mirror Ai::DeepseekClient — prefer reasoning_content, fall back to content.
+    # DeepSeek flash returns the ANSWER in content and chain-of-thought in
+    # reasoning_content — content FIRST, reasoning only when content is empty
+    # (prevents leaking the CoT/persona rules to the customer).
     msg = response.parsed_response.dig('choices', 0, 'message') || {}
-    text = msg['reasoning_content'].to_s.strip
-    text = msg['content'].to_s.strip if text.blank?
+    text = msg['content'].to_s.strip
+    text = msg['reasoning_content'].to_s.strip if text.blank?
     if text.blank?
       Rails.logger.warn("[AiReply] #{provider} returned no text conversation=#{@conversation_id} body=#{response.body}")
       return nil
