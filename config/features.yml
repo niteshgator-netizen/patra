@@ -242,3 +242,7 @@
   display_name: Advanced Assignment
   enabled: false
   premium: true
+- name: patra_operator_console
+  display_name: Patra Operator Console
+  enabled: false
+  chatwoot_internal: true

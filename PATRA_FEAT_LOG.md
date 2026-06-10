@@ -30,7 +30,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 
 ## QUEUE
 - [x] ADM5 — immutable admin audit trail (FIRST — ADM2/ADM4 depend on it)
-- [ ] ADM1 — platform command center
+- [x] ADM1 — platform command center
 - [ ] ADM2 — account lifecycle & control
 - [ ] ADM3 — integration health matrix
 - [ ] ADM4 — impersonation / support-login
@@ -68,6 +68,30 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - D7: Existing SuperAdmin::PatraDashboardController (JSON stub: counts + system_health) is a patra_*
   controller in my lane → rewritten as the ADM1 HTML command center. `system_health` JSON action kept
   intact (route already exists mid-file; not moved).
+
+## ADM1 — SHIPPED (specs written, unrun)
+- Files: lib/patra/finance_analytics.rb (platform/account money+risk scan),
+  lib/patra/game_health_query.rb (replicated read-only health logic + matrix builder, shared with ADM3),
+  lib/patra/admin_console.rb (env kill-switch for mutations, see D5),
+  app/controllers/super_admin/patra_dashboard_controller.rb (rewritten per D7 — HTML command center;
+  legacy JSON kept via format.json incl. system_health with AuditLog last_errors untouched),
+  app/views/super_admin/patra_dashboard/show.html.erb (Patra-branded panels + 7/30/90d + custom range),
+  _navigation.html.erb (Command Center + Audit Trail links; patra_* resources excluded from auto-list),
+  features.yml (+patra_operator_console enabled:false — appended at END, order preserved),
+  specs: spec/lib/patra/finance_analytics_spec.rb (3-account fixtures incl. malformed entries
+  skipped+counted), spec/controllers/super_admin/patra_dashboard_controller_spec.rb.
+- N+1 proof: accounts/engagement/integrations panels are single SQL group/subquery statements;
+  finance + risk = ONE batched contact scan (find_each batch 500, jsonb arrays can't be SQL-aggregated);
+  by-game money = pure SQL over game_actions. No per-account queries anywhere.
+- Engagement definitions mirror OwnerStats::Aggregator (source_id='ai_auto' outgoing = AI reply,
+  cached_label_list LIKE '%needs-human%' = handoff). Aggregator itself NOT edited (service lane).
+- Malformed finance entry = non-hash entry, or deposit/cashout row with unparseable amount/time.
+  Screenshot/status rows without kind are normal and silently ignored (matches Aggregator).
+- Billing: data_source_exists?('patra_billing_subscriptions') → absent ⇒ "billing not initialized"
+  panel (the shipping state); present ⇒ row count + MRR '—' TODO-CONFIG. Panel ordered last (D4).
+- ERB note: views with `<%= helper do %>` blocks can't be parsed by plain ERB (no erubi gem locally) —
+  plain-ERB "syntax error" on form_with/link_to blocks is a false positive; pre-existing nav partial
+  fails the same check unedited. All .rb files ruby -c clean.
 
 ## SECURITY-MODEL (ADM4) — filled when ADM4 ships
 

@@ -1,0 +1,178 @@
+<%# ADM1 — Patra Platform Command Center (read-only, super-admin only) %>
+<% content_for(:title) { 'Patra Command Center' } %>
+
+<style>
+  .patra-cc { padding: 24px; }
+  .patra-cc h1 { margin: 0 0 4px; font-size: 22px; }
+  .patra-cc .patra-sub { color: #64748b; font-size: 13px; margin-bottom: 16px; }
+  .patra-cc .patra-range { margin-bottom: 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .patra-cc .patra-range a { padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; text-decoration: none; color: #334155; }
+  .patra-cc .patra-range a.active { background: #534AB7; color: #fff; border-color: #534AB7; }
+  .patra-cc .patra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .patra-cc .patra-panel { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #fff; }
+  .patra-cc .patra-panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #534AB7; margin: 0 0 12px; }
+  .patra-cc .patra-stat { display: inline-block; margin: 0 18px 10px 0; vertical-align: top; }
+  .patra-cc .patra-stat .v { font-size: 20px; font-weight: 700; }
+  .patra-cc .patra-stat .l { font-size: 12px; color: #64748b; }
+  .patra-cc table.patra-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .patra-cc table.patra-table th { text-align: left; color: #64748b; font-weight: 600; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+  .patra-cc table.patra-table td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
+  .patra-cc .neg { color: #dc2626; }
+  .patra-cc .pos { color: #16a34a; }
+  .patra-cc .warn { color: #d97706; }
+  .patra-cc .muted { color: #94a3b8; }
+</style>
+
+<div class="patra-cc">
+  <h1>Patra Command Center</h1>
+  <div class="patra-sub">
+    Platform-wide, read-only. Range:
+    <strong><%= @range.begin.to_date %> → <%= @range.end.to_date %></strong>
+  </div>
+
+  <div class="patra-range">
+    <% [7, 30, 90].each do |d| %>
+      <%= link_to "Last #{d} days", super_admin_patra_dashboard_path(days: d),
+                  class: (@range_days == d && params[:from].blank? ? 'active' : '') %>
+    <% end %>
+    <%= form_with url: super_admin_patra_dashboard_path, method: :get, local: true do %>
+      <input type="date" name="from" value="<%= params[:from] %>" />
+      <input type="date" name="to" value="<%= params[:to] %>" />
+      <button class="button" type="submit">Apply</button>
+    <% end %>
+  </div>
+
+  <div class="patra-grid">
+    <div class="patra-panel">
+      <h2>Accounts</h2>
+      <span class="patra-stat"><span class="v"><%= @accounts_panel[:total] %></span><br/><span class="l">total</span></span>
+      <span class="patra-stat"><span class="v"><%= @accounts_panel[:by_status].fetch('active', 0) %></span><br/><span class="l">active</span></span>
+      <span class="patra-stat"><span class="v <%= 'warn' if @accounts_panel[:by_status].fetch('suspended', 0).positive? %>"><%= @accounts_panel[:by_status].fetch('suspended', 0) %></span><br/><span class="l">suspended</span></span>
+      <span class="patra-stat"><span class="v"><%= @accounts_panel[:signups_7d] %> / <%= @accounts_panel[:signups_30d] %> / <%= @accounts_panel[:signups_90d] %></span><br/><span class="l">signups 7 / 30 / 90d</span></span>
+      <% if @accounts_panel[:signup_trend].any? %>
+        <table class="patra-table">
+          <thead><tr><th>Day</th><th>Signups</th></tr></thead>
+          <tbody>
+            <% @accounts_panel[:signup_trend].each do |day, count| %>
+              <tr><td><%= day %></td><td><%= count %></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div class="muted">No signups in range.</div>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Engagement</h2>
+      <span class="patra-stat"><span class="v"><%= @engagement[:conversations_created] %></span><br/><span class="l">conversations created</span></span>
+      <span class="patra-stat"><span class="v"><%= @engagement[:conversations_with_player_messages] %></span><br/><span class="l">with player messages</span></span>
+      <span class="patra-stat"><span class="v pos"><%= @engagement[:ai_handled_percent] %>%</span><br/><span class="l">AI-handled</span></span>
+      <span class="patra-stat"><span class="v <%= 'warn' if @engagement[:handoff_rate_percent].positive? %>"><%= @engagement[:handoff_rate_percent] %>%</span><br/><span class="l">handoff rate</span></span>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Money</h2>
+      <span class="patra-stat"><span class="v pos">$<%= @money[:deposits][:total] %></span><br/><span class="l">deposits (<%= @money[:deposits][:count] %>)</span></span>
+      <span class="patra-stat"><span class="v neg">$<%= @money[:cashouts][:total] %></span><br/><span class="l">cashouts (<%= @money[:cashouts][:count] %>)</span></span>
+      <span class="patra-stat"><span class="v <%= @money[:net].negative? ? 'neg' : 'pos' %>">$<%= @money[:net] %></span><br/><span class="l">NET</span></span>
+      <% if @money[:malformed_count].positive? %>
+        <div class="warn" style="font-size:12px;">⚠ <%= @money[:malformed_count] %> malformed finance entr<%= @money[:malformed_count] == 1 ? 'y' : 'ies' %> skipped</div>
+      <% end %>
+
+      <% if @money[:by_day].any? %>
+        <table class="patra-table" style="margin-top:8px;">
+          <thead><tr><th>Day</th><th>Deposits</th><th>Cashouts</th><th>Net</th></tr></thead>
+          <tbody>
+            <% @money[:by_day].each do |row| %>
+              <tr>
+                <td><%= row[:date] %></td>
+                <td>$<%= row[:deposits] %></td>
+                <td>$<%= row[:cashouts] %></td>
+                <td class="<%= row[:net].negative? ? 'neg' : 'pos' %>">$<%= row[:net] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div class="muted">No finance entries in range.</div>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Money by Game (successful loads/cashouts)</h2>
+      <% if @money[:by_game].any? %>
+        <table class="patra-table">
+          <thead><tr><th>Game</th><th>Loads</th><th>Cashouts</th><th>Net</th></tr></thead>
+          <tbody>
+            <% @money[:by_game].each do |row| %>
+              <tr>
+                <td><%= row[:game] %></td>
+                <td>$<%= row[:loads_total] %> (<%= row[:loads_count] %>)</td>
+                <td>$<%= row[:cashouts_total] %> (<%= row[:cashouts_count] %>)</td>
+                <td class="<%= row[:net].negative? ? 'neg' : 'pos' %>">$<%= row[:net] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div class="muted">No successful game money actions in range.</div>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Top Accounts by Net</h2>
+      <% if @money[:top_accounts].any? %>
+        <table class="patra-table">
+          <thead><tr><th>Account</th><th>Deposits</th><th>Cashouts</th><th>Net</th></tr></thead>
+          <tbody>
+            <% @money[:top_accounts].each do |row| %>
+              <tr>
+                <td><%= link_to (row[:name].presence || "##{row[:account_id]}"), super_admin_account_path(row[:account_id]) %></td>
+                <td>$<%= row[:deposits] %></td>
+                <td>$<%= row[:cashouts] %></td>
+                <td class="<%= row[:net].negative? ? 'neg' : 'pos' %>">$<%= row[:net] %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div class="muted">No account money activity in range.</div>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Risk</h2>
+      <span class="patra-stat"><span class="v <%= 'warn' if @money[:risk][:flagged_players_total].positive? %>"><%= @money[:risk][:flagged_players_total] %></span><br/><span class="l">flagged players</span></span>
+      <span class="patra-stat"><span class="v <%= 'warn' if @money[:risk][:accounts_with_flagged].positive? %>"><%= @money[:risk][:accounts_with_flagged] %></span><br/><span class="l">accounts with ≥1 flagged player</span></span>
+      <div class="muted" style="font-size:12px;">Flagged = finance entry with a flag_reason (suspect payment marker).</div>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Integrations</h2>
+      <span class="patra-stat"><span class="v"><%= @integrations[:total_connections] %></span><br/><span class="l">game connections</span></span>
+      <span class="patra-stat"><span class="v"><%= @integrations[:active_connections] %></span><br/><span class="l">active</span></span>
+      <span class="patra-stat"><span class="v <%= @integrations[:down_total].positive? ? 'neg' : 'pos' %>"><%= @integrations[:down_total] %></span><br/><span class="l">down</span></span>
+      <% if @integrations[:down_by_game].any? %>
+        <table class="patra-table">
+          <thead><tr><th>Game</th><th>Down connections</th></tr></thead>
+          <tbody>
+            <% @integrations[:down_by_game].each do |game, count| %>
+              <tr><td><%= game %></td><td class="neg"><%= count %></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Billing</h2>
+      <% if @billing[:initialized] %>
+        <span class="patra-stat"><span class="v"><%= @billing[:subscriptions] %></span><br/><span class="l">subscriptions</span></span>
+        <span class="patra-stat"><span class="v muted">—</span><br/><span class="l">MRR (TODO-CONFIG)</span></span>
+      <% else %>
+        <div class="muted">Billing not initialized — no patra_billing_subscriptions table yet. This panel activates automatically when billing ships.</div>
+      <% end %>
+    </div>
+  </div>
+</div>
