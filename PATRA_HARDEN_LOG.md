@@ -108,7 +108,15 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   Proof (a): tmp/self_tests/h9_stuck_pending_alert_test.rb ALL PASS (10 asserts incl.
   mutation-trap structs proving read-only) + ruby -c OK.
   RSpec spec/jobs/pending_payment_timeout_job_spec.rb written (SPECS-UNRUN locally).
-- [ ] H10 ReplyJob rescue posture (lock release on transient, bounded permanent)
+- [x] H10 ReplyJob rescue posture — VERIFIED existing (a): retry_on StandardError attempts:3 +
+  TransientSendError attempts:5, both with give-up logs (bounded, no infinite loop);
+  TransientSendError already released the lock. GAP FIXED: any OTHER StandardError left the
+  30s REPLY_LOCK held, and the first polynomially_longer retry (~3-18s) hit it and became a
+  "skipping duplicate reply" no-op → reply silently lost. Added generic rescue: release lock,
+  log, re-raise (retry stays bounded). Job file non-hot ✓.
+  Proof (a): tmp/self_tests/h10_reply_job_lock_test.rb ALL PASS (10 asserts — both branches
+  mocked, duplicate-skip + happy path unchanged) + ruby -c OK.
+  RSpec spec/jobs/ai/reply_job_lock_spec.rb written (SPECS-UNRUN locally).
 - [ ] H11 re-engagement shared cooldown (verify existing + PATRA_REENGAGE_MAP.md + spec)
 - [ ] H12 role guards dark flag (PATRA_RESTRICT_MONEY_ACTIONS, default OFF)
 - [ ] H13 terms/privacy pages (already exist — verify + OPERATOR-CONFIRM markers)
@@ -187,6 +195,10 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   + MORNING SHELL: `bundle exec rails runner script/patra_panda_probe.rb` (the deciding artifact)
 - H8: `bundle exec rspec spec/jobs/patra/refresh_fb_tokens_job_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h8_fb_token_alert_test.rb` → ALL PASS 12)
+- H9: `bundle exec rspec spec/jobs/pending_payment_timeout_job_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h9_stuck_pending_alert_test.rb` → ALL PASS 10)
+- H10: `bundle exec rspec spec/jobs/ai/reply_job_lock_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h10_reply_job_lock_test.rb` → ALL PASS 10)
 
 ## COMMITS
 (one line per item as committed)

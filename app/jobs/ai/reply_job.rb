@@ -86,6 +86,18 @@ class Ai::ReplyJob < ApplicationJob
       "[AiReply] transient send error conv=#{conversation_id} released lock for Sidekiq retry: #{e.message}"
     )
     raise
+  rescue StandardError => e
+    # Any other failure (DeepSeek 5xx/timeouts surface here, not as
+    # TransientSendError): the first polynomially_longer retry lands within
+    # the 30s lock TTL, so a held lock would turn that retry into a
+    # "skipping duplicate reply" no-op and the reply would be lost. Release
+    # the lock and re-raise — retry_on keeps the retries bounded (3), so
+    # permanent errors still can't loop forever.
+    release_reply_lock(lock_key)
+    Rails.logger.warn(
+      "[AiReply] error conv=#{conversation_id} released lock for Sidekiq retry: #{e.class}: #{e.message}"
+    )
+    raise
   end
 
   private
