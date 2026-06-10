@@ -13,7 +13,9 @@ require 'time'
 module Reengagement
   module ContactCooldown
     KEY = 'last_automated_contact_at'
-    DEFAULT_HOURS = 24
+    # 72h: with four daily senders (08/09/12/17 UTC) a 24h window still allowed
+    # the same player to be pinged on consecutive days by different jobs.
+    DEFAULT_HOURS = 72
 
     module_function
 

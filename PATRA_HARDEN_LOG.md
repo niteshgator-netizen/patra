@@ -117,7 +117,18 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   Proof (a): tmp/self_tests/h10_reply_job_lock_test.rb ALL PASS (10 asserts — both branches
   mocked, duplicate-skip + happy path unchanged) + ruby -c OK.
   RSpec spec/jobs/ai/reply_job_lock_spec.rb written (SPECS-UNRUN locally).
-- [ ] H11 re-engagement shared cooldown (verify existing + PATRA_REENGAGE_MAP.md + spec)
+- [x] H11 re-engagement shared cooldown — FINDING (a): the shared mechanism ALREADY existed
+  (Reengagement::ContactCooldown, built by a prior run) and is honored by all three real
+  senders: Contacts::ReEngageJob (08:00, check :38 / stamp :45), Reengagement::SendService
+  for DormantPlayerJob (12:00, check :18 / stamp :73), Games::WinbackService (17:00, check :70
+  / stamp :311 — owner-WIP, VERIFIED BY READ ONLY, zero edits). ReengageDormantContactsJob
+  (09:00) is log-only and sends nothing. Crons already staggered 08/09/12/17.
+  Changes this run: DEFAULT_HOURS 24 → 72 (per H11 spec; safe direction — fewer pings; env
+  PATRA_REENGAGE_COOLDOWN_HOURS still overrides) + NEW PATRA_REENGAGE_MAP.md (full sender map).
+  DEFERRED-WIP: none needed — winback already integrated, no diff required.
+  Proof (a): tmp/self_tests/h11_shared_cooldown_test.rb ALL PASS (12 asserts — REAL job + REAL
+  service cross-sender both directions + 71h/73h window boundaries + env override/garbage)
+  + ruby -c OK. RSpec spec/services/reengagement/contact_cooldown_spec.rb (SPECS-UNRUN locally).
 - [ ] H12 role guards dark flag (PATRA_RESTRICT_MONEY_ACTIONS, default OFF)
 - [ ] H13 terms/privacy pages (already exist — verify + OPERATOR-CONFIRM markers)
 - [ ] FINAL self-audit + DUMP
@@ -199,6 +210,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   `ruby tmp/self_tests/h9_stuck_pending_alert_test.rb` → ALL PASS 10)
 - H10: `bundle exec rspec spec/jobs/ai/reply_job_lock_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h10_reply_job_lock_test.rb` → ALL PASS 10)
+- H11: `bundle exec rspec spec/services/reengagement/contact_cooldown_spec.rb` (local
+  equivalent ran: `ruby tmp/self_tests/h11_shared_cooldown_test.rb` → ALL PASS 12)
 
 ## COMMITS
 (one line per item as committed)
