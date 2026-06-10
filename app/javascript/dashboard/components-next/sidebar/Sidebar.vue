@@ -925,9 +925,13 @@ const menuItems = computed(() => {
     position: relative;
   }
 
-  .pat-rail-logo::after {
-    content: 'P';
-    line-height: 1;
+  /* A6: the CSS used to draw its own 'P' (content:'P') on top of the real
+     PNG logo tile rendered by Logo.vue inside the account switcher — double
+     render. The PNG is the single source of truth; it fills the tile. */
+  .pat-rail-logo img {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: inherit;
   }
 
   .pat-rail-logo:hover {
@@ -1169,6 +1173,14 @@ const menuItems = computed(() => {
   .patra-nav-rail > section:first-child .pat-rail-logo svg,
   .patra-nav-rail > section:first-child button:has(.size-7) svg {
     display: none !important;
+  }
+
+  /* A6: PNG logo fills the forced 40px tile in both collapsed + expanded */
+  .patra-nav-rail > section:first-child .size-6 img,
+  .patra-nav-rail > section:first-child button:has(.size-7) img {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 12px;
   }
 
   .patra-nav-rail > section:first-child .size-6::after,
