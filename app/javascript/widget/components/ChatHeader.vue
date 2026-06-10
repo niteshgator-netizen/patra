@@ -42,7 +42,7 @@ const onBackButtonClick = () => {
       />
       <div class="flex flex-col gap-1">
         <div
-          class="flex items-center text-base font-medium leading-4 text-n-slate-12"
+          class="flex items-center text-base font-semibold leading-4 text-n-slate-12"
         >
           <span v-dompurify-html="title" class="ltr:mr-1 rtl:ml-1" />
           <div

@@ -116,12 +116,12 @@ export default {
     ]),
     ...mapActions('agent', ['fetchAvailableAgents']),
     setWidgetColorVariable(widgetColor) {
-      if (widgetColor) {
-        document.documentElement.style.setProperty(
-          '--widget-color',
-          widgetColor
-        );
-      }
+      // Patra purple as the default when an inbox has no color configured;
+      // any configured per-inbox color still wins.
+      document.documentElement.style.setProperty(
+        '--widget-color',
+        widgetColor || '#6E56CF'
+      );
     },
     scrollConversationToBottom() {
       const container = this.$el.querySelector('.conversation-wrap');
