@@ -19,6 +19,9 @@ class Widget::MessagesController < ActionController::API
 
   def set_web_widget
     @web_widget = Channel::WebWidget.find_by!(website_token: params[:website_token])
+    # PATRA TAB-C (ADM7): suspended accounts must not accept public widget
+    # traffic — mirrors widgets_controller.rb's existing suspension check.
+    render json: { error: 'Account is suspended' }, status: :unauthorized unless @web_widget.account.active?
   end
 
   def find_or_create_contact

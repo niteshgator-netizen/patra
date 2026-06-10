@@ -35,7 +35,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - [x] ADM3 — integration health matrix
 - [x] ADM4 — impersonation / support-login
 - [x] ADM6 — platform banner
-- [ ] ADM7 — suspension safety-net
+- [x] ADM7 — suspension safety-net
 - [ ] FINAL — proofs + morning summary
 
 ## DECISIONS
@@ -203,9 +203,44 @@ model concerns are outside the TAB-C lane ⇒ see DEFERRED-SECURITY.
 - Spec: spec/controllers/super_admin/platform_banners_controller_spec.rb (cloud gate 404, audited
   create/update/destroy, tenant read path shows active-only banners).
 
-## ADM7 FINDINGS — filled when ADM7 done
+## ADM7 FINDINGS
+HOW SUSPENSION BLOCKS (verified by reading code + existing spec, not by running):
+- Enforcement lives in app/controllers/concerns/ensure_current_account_helper.rb:11 —
+  `render_unauthorized('Account is suspended') and return unless account.active?` inside
+  ensure_current_account, which runs whenever a controller calls current_account.
+- Included by Api::V1::Accounts::BaseController (line 3) ⇒ ALL /api/v1/accounts/:id/* requests,
+  and by conversations/direct_uploads_controller. render_unauthorized = JSON {error}, HTTP 401
+  (request_exception_handler.rb:26-28).
+- Mid-session suspension bites on the NEXT request: the check runs per-request on params[:account_id];
+  no token/session invalidation needed. Existing spec spec/controllers/api/base_controller_spec.rb:97-118
+  proves 401 for suspended accounts (incl. the no-access DoubleRender edge).
+- Public widget page widgets_controller.rb:62 and website_token_helper.rb:10 also check active? (401).
+- ADM2 adds a cross-check spec (suspend via console ⇒ /api/v1 401) + the new safety-net spec below.
 
-## SECURITY-GAPS
+GAPS FOUND AND CLOSED TONIGHT (non-hot Patra custom controllers — ADM7 explicitly allows the guard):
+1. POST /widget/patra/messages (Widget::MessagesController — Patra embeddable widget): created
+   contacts/conversations/messages with NO suspension check. Now 401 'Account is suspended'
+   (mirrors widgets_controller's existing check). Spec proves no Message row is created.
+2. GET/POST /help/:account_id/* (HelpCenterController — Patra public help center): served articles +
+   accepted feedback for suspended accounts. find_account now filters non-active ⇒ 404; also fixed a
+   latent 500 (nil account NoMethodError) in show/search/feedback ⇒ now 404.
+
+## SECURITY-GAPS (open — documented, NOT guarded tonight, with reasons)
+- SG-1 Inbound platform webhooks process events for suspended accounts: /webhooks/telegram,
+  /webhooks/zernio (ProcessZernioInboundJob), /webhooks/messenger, /webhooks/fb_reply,
+  /webhooks/tiktok, /webhooks/shopify, /webhooks/instagram, /webhooks/whatsapp, /webhooks/sms,
+  /webhooks/line. Controllers ack + enqueue jobs; account resolution happens deep in jobs/services —
+  for FB that path runs through facebook/chatwoot_bridge_service.rb (HOT FILE) and the Bella reply
+  pipeline, i.e. a suspended tenant's inbox keeps ingesting AND the bot may keep replying/executing.
+  NOT guarded tonight because: webhook controllers are outside the TAB-C lane, the account lookup
+  point is inside TAB-A/B-owned services (some hot), and a wrong guard there drops legitimate
+  multi-account events. HANDOFF-B below proposes the guard point (inside each inbound job, right
+  after account/channel resolution: `return if account.suspended?`).
+- SG-2 (residual, ADM4): sso_authenticatable#generate_sso_link_with_impersonation remains callable
+  outside the audited controller flow (model concern outside lane). UI path replaced tonight.
+
+## SECURITY-GAPS — none in TAB-C-shipped surfaces (self-review): every new mutating endpoint is
+super-admin-gated + kill-switch-gated + audited; new read surfaces render no credentials.
 
 ## DEFERRED-FRONTEND
 
