@@ -30,21 +30,21 @@ R8 Stubs for anything send/money-shaped in test scripts: stub_singleton save+res
 - [x] F2 shift_report_job.rb:33 TelegramNotifier positional-call crash — done (commit b93b1779f)
 - [x] F3 expire_claims_job.rb:19 same crash every minute; rescue around notify — done (commit 67c8e0ec2)
 - [x] F4 bot_controller HMAC — done (commit 12eece35e)
-- [ ] F5 [HOT reply_service] dead freshness gate @latest_timestamp hardcoded ~:1311 — todo
+- [x] F5 freshness gate revived — done (commit 45d99a65c)
 - [x] F6 conversation_summary_service Array crash — done (commit 453976f2f)
 - [x] F7 already-exists success-reuse — done (commit 963cd5a4e)
 - [x] F8 deactivate-clientless script — done (commit 41181bf35)
 - [x] F9 payment_info fallback — done (commit c617d433f)
 - [x] F10 smoke raw_field label — done (commit cafbc2798)
 - [x] F11 bridge inbox fallback — done (commit 37fafc442)
-- [ ] F12 [HOT orchestrator + migration] deterministic order_id + UNIQUE index + rescue-as-already-loaded — todo
-- [ ] F13 per-agent max_load_amount enforced on automated path — todo
+- [x] F12 deterministic order_id — done (commit 741d5a44e; migration SKIPPED, unique index proven pre-existing)
+- [x] F13 cap verified enforced + harness — done (commit a428a2a96, no code change)
 - [x] F14 FB error 190 alert — done (commit 6b47adfb1)
-- [ ] F15 approval-gate auto-resume dark behind PATRA_APPROVAL_AUTORESUME — todo
-- [ ] F16 [HOT reply_service, separate commit] human-takeover auto-pause PATRA_TAKEOVER_PAUSE_MINUTES=0 — todo
+- [x] F15 approval auto-resume dark — done (commit a4eca89a6)
+- [x] F16 human-takeover pause — done (commit 8307296ec)
 - [x] F17 stuck-pending sweeper alert — done (commit 61f947f1b)
-- [ ] F18 Juwa + Panda Master blank balance diagnosis — todo
-- [ ] F19 win-back FB policy MESSAGE_TAG (only if mechanism exists) — todo
+- [x] F18 balance probe script + report-only diagnosis — done (commit 29f14bef2)
+- [x] F19 REPORT-ONLY (tag mechanism already wired on live path; >7d senders can't be tagged) — done
 - [x] F20 ReplyJob bounded retries — done (commit b7476b86b)
 
 ## PHASE 2 — ADVERSARIAL HUNT
@@ -155,5 +155,48 @@ Proof (b): tmp/self_tests/f7_already_exists_reuse_test.rb → 6 checks ALL PASS 
 
 ## SELF-AUDIT #1 (R7, after 13 fixes)
 ruby -c on all 20 touched .rb → 0 failures · schedule.yml YAML OK · git log 495a02cae..HEAD = 13 per-fix commits + init, ZERO frontend files · working tree clean except this run log + other session's PATRA_RUN_LOG.md (untracked, not mine).
+
+## F18 — DONE as probe + report-only diagnosis (commit 29f14bef2)
+Diagnosis (a, read-verified):
+- Juwa: agent_balance (juwa/client.rb:142-149) returns ok:true with agent_balance=resp.dig('data','agent_balance') — ANY key drift in the provider JSON gives "connect OK, balance nil" silently. No fallback keys, no warn.
+- PandaMaster (asp_net_panel/base_client.rb:61-65, 200-204): balance scraped from HTML via /updateBalance\("Balance:([\d.]+)"\)/ — regex does NOT match thousands separators (e.g. "Balance:1,234.56") or any markup drift; test_connection still reports Connected (session valid) → exact "connect OK, balance empty" symptom.
+Cannot pick which without live bytes (zero-guessing) → script/patra_balance_probe.rb (READ-ONLY) prints raw Juwa agentBalance body+keys and the exact updateBalance HTML snippet vs the current regex.
+Needs-Render-proof: bundle exec rails runner script/patra_balance_probe.rb → paste output; fix becomes a one-liner (key fallback or regex [\d,.] + tr(',','')) once evidence shows which.
+
+## F19 — REPORT-ONLY (no commit; evidence (a) read-verified)
+Mechanism EXISTS and IS WIRED on the production path: WinbackService flags messages additional_attributes.winback=true (winback_service.rb:103-110) → SendApiService#winback_tag_opts (send_api_service.rb:91-106) attaches messaging_type=MESSAGE_TAG + message_tag=HUMAN_AGENT → OutboundDispatcher threads opts (:28-29) → ZernioProvider body messagingType/messageTag (zernio_provider.rb:24-27). WinbackService correctly telegram-falls-back for >7d (FB_TAG_MAX_DAYS=7).
+The live "#10 outside allowed window" failures cannot be tag-fixed:
+1. Contacts::ReEngageJob (re_engage_job.rb:22-26) targets last_activity_at < 7d+ ago and sends PLAIN MessageBuilder messages (no winback flag) → untagged → #10 guaranteed >24h. NO tag is valid >7d.
+2. Reengagement::DormantPlayerJob/SendService targets stale >7d conversations (dormant_player_job.rb:41-51) — same.
+3. Minor gap: SendApiService direct-Graph path deliver_to_facebook (:140-149) never attaches the tag even for flagged winback messages — only matters if an inbox uses messaging_provider 'direct_meta' (production uses zernio). Graph param name (`tag`) is not in-repo → would be invention; report-only.
+PRECISE PROPOSED CHANGE (not applied): in Reengagement::SendService#call and ReEngageJob#send_reengage, branch on last incoming age: <=7d → create message with additional_attributes {'winback'=>true} (rides the existing HUMAN_AGENT pipe); >7d → Games::TelegramNotifier.winback_manual_alert + private note (WinbackService deliver_via_telegram pattern, :119-136). Policy risk to state in report: HUMAN_AGENT tag on automated re-engagement is gray-zone (FB intends it for human agents within 7d); volume tagging may risk page quality score.
+
+## F5 — DONE (commit 45d99a65c) [HOT reply_service via tmp/self_tests/f5_patch_reply_service.py]
+Bug (a): build_messages hardcoded @latest_timestamp = Time.current.to_i (pre-fix :1311) while call's gate (:337-341, 10-min MESSAGE_FRESHNESS_WINDOW) read it → gate permanently no-op, stale conversations always replied to.
+Fix: @latest_timestamp = max incoming-message created_at via the file's own chat_message_type/message_created_at_unix; empty/outgoing-only → 0 → below FRESHNESS_UNIX_MIN → gate passes → unchanged no-usable-history path.
+Proof (b): tmp/self_tests/f5_freshness_gate_test.rb → REPRO OK + FIX OK x6 (stale/fresh/empty/outgoing-only/ISO8601/10-min boundary). ALL PASS.
+
+## F16 — DONE (commit 8307296ec) [HOT reply_service via tmp/self_tests/f16_patch_reply_service.py, separate commit from F5]
+Feature: outgoing non-private message with source_id != 'ai_auto' (the marker ReplyJob stamps, reply_job.rb AI_SOURCE_ID) = human takeover → AI paused for PATRA_TAKEOVER_PAUSE_MINUTES (call-time read, default 0 = OFF = behavior unchanged). New gate sits AFTER ai_disabled? (ai-off label untouched). 3 patcher edits, 1 match each.
+Proof (b): tmp/self_tests/f16_takeover_pause_test.rb → CAPTURE OK (ai_auto + private ignored), DEFAULT OK, GATE OK x3. ALL PASS.
+ENV knob: PATRA_TAKEOVER_PAUSE_MINUTES (default 0=off).
+
+## F12 — DONE (commit 741d5a44e) [HOT orchestrator via tmp/self_tests/f12_patch_orchestrator.py, 5 edits]
+Bug (a): payment_already_loaded? (:1737-1750 pre-fix) is check-then-act; order_id random (game_action.rb:27-29) → N concurrent messages for ONE payment all load. UNIQUE INDEX (account_id, order_id) PROVEN pre-existing (db/migrate/20260513030000_create_game_actions.rb:29 — schema.rb is stale at version 2026_05_07 and lacks the table entirely) → migration skipped per spec.
+Fix: deterministic_payment_order_id(payment_id) = "pay"+SHA1(account:contact:payment_id)[0,20]; success/pending existing → nil → already_loaded_response (skip + correct reply); failed attempts free the base via _a<count> suffix (code-8 auto-create retry still works). All 4 automated load sites (handle_load_intent initial+retry :415/:464, handle_username_provided initial+retry :1031/:1076) pass the id and rescue IdempotencyError/RecordNotUnique as already-loaded. Manual/freeplay/bonus loads keep their random scheme.
+Proof (b): tmp/self_tests/f12_order_id_race_test.rb → REPRO OK (3x pre-fix loads), FIX OK x5 + INVARIANTS OK. Harness gains [F12] section driving the REAL helper + REAL unique index.
+Needs-Render-proof: bundle exec rails runner script/patra_money_harness.rb (F12 cases green).
+
+## F13 — DONE, VERIFIED-NO-CHANGE (commit a428a2a96)
+Verified (a): cap enforced at action_executor.rb:71-72 → amount_limit_error('max_load_amount') (:252-258, credentials JSONB) BEFORE GameAction create/panel call; orchestrator automated path loads ONLY via executor.load_player (read-verified both handlers). No bypass exists. Over-cap on automated path → ok:false → orchestrator failure branch → human_escalation telegram + needs-human label (read-verified :522-536).
+Harness: [F13] section drives REAL handle_load_intent with capped (10) and uncapped credentials (save/restored): over-cap = no recharge + needs-human + telegram; unset = unlimited kept.
+
+## F15 — DONE (commit a4eca89a6)
+Feature (dark): ApprovalRequest after_update_commit (status→approved) → Approvals::AutoResumeJob → Approvals::AutoResume.execute! — ONLY when PATRA_APPROVAL_AUTORESUME=true (default off: callback no-ops, manual behavior byte-identical). Execution: order_id "appr_<id>" on the unique index = exactly-once (double-approve/job-retry/race all no-op); executor cashout_player gains skip_approval_gate kwarg (only AutoResume passes true — prevents infinite re-gate); reject never executes; invalid payload → telegram + manual; failure → cashout-group telegram with REAL action status + NEEDS HUMAN. Files: app/services/approvals/auto_resume.rb (new), app/jobs/approvals/auto_resume_job.rb (new, 3-attempt bounded retry), app/models/approval_request.rb (additive callback), action_executor.rb (kwarg), harness 8 cases.
+Proof (b): tmp/self_tests/f15_approval_autoresume_test.rb → 7 checks ALL PASS (dark/once/double/reject/failure/invalid/race).
+ENV knob: PATRA_APPROVAL_AUTORESUME (default off).
+Needs-Render-proof: harness F15 section green; then with flag on, approve a real test request.
+
+═══ PHASE 1 COMPLETE — all F1-F20 done (18 commits) ═══
 
 (append below as work completes)
