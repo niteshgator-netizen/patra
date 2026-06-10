@@ -386,10 +386,10 @@
   },
   "CAPTAIN_SETTINGS": {
     "TITLE": "Postavke Kapetana",
-    "DESCRIPTION": "Konfigurirajte svoje AI modele i značajke za Captain. Captain koristi naplatu temeljenu na kreditima, bit ćete naplaćeni kredite za svaku radnju koju Captain izvrši na temelju odabranog modela.",
-    "LOADING": "Loading Captain configuration...",
-    "LINK_TEXT": "Learn more about Captain Credits",
-    "NOT_ENABLED": "Captain nije omogućen za vaš račun. Molimo nadogradite svoj plan da biste pristupili značajkama Captaina.",
+    "DESCRIPTION": "Konfigurirajte svoje AI modele i značajke za Patra AI. Patra AI koristi naplatu temeljenu na kreditima, bit ćete naplaćeni kredite za svaku radnju koju Patra AI izvrši na temelju odabranog modela.",
+    "LOADING": "Loading Patra AI configuration...",
+    "LINK_TEXT": "Learn more about Patra AI Credits",
+    "NOT_ENABLED": "Patra AI nije omogućen za vaš račun. Molimo nadogradite svoj plan da biste pristupili značajkama Patra AIa.",
     "MODEL_CONFIG": {
       "TITLE": "Konfiguracija modela",
       "DESCRIPTION": "Odaberite AI modele za različite značajke.",
@@ -428,8 +428,8 @@
       }
     },
     "API": {
-      "SUCCESS": "Captain settings updated successfully.",
-      "ERROR": "Failed to update Captain settings. Please try again."
+      "SUCCESS": "Patra AI settings updated successfully.",
+      "ERROR": "Failed to update Patra AI settings. Please try again."
     }
   },
   "BILLING_SETTINGS": {
@@ -449,11 +449,11 @@
     },
     "CAPTAIN": {
       "TITLE": "Kapetan",
-      "DESCRIPTION": "Manage usage and credits for Captain AI.",
+      "DESCRIPTION": "Manage usage and credits for Patra AI.",
       "BUTTON_TXT": "Kupi više kredita",
       "DOCUMENTS": "Dokumenti",
       "RESPONSES": "Responses",
-      "UPGRADE": "Captain nije dostupan na besplatnom planu, nadogradi sada da bi dobio pristup asistentima, copilot i više.",
+      "UPGRADE": "Patra AI nije dostupan na besplatnom planu, nadogradi sada da bi dobio pristup asistentima, copilot i više.",
       "REFRESH_CREDITS": "Osvježi"
     },
     "CHAT_WITH_US": {
@@ -465,7 +465,7 @@
     "TOPUP": {
       "BUY_CREDITS": "Kupi više kredita",
       "MODAL_TITLE": "Kupi AI kredite",
-      "MODAL_DESCRIPTION": "Purchase additional credits for Captain AI.",
+      "MODAL_DESCRIPTION": "Purchase additional credits for Patra AI.",
       "CREDITS": "KREDITI",
       "ONE_TIME": "jednokratno",
       "POPULAR": "Najpopularnije",

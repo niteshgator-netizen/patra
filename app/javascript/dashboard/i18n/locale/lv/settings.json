@@ -311,7 +311,7 @@
     "ACTIVE": "Aktīvs",
     "COMPANIES": "Companies",
     "ALL_COMPANIES": "All Companies",
-    "CAPTAIN": "Captain",
+    "CAPTAIN": "Patra AI",
     "CAPTAIN_ASSISTANTS": "Asistenti",
     "CAPTAIN_DOCUMENTS": "Dokumenti",
     "CAPTAIN_RESPONSES": "Bieži uzdotie jautājumi",
@@ -381,15 +381,15 @@
     },
     "DOCS": "Lasīt dokumentus",
     "SECURITY": "Security",
-    "CAPTAIN_AI": "Captain",
+    "CAPTAIN_AI": "Patra AI",
     "CONVERSATION_WORKFLOW": "Conversation Workflow"
   },
   "CAPTAIN_SETTINGS": {
-    "TITLE": "Captain Settings",
-    "DESCRIPTION": "Configure your AI models and features for Captain. Captain follows a credit based billing, you will be charged credits for every action Captain takes based on the model selected.",
-    "LOADING": "Loading Captain configuration...",
-    "LINK_TEXT": "Learn more about Captain Credits",
-    "NOT_ENABLED": "Captain is not enabled for your account. Please upgrade your plan to access Captain features.",
+    "TITLE": "Patra AI Settings",
+    "DESCRIPTION": "Configure your AI models and features for Patra AI. Patra AI follows a credit based billing, you will be charged credits for every action Patra AI takes based on the model selected.",
+    "LOADING": "Loading Patra AI configuration...",
+    "LINK_TEXT": "Learn more about Patra AI Credits",
+    "NOT_ENABLED": "Patra AI is not enabled for your account. Please upgrade your plan to access Patra AI features.",
     "MODEL_CONFIG": {
       "TITLE": "Model Configuration",
       "DESCRIPTION": "Select AI models for different features.",
@@ -428,8 +428,8 @@
       }
     },
     "API": {
-      "SUCCESS": "Captain settings updated successfully.",
-      "ERROR": "Failed to update Captain settings. Please try again."
+      "SUCCESS": "Patra AI settings updated successfully.",
+      "ERROR": "Failed to update Patra AI settings. Please try again."
     }
   },
   "BILLING_SETTINGS": {
@@ -448,12 +448,12 @@
       "BUTTON_TXT": "Doties uz norēķinu portālu"
     },
     "CAPTAIN": {
-      "TITLE": "Captain",
-      "DESCRIPTION": "Pārvaldīt Captain AI lietošanu un kredītus.",
+      "TITLE": "Patra AI",
+      "DESCRIPTION": "Pārvaldīt Patra AI lietošanu un kredītus.",
       "BUTTON_TXT": "Iegādāties vairāk kredītu",
       "DOCUMENTS": "Dokumenti",
       "RESPONSES": "Atbildes",
-      "UPGRADE": "Captain nav pieejams bezmaksas abonementā. Modernizējiet abonementu tūlīt, lai piekļūtu asistentiem un copilot.",
+      "UPGRADE": "Patra AI nav pieejams bezmaksas abonementā. Modernizējiet abonementu tūlīt, lai piekļūtu asistentiem un copilot.",
       "REFRESH_CREDITS": "Atjaunot"
     },
     "CHAT_WITH_US": {
@@ -465,7 +465,7 @@
     "TOPUP": {
       "BUY_CREDITS": "Iegādāties vairāk kredītu",
       "MODAL_TITLE": "Buy AI Credits",
-      "MODAL_DESCRIPTION": "Purchase additional credits for Captain AI.",
+      "MODAL_DESCRIPTION": "Purchase additional credits for Patra AI.",
       "CREDITS": "CREDITS",
       "ONE_TIME": "one-time",
       "POPULAR": "Most Popular",

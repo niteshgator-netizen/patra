@@ -310,7 +310,7 @@
     "ACTIVE": "状态",
     "COMPANIES": "公司",
     "ALL_COMPANIES": "All Companies",
-    "CAPTAIN": "Captain",
+    "CAPTAIN": "Patra AI",
     "CAPTAIN_ASSISTANTS": "助手",
     "CAPTAIN_DOCUMENTS": "文档",
     "CAPTAIN_RESPONSES": "常见问题",
@@ -380,15 +380,15 @@
     },
     "DOCS": "阅读文档",
     "SECURITY": "安全",
-    "CAPTAIN_AI": "Captain",
+    "CAPTAIN_AI": "Patra AI",
     "CONVERSATION_WORKFLOW": "Conversation Workflow"
   },
   "CAPTAIN_SETTINGS": {
-    "TITLE": "Captain Settings",
-    "DESCRIPTION": "Configure your AI models and features for Captain. Captain follows a credit based billing, you will be charged credits for every action Captain takes based on the model selected.",
-    "LOADING": "Loading Captain configuration...",
-    "LINK_TEXT": "Learn more about Captain Credits",
-    "NOT_ENABLED": "Captain is not enabled for your account. Please upgrade your plan to access Captain features.",
+    "TITLE": "Patra AI Settings",
+    "DESCRIPTION": "Configure your AI models and features for Patra AI. Patra AI follows a credit based billing, you will be charged credits for every action Patra AI takes based on the model selected.",
+    "LOADING": "Loading Patra AI configuration...",
+    "LINK_TEXT": "Learn more about Patra AI Credits",
+    "NOT_ENABLED": "Patra AI is not enabled for your account. Please upgrade your plan to access Patra AI features.",
     "MODEL_CONFIG": {
       "TITLE": "Model Configuration",
       "DESCRIPTION": "Select AI models for different features.",
@@ -427,8 +427,8 @@
       }
     },
     "API": {
-      "SUCCESS": "Captain settings updated successfully.",
-      "ERROR": "Failed to update Captain settings. Please try again."
+      "SUCCESS": "Patra AI settings updated successfully.",
+      "ERROR": "Failed to update Patra AI settings. Please try again."
     }
   },
   "BILLING_SETTINGS": {
@@ -447,12 +447,12 @@
       "BUTTON_TXT": "前往账单门户"
     },
     "CAPTAIN": {
-      "TITLE": "Captain",
-      "DESCRIPTION": "管理 Captain AI 的使用和积分。",
+      "TITLE": "Patra AI",
+      "DESCRIPTION": "管理 Patra AI 的使用和积分。",
       "BUTTON_TXT": "购买更多积分",
       "DOCUMENTS": "文档",
       "RESPONSES": "常见问题",
-      "UPGRADE": "Captain 在免费计划中不可用，立即升级以获取助手、副驾驶等更多功能。",
+      "UPGRADE": "Patra AI 在免费计划中不可用，立即升级以获取助手、副驾驶等更多功能。",
       "REFRESH_CREDITS": "刷新"
     },
     "CHAT_WITH_US": {
@@ -464,7 +464,7 @@
     "TOPUP": {
       "BUY_CREDITS": "购买更多积分",
       "MODAL_TITLE": "Buy AI Credits",
-      "MODAL_DESCRIPTION": "Purchase additional credits for Captain AI.",
+      "MODAL_DESCRIPTION": "Purchase additional credits for Patra AI.",
       "CREDITS": "CREDITS",
       "ONE_TIME": "one-time",
       "POPULAR": "Most Popular",

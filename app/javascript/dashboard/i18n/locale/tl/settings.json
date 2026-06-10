@@ -387,9 +387,9 @@
   "CAPTAIN_SETTINGS": {
     "TITLE": "Mga Setting ng Kapitan",
     "DESCRIPTION": "I-configure ang iyong mga AI na modelo at mga tampok para sa Kapitan. Ang Kapitan ay sumusunod sa credit-based na pagsingil, sisingilin ka ng mga credit para sa bawat aksyon na ginagawa ng Kapitan batay sa napiling modelo.",
-    "LOADING": "Ikinakarga ang pagsasaayos ng Captain...",
-    "LINK_TEXT": "Alamin pa tungkol sa Captain Credits",
-    "NOT_ENABLED": "Hindi naka-enable ang Captain para sa iyong account. Mangyaring i-upgrade ang iyong plano upang ma-access ang mga tampok ng Captain.",
+    "LOADING": "Ikinakarga ang pagsasaayos ng Patra AI...",
+    "LINK_TEXT": "Alamin pa tungkol sa Patra AI Credits",
+    "NOT_ENABLED": "Hindi naka-enable ang Patra AI para sa iyong account. Mangyaring i-upgrade ang iyong plano upang ma-access ang mga tampok ng Patra AI.",
     "MODEL_CONFIG": {
       "TITLE": "Pagsasaayos ng Modelo",
       "DESCRIPTION": "Pumili ng mga AI model para sa iba't ibang mga tampok.",
@@ -428,8 +428,8 @@
       }
     },
     "API": {
-      "SUCCESS": "Matagumpay na na-update ang mga setting ng Captain.",
-      "ERROR": "Nabigong i-update ang mga setting ng Captain. Pakisubukang muli."
+      "SUCCESS": "Matagumpay na na-update ang mga setting ng Patra AI.",
+      "ERROR": "Nabigong i-update ang mga setting ng Patra AI. Pakisubukang muli."
     }
   },
   "BILLING_SETTINGS": {
@@ -449,11 +449,11 @@
     },
     "CAPTAIN": {
       "TITLE": "Kapitan",
-      "DESCRIPTION": "Pamahalaan ang paggamit at mga kredito para sa Captain AI.",
+      "DESCRIPTION": "Pamahalaan ang paggamit at mga kredito para sa Patra AI.",
       "BUTTON_TXT": "Bumili ng karagdagang kredito",
       "DOCUMENTS": "Mga Dokumento",
       "RESPONSES": "Responses",
-      "UPGRADE": "Hindi available ang Captain sa libreng plano, mag-upgrade na upang magkaroon ng access sa mga assistant, copilot at iba pa.",
+      "UPGRADE": "Hindi available ang Patra AI sa libreng plano, mag-upgrade na upang magkaroon ng access sa mga assistant, copilot at iba pa.",
       "REFRESH_CREDITS": "I-refresh"
     },
     "CHAT_WITH_US": {
@@ -465,7 +465,7 @@
     "TOPUP": {
       "BUY_CREDITS": "Bumili ng karagdagang kredito",
       "MODAL_TITLE": "Bumili ng AI Credits",
-      "MODAL_DESCRIPTION": "Bumili ng karagdagang kredito para sa Captain AI.",
+      "MODAL_DESCRIPTION": "Bumili ng karagdagang kredito para sa Patra AI.",
       "CREDITS": "KREDITO",
       "ONE_TIME": "isang beses",
       "POPULAR": "Pinaka Popular",

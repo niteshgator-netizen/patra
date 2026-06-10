@@ -385,11 +385,11 @@
     "CONVERSATION_WORKFLOW": "የውይይት ስርዓት"
   },
   "CAPTAIN_SETTINGS": {
-    "TITLE": "የCaptain ቅንብሮች",
-    "DESCRIPTION": "ለCaptain የAI ሞዴሎችና ባለስልጣናት ያስተካክሉ። Captain በክሬዲት መሠረት ክፍያ ያደርጋል፣ ለእያንዳንዱ እርምጃ በሞዴሉ መሠረት ክሬዲቶች ይከፈላሉ።.",
-    "LOADING": "የCaptain ቅንብር እየጫነ ነው...",
-    "LINK_TEXT": "ስለ Captain ክሬዲቶች ተጨማሪ ያውቁ",
-    "NOT_ENABLED": "Captain ለመለያዎ አልተነሳሳም። ለCaptain ባለስልጣናት ባለስልጣናት እቅድዎን ያሻሽሉ።.",
+    "TITLE": "የPatra AI ቅንብሮች",
+    "DESCRIPTION": "ለPatra AI የAI ሞዴሎችና ባለስልጣናት ያስተካክሉ። Patra AI በክሬዲት መሠረት ክፍያ ያደርጋል፣ ለእያንዳንዱ እርምጃ በሞዴሉ መሠረት ክሬዲቶች ይከፈላሉ።.",
+    "LOADING": "የPatra AI ቅንብር እየጫነ ነው...",
+    "LINK_TEXT": "ስለ Patra AI ክሬዲቶች ተጨማሪ ያውቁ",
+    "NOT_ENABLED": "Patra AI ለመለያዎ አልተነሳሳም። ለPatra AI ባለስልጣናት ባለስልጣናት እቅድዎን ያሻሽሉ።.",
     "MODEL_CONFIG": {
       "TITLE": "የሞዴል ቅንብር",
       "DESCRIPTION": "ለተለያዩ ባለስልጣናት AI ሞዴሎችን ይምረጡ።.",
@@ -428,8 +428,8 @@
       }
     },
     "API": {
-      "SUCCESS": "የCaptain ቅንብሮች በተሳካ ሁኔታ ተሻሽለዋል።.",
-      "ERROR": "የCaptain ቅንብሮችን ማሻሻያ አልተሳካም። እባክዎ እንደገና ይሞክሩ።."
+      "SUCCESS": "የPatra AI ቅንብሮች በተሳካ ሁኔታ ተሻሽለዋል።.",
+      "ERROR": "የPatra AI ቅንብሮችን ማሻሻያ አልተሳካም። እባክዎ እንደገና ይሞክሩ።."
     }
   },
   "BILLING_SETTINGS": {
@@ -449,11 +449,11 @@
     },
     "CAPTAIN": {
       "TITLE": "ካፕቴን",
-      "DESCRIPTION": "ለCaptain AI አጠቃቀምና ክሬዲቶችን ያስተዳድሩ።.",
+      "DESCRIPTION": "ለPatra AI አጠቃቀምና ክሬዲቶችን ያስተዳድሩ።.",
       "BUTTON_TXT": "ተጨማሪ ክሬዲቶች ግዙ",
       "DOCUMENTS": "ሰነዶች",
       "RESPONSES": "Responses",
-      "UPGRADE": "Captain በነፃ እቅድ ላይ አይገኝም፣ አሁን ያሻሽሉ እና ለአስስታንት፣ ኮፓይሎት እና ሌሎች ያግኙ።.",
+      "UPGRADE": "Patra AI በነፃ እቅድ ላይ አይገኝም፣ አሁን ያሻሽሉ እና ለአስስታንት፣ ኮፓይሎት እና ሌሎች ያግኙ።.",
       "REFRESH_CREDITS": "አዘምን"
     },
     "CHAT_WITH_US": {
@@ -465,7 +465,7 @@
     "TOPUP": {
       "BUY_CREDITS": "ተጨማሪ ክሬዲቶች ግዛ",
       "MODAL_TITLE": "AI ክሬዲቶች ግዛ",
-      "MODAL_DESCRIPTION": "Captain AI ለተጨማሪ ክሬዲቶች ግዛ.",
+      "MODAL_DESCRIPTION": "Patra AI ለተጨማሪ ክሬዲቶች ግዛ.",
       "CREDITS": "ክሬዲቶች",
       "ONE_TIME": "አንድ ጊዜ",
       "POPULAR": "በጣም ተወዳጅ",

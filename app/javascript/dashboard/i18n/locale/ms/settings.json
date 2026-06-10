@@ -311,7 +311,7 @@
     "ACTIVE": "Aktif",
     "COMPANIES": "Syarikat",
     "ALL_COMPANIES": "Semua Syarikat",
-    "CAPTAIN": "Captain",
+    "CAPTAIN": "Patra AI",
     "CAPTAIN_ASSISTANTS": "Pembantu",
     "CAPTAIN_DOCUMENTS": "Dokumen",
     "CAPTAIN_RESPONSES": "Soalan Lazim",
@@ -381,15 +381,15 @@
     },
     "DOCS": "Baca dokumen",
     "SECURITY": "Keselamatan",
-    "CAPTAIN_AI": "Captain",
+    "CAPTAIN_AI": "Patra AI",
     "CONVERSATION_WORKFLOW": "Aliran Kerja Perbualan"
   },
   "CAPTAIN_SETTINGS": {
-    "TITLE": "Tetapan Captain",
-    "DESCRIPTION": "Konfigurasikan model AI dan ciri untuk Captain anda. Captain menggunakan pengebilan berasaskan kredit, anda akan dikenakan kredit untuk setiap tindakan yang diambil Captain berdasarkan model yang dipilih.",
-    "LOADING": "Memuatkan konfigurasi Captain...",
-    "LINK_TEXT": "Ketahui lebih lanjut tentang Kredit Captain",
-    "NOT_ENABLED": "Captain tidak diaktifkan untuk akaun anda. Sila naik taraf pelan anda untuk mengakses ciri Captain.",
+    "TITLE": "Tetapan Patra AI",
+    "DESCRIPTION": "Konfigurasikan model AI dan ciri untuk Patra AI anda. Patra AI menggunakan pengebilan berasaskan kredit, anda akan dikenakan kredit untuk setiap tindakan yang diambil Patra AI berdasarkan model yang dipilih.",
+    "LOADING": "Memuatkan konfigurasi Patra AI...",
+    "LINK_TEXT": "Ketahui lebih lanjut tentang Kredit Patra AI",
+    "NOT_ENABLED": "Patra AI tidak diaktifkan untuk akaun anda. Sila naik taraf pelan anda untuk mengakses ciri Patra AI.",
     "MODEL_CONFIG": {
       "TITLE": "Konfigurasi Model",
       "DESCRIPTION": "Pilih model AI untuk ciri yang berbeza.",
@@ -428,8 +428,8 @@
       }
     },
     "API": {
-      "SUCCESS": "Tetapan Captain berjaya dikemas kini.",
-      "ERROR": "Gagal mengemas kini tetapan Captain. Sila cuba lagi."
+      "SUCCESS": "Tetapan Patra AI berjaya dikemas kini.",
+      "ERROR": "Gagal mengemas kini tetapan Patra AI. Sila cuba lagi."
     }
   },
   "BILLING_SETTINGS": {
@@ -448,12 +448,12 @@
       "BUTTON_TXT": "Pergi ke portal bil"
     },
     "CAPTAIN": {
-      "TITLE": "Captain",
-      "DESCRIPTION": "Urus penggunaan dan kredit untuk Captain AI.",
+      "TITLE": "Patra AI",
+      "DESCRIPTION": "Urus penggunaan dan kredit untuk Patra AI.",
       "BUTTON_TXT": "Beli lebih banyak kredit",
       "DOCUMENTS": "Dokumen",
       "RESPONSES": "Responses",
-      "UPGRADE": "Captain tidak tersedia dalam pelan percuma, naik taraf sekarang untuk mendapatkan akses kepada pembantu, copilot dan lain-lain.",
+      "UPGRADE": "Patra AI tidak tersedia dalam pelan percuma, naik taraf sekarang untuk mendapatkan akses kepada pembantu, copilot dan lain-lain.",
       "REFRESH_CREDITS": "Segarkan"
     },
     "CHAT_WITH_US": {
@@ -465,7 +465,7 @@
     "TOPUP": {
       "BUY_CREDITS": "Beli lebih banyak kredit",
       "MODAL_TITLE": "Beli Kredit AI",
-      "MODAL_DESCRIPTION": "Beli kredit tambahan untuk Captain AI.",
+      "MODAL_DESCRIPTION": "Beli kredit tambahan untuk Patra AI.",
       "CREDITS": "CREDITS",
       "ONE_TIME": "sekali sahaja",
       "POPULAR": "Paling Popular",
