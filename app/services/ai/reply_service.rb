@@ -1895,24 +1895,24 @@ class Ai::ReplyService
   end
 
   # When ops has not created the payment_info canned response, build the
-  # payment block from the LIVE active payment handles (the same records the
-  # Payments screen manages): first-priority active non-cooldown handle per
-  # platform. Empty when no usable handles -> caller keeps the '' escalation
-  # path. Cached under the same canned key (TTL 600s) so a later canned
-  # response takes over within 10 minutes.
+  # payment block from the LIVE active payment handles via
+  # Bella::PaymentInfoBuilder (single best handle per platform: active, not
+  # in cooldown, lowest failure_count then priority) and inject it as EXACT
+  # REQUIRED OUTPUT so the model copies handles character-for-character.
+  # Empty when no usable handles -> caller keeps the '' escalation path.
+  # Cached under the same canned key (TTL 600s) so a later canned response
+  # takes over within 10 minutes.
   def payment_info_from_handles
     account = Account.find_by(id: account_id)
-    return '' unless account.respond_to?(:payment_handles)
+    line = defined?(Bella::PaymentInfoBuilder) ? Bella::PaymentInfoBuilder.for(account: account) : nil
+    return '' if line.to_s.strip.empty?
 
-    usable = account.payment_handles.where(status: 'active').order(:priority).to_a.reject(&:in_cooldown?)
-    return '' if usable.empty?
-
-    lines = usable.group_by(&:platform).map do |platform, hs|
-      h = hs.first
-      label = h.display_person_name ? " (#{h.display_person_name})" : ''
-      "#{platform.to_s.upcase}: #{h.display_handle}#{label}"
-    end
-    "Payment methods (live):\n#{lines.join("\n")}"
+    <<~TEXT.strip
+      EXACT REQUIRED OUTPUT - ACTIVE PAYMENT HANDLES:
+      #{line}
+      Any payment handle in your reply MUST be copied character-for-character from the line above.
+      If the customer asked about one specific platform, give ONLY that platform's handle - never the full list.
+    TEXT
   rescue StandardError => e
     Rails.logger.warn("[AiReply] payment_info handle fallback failed #{e.class}: #{e.message}")
     ''
@@ -2292,6 +2292,7 @@ class Ai::ReplyService
   end
 
   def guard_against_false_load_claim(reply_text)
+    reply_text = enforce_exact_payment_handles(reply_text)
     return reply_text if reply_text.blank?
 
     load_claim_patterns = [
@@ -2321,6 +2322,56 @@ class Ai::ReplyService
     Rails.logger.warn("[ReplyService] BLOCKED_FALSE_LOAD_CLAIM contact=#{cid} reply=#{reply_text.inspect[0..120]}")
     add_conversation_labels!(%w[blocked-false-load-claim]) rescue nil
     'verifying your payment with the bank, takes 1-5 min — hang tight 🙏'
+  end
+
+  # Payfix output guard: any $/@ tag in the reply that is NOT an exact active
+  # payment handle but normalizes to one (case/whitespace removed) is
+  # rewritten to the exact handle from payment_handles. Tags matching no
+  # active handle are customer-owned (e.g. their own cashout tag) and are
+  # never touched. Fails open: any error returns the reply unchanged.
+  def enforce_exact_payment_handles(reply_text)
+    return reply_text if reply_text.to_s.strip.empty?
+
+    acct = Account.find_by(id: account_id)
+    return reply_text unless acct.respond_to?(:payment_handles)
+
+    exact_by_norm = {}
+    acct.payment_handles.to_a.each do |h|
+      next unless h.status.to_s == 'active'
+
+      norm = h.normalized_handle.to_s.gsub(/\s+/, '')
+      next if norm.empty?
+
+      exact_by_norm[norm] ||= h.display_handle.to_s
+    end
+    return reply_text if exact_by_norm.empty?
+
+    reply_text.gsub(/[\$@][A-Za-z0-9][A-Za-z0-9 ._\-]{0,40}/) do |tag|
+      rewrite_tag_to_exact_handle(tag, exact_by_norm)
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] enforce_exact_payment_handles failed: #{e.class}: #{e.message}")
+    reply_text
+  end
+
+  # Longest prefix of the greedy tag match (trimming trailing space-separated
+  # chunks) whose case/whitespace-stripped form equals an active handle wins;
+  # the trimmed remainder is re-appended untouched. No match -> tag unchanged.
+  def rewrite_tag_to_exact_handle(tag, exact_by_norm)
+    candidate = tag.to_s
+    remainder = ''
+    loop do
+      norm = candidate.sub(/\A[\$@]/, '').gsub(/\s+/, '').downcase
+      exact = exact_by_norm[norm]
+      return "#{exact}#{remainder}" if !norm.empty? && exact
+
+      break unless candidate.include?(' ')
+
+      head, _sep, tail = candidate.rpartition(' ')
+      remainder = " #{tail}#{remainder}"
+      candidate = head
+    end
+    tag
   end
 
   def extracted_payment_status_normalized(raw)
