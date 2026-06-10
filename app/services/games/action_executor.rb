@@ -339,6 +339,7 @@ module Games
       )
       agent_game.mark_used!
       agent_game.reset_failures! if agent_game.failure_count > 0
+      log_money(action, ok: true)
       { ok: true, action: action, response: result }
     rescue Games::GameVault::Client::GameVaultError, Games::Juwa::Client::JuwaError,
            Games::FastApi::Client::FastApiError, Games::ClientError => e
@@ -350,6 +351,7 @@ module Games
         executed_at: Time.current
       )
       agent_game.record_failure!
+      log_money(action, ok: false, code: e.code)
       { ok: false, action: action, error: e.message, code: e.code }
     rescue StandardError => e
       action.update!(
@@ -358,7 +360,20 @@ module Games
         executed_at: Time.current
       )
       agent_game.record_failure!
+      log_money(action, ok: false, code: -1)
       { ok: false, action: action, error: e.message, code: -1 }
+    end
+
+    # One greppable line per money movement — BetterStack/log search keys off
+    # the [MONEY] tag. Never raises (logging must not break the money path).
+    def log_money(action, ok:, code: nil)
+      Rails.logger.info(
+        "[MONEY] type=#{action.action_type} ok=#{ok} amount=#{action.amount} " \
+        "account=#{action.account_id} contact=#{action.contact_id} " \
+        "game=#{agent_game.game&.slug} order=#{action.order_id} code=#{code}"
+      )
+    rescue StandardError
+      nil
     end
 
     def sanitize_for_db(obj)
