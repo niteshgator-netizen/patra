@@ -1,6 +1,30 @@
 # PATRA_FEAT_LOG.md — TAB C: SUPER-ADMIN OPERATOR CONSOLE
 
-(Morning summary will be inserted at top when run completes.)
+## ☀️ MORNING SUMMARY (run complete — 2026-06-10)
+ALL 7 ADM ITEMS SHIPPED in 8 commits (`git log --grep '^patra-feat:'`), rollback hash `5bfb2862a...`.
+- ADM5 ✅ append-only audit trail: Patra::AdminAudit.record + credential scrubber + read-only
+  Administrate dashboard at /super_admin/patra_admin_audit_logs (newest-first, filters).
+- ADM1 ✅ Command Center at /super_admin/patra_dashboard: accounts/engagement/MONEY(by day+game+top
+  accounts)/RISK/integrations/billing-defensive, 7/30/90d + custom range. New Patra::FinanceAnalytics.
+- ADM2 ✅ /super_admin/patra_accounts/:id panel + audited suspend/reactivate/feature-toggle
+  (reversible, reason-required, confirm dialog, NO delete, NO billing mutations).
+- ADM3 ✅ /super_admin/patra_game_health matrix (accounts × games, down-first, per-game summary,
+  error text only — credential-leak spec guard).
+- ADM4 ✅ audited time-boxed (30min) impersonation with enter/exit/auto-expiry + red console banner;
+  REPLACED the pre-existing UNAUDITED SSO impersonate link in users/_impersonate.erb. Full
+  SECURITY-MODEL section below.
+- ADM6 ✅ banner posting audited; pipeline verified end-to-end INCLUDING existing SPA StatusBanner.vue
+  (no frontend gap). Note: requires DEPLOYMENT_ENV=cloud — check on Render if banners don't render.
+- ADM7 ✅ suspension enforcement verified (401 via EnsureCurrentAccountHelper, next-request bite) +
+  TWO real gaps CLOSED (public Patra widget POST, public help center) + webhook-pipeline gap
+  documented as SG-1 with proposed fix (HANDOFF-B).
+⚠ TO ACTIVATE MUTATIONS: set PATRA_ADMIN_CONSOLE_ACTIONS=true on Render (everything ships read-only/
+  403 by default — HARD BOUND). Migration to run: 20260610090000 (additive create_table only).
+⚠ SPECS WRITTEN BUT UNRUN (no local bundle — `bundler: command not found: rspec`, exit 127). 10 new
+  spec files; see SPECS-UNRUN for the 3 setup commands. ruby -c: 28/28 files clean.
+PROOFS (bottom of log): TAB-C commits touched ONLY lane files (zero hot/RAG/services/javascript/
+  Gemfile/initializers/sibling-logs); routes diff = additions inside the marked EOF block only;
+  credential self-grep CLEAN.
 
 ## ROLLBACK HASH
 `5bfb2862a396b21f95361d1dd9dcc01637ec04a4` (main @ run start, clean tree)
@@ -36,7 +60,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - [x] ADM4 — impersonation / support-login
 - [x] ADM6 — platform banner
 - [x] ADM7 — suspension safety-net
-- [ ] FINAL — proofs + morning summary
+- [x] FINAL — proofs + morning summary
 
 ## DECISIONS
 - D1: No marked TAB-C block existed in routes.rb → I will create one at end-of-file (inside the final
@@ -243,10 +267,32 @@ GAPS FOUND AND CLOSED TONIGHT (non-hot Patra custom controllers — ADM7 explici
 super-admin-gated + kill-switch-gated + audited; new read surfaces render no credentials.
 
 ## DEFERRED-FRONTEND
+- IMPERSONATION INDICATOR IN THE SPA (the only frontend deferral — banners turned out fully wired).
+  The console-side red banner ships tonight; the SPA must additionally show "you are being viewed /
+  acting as" while an operator is impersonating. Backend contract SHIPPED and stable:
+  1. Header: every super-admin response while active carries
+     `X-Patra-Impersonation: active; target_user_id=<id>; expires_at=<iso8601>`.
+  2. Status endpoint: `GET /super_admin/patra_impersonation` (super-admin session cookie) returns
+     `{active, impersonator_id, target_user_id, started_at, expires_at}` or `{active:false}`.
+  3. The SSO login URL the impersonated tab receives carries `&impersonation=true` (existing param —
+     the SPA can persist it at login and render a banner without any new backend call).
+  Suggested SPA work (TAB A / future): on login with impersonation=true, store a flag + render a
+  persistent banner; optionally poll (2) for expiry countdown.
+
+## HANDOFF-B
+- HB-1 (SG-1): add `return if account.suspended?` (or .active? guard) inside each inbound webhook JOB
+  right after account/channel resolution (Webhooks::TelegramEventsJob, ProcessZernioInboundJob, FB
+  bridge path, tiktok/shopify/instagram/whatsapp/sms/line). Controllers/jobs/services are TAB-B lane;
+  FB path touches HOT chatwoot_bridge_service — needs owner care.
+- HB-2 (ADM4 residual): rotate target-user tokens on impersonation exit + make
+  generate_sso_link_with_impersonation unreachable outside the audited controller
+  (sso_authenticatable.rb is a model concern outside TAB-C lane).
+- HB-3 (ADM5 hardening): DB-level append-only:
+  `psql $DATABASE_URL -c "REVOKE UPDATE, DELETE ON patra_admin_audit_logs FROM <app_db_role>;"`
 
 ## DEFERRED-SECURITY
 
-## SPECS-UNRUN
+## SPECS-UNRUN (10 files total: 7 controller + 3 lib)
 - ALL TAB-C specs are written but UNRUN locally: `bundle exec rspec` fails with "command not found:
   rspec" — the gem bundle is not installed in this Windows checkout (exit 127 verified 2026-06-10).
   Setup to run them:
@@ -271,4 +317,27 @@ super-admin-gated + kill-switch-gated + audited; new read surfaces render no cre
   hex/base64 blob even under innocent keys.
 - target_type stores base_class (SuperAdmin target would store 'User') so polymorphic lookups work.
 
-## HANDOFFS
+## FINAL PROOFS (verified by me 2026-06-10, commands run in this session)
+1. LANES — `git log --grep '^patra-feat:' 5bfb2862a..HEAD` = 8 TAB-C commits; union of their files
+   (36 paths) is exactly: super_admin controllers + new concern + dashboards + new model + lib/patra +
+   super_admin views + features.yml + routes.rb + 1 additive migration + new spec files + this log +
+   the two ADM7-sanctioned guards (help_center_controller.rb, widget/messages_controller.rb — non-hot,
+   non-WIP, explicit ADM7 allowance). ZERO edits to: 4 hot files, intent/RAG/bella files,
+   app/services/**, app/javascript/** /.vue/public/vite, Gemfile, config/initializers, sibling logs,
+   owner-WIP files. (Other files in the full rollback-diff belong to TAB A/patra-launch commits.)
+2. MIGRATIONS — one file, 20260610090000_create_patra_admin_audit_logs.rb: create_table + 4 add_index,
+   additive only, no alters of existing tables.
+3. ROUTES — per-commit diff of config/routes.rb across all TAB-C commits = additions only, every line
+   inside the `== PATRA TAB-C ROUTES ==` marked EOF block (block created by ADM5 commit, D1).
+4. FEATURES — features.yml parses (64 features, no duplicate names), patra_operator_console
+   enabled:false appended at end (order preserved); mutations additionally env-gated OFF (D5).
+5. CREDENTIALS — Select-String over all TAB-C files: zero `.credentials` access without `safe_`;
+   every 'credentials' mention is a 🔒 comment, a spec fixture, or the leak-guard spec. No admin
+   view/controller/log/audit renders or transmits credential values; ADM5 scrubber masks
+   credential-shaped metadata; ADM3 spec asserts the matrix JSON contains no credential key/value.
+6. SYNTAX — ruby -c on all 28 TAB-C .rb files: 0 failures. (ERB block-helpers not plain-ERB-parseable
+   locally — see ADM1 note; .erb files reviewed by hand.)
+7. SPECS — 10 new spec files, NOT RUN (S6 — no local bundle, exit 127 verified). No pass claimed.
+
+## HANDOFFS — see HANDOFF-B section above (HB-1 webhook suspension guards, HB-2 token rotation on
+impersonation exit, HB-3 DB-level audit immutability). No HANDOFF-A items.
