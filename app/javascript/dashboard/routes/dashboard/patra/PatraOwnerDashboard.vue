@@ -1896,6 +1896,32 @@ onUnmounted(() => {
   }
 }
 
+/* O3: phone (375px) — single-column KPIs, stacked topbar, wrapping footer */
+@media (max-width: 480px) {
+  .patra-kpis,
+  .patra-mini-stats,
+  .patra-loading-skel-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .patra-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 16px 0;
+  }
+
+  .patra-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .patra-loads-footer {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .patra-card,
   .patra-kpi,
