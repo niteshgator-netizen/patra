@@ -457,30 +457,39 @@ begin
       fp_actions.first&.metadata&.dig('freeplay').to_s == 'true')
 
   puts "\n[TABA-2 account-creation payment load dedup]  (F12 5th site)"
+  # Happy path: create + load once.
   reset_run; prime_contact!(contact, [])
   contact.update!(custom_attributes: {
                     'patra_finance_logs' => [{
-                      'id' => 'HARNESS_PAY_AC', 'status' => 'confirmed', 'amount' => 30,
+                      'id' => 'HARNESS_PAY_AC1', 'status' => 'confirmed', 'amount' => 30,
                       'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
                     }]
                   })
   r1 = orch(account, contact, [{ 'role' => 'user', 'content' => 'create me an account' }])
          .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
-  first_recharges = $FAKE.calls.count { |c| c[0] == :recharge }
   ok!('TABA-2 first create+load => recharge once, account created',
-      first_recharges == 1 && r1[:reply].to_s.include?('all set'))
-  # Simulate the race loser: a second process that did NOT see the stored creds
-  # (drop game_username_* but KEEP the finance log + the winner's GameAction).
+      $FAKE.calls.count { |c| c[0] == :recharge } == 1 && r1[:reply].to_s.include?('all set'))
+
+  # True-race loser: the winner's success row sits on the unique index under the
+  # deterministic base but is INVISIBLE to the legacy check-then-act guard
+  # (different amount, empty metadata). Only the deterministic order_id stops
+  # the second load - this exercises the new ac_order_id.nil? path.
+  reset_run
+  GameAction.where(contact_id: contact.id).delete_all
   contact.update!(custom_attributes: {
                     'patra_finance_logs' => [{
-                      'id' => 'HARNESS_PAY_AC', 'status' => 'confirmed', 'amount' => 30,
+                      'id' => 'HARNESS_PAY_AC2', 'status' => 'confirmed', 'amount' => 40,
                       'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
                     }]
                   })
+  ac_base = orch(account, contact, []).send(:deterministic_payment_order_id, 'HARNESS_PAY_AC2')
+  GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                     action_type: 'load', order_id: ac_base, game_username: 'harnessuser1',
+                     amount: 41, status: 'success', metadata: {}, executed_at: Time.current)
   r2 = orch(account, contact, [{ 'role' => 'user', 'content' => 'create me an account' }])
          .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
-  ok!('TABA-2 race loser => NO second recharge (deterministic order_id)',
-      $FAKE.calls.count { |c| c[0] == :recharge } == first_recharges)
+  ok!('TABA-2 race loser => NO recharge (deterministic id catches what check-then-act cannot)',
+      !$FAKE.called?(:recharge))
   ok!('TABA-2 race loser reply says load already went through',
       r2[:reply].to_s.match?(/already went through/i))
 
