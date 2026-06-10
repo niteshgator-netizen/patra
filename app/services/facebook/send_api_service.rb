@@ -157,7 +157,39 @@ class Facebook::SendApiService
     Rails.logger.error(
       "[FbReply] Graph send failed conversation=#{@conversation_id} psid=#{psid} HTTP #{response.code}: #{response.body}"
     )
+    alert_token_failure(response) if token_error?(response)
     false
+  end
+
+  # Error 190 = invalid/expired page token: EVERY send silently drops until the
+  # token is refreshed. Alert loudly, throttled once/hour/page (same setex
+  # pattern as TelegramNotifier#payment_pending_alert_sent?).
+  def token_error?(response)
+    body = response.parsed_response
+    body.is_a?(Hash) && body.dig('error', 'code').to_i == 190
+  rescue StandardError
+    false
+  end
+
+  def alert_token_failure(response)
+    page_key = @inbox_id.presence || 'global'
+    redis = Redis.new(Redis::Config.app)
+    throttle_key = "patra:fb_token_alert:#{page_key}"
+    return if redis.get(throttle_key).present?
+
+    redis.setex(throttle_key, 1.hour.to_i, '1')
+
+    err = response.parsed_response.is_a?(Hash) ? response.parsed_response['error'] : {}
+    err_msg = err.is_a?(Hash) ? err['message'].to_s[0, 140] : ''
+    Rails.logger.error("[FbReply] FB PAGE TOKEN DEAD (error 190) inbox=#{@inbox_id} — ALL sends dropping until token refresh. #{err_msg}")
+    Games::TelegramNotifier.api_error(
+      account: Account.find_by(id: account_id),
+      message: 'FB page token DEAD (error 190) — replies are NOT reaching players',
+      details: "inbox=#{@inbox_id} #{err_msg} — refresh the page token now"
+    )
+  rescue StandardError => e
+    # Alerting must never break the send path itself.
+    Rails.logger.warn("[FbReply] token-death alert failed: #{e.class}: #{e.message}")
   end
 
   def send_typing_indicator(psid)
