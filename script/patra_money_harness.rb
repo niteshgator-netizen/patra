@@ -369,6 +369,81 @@ begin
     ag.update!(credentials: saved_creds)
   end
 
+  # ───────────────────────── F15: approval auto-resume (shipped dark) ─────────
+  puts "\n[F15 approval auto-resume]  (PATRA_APPROVAL_AUTORESUME-gated, appr_<id> idempotent)"
+  f15_user = account.account_users.first&.user
+  if f15_user.nil?
+    puts '  SKIPPED - no user on account'
+  else
+    f15_approvals = []
+    f15_saved_flag = ENV['PATRA_APPROVAL_AUTORESUME']
+    begin
+      mk_approval = lambda do |amount|
+        a = ApprovalRequest.create!(
+          account: account, requesting_user: f15_user, action_type: 'cashout',
+          target_type: 'AgentGame', target_id: ag.id, amount: amount, status: 'pending',
+          metadata: { 'game_username' => 'harnessuser1', 'game_name' => ag.game.name }
+        )
+        f15_approvals << a
+        a
+      end
+      cashout_tg = -> { $TG.any? { |(m, _k)| m == :send_to_cashout_group } }
+
+      # FLAG OFF (default): approving executes nothing — current manual behavior
+      ENV['PATRA_APPROVAL_AUTORESUME'] = 'false'
+      reset_run; prime_contact!(contact, [src_slug])
+      a_off = mk_approval.call(600)
+      a_off.update_columns(status: 'approved') # update_columns: no callback fires in-harness
+      r = Approvals::AutoResume.execute!(a_off)
+      ok!('F15 FLAG OFF => skipped, no withdraw', r[:skipped] == :disabled && !$FAKE.called?(:withdraw))
+
+      # FLAG ON: approve executes exactly once, approval gate bypassed
+      ENV['PATRA_APPROVAL_AUTORESUME'] = 'true'
+      reset_run
+      a_on = mk_approval.call(600)
+      a_on.update_columns(status: 'approved')
+      r = Approvals::AutoResume.execute!(a_on)
+      ok!('F15 FLAG ON approve => executes once', r[:ok] == true && $FAKE.calls.count { |c| c[0] == :withdraw } == 1)
+      ok!('F15 => GameAction appr_<id> success',
+          GameAction.find_by(account_id: account.id, order_id: "appr_#{a_on.id}")&.status == 'success')
+      ok!('F15 => cashout-group telegram recorded', cashout_tg.call)
+
+      # DOUBLE-APPROVE: no-op
+      r = Approvals::AutoResume.execute!(a_on)
+      ok!('F15 DOUBLE-APPROVE => no-op, still exactly one withdraw',
+          r[:already] == true && $FAKE.calls.count { |c| c[0] == :withdraw } == 1)
+
+      # REJECT: never executes
+      reset_run
+      a_rej = mk_approval.call(600)
+      a_rej.update_columns(status: 'rejected')
+      r = Approvals::AutoResume.execute!(a_rej)
+      ok!('F15 REJECT => never executes', r[:skipped] == :not_approved && !$FAKE.called?(:withdraw))
+
+      # PANEL FAIL: telegram reports REAL remaining state + needs human
+      reset_run(fail_withdraw: true)
+      a_fail = mk_approval.call(700)
+      a_fail.update_columns(status: 'approved')
+      r = Approvals::AutoResume.execute!(a_fail)
+      ok!('F15 PANEL FAIL => ok:false + telegram fired', r[:ok] == false && cashout_tg.call)
+      ok!('F15 PANEL FAIL => action recorded failed (real state)',
+          GameAction.find_by(account_id: account.id, order_id: "appr_#{a_fail.id}")&.status == 'failed')
+    ensure
+      if f15_saved_flag.nil?
+        ENV.delete('PATRA_APPROVAL_AUTORESUME')
+      else
+        ENV['PATRA_APPROVAL_AUTORESUME'] = f15_saved_flag
+      end
+      begin
+        GameAction.where(account_id: account.id, order_id: f15_approvals.map { |a| "appr_#{a.id}" }).delete_all
+        f15_approvals.each(&:destroy)
+        puts "[cleanup] removed #{f15_approvals.size} F15 approval(s) + their GameActions"
+      rescue StandardError => e
+        puts "[cleanup] F15 cleanup failed: #{e.class}: #{e.message}"
+      end
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

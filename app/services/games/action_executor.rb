@@ -129,13 +129,16 @@ module Games
       result
     end
 
-    def cashout_player(game_username:, amount:, payment_method: nil, metadata: {}, order_id: nil)
+    # skip_approval_gate: ONLY Approvals::AutoResume passes true, after a human
+    # has already approved the exact request — otherwise the approved execution
+    # would re-trigger the gate forever. All other callers keep the gate.
+    def cashout_player(game_username:, amount:, payment_method: nil, metadata: {}, order_id: nil, skip_approval_gate: false)
       return blacklist_error if blacklisted_contact?
 
       limit_error = amount_limit_error('max_cashout_amount', amount)
       return limit_error if limit_error
 
-      if Approvals::CashoutApprovalGate.requires_approval?(agent_game.account, amount)
+      if !skip_approval_gate && Approvals::CashoutApprovalGate.requires_approval?(agent_game.account, amount)
         request = Approvals::CashoutApprovalGate.create_request!(
           account: agent_game.account,
           user: Current.user || agent_game.account.account_users.first&.user,
