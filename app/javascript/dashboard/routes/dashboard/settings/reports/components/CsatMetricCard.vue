@@ -34,7 +34,7 @@ defineProps({
       v-if="isLoading"
       class="w-16 h-8 rounded-md bg-n-slate-3 animate-pulse"
     />
-    <span v-else class="text-2xl font-medium text-n-slate-12">
+    <span v-else class="pat-kpi-n text-n-slate-12">
       {{ value }}
     </span>
   </div>

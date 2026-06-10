@@ -5166,6 +5166,9 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
 .pat-reports-wrap .text-n-brand {
   color: var(--patra-3) !important;
 }
+.pat-reports-wrap .hover\:text-n-brand:hover {
+  color: var(--patra-3) !important;
+}
 
 /* trend pill — JetBrains Mono, tinted with the trend color (currentColor) */
 .pat-reports-wrap .pat-trend-pill {
