@@ -31,6 +31,7 @@ module Games
     EVENT_LOW_BALANCE = 'low_balance'.freeze
     EVENT_WINBACK_MANUAL = 'winback_manual'.freeze
     EVENT_SHIFT_REPORT = 'shift_report'.freeze
+    EVENT_CLAIM_AVAILABLE = 'claim_available'.freeze
 
     class << self
       def cashout_alert(cashout_request)
@@ -136,6 +137,11 @@ module Games
       # MarkdownV2 would reject unescaped.
       def shift_report(account:, text:)
         notify(account: account, event: EVENT_SHIFT_REPORT, text: text, plain: true)
+      end
+
+      # Expired claim back in the pool — tell cashiers it's grabbable again.
+      def claim_available(account:, text:)
+        notify(account: account, event: EVENT_CLAIM_AVAILABLE, text: text, plain: true)
       end
 
       def send_to_cashout_group(text, account: nil)
