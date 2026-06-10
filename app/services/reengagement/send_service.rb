@@ -15,6 +15,7 @@ module Reengagement
       return skipped(:blocked_labels) if blocked_by_labels?
       return skipped(:loyalty_tier) unless eligible_loyalty_tier?
       return skipped(:recent_reengagement) if within_reengagement_cooldown?
+      return skipped(:automated_contact_cooldown) if ContactCooldown.on_cooldown?(@contact)
 
       conversation = resolve_facebook_conversation
       return skipped(:no_messenger_conversation) if conversation.blank?
@@ -67,7 +68,10 @@ module Reengagement
     end
 
     def record_reengagement_timestamp!
-      attrs = @contact.custom_attributes.merge(LAST_REENGAGEMENT_ATTR => Time.zone.today.iso8601)
+      attrs = @contact.custom_attributes.merge(
+        LAST_REENGAGEMENT_ATTR => Time.zone.today.iso8601,
+        ContactCooldown::KEY => Time.now.utc.iso8601
+      )
       @contact.update!(custom_attributes: attrs)
     end
 

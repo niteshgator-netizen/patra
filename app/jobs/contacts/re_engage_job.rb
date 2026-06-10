@@ -35,12 +35,14 @@ module Contacts
       return if Contacts::BlacklistChecker.blacklisted?(contact)
       return if (contact.custom_attributes || {}).stringify_keys['opted_out'] == true
       return unless has_game_account?(contact)
+      return if Reengagement::ContactCooldown.on_cooldown?(contact)
 
       conv = contact.conversations.open.last || contact.conversations.last
       return unless conv
 
       Messages::MessageBuilder.new(nil, conv, { content: template, private: false }).perform
       Audit::Logger.log!(account: account, action: 're_engage_sent', target: contact, metadata: { contact_id: contact.id })
+      Reengagement::ContactCooldown.stamp!(contact)
     end
 
     def has_game_account?(contact)

@@ -66,6 +66,9 @@ module Games
       last_contacted = parse_time(custom_attr(contact, 'winback_last_contacted_at'))
       return false if last_contacted && last_contacted > days.days.ago
 
+      # Shared cross-job guard: any automated sender touched them recently.
+      return false if Reengagement::ContactCooldown.on_cooldown?(contact)
+
       conversation = account.conversations.where(contact_id: contact.id).order(updated_at: :desc).first
       return false unless conversation
 
@@ -303,7 +306,10 @@ module Games
     # ---------- helpers ----------
 
     def stamp_contacted!(contact)
-      attrs = (contact.custom_attributes || {}).merge('winback_last_contacted_at' => Time.current.iso8601)
+      attrs = (contact.custom_attributes || {}).merge(
+        'winback_last_contacted_at' => Time.current.iso8601,
+        Reengagement::ContactCooldown::KEY => Time.now.utc.iso8601
+      )
       contact.update(custom_attributes: attrs)
     rescue StandardError => e
       Rails.logger.error("[Winback] stamp failed contact=#{contact&.id}: #{e.message}")

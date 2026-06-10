@@ -87,9 +87,11 @@ reports_daily_summary_job:
   class: 'Reports::DailySummaryJob'
   queue: scheduled_jobs
 
-# Daily at 10:00 UTC — dormant Facebook Messenger players (adjust cron for local 10 AM if needed)
+# Daily at 12:00 UTC — dormant Facebook Messenger players
+# (staggered: re-engage 08:00, log-only 09:00, dormant 12:00, winback 17:00;
+#  all senders share Reengagement::ContactCooldown / PATRA_REENGAGE_COOLDOWN_HOURS)
 reengagement_dormant_player_job:
-  cron: '0 10 * * *'
+  cron: '0 12 * * *'
   class: 'Reengagement::DormantPlayerJob'
   queue: scheduled_jobs
 
