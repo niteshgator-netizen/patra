@@ -525,6 +525,9 @@ Rails.application.routes.draw do
               post :reorder
             end
           end
+          # TAB B launch-night live-AI endpoints (HB-1, HB-2)
+          post 'conversations/:conversation_id/patra_ai_analysis', to: 'patra_ai_analysis#create'
+          post 'patra_playground/messages', to: 'patra_playground#create'
           resources :agent_shifts, only: [:index, :create, :update, :destroy]
           resources :player_bonuses, only: [:index, :create]
           resources :game_actions, only: [:index]
