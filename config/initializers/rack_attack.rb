@@ -247,6 +247,27 @@ class Rack::Attack
     "#{user_identifier}:#{match_data[:account_id]}" if user_identifier.present?
   end
 
+  ## ---------------- PATRA LAUNCH THROTTLES ---------------- ##
+
+  # Telegram webhook: legit traffic is one bot's updates; a flood is an attack
+  # on the unauthenticated endpoint. Per-IP, conservative.
+  throttle('webhooks/telegram/ip', limit: ENV.fetch('RATE_LIMIT_TELEGRAM_WEBHOOK', '120').to_i, period: 1.minute) do |req|
+    req.ip if req.path.start_with?('/webhooks/telegram') && req.post?
+  end
+
+  # Live-AI endpoints burn DeepSeek tokens per call — cap per IP.
+  throttle('patra/ai_endpoints/ip', limit: ENV.fetch('RATE_LIMIT_PATRA_AI', '30').to_i, period: 1.minute) do |req|
+    req.ip if req.post? &&
+              (req.path.include?('/patra_ai_analysis') ||
+               req.path.include?('/patra_playground/') ||
+               req.path.match?(%r{/patra/ai/}))
+  end
+
+  # Cashier claim mutations: claiming is a tight human loop; 30/min per IP is generous.
+  throttle('cashier_claims/ip', limit: ENV.fetch('RATE_LIMIT_CASHIER_CLAIMS', '30').to_i, period: 1.minute) do |req|
+    req.ip if req.post? && req.path.match?(%r{/cashier_claims/\d+/(claim|complete)})
+  end
+
   ## ----------------------------------------------- ##
 end
 

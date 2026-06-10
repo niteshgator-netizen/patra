@@ -5,6 +5,7 @@ class Api::V1::Accounts::Patra::DashboardController < Api::V1::Accounts::BaseCon
 
   def show
     period = resolve_period(params[:range])
+    money = load_cashout_stats(period) # one pass — was computed 3x (12 queries -> 4)
 
     stats = {
       conversations_today: Current.account.conversations.where(created_at: period).count,
@@ -18,9 +19,9 @@ class Api::V1::Accounts::Patra::DashboardController < Api::V1::Accounts::BaseCon
       active_agents: active_agents,
       new_customers_today: Current.account.contacts.where(created_at: period).count,
       flagged_for_review: flagged_for_review_count,
-      loads_today: load_cashout_stats(period)[:loads],
-      cashouts_today: load_cashout_stats(period)[:cashouts],
-      net_today: load_cashout_stats(period)[:net],
+      loads_today: money[:loads],
+      cashouts_today: money[:cashouts],
+      net_today: money[:net],
       game_performance: game_health_summary,
       heatmap: heatmap_data,
       top_questions: top_questions_for(period)
