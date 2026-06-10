@@ -6,8 +6,67 @@
 ```
 To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821ea201e290c60cb9e4c`
 
-## MORNING SUMMARY
-(written last — see bottom-up progress in QUEUE)
+## MORNING SUMMARY (read this first)
+ALL 13 ITEMS DONE + self-audit green. 13 commits after the rollback hash (one per item + log
+init), each with explicit paths, NOTHING PUSHED. Verified end-of-run: 41 touched .rb files
+all `ruby -c` Syntax OK; 12 pure-Ruby self-tests ALL PASS (221 asserts total, run against the
+REAL edited files with stubs); `git diff --name-only <rollback>..HEAD` shows ZERO hot files
+(reply_service / orchestrator / intent_detector / chatwoot_bridge untouched) and ZERO
+owner-WIP files (telegram_notifier / winback_service / base_provider / outbound_dispatcher /
+zernio_provider untouched — winback/telegram_notifier were READ only). The 7 proof scripts
+are untouched; one NEW read-only script added (patra_panda_probe.rb). RSpec suite not
+runnable locally (bundler exit 127, same as overnight run) → all RSpec files are SPECS-UNRUN
+with exact commands below.
+
+What changed, one line each:
+- H1 backup ban alerts no longer crash the hourly sweep (public api_error + per-page rescue).
+- H2 warming clock now runs from a real start stamp; day 2 can no longer promote; promote
+  needs day>=7 AND fresh health.
+- H3 page-switch no longer mass-blasts every contact: 1 operator Telegram + capped (50,
+  env-tunable) rate-limited notes only to contacts active in the last 24h.
+- H4 the two ".rb" cron names fixed (classes were fine — they were almost certainly RUNNING,
+  not dead); all 30 crons audited; 7 sweep jobs got per-record rescues.
+- H5 the three SLA settings (toggle / first-response / resolution) actually drive alerts now,
+  including a new once-per-conversation resolution alert.
+- H6 webhook_url is real: Patra::WebhookEmitter sends payment.confirmed, load.success,
+  load.failed, cashout.executed — async, no-op without URL, can't touch the money path.
+- H7 panda blank balance diagnosed (silently-returned 301 body); family client now follows
+  one same-host redirect and errors LOUDLY otherwise; run patra_panda_probe.rb on Render to
+  confirm the 301's Location (the one open question).
+- H8 FB token refresh failures / dying tokens now Telegram-alert once per token per day.
+- H9 stuck-pending alert verified already-working; sweep got a per-row rescue.
+- H10 AI ReplyJob: any error now releases the reply lock so the bounded Sidekiq retry isn't
+  eaten as a "duplicate" (lost replies); retries stay bounded at 3/5.
+- H11 shared re-engage cooldown verified across ALL senders (incl. winback, read-only);
+  default window raised 24h → 72h; full sender map in PATRA_REENGAGE_MAP.md.
+- H12 PATRA_RESTRICT_MONEY_ACTIONS dark flag shipped OFF — flip it on Render to make money
+  endpoints + money-config mutations admin-only (confirm your user is administrator first).
+- H13 /terms + /privacy ALREADY EXISTED and resolve (the 404 premise was stale); added
+  OPERATOR-CONFIRM markers (support@ email, Delaware) + fixed dead landing-footer links.
+
+MORNING RENDER WALL (Render Web Shell, in order):
+```
+bundle exec rails runner "puts 'boot ok'"
+bundle exec rails runner script/patra_money_harness.rb        # expect 57/57
+bundle exec rails runner script/patra_money_preflight.rb      # expect 28/28
+bundle exec rails runner script/patra_intent_suite.rb         # expect 128/128
+bundle exec rails runner script/patra_reply_smoke.rb          # expect 100/100 asserts
+bundle exec rails runner script/patra_rules_consistency_check.rb
+bundle exec rails runner script/patra_launch_readiness.rb
+bundle exec rails runner script/patra_balance_probe.rb
+bundle exec rails runner script/patra_panda_probe.rb          # NEW — decides the H7 301 question
+```
+Then the run's RSpec files (see SPECS-UNRUN section) — single command:
+```
+bundle exec rspec spec/jobs/backup/health_check_job_spec.rb spec/services/backup/drip_scheduler_spec.rb spec/services/backup/customer_migration_spec.rb spec/configs/schedule_classes_spec.rb spec/configs/schedule_spec.rb spec/jobs/sla/check_violations_job_spec.rb spec/services/patra/webhook_emitter_spec.rb spec/services/games/asp_net_panel/base_client_redirect_spec.rb spec/jobs/patra/refresh_fb_tokens_job_spec.rb spec/jobs/pending_payment_timeout_job_spec.rb spec/jobs/ai/reply_job_lock_spec.rb spec/services/reengagement/contact_cooldown_spec.rb spec/controllers/api/v1/accounts/patra/money_action_guard_spec.rb spec/requests/legal_pages_spec.rb
+```
+Operator decisions for the morning:
+1. H12: flip PATRA_RESTRICT_MONEY_ACTIONS=true on Render? (1-minute decision from
+   PATRA_ROLES_AUDIT.md — confirm your own user is administrator first.)
+2. H7: read patra_panda_probe.rb output — if Location is a different host/port, update
+   BASE_URL in panda_master/client.rb + SessionRefresher::BASE_URLS (2-line change).
+3. H13: confirm support@patrahq.com is monitored + Delaware is the formation state
+   (OPERATOR-CONFIRM markers in app/views/legal/*.html.erb).
 
 ## QUEUE
 - [x] H1 backup ban-alert crash (health_check_job.rb per-page rescue + public api_error) —
@@ -153,7 +212,7 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   needed); NEW spec/requests/legal_pages_spec.rb (unauthenticated 200 + route_to proof).
   NOTE for operator: if a 404 was seen live, it predates routes.rb:15-16 or was on a host not
   running this app (www vs apex DNS) — the morning spec run settles it.
-- [ ] FINAL self-audit + DUMP
+- [x] FINAL self-audit + DUMP (see FINAL SELF-AUDIT section)
 
 ## PHASE 0 — READ REPORT (return shapes, verified by read 2026-06-10)
 - `Games::TelegramNotifier.api_error(account:, message:, details: nil)` — PUBLIC class method,
@@ -203,9 +262,54 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
 ## DECISIONS
 - D0: Specs written as RSpec files for Render + pure-Ruby self-tests under tmp/self_tests/ that run
   locally (bundle/rspec unavailable locally, exit 127 verified). Matches overnight-run proof pattern.
+  NOTE: tmp/self_tests is gitignored (same as overnight run) — self-tests live locally only; their
+  results are recorded per item in this log.
 - D0b: Local probe of panel endpoints attempted (read-only GETs) — both panda AND orion return
   HTTP 500 NullRef pages to non-session traffic from this machine, so the 301-vs-200 difference is
   only observable with real session cookies → Render probe script is the deciding artifact.
+- D1 (H3): PATRA_MIGRATION_MAX_NOTES accepts 0 as a deliberate "alert-only, zero auto-notes" mode;
+  non-numeric values fall back to the default 50. Operator alert fires FIRST so it survives any
+  note-path failure. Eligibility = real INBOUND message in 24h (last_activity_at alone also moves
+  on outbound, would over-send).
+- D2 (H4): two cron entries were name-malformed only — both classes exist and resolved, so "dead"
+  is unproven; (c) they were most likely running under the ugly names. Renamed anyway + added the
+  old names to the sidekiq.rb destroy list (idempotent). Stock Chatwoot housekeeping jobs left
+  unedited (delegate to per-record sub-jobs / upstream-stable; fork-divergence not worth it) —
+  report-only.
+- D3 (H5): resolution alert stamp = Redis with 7-day TTL (not conversation.additional_attributes —
+  a Conversation update! fires dispatcher callbacks/webhooks; Redis matches the existing
+  first-response stamp pattern). Accounts with custom limits are checked even with zero
+  sla_policies — otherwise the settings fields would still be dead.
+- D4 (H6): webhook delivery is enqueue-only from product code (Patra::WebhookEmitJob on :low),
+  never inline HTTP in the money path — "3s timeout + 1 retry" lives in the job's deliver().
+  HMAC secret read from custom_attributes['webhook_secret'] (no UI field yet — documented in the
+  class header). Ghost-payment ingestion (ghost_payment_store.rb:134) also marks confirmed but was
+  NOT wired this run (kept to the two seams the spec named) — future seam, zero risk to add.
+- D5 (H7): fix is family-wide (base_client) but ADDITIVE: panels that never redirect (orion etc.)
+  have byte-identical behavior (self-test case asserts zero extra requests). Following is limited
+  to GET + same host family + non-login target + once. (a) silent-301-return verified by read;
+  (c) "follow fixes panda" is the assumption the probe script confirms/refutes.
+- D6 (H8): Meta page-token lifetime assumed ~60d → warn at 53d when no refresh path exists;
+  unknown-age tokens with no refresh path also warn (weekly cron + 24h stamp = max 1 ping/week).
+- D7 (H10): the generic rescue releases the lock for PERMANENT errors too — safe because retry_on
+  caps at 3 attempts with a give-up log; the alternative (lock held) silently eats retries.
+- D8 (H11): DEFAULT_HOURS 24 → 72 per the H11 spec — strictly less outbound (safe direction);
+  PATRA_REENGAGE_COOLDOWN_HOURS still overrides. Winback already honored the shared key —
+  verified by read, zero WIP edits needed.
+- D9 (H12): guard uses the exact HANDOFF-B-3 semantics (string 'true' only). Implemented as one
+  concern instead of 5 copy-pasted methods. player_tiers#bulk_assign added to the guarded set
+  (it mutates tier assignment = money-adjacent).
+- D10 (H13): did NOT rewrite the legal pages — they already exist, are comprehensive, and predate
+  this run (May 9 2026); rewriting working legal copy overnight is risk without benefit. Added
+  only the OPERATOR-CONFIRM markers the spec asked for + fixed the landing footer's dead links +
+  added the route/render spec that settles the "404" claim on Render.
+
+## DEFERRED-WIP
+- (none required) — winback_service.rb / telegram_notifier.rb / base_provider.rb /
+  outbound_dispatcher.rb / zernio_provider.rb were not touched and needed no diffs: winback's
+  shared-cooldown integration already exists (verified by read, winback_service.rb:70,:311).
+- Future (non-WIP) seam noted, not done: emit payment.confirmed from ghost_payment_store.rb:134
+  ingestion-time confirmations (D4).
 
 ## DEFERRED-WIP
 (collected as found)
@@ -239,5 +343,28 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
 - H13: `bundle exec rspec spec/requests/legal_pages_spec.rb` (no local equivalent — needs
   Rails routing; views/layout verified by read, erb comments are non-rendering)
 
-## COMMITS
-(one line per item as committed)
+## COMMITS (newest first; rollback = 3a46f24e4)
+- e8cd15af1 H13 legal pages verified live — OPERATOR-CONFIRM markers, landing footer links, route spec
+- fd6c44e59 H12 PATRA_RESTRICT_MONEY_ACTIONS dark flag (default OFF)
+- fca35c7c8 H11 shared reengage cooldown verified, default 72h, sender map
+- 54e1ad935 H10 ReplyJob lock release on any error
+- c461492e5 H9 stuck-pending sweeper verified + per-conversation rescue
+- e936a103a H8 FB token expiry alerting (1/token/day)
+- 5f88f75cd H7 asp-net redirect handling + panda probe script
+- 95ac8230a H6 Patra::WebhookEmitter (4 events, async)
+- 5785cb276 H1 / 3c2f5ed5c H2 / 3b64d09c8 H3 / a5cf0a9ed H4 / 54eac5f90 H5
+- 899992acd log init (rollback hash + phase-0 read report)
+
+## FINAL SELF-AUDIT (verified by me at end of run, 2026-06-10)
+- ruby -c: 41 touched .rb files, 0 failures (single sweep over `git diff --name-only
+  3a46f24e4..HEAD`).
+- Self-tests: 12/12 ALL PASS, 221 asserts total (h1:10 h2:21 h3:13 h4:90 h5:12 h6:17 h7:9
+  h8:12 h9:10 h10:10 h11:12 h12:5) — each loads the REAL edited file(s) with stubbed Rails.
+- Lane proof: diff vs rollback hash contains ZERO hot files (reply_service.rb,
+  conversation_orchestrator.rb, intent_detector.rb, chatwoot_bridge_service.rb) and ZERO
+  owner-WIP files (telegram_notifier.rb, winback_service.rb, base_provider.rb,
+  outbound_dispatcher.rb, zernio_provider.rb). The 7 proof scripts: untouched (no
+  script/patra_*.rb in the diff except NEW script/patra_panda_probe.rb, additive).
+- RSpec: SPECS-UNRUN locally (bundler exit 127) — 14 spec files written; exact Render
+  commands in MORNING SUMMARY + SPECS-UNRUN sections.
+- NOT pushed. 14 commits sit on local main on top of 3a46f24e4.
