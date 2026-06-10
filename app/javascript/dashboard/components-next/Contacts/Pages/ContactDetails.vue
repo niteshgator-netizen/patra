@@ -191,7 +191,9 @@ const sendMessage = () => {
 
 const fetchTiers = async () => {
   try {
-    const { data } = await PlayerTiersAPI.getPlayerTiers(route.params.accountId);
+    const { data } = await PlayerTiersAPI.getPlayerTiers(
+      route.params.accountId
+    );
     playerTiers.value = data;
   } catch (error) {
     console.error('Failed to fetch tiers:', error);
@@ -379,11 +381,7 @@ const updateTier = async event => {
             @change="updateTier"
           >
             <option value="">{{ t('CONTACTS_LAYOUT.PROFILE.NO_TIER') }}</option>
-            <option
-              v-for="tier in playerTiers"
-              :key="tier.id"
-              :value="tier.id"
-            >
+            <option v-for="tier in playerTiers" :key="tier.id" :value="tier.id">
               {{ tier.badge_text || tier.name }}
             </option>
           </select>
@@ -428,28 +426,32 @@ const updateTier = async event => {
     <div class="patra-dtabs">
       <button
         type="button"
-        :class="['patra-dtab', { active: detailTab === 'attributes' }]"
+        class="patra-dtab"
+        :class="[{ active: detailTab === 'attributes' }]"
         @click="detailTab = 'attributes'"
       >
         {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.ATTRIBUTES') }}
       </button>
       <button
         type="button"
-        :class="['patra-dtab', { active: detailTab === 'history' }]"
+        class="patra-dtab"
+        :class="[{ active: detailTab === 'history' }]"
         @click="detailTab = 'history'"
       >
         {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.HISTORY') }}
       </button>
       <button
         type="button"
-        :class="['patra-dtab', { active: detailTab === 'notes' }]"
+        class="patra-dtab"
+        :class="[{ active: detailTab === 'notes' }]"
         @click="detailTab = 'notes'"
       >
         {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.NOTES') }}
       </button>
       <button
         type="button"
-        :class="['patra-dtab', { active: detailTab === 'media' }]"
+        class="patra-dtab"
+        :class="[{ active: detailTab === 'media' }]"
         @click="detailTab = 'media'"
       >
         {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.MEDIA') }}
@@ -462,9 +464,9 @@ const updateTier = async event => {
         class="patra-empty-note"
       >
         {{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.ATTRIBUTES') }}
-        <a @click="router.push({ name: 'settings_custom_attributes' })"
-          >{{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.CREATE_IN_SETTINGS') }}</a
-        >
+        <a @click="router.push({ name: 'settings_custom_attributes' })">{{
+          $t('CONTACTS_LAYOUT.DETAIL_EMPTY.CREATE_IN_SETTINGS')
+        }}</a>
       </div>
       <div v-else>
         <div
@@ -501,11 +503,15 @@ const updateTier = async event => {
     </div>
 
     <div v-show="detailTab === 'notes'" class="patra-tabpane">
-      <div class="patra-empty-note">{{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.NOTES') }}</div>
+      <div class="patra-empty-note">
+        {{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.NOTES') }}
+      </div>
     </div>
 
     <div v-show="detailTab === 'media'" class="patra-tabpane">
-      <div class="patra-empty-note">{{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.MEDIA') }}</div>
+      <div class="patra-empty-note">
+        {{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.MEDIA') }}
+      </div>
     </div>
 
     <div class="card full profile-edit">

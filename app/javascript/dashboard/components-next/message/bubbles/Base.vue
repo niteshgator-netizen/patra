@@ -30,8 +30,7 @@ const router = useRouter();
 
 const isHandoffMessage = computed(
   () =>
-    contentType.value === 'ai_handoff' ||
-    additionalAttributes.value?.ai_handoff
+    contentType.value === 'ai_handoff' || additionalAttributes.value?.ai_handoff
 );
 
 const varaintBaseMap = {
@@ -148,26 +147,17 @@ const replyToPreview = computed(() => {
         <span class="patra-th-title">{{ $t('PATRA.AI_CARD.HANDED_BY') }}</span>
       </div>
       <div class="patra-th-grid">
-        <div
-          v-if="additionalAttributes?.intent"
-          class="patra-th-row"
-        >
+        <div v-if="additionalAttributes?.intent" class="patra-th-row">
           <span class="patra-th-label">{{ $t('PATRA.AI_CARD.INTENT') }}</span>
           <span class="patra-th-value">{{ additionalAttributes.intent }}</span>
         </div>
-        <div
-          v-if="additionalAttributes?.confidence"
-          class="patra-th-row"
-        >
-          <span class="patra-th-label">{{ $t('PATRA.AI_CARD.CONFIDENCE') }}</span>
-          <span class="patra-th-value">{{
-            Math.round(additionalAttributes.confidence * 100)
-          }}%</span>
+        <div v-if="additionalAttributes?.confidence" class="patra-th-row">
+          <span class="patra-th-label">{{
+            $t('PATRA.AI_CARD.CONFIDENCE')
+          }}</span>
+          <span class="patra-th-value">{{ Math.round(additionalAttributes.confidence * 100) }}%</span>
         </div>
-        <div
-          v-if="additionalAttributes?.reason"
-          class="patra-th-row"
-        >
+        <div v-if="additionalAttributes?.reason" class="patra-th-row">
           <span class="patra-th-label">{{ $t('PATRA.AI_CARD.REASON') }}</span>
           <span class="patra-th-value">{{ additionalAttributes.reason }}</span>
         </div>

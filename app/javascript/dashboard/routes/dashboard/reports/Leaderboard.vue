@@ -38,7 +38,9 @@ onMounted(async () => {
       <h1 class="text-2xl font-semibold text-n-slate-12 lb-display">
         {{ $t('PATRA.LEADERBOARD.TITLE') }}
       </h1>
-      <p class="text-sm text-n-slate-11">{{ $t('PATRA.LEADERBOARD.SUBTITLE') }}</p>
+      <p class="text-sm text-n-slate-11">
+        {{ $t('PATRA.LEADERBOARD.SUBTITLE') }}
+      </p>
     </header>
 
     <section v-if="sortedAgents.length" class="lb-kpis">
@@ -58,7 +60,10 @@ onMounted(async () => {
         <span class="lb-card-t">{{ $t('PATRA.LEADERBOARD.RANKINGS') }}</span>
       </div>
       <p v-if="loading" class="py-6 text-center text-n-slate-11">…</p>
-      <p v-else-if="!sortedAgents.length" class="py-6 text-center text-n-slate-11">
+      <p
+        v-else-if="!sortedAgents.length"
+        class="py-6 text-center text-n-slate-11"
+      >
         {{ $t('PATRA.LEADERBOARD.EMPTY') }}
       </p>
       <div v-else class="lb-rows">
@@ -215,7 +220,11 @@ onMounted(async () => {
   font-weight: 600;
   font-size: 13px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--patra, #6e56cf), var(--patra-deep, #5b45b0));
+  background: linear-gradient(
+    135deg,
+    var(--patra, #6e56cf),
+    var(--patra-deep, #5b45b0)
+  );
   color: #fff;
 }
 

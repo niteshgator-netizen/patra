@@ -51,10 +51,7 @@ const trendColor = (value, key) => {
       >
         {{ t('REPORT.SUMMARY_FETCHING_FAILED') }}
       </div>
-      <div
-        v-else-if="fetchingStatus === STATUS.FINISHED"
-        class="pat-kpi-n"
-      >
+      <div v-else-if="fetchingStatus === STATUS.FINISHED" class="pat-kpi-n">
         {{ displayMetric(metric.KEY) }}
       </div>
       <div

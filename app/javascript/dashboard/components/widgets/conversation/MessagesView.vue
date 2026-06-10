@@ -526,10 +526,7 @@ export default {
         </li>
       </template>
       <template #after>
-        <li
-          v-if="isAnyoneTyping"
-          class="list-none flex-shrink-0"
-        >
+        <li v-if="isAnyoneTyping" class="list-none flex-shrink-0">
           <div v-if="isContactTyping" class="patra-typing">
             <span class="patra-typing-dot" />
             <span class="patra-typing-dot" />

@@ -1451,7 +1451,6 @@ export default {
         v-else
         key="reply-bottom-panel"
         :conversation-id="conversationId"
-        @open-canned-responses="openCannedResponses"
         :enable-multiple-file-upload="enableMultipleFileUpload"
         :enable-whats-app-templates="showWhatsappTemplates"
         :enable-content-templates="showContentTemplates"
@@ -1462,6 +1461,7 @@ export default {
         :is-note="isPrivate"
         :is-editor-disabled="isEditorDisabled"
         :on-file-upload="onFileUpload"
+        @open-canned-responses="openCannedResponses"
         :on-send="onSendReply"
         :conversation-type="conversationType"
         :recording-audio-duration-text="recordingAudioDurationText"
@@ -1494,9 +1494,7 @@ export default {
             @click="smartComposeEnabled = !smartComposeEnabled"
           >
             ✦
-            {{
-              smartComposeEnabled ? 'Smart Compose on' : 'Smart Compose'
-            }}
+            {{ smartComposeEnabled ? 'Smart Compose on' : 'Smart Compose' }}
           </button>
         </template>
       </ReplyBottomPanel>
@@ -1959,7 +1957,10 @@ body:not(.dark) .patra-conv-composer {
 
 .pat-composer :deep(.patra-composer-tools button:hover:not(:disabled)),
 .pat-composer
-  :deep(.patra-composer-right > button:not(.patra-composer-send):hover:not(:disabled)) {
+  :deep(
+    .patra-composer-right
+      > button:not(.patra-composer-send):hover:not(:disabled)
+  ) {
   color: var(--text, #ededf2);
   background: var(--surface-3, #1b1925);
   transform: none;

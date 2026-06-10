@@ -182,7 +182,15 @@ onMounted(() => {
           :class="{ active: sidebarTab === 'copilot' }"
           @click="sidebarTab = 'copilot'"
         >
-          <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px;flex-shrink:0;"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"/></svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            style="width: 12px; height: 12px; flex-shrink: 0"
+          >
+            <path
+              d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"
+            />
+          </svg>
           {{ $t('PATRA.INFO_PANEL.PATRA_AI_TAB') }}
         </button>
       </div>
@@ -190,216 +198,216 @@ onMounted(() => {
         <PatraAiHandoffCard :conversation-id="conversationId" />
         <ContactProfileStats :contact="contact" />
         <div class="sidebar-accordions">
-        <Draggable
-          :list="conversationSidebarItems"
-          animation="200"
-          ghost-class="ghost"
-          handle=".drag-handle"
-          item-key="name"
-          class="flex flex-col"
-          @start="dragging = true"
-          @end="onDragEnd"
-        >
-          <template #item="{ element }">
-            <div v-if="element.name === 'conversation_actions'">
-              <AccordionItem
-                patra
-                :title="
-                  $t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_ACTIONS')
-                "
-                :is-open="isContactSidebarItemOpen('is_conv_actions_open')"
-                @toggle="() => toggleSidebarUIState('is_conv_actions_open')"
-              >
-                <ConversationAction
-                  :conversation-id="conversationId"
-                  :inbox-id="inboxId"
-                />
-              </AccordionItem>
-            </div>
-            <div v-else-if="element.name === 'conversation_participants'">
-              <div class="ctx-section">
-                <div class="ctx-label">
-                  {{ $t('CONVERSATION_PARTICIPANTS.SIDEBAR_TITLE') }}
-                </div>
-                <ConversationParticipant
-                  :conversation-id="conversationId"
-                  :inbox-id="inboxId"
-                />
-              </div>
-            </div>
-            <div v-else-if="element.name === 'conversation_info'">
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_INFO')"
-                :is-open="isContactSidebarItemOpen('is_conv_details_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_conv_details_open')"
-              >
-                <ConversationInfo
-                  :conversation-attributes="conversationAdditionalAttributes"
-                  :contact-attributes="contactAdditionalAttributes"
-                />
-              </AccordionItem>
-            </div>
-            <div v-else-if="element.name === 'contact_attributes'">
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_ATTRIBUTES')"
-                :is-open="
-                  isContactSidebarItemOpen('is_contact_attributes_open')
-                "
-                compact
-                @toggle="
-                  () => toggleSidebarUIState('is_contact_attributes_open')
-                "
-              >
-                <CustomAttributes
-                  attribute-type="contact_attribute"
-                  attribute-from="conversation_contact_panel"
-                  :contact-id="contact.id"
-                  :empty-state-message="
-                    $t('CONVERSATION_CUSTOM_ATTRIBUTES.NO_RECORDS_FOUND')
+          <Draggable
+            :list="conversationSidebarItems"
+            animation="200"
+            ghost-class="ghost"
+            handle=".drag-handle"
+            item-key="name"
+            class="flex flex-col"
+            @start="dragging = true"
+            @end="onDragEnd"
+          >
+            <template #item="{ element }">
+              <div v-if="element.name === 'conversation_actions'">
+                <AccordionItem
+                  patra
+                  :title="
+                    $t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_ACTIONS')
                   "
-                />
-              </AccordionItem>
-            </div>
-            <div v-else-if="element.name === 'player_profile'">
-              <PlayerProfileCard
-                :contact="contact"
-                :conversation-id="conversationId"
-              />
-              <div class="ctx-section ops-panel">
-                <div class="ctx-label">
-                  {{ $t('GAMES.QUICK_ACTIONS.TITLE') }}
-                  <span class="ops-hint">{{
-                    $t('GAMES.QUICK_ACTIONS.LIVE_HINT')
-                  }}</span>
-                </div>
-                <GameQuickActionsPanel />
+                  :is-open="isContactSidebarItemOpen('is_conv_actions_open')"
+                  @toggle="() => toggleSidebarUIState('is_conv_actions_open')"
+                >
+                  <ConversationAction
+                    :conversation-id="conversationId"
+                    :inbox-id="inboxId"
+                  />
+                </AccordionItem>
               </div>
-            </div>
-            <div v-else-if="element.name === 'previous_conversation'">
-              <AccordionItem
-                v-if="contact.id"
-                patra
-                :title="
-                  $t('CONVERSATION_SIDEBAR.ACCORDION.PREVIOUS_CONVERSATION')
-                "
-                :is-open="isContactSidebarItemOpen('is_previous_conv_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_previous_conv_open')"
-              >
-                <ContactConversations
-                  :contact-id="contact.id"
+              <div v-else-if="element.name === 'conversation_participants'">
+                <div class="ctx-section">
+                  <div class="ctx-label">
+                    {{ $t('CONVERSATION_PARTICIPANTS.SIDEBAR_TITLE') }}
+                  </div>
+                  <ConversationParticipant
+                    :conversation-id="conversationId"
+                    :inbox-id="inboxId"
+                  />
+                </div>
+              </div>
+              <div v-else-if="element.name === 'conversation_info'">
+                <AccordionItem
+                  patra
+                  :title="
+                    $t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_INFO')
+                  "
+                  :is-open="isContactSidebarItemOpen('is_conv_details_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_conv_details_open')"
+                >
+                  <ConversationInfo
+                    :conversation-attributes="conversationAdditionalAttributes"
+                    :contact-attributes="contactAdditionalAttributes"
+                  />
+                </AccordionItem>
+              </div>
+              <div v-else-if="element.name === 'contact_attributes'">
+                <AccordionItem
+                  patra
+                  :title="
+                    $t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_ATTRIBUTES')
+                  "
+                  :is-open="
+                    isContactSidebarItemOpen('is_contact_attributes_open')
+                  "
+                  compact
+                  @toggle="
+                    () => toggleSidebarUIState('is_contact_attributes_open')
+                  "
+                >
+                  <CustomAttributes
+                    attribute-type="contact_attribute"
+                    attribute-from="conversation_contact_panel"
+                    :contact-id="contact.id"
+                    :empty-state-message="
+                      $t('CONVERSATION_CUSTOM_ATTRIBUTES.NO_RECORDS_FOUND')
+                    "
+                  />
+                </AccordionItem>
+              </div>
+              <div v-else-if="element.name === 'player_profile'">
+                <PlayerProfileCard
+                  :contact="contact"
                   :conversation-id="conversationId"
                 />
-              </AccordionItem>
-              <div
-                v-if="attachmentCount > 0"
-                class="patra-media-section"
-              >
-                <div class="card-t display">
-                  <span class="dot" />
-                  {{ $t('PATRA.INFO_PANEL.ATTACHMENTS') }}
-                  <span class="patra-media-count"
-                    >MEDIA · {{ attachmentCount }}</span
-                  >
-                  <a class="patra-media-viewall">{{ $t('PATRA.INFO_PANEL.VIEW_ALL') }}</a>
-                </div>
-                <div class="patra-media-grid">
-                  <div
-                    v-for="att in recentAttachments"
-                    :key="att.id"
-                    class="patra-media-thumb"
-                  >
-                    <img
-                      v-if="att.thumb_url || att.data_url"
-                      :src="att.thumb_url || att.data_url"
-                      :alt="att.file_name || 'Attachment'"
-                      loading="lazy"
-                    />
-                    <span v-else class="patra-media-file">📄</span>
+                <div class="ctx-section ops-panel">
+                  <div class="ctx-label">
+                    {{ $t('GAMES.QUICK_ACTIONS.TITLE') }}
+                    <span class="ops-hint">{{
+                      $t('GAMES.QUICK_ACTIONS.LIVE_HINT')
+                    }}</span>
                   </div>
-                  <div
-                    v-if="attachmentCount > 6"
-                    class="patra-media-more"
-                  >
-                    +{{ attachmentCount - 6 }}
+                  <GameQuickActionsPanel />
+                </div>
+              </div>
+              <div v-else-if="element.name === 'previous_conversation'">
+                <AccordionItem
+                  v-if="contact.id"
+                  patra
+                  :title="
+                    $t('CONVERSATION_SIDEBAR.ACCORDION.PREVIOUS_CONVERSATION')
+                  "
+                  :is-open="isContactSidebarItemOpen('is_previous_conv_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_previous_conv_open')"
+                >
+                  <ContactConversations
+                    :contact-id="contact.id"
+                    :conversation-id="conversationId"
+                  />
+                </AccordionItem>
+                <div v-if="attachmentCount > 0" class="patra-media-section">
+                  <div class="card-t display">
+                    <span class="dot" />
+                    {{ $t('PATRA.INFO_PANEL.ATTACHMENTS') }}
+                    <span class="patra-media-count"
+                      >MEDIA · {{ attachmentCount }}</span
+                    >
+                    <a class="patra-media-viewall">{{
+                      $t('PATRA.INFO_PANEL.VIEW_ALL')
+                    }}</a>
+                  </div>
+                  <div class="patra-media-grid">
+                    <div
+                      v-for="att in recentAttachments"
+                      :key="att.id"
+                      class="patra-media-thumb"
+                    >
+                      <img
+                        v-if="att.thumb_url || att.data_url"
+                        :src="att.thumb_url || att.data_url"
+                        :alt="att.file_name || 'Attachment'"
+                        loading="lazy"
+                      />
+                      <span v-else class="patra-media-file">📄</span>
+                    </div>
+                    <div v-if="attachmentCount > 6" class="patra-media-more">
+                      +{{ attachmentCount - 6 }}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <woot-feature-toggle
-              v-else-if="element.name === 'macros'"
-              feature-key="macros"
-            >
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MACROS')"
-                :is-open="isContactSidebarItemOpen('is_macro_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_macro_open')"
+              <woot-feature-toggle
+                v-else-if="element.name === 'macros'"
+                feature-key="macros"
               >
-                <MacrosList :conversation-id="conversationId" />
-              </AccordionItem>
-            </woot-feature-toggle>
-            <div
-              v-else-if="
-                element.name === 'linear_issues' &&
-                isLinearFeatureEnabled &&
-                isLinearClientIdConfigured
-              "
-            >
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.LINEAR_ISSUES')"
-                :is-open="isContactSidebarItemOpen('is_linear_issues_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_linear_issues_open')"
+                <AccordionItem
+                  patra
+                  :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MACROS')"
+                  :is-open="isContactSidebarItemOpen('is_macro_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_macro_open')"
+                >
+                  <MacrosList :conversation-id="conversationId" />
+                </AccordionItem>
+              </woot-feature-toggle>
+              <div
+                v-else-if="
+                  element.name === 'linear_issues' &&
+                  isLinearFeatureEnabled &&
+                  isLinearClientIdConfigured
+                "
               >
-                <LinearSetupCTA v-if="!isLinearConnected" />
-                <LinearIssuesList v-else :conversation-id="conversationId" />
-              </AccordionItem>
-            </div>
-            <div
-              v-else-if="
-                element.name === 'shopify_orders' && isShopifyFeatureEnabled
-              "
-            >
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHOPIFY_ORDERS')"
-                :is-open="isContactSidebarItemOpen('is_shopify_orders_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_shopify_orders_open')"
+                <AccordionItem
+                  patra
+                  :title="$t('CONVERSATION_SIDEBAR.ACCORDION.LINEAR_ISSUES')"
+                  :is-open="isContactSidebarItemOpen('is_linear_issues_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_linear_issues_open')"
+                >
+                  <LinearSetupCTA v-if="!isLinearConnected" />
+                  <LinearIssuesList v-else :conversation-id="conversationId" />
+                </AccordionItem>
+              </div>
+              <div
+                v-else-if="
+                  element.name === 'shopify_orders' && isShopifyFeatureEnabled
+                "
               >
-                <ShopifyOrdersList :contact-id="contactId" />
-              </AccordionItem>
-            </div>
-            <div v-else-if="element.name === 'contact_notes'">
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_NOTES')"
-                :is-open="isContactSidebarItemOpen('is_contact_notes_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_contact_notes_open')"
-              >
-                <ContactNotes :contact-id="contactId" />
-              </AccordionItem>
-            </div>
-            <div v-else-if="element.name === 'shared_files'">
-              <AccordionItem
-                patra
-                :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHARED_FILES')"
-                :is-open="isContactSidebarItemOpen('is_shared_files_open')"
-                compact
-                @toggle="() => toggleSidebarUIState('is_shared_files_open')"
-              >
-                <SharedFiles />
-              </AccordionItem>
-            </div>
-          </template>
-        </Draggable>
+                <AccordionItem
+                  patra
+                  :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHOPIFY_ORDERS')"
+                  :is-open="isContactSidebarItemOpen('is_shopify_orders_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_shopify_orders_open')"
+                >
+                  <ShopifyOrdersList :contact-id="contactId" />
+                </AccordionItem>
+              </div>
+              <div v-else-if="element.name === 'contact_notes'">
+                <AccordionItem
+                  patra
+                  :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONTACT_NOTES')"
+                  :is-open="isContactSidebarItemOpen('is_contact_notes_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_contact_notes_open')"
+                >
+                  <ContactNotes :contact-id="contactId" />
+                </AccordionItem>
+              </div>
+              <div v-else-if="element.name === 'shared_files'">
+                <AccordionItem
+                  patra
+                  :title="$t('CONVERSATION_SIDEBAR.ACCORDION.SHARED_FILES')"
+                  :is-open="isContactSidebarItemOpen('is_shared_files_open')"
+                  compact
+                  @toggle="() => toggleSidebarUIState('is_shared_files_open')"
+                >
+                  <SharedFiles />
+                </AccordionItem>
+              </div>
+            </template>
+          </Draggable>
         </div>
       </div>
       <div v-show="sidebarTab === 'copilot'" class="patra-copilot-tab">
@@ -411,9 +419,13 @@ onMounted(() => {
           v-if="currentChat?.additional_attributes?.last_intent_confidence"
           class="patra-confidence-section"
         >
-          <div class="patra-conf-title">{{ $t('PATRA.INFO_PANEL.CONFIDENCE_SCORES') }}</div>
+          <div class="patra-conf-title">
+            {{ $t('PATRA.INFO_PANEL.CONFIDENCE_SCORES') }}
+          </div>
           <div class="patra-conf-row">
-            <span class="patra-conf-label">{{ $t('PATRA.INFO_PANEL.INTENT_MATCH') }}</span>
+            <span class="patra-conf-label">{{
+              $t('PATRA.INFO_PANEL.INTENT_MATCH')
+            }}</span>
             <div class="patra-conf-bar">
               <div
                 class="patra-conf-fill"
@@ -427,11 +439,11 @@ onMounted(() => {
               />
             </div>
             <span class="patra-conf-pct">{{
-              Math.round(
-                (currentChat?.additional_attributes?.last_intent_confidence ||
-                  0) * 100
-              )
-            }}%</span>
+                Math.round(
+                  (currentChat?.additional_attributes?.last_intent_confidence ||
+                    0) * 100
+                )
+              }}%</span>
           </div>
         </div>
         <!-- Copilot input -->
@@ -871,7 +883,11 @@ onMounted(() => {
   left: 12px;
   right: 12px;
   height: 2px;
-  background: linear-gradient(90deg, var(--patra, #6e56cf), var(--patra-2, #8b5cf6));
+  background: linear-gradient(
+    90deg,
+    var(--patra, #6e56cf),
+    var(--patra-2, #8b5cf6)
+  );
   border-radius: 2px;
   box-shadow: 0 0 8px rgba(110, 86, 207, 0.4);
 }

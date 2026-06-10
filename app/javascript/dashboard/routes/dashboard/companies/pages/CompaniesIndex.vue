@@ -179,7 +179,11 @@ onMounted(() => {
         @create="openCreateCompanyDialog"
       >
         <div v-if="isFetchingList" class="flex flex-col gap-4 py-2">
-          <div v-for="n in 5" :key="n" class="pat-skel h-20 w-full rounded-xl" />
+          <div
+            v-for="n in 5"
+            :key="n"
+            class="pat-skel h-20 w-full rounded-xl"
+          />
         </div>
         <div
           v-else-if="companies.length === 0"

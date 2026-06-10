@@ -116,7 +116,10 @@ const sparkPoints = computed(() => {
   );
   const max = Math.max(...ordered, 1);
   return ordered
-    .map((v, i) => `${Math.round((i * 60) / 6)},${(18 - (v / max) * 14).toFixed(1)}`)
+    .map(
+      (v, i) =>
+        `${Math.round((i * 60) / 6)},${(18 - (v / max) * 14).toFixed(1)}`
+    )
     .join(' ');
 });
 
@@ -298,7 +301,10 @@ onUnmounted(() => {
 
           <div class="patra-kpis pat-dash-grid">
             <!-- TODO: wire backend — KPI drill-down -->
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-violet">
                   <svg
@@ -336,7 +342,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-blue">
                   <svg
@@ -355,7 +364,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-green">
                   <svg
@@ -374,7 +386,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-violet">
                   <svg viewBox="0 0 24 24" fill="#8B5CF6">
@@ -392,7 +407,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-red">
                   <svg
@@ -416,7 +434,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-green">
                   <svg
@@ -553,12 +574,16 @@ onUnmounted(() => {
                   <div class="patra-leg">
                     <span class="patra-leg-sw patra-leg-sw-amber" />
                     {{ legendEscalated }}
-                    <span class="patra-leg-v">{{ formatPercent(stats.escalation_rate) }}</span>
+                    <span class="patra-leg-v">{{
+                      formatPercent(stats.escalation_rate)
+                    }}</span>
                   </div>
                   <div class="patra-leg">
                     <span class="patra-leg-sw patra-leg-sw-muted" />
                     {{ legendStillOpen }}
-                    <span class="patra-leg-v">{{ formatPercent(stats.still_open_rate) }}</span>
+                    <span class="patra-leg-v">{{
+                      formatPercent(stats.still_open_rate)
+                    }}</span>
                   </div>
                 </div>
               </div>
@@ -591,7 +616,9 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <div class="patra-ms pat-stat-card">
-                  <div class="patra-ms-n n">{{ stats.new_customers_today }}</div>
+                  <div class="patra-ms-n n">
+                    {{ stats.new_customers_today }}
+                  </div>
                   <div class="patra-ms-l l">
                     {{ $t('PATRA.DASHBOARD.NEW_CUSTOMERS') }}
                   </div>
@@ -693,11 +720,7 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="patra-topq">
-              <div
-                v-for="(q, i) in topQuestions"
-                :key="i"
-                class="patra-tq-row"
-              >
+              <div v-for="(q, i) in topQuestions" :key="i" class="patra-tq-row">
                 <span class="patra-tq-label">{{ q.question }}</span>
                 <div class="patra-tq-bar-wrap">
                   <div class="patra-tq-bar" :style="{ width: q.pct + '%' }" />
@@ -734,9 +757,16 @@ onUnmounted(() => {
                     :key="`${day}-${hour}`"
                     class="patra-hm-cell"
                     :style="{
-                      opacity: heatmapCells.map[`${heatmapDayIndex(day)}-${hour}`]
-                        ? 0.15 + 0.85 * (heatmapCells.map[`${heatmapDayIndex(day)}-${hour}`] / heatmapCells.max)
-                        : 0.05
+                      opacity: heatmapCells.map[
+                        `${heatmapDayIndex(day)}-${hour}`
+                      ]
+                        ? 0.15 +
+                          0.85 *
+                            (heatmapCells.map[
+                              `${heatmapDayIndex(day)}-${hour}`
+                            ] /
+                              heatmapCells.max)
+                        : 0.05,
                     }"
                   />
                 </template>
@@ -767,7 +797,10 @@ onUnmounted(() => {
                 </div>
                 <span class="patra-card-more">{{ activeAgentsCount }}</span>
               </div>
-              <ul v-if="stats.active_agents?.length" class="patra-agent-list pat-dash-table">
+              <ul
+                v-if="stats.active_agents?.length"
+                class="patra-agent-list pat-dash-table"
+              >
                 <!-- TODO: wire backend — agent drill-down -->
                 <li
                   v-for="(agent, index) in stats.active_agents"
@@ -925,8 +958,7 @@ onUnmounted(() => {
   right: -5%;
   width: 700px;
   height: 560px;
-  background:
-    radial-gradient(circle at 40% 40%, var(--mesh-1), transparent 60%),
+  background: radial-gradient(circle at 40% 40%, var(--mesh-1), transparent 60%),
     radial-gradient(circle at 70% 70%, var(--mesh-2), transparent 60%);
   animation: patra-mesh-a 22s ease-in-out infinite alternate;
 }
@@ -1290,16 +1322,34 @@ onUnmounted(() => {
 
 /* C4: staggered entrance per spec (dashboard-v2 mockup) — transform/opacity
    only, GPU-friendly. */
-.patra-kpi:nth-child(1) { animation-delay: 0s; }
-.patra-kpi:nth-child(2) { animation-delay: 0.06s; }
-.patra-kpi:nth-child(3) { animation-delay: 0.12s; }
-.patra-kpi:nth-child(4) { animation-delay: 0.18s; }
-.patra-kpi:nth-child(5) { animation-delay: 0.24s; }
-.patra-kpi:nth-child(6) { animation-delay: 0.3s; }
+.patra-kpi:nth-child(1) {
+  animation-delay: 0s;
+}
+.patra-kpi:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.patra-kpi:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.patra-kpi:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.patra-kpi:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.patra-kpi:nth-child(6) {
+  animation-delay: 0.3s;
+}
 
-.patra-grid > .patra-card:nth-child(1) { animation-delay: 0.1s; }
-.patra-grid > .patra-card:nth-child(2) { animation-delay: 0.16s; }
-.patra-card-full { animation-delay: 0.22s; }
+.patra-grid > .patra-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.patra-grid > .patra-card:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.patra-card-full {
+  animation-delay: 0.22s;
+}
 
 .patra-kpi::after {
   content: '';

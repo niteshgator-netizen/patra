@@ -321,7 +321,9 @@ const switchTab = key => {
   if (key === 'phrases') fetchPhrases();
 };
 
-const awaitingReviewCount = computed(() => ragStats.value?.awaiting_review ?? null);
+const awaitingReviewCount = computed(
+  () => ragStats.value?.awaiting_review ?? null
+);
 
 function noopPlaceholder() {}
 
@@ -984,8 +986,7 @@ onUnmounted(() => {
   right: -5%;
   width: 700px;
   height: 560px;
-  background:
-    radial-gradient(circle at 40% 40%, var(--mesh-1), transparent 60%),
+  background: radial-gradient(circle at 40% 40%, var(--mesh-1), transparent 60%),
     radial-gradient(circle at 70% 70%, var(--mesh-2), transparent 60%);
   animation: pat-at-mesh-a 22s ease-in-out infinite alternate;
 }

@@ -3,11 +3,11 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 
-const { t } = useI18n();
-
 const props = defineProps({
   conversationId: { type: [Number, String], required: true },
 });
+
+const { t } = useI18n();
 
 const conversations = useMapGetter('getAllConversations');
 
@@ -19,15 +19,15 @@ const aiOff = computed(() =>
   (conversation.value?.labels || []).includes('ai-off')
 );
 
-const attrs = computed(() =>
-  conversation.value?.additional_attributes || {}
-);
+const attrs = computed(() => conversation.value?.additional_attributes || {});
 
 const intentLabel = computed(() => {
-  if (attrs.value.awaiting_load_amount) return t('PATRA.AI_CARD.INTENT_LOAD_AWAITING');
+  if (attrs.value.awaiting_load_amount)
+    return t('PATRA.AI_CARD.INTENT_LOAD_AWAITING');
   if (attrs.value.sender_match_state === 'awaiting_details')
     return t('PATRA.AI_CARD.INTENT_PAYMENT_AWAITING');
-  if (attrs.value.sender_match_state === 'matched') return t('PATRA.AI_CARD.INTENT_PAYMENT_MATCHED');
+  if (attrs.value.sender_match_state === 'matched')
+    return t('PATRA.AI_CARD.INTENT_PAYMENT_MATCHED');
   return null;
 });
 
@@ -59,7 +59,8 @@ const sentimentClass = computed(() => {
 
 const scrollToFirstAiMessage = () => {
   const msgs = document.querySelectorAll('.patra-conv-bubble--agent');
-  if (msgs.length) msgs[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (msgs.length)
+    msgs[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 const askPatraAi = () => {
@@ -98,7 +99,9 @@ const askPatraAi = () => {
     </div>
     <div v-if="attrs.sentiment" class="ai-hc-intent">
       <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.SENTIMENT') }}</span>
-      <span class="ai-hc-value" :class="sentimentClass">{{ attrs.sentiment }}</span>
+      <span class="ai-hc-value" :class="sentimentClass">{{
+        attrs.sentiment
+      }}</span>
     </div>
     <div v-if="attrs.safety_flags" class="ai-hc-intent">
       <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.SAFETY') }}</span>
@@ -123,7 +126,9 @@ const askPatraAi = () => {
     </div>
 
     <div v-if="attrs.ai_already_did" class="ai-hc-section">
-      <div class="ai-hc-section-title">{{ $t('PATRA.AI_CARD.AI_ALREADY_DID') }}</div>
+      <div class="ai-hc-section-title">
+        {{ $t('PATRA.AI_CARD.AI_ALREADY_DID') }}
+      </div>
       <div class="ai-hc-section-text">{{ attrs.ai_already_did }}</div>
     </div>
 
@@ -137,7 +142,9 @@ const askPatraAi = () => {
       <div class="ai-hc-section-text">{{ attrs.ai_insight }}</div>
     </div>
 
-    <button class="ai-hc-ask-btn" @click="askPatraAi">{{ $t('PATRA.AI_CARD.ASK_PATRA') }}</button>
+    <button class="ai-hc-ask-btn" @click="askPatraAi">
+      {{ $t('PATRA.AI_CARD.ASK_PATRA') }}
+    </button>
   </div>
 </template>
 

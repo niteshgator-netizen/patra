@@ -109,7 +109,7 @@ export default {
                 class="ai-status-pill"
                 :class="aiStatusClass(notificationItem)"
               >
-                <span class="dot"></span>
+                <span class="dot" />
                 {{ aiStatusText(notificationItem) }}
               </span>
             </div>
