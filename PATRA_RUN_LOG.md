@@ -130,7 +130,7 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - [x] M1 Audit all v2/v3/v4-styled screens @768/1024, fix overflow/stacking
 
 ### PHASE E — EMPTY STATES & SKELETONS
-- [ ] E1 Sweep primary screens: themed skeletons + empty states, no raw "Loading..."
+- [x] E1 Sweep primary screens: themed skeletons + empty states, no raw "Loading..."
 
 ### PHASE I — I18N EXTRACTION
 - [ ] I1 Extract hardcoded strings from v2-v4 .vue templates to en locales
@@ -166,3 +166,4 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
   * Search/Onboarding: max-w-5xl / max-w-580 single-column ✓.
   * Leaderboard auto-fit minmax ✓; BroadcastComposer 1fr @900 ✓; settings forms inherit pat-page-wrap fluid width ✓.
   Build green.
+- E1 (this commit) — Skeleton/empty-state sweep, all primary screens now share ONE pat-skel shimmer (S2-introduced, token surfaces, transform-only): ReportContainer chart loading (was woot-loading-state text) → full-area skel; overview AgentTable/TeamTable + live MetricCard (was spinner+message) → skel rows; CompaniesIndex (was raw COMPANIES.LOADING text) → 5 card-shaped skels; CompanyDetailView (spinner+text) → profile-shaped skels; PatraOwnerDashboard full-page spinner → KPI+card-shaped skel grid (responsive, replaces .patra-loading); PatraAiTraining 3× raw "Loading…" → skel rows (const removed); SLATable done in M1; search/notifications done in S3/S2; unused Spinner imports removed everywhere touched. Empty states verified themed: EmptyState widget (overview/notifications), per-section search empties, companies empty cards, AI-training pat-at-empty copies, patra-empty-note — all token-colored text treatments (spec allows text-only). 0 raw "Loading..." strings remain on styled pages (repo grep). Build green.

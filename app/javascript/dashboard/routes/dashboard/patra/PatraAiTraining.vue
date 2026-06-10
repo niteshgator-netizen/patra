@@ -39,7 +39,6 @@ const chooseFileLabel = 'Choose file';
 const uploadLabel = 'Upload';
 const uploadingLabel = 'Uploading…';
 const uploadHistoryTitle = 'Upload history';
-const loadingLabel = 'Loading…';
 const noUploadsLabel = 'No uploads yet.';
 const reviewQueueTitle = 'Review queue';
 const reviewQueueDesc =
@@ -577,8 +576,8 @@ onUnmounted(() => {
               <span class="pat-at-card-dot" />
               {{ uploadHistoryTitle }}
             </div>
-            <div v-if="uploadsLoading" class="pat-at-empty">
-              {{ loadingLabel }}
+            <div v-if="uploadsLoading" class="flex flex-col gap-2 py-2">
+              <div v-for="n in 3" :key="n" class="pat-skel h-9 w-full" />
             </div>
             <div v-else-if="uploads.length === 0" class="pat-at-empty">
               {{ noUploadsLabel }}
@@ -638,8 +637,8 @@ onUnmounted(() => {
             <p class="pat-at-pane-desc">
               {{ reviewQueueDesc }}
             </p>
-            <div v-if="candidatesLoading" class="pat-at-empty">
-              {{ loadingLabel }}
+            <div v-if="candidatesLoading" class="flex flex-col gap-2 py-2">
+              <div v-for="n in 3" :key="n" class="pat-skel h-16 w-full" />
             </div>
             <div v-else-if="candidates.length === 0" class="pat-at-empty">
               {{ reviewQueueEmpty }}
@@ -778,8 +777,8 @@ onUnmounted(() => {
               <span class="pat-at-card-dot" />
               {{ configuredPhrasesTitle }}
             </div>
-            <div v-if="phrasesLoading" class="pat-at-empty">
-              {{ loadingLabel }}
+            <div v-if="phrasesLoading" class="flex flex-col gap-2 py-2">
+              <div v-for="n in 3" :key="n" class="pat-skel h-9 w-full" />
             </div>
             <div v-else-if="phrases.length === 0" class="pat-at-empty">
               {{ noPhrasesLabel }}

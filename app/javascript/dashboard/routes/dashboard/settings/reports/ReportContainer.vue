@@ -158,10 +158,9 @@ export default {
         :summary-fetching-key="summaryFetchingKey"
       />
       <div class="mt-4 h-72">
-        <woot-loading-state
+        <div
           v-if="accountReport.isFetching[metric.KEY]"
-          class="text-xs"
-          :message="$t('REPORT.LOADING_CHART')"
+          class="pat-skel h-full w-full"
         />
         <div v-else class="flex items-center justify-center h-72">
           <BarChart

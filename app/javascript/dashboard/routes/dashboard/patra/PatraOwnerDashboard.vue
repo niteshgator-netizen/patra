@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import PatraDashboardAPI from 'dashboard/api/patraDashboard';
-import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import GameHealthDashboard from 'dashboard/components/widgets/GameHealthDashboard.vue';
 import OnboardingChecklist from 'dashboard/components/widgets/OnboardingChecklist.vue';
 
@@ -279,8 +278,13 @@ onUnmounted(() => {
       </div>
 
       <div class="patra-content">
-        <div v-if="loading" class="patra-loading">
-          <Spinner />
+        <div v-if="loading" class="patra-loading-skel">
+          <div class="patra-loading-skel-kpis">
+            <div v-for="n in 5" :key="`k${n}`" class="pat-skel" />
+          </div>
+          <div class="patra-loading-skel-cards">
+            <div v-for="n in 2" :key="`c${n}`" class="pat-skel" />
+          </div>
         </div>
 
         <p v-else-if="error" class="patra-error">
@@ -1044,10 +1048,43 @@ onUnmounted(() => {
   padding: 22px 30px 40px;
 }
 
-.patra-loading {
+.patra-loading-skel {
   display: flex;
-  justify-content: center;
-  padding: 64px 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0 24px;
+}
+
+.patra-loading-skel-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+
+.patra-loading-skel-kpis .pat-skel {
+  height: 120px;
+  border-radius: 16px;
+}
+
+.patra-loading-skel-cards {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+}
+
+.patra-loading-skel-cards .pat-skel {
+  height: 260px;
+  border-radius: 16px;
+}
+
+@media (max-width: 1200px) {
+  .patra-loading-skel-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .patra-loading-skel-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 .patra-error {
