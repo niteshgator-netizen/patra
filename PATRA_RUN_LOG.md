@@ -175,7 +175,7 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 
 # PATRA OVERNIGHT MASTER RUN (v5/v6 reconciled + MASTER)
 
-ROLLBACK_HASH_MASTER=779b40b0c66886763074372e8932da77815226b5
+ROLLBACK_HASH_MASTER=779b40b0cede27dda91ed94e1736f3c5271c68ca
 STARTED_MASTER=2026-06-09
 BRANCH=patra-ui-run (worktree). Pure UI run — .rb edits FORBIDDEN.
 
