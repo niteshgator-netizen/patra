@@ -124,3 +124,6 @@ redis_vars.json
 # Local MCP config and env (may contain secrets)
 .mcp.json
 .env.local
+
+# Plaintext automation secrets backup - never commit (files stay on disk)
+patra-automation-BACKUP/

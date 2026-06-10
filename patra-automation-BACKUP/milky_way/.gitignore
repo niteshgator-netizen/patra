@@ -1,6 +1,0 @@
-.env
-__pycache__/
-*.pyc
-error_*.png
-captcha_*.png
-.venv/
