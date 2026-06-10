@@ -68,6 +68,13 @@ module Games
         post('/api/external/getUserID', { account_name: account_name.to_s })
       end
 
+      # Documented provider code for 'Account name already exists' (STATUS_CODES).
+      # Shared namespace with sibling skins (vegas_sweeps inherits this client):
+      # the executor treats a VERIFIED already-exists as success-reuse.
+      def already_exists_code?(code)
+        code.to_i == 20
+      end
+
       def add_user(account:, password:)
         result = add_player(account: account, login_pwd: password)
 

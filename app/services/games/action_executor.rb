@@ -41,6 +41,26 @@ module Games
         result
       end
 
+      # Shared-namespace panels (game_vault<->vegas_sweeps, vblink<->ultra_panda)
+      # return a DOCUMENTED already-exists code when the player already has the
+      # provider account (e.g. created via the sibling skin). Verify the user
+      # really exists on the panel, then treat it as success-reuse. Anything
+      # ambiguous (unknown code, verification failure) keeps the failure path.
+      if !result[:ok] && already_exists_error?(result) && player_exists_after_create?(game_username)
+        action = result[:action]
+        action&.update!(
+          status: 'success',
+          api_response_message: "#{result[:error]} - existing account verified, reused",
+          metadata: (action.metadata || {}).merge('reused_existing' => true),
+          executed_at: Time.current
+        )
+        agent_game.reset_failures! if agent_game.failure_count > 0
+        Rails.logger.info(
+          "[ActionExecutor] add_player already-exists on #{agent_game.game.slug} — verified and REUSED for #{game_username}"
+        )
+        return { ok: true, action: action, response: { 'reused_existing' => true }, reused_existing: true }
+      end
+
       if result[:ok]
         sleep(1)
         unless player_exists_after_create?(game_username)
@@ -247,6 +267,16 @@ module Games
       client = Games::ClientRegistry.client_for(ag)
       raise "Game #{ag.game.slug} not yet integrated" unless client
       client
+    end
+
+    # True only when this client family DOCUMENTS the code as already-exists
+    # (GameVault family: 20, FastApi family: 12). Clients without the method
+    # (Juwa, Laravel, ASP.NET panels) keep their original failure behavior.
+    def already_exists_error?(result)
+      client = client_for(agent_game)
+      client.respond_to?(:already_exists_code?) && client.already_exists_code?(result[:code])
+    rescue StandardError
+      false
     end
 
     def amount_limit_error(credential_key, amount)

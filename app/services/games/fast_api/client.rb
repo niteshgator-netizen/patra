@@ -76,6 +76,14 @@ module Games
         { ok: false, agent_balance: nil, code: e.code, message: e.message }
       end
 
+      # Documented provider code for 'User Already Exist' (STATUS_CODES; NOT 20,
+      # which is 'Password error' on FastAPI). Shared namespace with sibling
+      # skins (vblink/ultra_panda inherit this client): the executor treats a
+      # VERIFIED already-exists as success-reuse.
+      def already_exists_code?(code)
+        code.to_i == 12
+      end
+
       def add_user(account:, password:)
         # /fast/user/create
         result = post('/fast/user/create', {
