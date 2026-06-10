@@ -226,16 +226,24 @@ export default {
       v-if="!hasLoginStarted"
       class="flex flex-col items-center justify-center h-full text-center"
     >
-      <a href="#" @click="startLogin()">
-        <img
-          class="w-auto h-10 rounded-md"
-          src="~dashboard/assets/images/channels/facebook_login.png"
-          alt="Facebook-logo"
-        />
-      </a>
-      <p class="py-6">
-        {{ replaceInstallationName($t('INBOX_MGMT.ADD.FB.HELP')) }}
-      </p>
+      <div class="pat-connect-card">
+        <div class="pat-connect-ic">f</div>
+        <h3 class="pat-connect-title">
+          {{ $t('INBOX_MGMT.ADD.FB.CONNECT_TITLE') }}
+        </h3>
+        <p class="pat-connect-desc">
+          {{ $t('INBOX_MGMT.ADD.FB.CONNECT_DESC') }}
+        </p>
+        <button type="button" class="pat-connect-cta" @click="startLogin()">
+          {{ $t('INBOX_MGMT.ADD.FB.CONTINUE_WITH_FACEBOOK') }}
+        </button>
+        <div class="pat-connect-note">
+          {{ $t('INBOX_MGMT.ADD.FB.SECURITY_NOTE') }}
+        </div>
+        <p class="pat-connect-help">
+          {{ replaceInstallationName($t('INBOX_MGMT.ADD.FB.HELP')) }}
+        </p>
+      </div>
     </div>
     <div v-else>
       <div v-if="hasError" class="max-w-lg mx-auto text-center">
@@ -300,3 +308,83 @@ export default {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* B4: spec "Connect Facebook" card (PATRA_APP_final.html connect-fb screen) —
+   centered card, brand icon tile, CTA, reassurance line. Token-driven, both
+   themes. This card is the template for the other channel connect screens. */
+.pat-connect-card {
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 36px 28px;
+  border-radius: 16px;
+  border: 1px solid var(--border, #e5e3eb);
+  background: var(--surface, #fff);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pat-connect-ic {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 700;
+  font-family: 'Space Grotesk', sans-serif;
+  color: #fff;
+  background: linear-gradient(135deg, #1877f2, #0d5cbf);
+  margin-bottom: 16px;
+}
+
+.pat-connect-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--text, #1a1a24);
+  margin-bottom: 8px;
+}
+
+.pat-connect-desc {
+  font-size: 13px;
+  color: var(--text-2, #4a4756);
+  line-height: 1.55;
+  margin-bottom: 18px;
+  max-width: 380px;
+}
+
+.pat-connect-cta {
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #1877f2, #0d5cbf);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pat-connect-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(24, 119, 242, 0.35);
+}
+
+.pat-connect-note {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-4, #908da0);
+}
+
+.pat-connect-help {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-3, #75727f);
+  max-width: 380px;
+  line-height: 1.5;
+}
+</style>

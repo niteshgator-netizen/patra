@@ -58,6 +58,11 @@ const requestAuthorization = async () => {
         v-else
         class="flex flex-col items-center justify-center px-8 py-10 text-center rounded-2xl outline outline-1 outline-n-weak"
       >
+        <span
+          class="flex items-center justify-center size-16 mb-4 rounded-[18px] text-white bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCAF45]"
+        >
+          <span class="i-ri-instagram-line size-8" />
+        </span>
         <h6 class="text-2xl font-medium">
           {{ $t('INBOX_MGMT.ADD.INSTAGRAM.CONNECT_YOUR_INSTAGRAM_PROFILE') }}
         </h6>
