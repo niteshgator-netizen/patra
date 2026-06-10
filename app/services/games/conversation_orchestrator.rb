@@ -67,7 +67,14 @@ module Games
       'request_app_link'          => :request_app_link,
       'cashout_rules'             => :cashout_rules,
       'list_platforms'            => :list_platforms,
-      'payment_method_question'   => :payment_method_question
+      'payment_method_question'   => :payment_method_question,
+      # TAB A F-RAG: cover all 27 DB real_intent labels. greeting_chitchat
+      # routes to :greeting (no orchestrator handler -> handle returns nil ->
+      # LLM brain replies). 'unclear' maps to nil ON PURPOSE: the cutover
+      # branch treats nil as no-route and falls through to the LLM - never
+      # crashes, never mis-routes.
+      'greeting_chitchat'         => :greeting,
+      'unclear'                   => nil
     }.freeze
     RAG_CUTOVER_CONFIDENCE = 0.40   # min RAG confidence to route when regex returns nil (was 0.60; lowered per 73k brain test)
     # Finding-2 fix: block an identical cashout (same game + amount) within this window —
