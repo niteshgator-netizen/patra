@@ -32,4 +32,6 @@ Run date: 2026-06-10 · Branch: main · No pushes in this run.
 
 ## FIX3 — Blank profile page
 
-(pending)
+- **Root cause (verified by reading code):** `/profile` IS a registered route (`profile_settings` in `profile.routes.js`), but its component is `SettingsWrapper` — a layout shell whose content comes from a child `router-view`. Its only children are `settings` (`profile_settings_index`, the real profile page) and `mfa`. There is **no default child for the bare path**, so `/profile` renders the wrapper with an empty outlet — exactly the "sidebar renders, content blank" symptom. Not a broken import: git log on profile.routes.js shows only upstream Chatwoot commits (no patra-ui/eslint hygiene commit ever touched it), and every in-app link (SidebarProfileMenu, MessageSignatureMissingAlert, command bar) targets `profile_settings_index` / `profile/settings`, which works.
+- **Decision:** added a `redirect` on the `profile_settings` parent record → `profile_settings_index`, same shape as the existing `settings_home` redirect in `settings.routes.js`. Children (`settings`, `mfa`) still match directly; redirect only fires for bare `/profile`. No component code touched.
+- `pnpm exec vite build` → green (✓ built in 38.43s).

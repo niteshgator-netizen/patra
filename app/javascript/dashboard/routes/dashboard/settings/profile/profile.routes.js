@@ -14,6 +14,10 @@ export default {
         permissions: ['administrator', 'agent', 'custom_role'],
       },
       component: SettingsWrapper,
+      // Bare /profile has no default child, so it rendered an empty wrapper.
+      redirect: to => {
+        return { name: 'profile_settings_index', params: to.params };
+      },
       children: [
         {
           path: 'settings',
