@@ -4735,12 +4735,14 @@ html:not(.dark) body:not(.dark) .pat-overview-wrap,
 html:not(.dark) body:not(.dark) .account-wrap,
 html:not(.dark) body:not(.dark) .pat-page-wrap,
 html:not(.dark) body:not(.dark) .pat-list-wrap,
+html:not(.dark) body:not(.dark) .pat-reports-wrap,
 html[data-theme="light"] body .pat-settings-shell,
 html[data-theme="light"] body .pat-settings-body,
 html[data-theme="light"] body .pat-overview-wrap,
 html[data-theme="light"] body .account-wrap,
 html[data-theme="light"] body .pat-page-wrap,
-html[data-theme="light"] body .pat-list-wrap {
+html[data-theme="light"] body .pat-list-wrap,
+html[data-theme="light"] body .pat-reports-wrap {
   --canvas: #F6F5F9 !important;
   --surface: #FFFFFF !important;
   --surface-2: #F2F0F7 !important;

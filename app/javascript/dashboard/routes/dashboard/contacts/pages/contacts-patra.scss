@@ -32,6 +32,28 @@
   background: var(--canvas);
 }
 
+/* A0: the block above defines DARK token values on the bare `.contacts-wrap`
+   class (applies in every theme). Re-declare the tokens with light values in
+   light mode so var(--text)/var(--surface) resolve correctly. */
+body:not(.dark) .contacts-wrap,
+[data-theme="light"] .contacts-wrap {
+  --canvas: #F6F5F9;
+  --surface: #FFFFFF;
+  --surface-2: #F6F5F9;
+  --surface-3: #ECEAF4;
+  --surface-4: #E2DFEF;
+  --border: #E5E3EE;
+  --border-hi: #D5D1E4;
+  --text: #1A1A24;
+  --text-2: #4A4756;
+  --text-3: #75727F;
+  --text-4: #908DA0;
+  --inset: rgba(0, 0, 0, 0.04);
+  --mesh-1: rgba(110, 86, 207, 0.08);
+  --mesh-2: rgba(139, 92, 246, 0.05);
+  --mesh-3: rgba(236, 72, 153, 0.03);
+}
+
 #spotlight {
   position: fixed;
   width: 460px;

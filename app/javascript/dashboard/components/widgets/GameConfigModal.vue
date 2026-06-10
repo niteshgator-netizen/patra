@@ -332,6 +332,28 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 20px;
+
+  /* A0: tokens above are DARK values on the bare class — flip to light in
+     light mode (backdrop stays dark in both themes, dialog goes light). */
+  body:not(.dark) &,
+  [data-theme='light'] & {
+    --canvas: #f6f5f9;
+    --surface: #ffffff;
+    --surface-2: #f2f0f7;
+    --surface-3: #ece9f2;
+    --surface-4: #dddae5;
+    --border: #e5e3eb;
+    --border-hi: #d6d3de;
+    --patra-glow: rgba(110, 86, 207, 0.28);
+    --text: #1a1a24;
+    --text-2: #4a4756;
+    --text-3: #75727f;
+    --text-4: #a0a0ab;
+    --green: #1a7f37;
+    --red: #cf222e;
+    --blue: #0969da;
+    --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.25);
+  }
 }
 
 .modal {

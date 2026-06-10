@@ -140,6 +140,24 @@ export default {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   animation: pat-mIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) backwards;
 
+  /* A0: tokens above are DARK values on the bare class — flip to light
+     values in light mode so the card renders correctly in both themes. */
+  body:not(.dark) &,
+  [data-theme='light'] & {
+    --surface: #ffffff;
+    --surface-2: #f2f0f7;
+    --surface-3: #ece9f2;
+    --surface-4: #dddae5;
+    --border: #e5e3eb;
+    --border-hi: #d6d3de;
+    --patra-glow: rgba(110, 86, 207, 0.28);
+    --text: #1a1a24;
+    --text-3: #75727f;
+    --green: #1a7f37;
+    --amber: #9a6700;
+    --blue: #0969da;
+  }
+
   &::after {
     content: '';
     position: absolute;

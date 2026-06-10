@@ -866,6 +866,20 @@ const menuItems = computed(() => {
     --green: #3fb950;
   }
 
+  /* A0: block above sets DARK token values on the bare rail class — give the
+     tokens light values in light mode so borders/text/icons resolve light. */
+  body:not(.dark) .pat-rail.patra-nav-rail,
+  [data-theme="light"] .pat-rail.patra-nav-rail {
+    --canvas: #F6F5F9;
+    --surface: #FFFFFF;
+    --surface-2: #F2F0F7;
+    --border: #E5E3EB;
+    --border-hi: #D6D3DE;
+    --text: #1A1A24;
+    --text-3: #75727F;
+    --patra-glow: rgba(110, 86, 207, 0.28);
+  }
+
   .pat-rail.patra-nav-rail,
   .patra-nav-rail.sidebar-rail,
   .patra-nav-rail.navigation-rails {
