@@ -443,6 +443,17 @@
   transition: all .22s cubic-bezier(.23,1,.32,1);
 }
 
+/* spec: primary buttons also brighten on hover */
+.pat-btn:hover {
+  filter: brightness(1.12);
+}
+
+/* spec .btn.sm small variant */
+.pat-btn.sm {
+  font-size: 12px;
+  padding: 7px 13px;
+}
+
 /* Button hover lift */
 .pat-hbtn:hover,
 .pat-game-action:hover,
@@ -783,7 +794,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 .dark .accordion--title:hover,
 .dark .snav-item:hover {
   background: rgba(110,86,207,.08);
-  transform: translateX(3px);
+  transform: translateX(2px);
   box-shadow: -3px 0 0 var(--patra-purple);
 }
 

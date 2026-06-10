@@ -324,9 +324,13 @@ onUnmounted(() => {
                 v-if="sparkPoints"
                 class="patra-sparkline"
                 viewBox="0 0 60 20"
-                width="60"
-                height="20"
+                preserveAspectRatio="none"
               >
+                <polygon
+                  :points="`0,20 ${sparkPoints} 60,20`"
+                  fill="rgba(110, 86, 207, 0.16)"
+                  stroke="none"
+                />
                 <polyline
                   fill="none"
                   stroke="#6e56cf"
@@ -334,7 +338,7 @@ onUnmounted(() => {
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   :points="sparkPoints"
-                  opacity="0.6"
+                  opacity="0.8"
                 />
               </svg>
               <div class="patra-kpi-l l">
@@ -474,7 +478,7 @@ onUnmounted(() => {
               </div>
               <div v-if="channelEntries.length">
                 <div
-                  v-for="row in channelEntries"
+                  v-for="(row, index) in channelEntries"
                   :key="row.name"
                   class="patra-ch-row"
                 >
@@ -493,7 +497,11 @@ onUnmounted(() => {
                     <div class="patra-ch-nm">{{ row.name }}</div>
                     <div class="patra-ch-bar">
                       <i
-                        :style="{ width: `${row.pct}%`, background: row.color }"
+                        :style="{
+                          width: `${row.pct}%`,
+                          background: row.color,
+                          animationDelay: `${index * 0.1}s`,
+                        }"
                       />
                     </div>
                   </div>
@@ -1246,8 +1254,10 @@ onUnmounted(() => {
 
 .patra-sparkline {
   display: block;
-  margin-top: 4px;
-  opacity: 0.7;
+  margin-top: 12px;
+  width: 100%;
+  height: 30px;
+  opacity: 0.85;
 }
 
 .patra-spark {
