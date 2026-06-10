@@ -38,7 +38,7 @@ defineProps({
     </h3>
     <h4
       data-test-id="reportMetricValue"
-      class="mt-1 mb-0 text-2xl text-n-slate-12"
+      class="pat-kpi-n mt-2 mb-0 text-n-slate-12"
     >
       {{ value }}
     </h4>

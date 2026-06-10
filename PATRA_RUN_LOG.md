@@ -111,7 +111,7 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - [x] R3 InboxReports (+Index/Show)
 - [x] R4 LabelReports (+Index/Show)
 - [x] R5 TeamReports (+Index/Show)
-- [ ] R6 BotReports.vue + components/BotMetrics.vue
+- [x] R6 BotReports.vue + components/BotMetrics.vue
 - [ ] R7 CsatResponses.vue (extend v3 F5 if partial)
 - [ ] R8 SLAReports.vue
 
@@ -149,3 +149,4 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - R1 (this commit) — LiveReports/Overview verified already fully spec-treated (.pat-overview-wrap from a prior run: spotlight, mesh, SG typography, card/table/tooltip/pagination deep maps, light via PART 1). v4 gaps fixed: conversation heatmap was STOCK CHATWOOT BLUE (bg-n-blue-3..11) → new purple ramp pat-hm-p1..6 (default scheme now 'purple'); resolution heatmap teal → Patra-green ramp pat-hm-g1..6; ramps are rgba (read both themes), defined once in patra-themes.css; blue scheme kept available for non-Patra callers. R0 heading/sub rules extended to .pat-overview-wrap (h1 26px spec). DECISION R1-a: kept real-data structure (OwnerStats + live metric cards + 2 heatmaps + agent/team tables) — spec's donut/area/channel cards need aggregates the live store doesn't expose; no-fake-data rule wins. Build green 34.2s.
 - R2 (this commit) — AgentReports/Index/Show verified fully treated (pat-reports-wrap + deep maps from v2; charts already purple via constants.js #6e56cf; R0 cards/pills/heading apply). Gap found in shared SummaryReports table card: .bg-n-solid-2 / .outline-n-container / .text-n-brand spinner not mapped by the Index pages' deep maps → added 3 token rules to the R0 global section (covers every report page at once). Build green 34.8s.
 - R3/R4/R5 (no code beyond R2) — Inbox/Label/Team Reports + Index + Show diffed against the Agent equivalents: structurally identical except store keys (verified via case-normalized diff, 4-23 diff lines all key renames). They share WootReports/SummaryReports/ReportFilters/ReportContainer — every R0+R2 fix applies. Verified: no stock blue/gray, both themes via tokens. 0 page changes.
+- R6 (this commit) — BotReports page verified treated (pat-reports-wrap + deep maps; bot charts purple via constants). BotMetrics: stock mega-card (shadow/outline/bg-n-solid-2 strip) → pat-rep-grid of 4 individual pat-rep-card KPI cards w/ entrance anim; ReportMetricCard value → pat-kpi-n (Space Grotesk 28px; only consumer is BotMetrics, verified by grep). Real data only (live bot metrics API). Build green.
