@@ -787,6 +787,7 @@ watch(() => props.contact?.id, loadExtras);
               type="button"
               class="att-thumb shrink-0 !aspect-auto h-[72px] w-[56px]"
               :disabled="!(row.entry.image_thumb_url || row.entry.image_url)"
+              :aria-label="$t('PATRA.A11Y.VIEW_SCREENSHOT')"
               @click="openFinanceFullImage(row.entry)"
             >
               <img

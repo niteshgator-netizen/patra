@@ -397,6 +397,13 @@
       "INTENT_LOAD_AWAITING": "Load deposit — awaiting amount",
       "INTENT_PAYMENT_AWAITING": "Payment match — awaiting details",
       "INTENT_PAYMENT_MATCHED": "Payment matched ✓"
+    },
+    "A11Y": {
+      "CONTENT_TEMPLATES": "Content templates",
+      "COPILOT_MENU": "AI assist menu",
+      "TOGGLE_EDITOR_SIZE": "Toggle editor size",
+      "DISMISS_SUGGESTION": "Dismiss suggestion",
+      "VIEW_SCREENSHOT": "View payment screenshot"
     }
   }
 }

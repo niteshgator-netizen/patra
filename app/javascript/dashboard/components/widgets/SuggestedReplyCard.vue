@@ -57,7 +57,11 @@ const dismiss = () => {
     <div class="sr-header">
       <span class="sr-dot" />
       <span class="sr-title">{{ $t('PATRA.AI_CARD.SUGGESTED_REPLY') }}</span>
-      <button class="sr-dismiss" @click="dismiss">✕</button>
+      <button
+        class="sr-dismiss"
+        :aria-label="$t('PATRA.A11Y.DISMISS_SUGGESTION')"
+        @click="dismiss"
+      >✕</button>
     </div>
     <p class="sr-text">{{ suggestion }}</p>
     <div class="sr-actions">

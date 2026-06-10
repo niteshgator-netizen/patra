@@ -333,6 +333,7 @@ const onCardMouseMove = e => {
         type="button"
         class="patra-qa"
         :title="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
+        :aria-label="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
         @click.stop="$emit('resolve')"
       >
         ✓
@@ -341,6 +342,7 @@ const onCardMouseMove = e => {
         type="button"
         class="patra-qa"
         :title="$t('PATRA.CONVERSATION_CARD.SNOOZE')"
+        :aria-label="$t('PATRA.CONVERSATION_CARD.SNOOZE')"
         @click.stop="$emit('snooze')"
       >
         ⏰
@@ -499,6 +501,11 @@ const onCardMouseMove = e => {
               ? $t('PATRA.CONVERSATION.UNPIN')
               : $t('PATRA.CONVERSATION.PIN')
           "
+          :aria-label="
+            isPinned
+              ? $t('PATRA.CONVERSATION.UNPIN')
+              : $t('PATRA.CONVERSATION.PIN')
+          "
           @click="togglePin"
         >
           📌
@@ -508,6 +515,7 @@ const onCardMouseMove = e => {
             type="button"
             class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
             :title="$t('PATRA.CONVERSATION_CARD.LABEL')"
+            :aria-label="$t('PATRA.CONVERSATION_CARD.LABEL')"
             @click="toggleLabelDropdown"
           >
             🏷️
