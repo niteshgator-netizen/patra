@@ -34,7 +34,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - [x] ADM2 — account lifecycle & control
 - [x] ADM3 — integration health matrix
 - [x] ADM4 — impersonation / support-login
-- [ ] ADM6 — platform banner
+- [x] ADM6 — platform banner
 - [ ] ADM7 — suspension safety-net
 - [ ] FINAL — proofs + morning summary
 
@@ -179,6 +179,29 @@ model concerns are outside the TAB-C lane ⇒ see DEFERRED-SECURITY.
   audit context or delete it in favor of the audited controller.
 - DB-level immutability for patra_admin_audit_logs (REVOKE UPDATE/DELETE) — run once via psql by
   Genius: `psql $DATABASE_URL -c "REVOKE UPDATE, DELETE ON patra_admin_audit_logs FROM <app_role>;"`
+
+## ADM6 — SHIPPED (specs written, unrun)
+- AUDIT FINDING (good news): the tenant-side banner pipeline ALREADY EXISTS END-TO-END —
+  PlatformBanner model (enum info/warning/error, active scope) → super_admin Administrate CRUD →
+  DashboardController#app_config ACTIVE_PLATFORM_BANNERS (app/controllers/dashboard_controller.rb:84-93)
+  → window.globalConfig (app/javascript/shared/store/globalConfig.js:27) →
+  StatusBanner.vue (app/javascript/dashboard/components/app/StatusBanner.vue — renders + per-update
+  dismissal). NO missing SPA component ⇒ NO DEFERRED-FRONTEND contract needed for banners.
+- Added: platform_banners_controller.rb now audits create/update/destroy via Patra::AdminAudit
+  ('platform_banner.create|update|destroy', message excerpt as reason, permitted attrs as metadata,
+  update/destroy carry target deep-link). Audit row records the ATTEMPT before Administrate performs
+  the mutation (decision: attempts are auditable events; append-only trail).
+- Nothing auto-posts: banners change only via these explicit super-admin actions (verified: only
+  write path is this Administrate controller; `active` defaults true on create — creation IS the
+  explicit post action).
+- Decision: banner posting NOT placed behind the PATRA_ADMIN_CONSOLE_ACTIONS kill-switch — it is a
+  pre-existing capability; TAB-C only ADDED auditing (removing capability overnight = riskier).
+- ⚠ OPERATOR NOTE for Genius: both the posting UI and the tenant read path are gated by
+  ChatwootApp.chatwoot_cloud? (enterprise dir + GlobalConfig DEPLOYMENT_ENV == 'cloud'). I cannot
+  verify Render's DEPLOYMENT_ENV from here — if banners don't show in prod, check
+  `psql $DATABASE_URL -c "SELECT value FROM installation_configs WHERE name='DEPLOYMENT_ENV';"`.
+- Spec: spec/controllers/super_admin/platform_banners_controller_spec.rb (cloud gate 404, audited
+  create/update/destroy, tenant read path shows active-only banners).
 
 ## ADM7 FINDINGS — filled when ADM7 done
 
