@@ -3,6 +3,7 @@ class Webhooks::TelegramEventsJob < ApplicationJob
 
   def perform(params = {})
     return unless params[:bot_token]
+    return if duplicate_update?(params)
 
     channel = Channel::Telegram.find_by(bot_token: params[:bot_token])
 
@@ -15,6 +16,28 @@ class Webhooks::TelegramEventsJob < ApplicationJob
   end
 
   private
+
+  # Telegram retries webhook deliveries; messages carry no unique constraint,
+  # so a replayed update would create a duplicate. Dedup on update_id for 24h.
+  # Fails OPEN (process the event) on any Redis error — losing a player message
+  # is worse than a rare duplicate.
+  def duplicate_update?(params)
+    update_id = params.dig(:telegram, :update_id)
+    return false if update_id.blank?
+
+    token_part = Digest::SHA256.hexdigest(params[:bot_token].to_s)[0, 16]
+    key = "patra:tg_update:#{token_part}:#{update_id}"
+    first_time = Sidekiq.redis { |conn| conn.set(key, '1', nx: true, ex: 86_400) }
+    if first_time
+      false
+    else
+      Rails.logger.info("[TelegramEventsJob] duplicate update_id=#{update_id} skipped")
+      true
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[TelegramEventsJob] dedup check failed (processing anyway): #{e.class}: #{e.message}")
+    false
+  end
 
   def channel_is_inactive?(channel)
     return true if channel.blank?

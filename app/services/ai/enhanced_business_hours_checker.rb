@@ -32,6 +32,10 @@ module Ai
       scope = Holiday.for_account(account.id).for_date(Date.current)
       scope = scope.where(inbox_id: [nil, inbox&.id]) if inbox
       scope.exists?
+    rescue StandardError => e
+      # Fail open (not closed): a DB hiccup must not silence Bella account-wide.
+      Rails.logger.error("[EnhancedBusinessHoursChecker] holiday check failed: #{e.class}: #{e.message}")
+      false
     end
 
     def self.within_range?(time, start_str, end_str)

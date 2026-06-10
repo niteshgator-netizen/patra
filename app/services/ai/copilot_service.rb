@@ -10,15 +10,17 @@ module Ai
       call_ai(prompt)
     end
 
+    # Patra runs on DeepSeek (shared client handles retry + reasoning_content
+    # fallback). The old OpenAI path silently returned '' in production because
+    # OPENAI_API_KEY is not part of the Patra stack.
     def self.call_ai(prompt)
-      return '' unless ENV['OPENAI_API_KEY'].present?
-
-      response = HTTParty.post(
-        'https://api.openai.com/v1/chat/completions',
-        headers: { 'Authorization' => "Bearer #{ENV['OPENAI_API_KEY']}", 'Content-Type' => 'application/json' },
-        body: { model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }], max_tokens: 300 }.to_json
+      out = Ai::DeepseekClient.complete(
+        system_prompt: 'You assist a support-inbox agent. Reply with only what is asked — no preamble, no markdown.',
+        user_content: prompt,
+        max_tokens: 300,
+        temperature: 0.4
       )
-      response.dig('choices', 0, 'message', 'content').to_s.strip
+      out.to_s.strip
     rescue StandardError => e
       Rails.logger.error("[CopilotService] #{e.message}")
       ''
