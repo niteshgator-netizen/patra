@@ -56,6 +56,9 @@ class Ai::ReplyService
   # per-message fetch traffic.
   CANNED_CACHE_PREFIX = 'patra:canned:'.freeze
   CANNED_CACHE_TTL = 600
+  # H3: hard cap for the player vault+memory block embedded in the system
+  # prompt - a player with huge memory must not blow the prompt size.
+  PLAYER_PROFILE_MAX_CHARS = 6000
   # Single-quoted heredoc — no interpolation, so apostrophes inside the prompt
   # (e.g. "won't") and the literal escalation phrase don't need escaping.
   SYSTEM_PROMPT = <<~'PROMPT'.freeze
@@ -1984,6 +1987,11 @@ class Ai::ReplyService
   end
 
   def build_system_prompt(payment_info, training_info = '', persona_info = '', player_profile = '', canned_responses = '', needs_payment_link = false, rag_examples_block: '')
+    if player_profile.to_s.length > PLAYER_PROFILE_MAX_CHARS
+      Rails.logger.warn("[AiReply] player_profile truncated #{player_profile.to_s.length} -> #{PLAYER_PROFILE_MAX_CHARS} chars conv=#{@conversation_id}")
+      player_profile = player_profile.to_s[0, PLAYER_PROFILE_MAX_CHARS]
+    end
+
     active_handle_hint = nil
     begin
       if defined?(Payments::HandleSelector) && @bridge_account_id.present?
@@ -2126,6 +2134,7 @@ class Ai::ReplyService
       'Authorization' => "Bearer #{use_deepseek ? ENV['DEEPSEEK_API_KEY'] : api_key}",
       'Content-Type' => 'application/json'
     }
+    Rails.logger.info("[AiReply] prompt_chars=#{system_prompt.to_s.length} history_msgs=#{llm_messages.size} conv=#{@conversation_id}")
     # DeepSeek flash can emit reasoning_content; max_tokens caps reasoning+answer,
     # so keep generous headroom or the reply gets starved to empty. ENV-tunable.
     llm_body = {
