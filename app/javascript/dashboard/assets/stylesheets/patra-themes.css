@@ -5155,6 +5155,18 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
   line-height: 1.1;
 }
 
+/* report surfaces the per-page deep maps missed (summary table card,
+   table-card outline, brand spinner) — one home for all report pages */
+.pat-reports-wrap .bg-n-solid-2 {
+  background: var(--surface) !important;
+}
+.pat-reports-wrap .outline-n-container {
+  outline-color: var(--border) !important;
+}
+.pat-reports-wrap .text-n-brand {
+  color: var(--patra-3) !important;
+}
+
 /* trend pill — JetBrains Mono, tinted with the trend color (currentColor) */
 .pat-reports-wrap .pat-trend-pill {
   font-family: 'JetBrains Mono', monospace;
