@@ -649,30 +649,16 @@ module Games
           game_slug: game_slug,
           action: 'recharge',
           username: username,
-          amount: fp_amount.to_i
+          amount: fp_amount.to_i,
+          metadata: { freeplay: true, source: 'bella_freeplay', conversation_id: conversation&.id }
         )
 
         if result[:success]
-          begin
-            ag = pick_agent_game(game_slug)
-            if ag
-              GameAction.create!(
-                account_id: account.id,
-                agent_game_id: ag.id,
-                contact_id: contact.id,
-                conversation_id: conversation&.id,
-                action_type: 'load',
-                order_id: GameAction.generate_order_id(prefix: 'fp'),
-                game_username: username,
-                amount: fp_amount,
-                status: 'success',
-                metadata: { freeplay: true, source: 'bella_freeplay' },
-                executed_at: Time.current
-              )
-            end
-          rescue StandardError => e
-            Rails.logger.error("[Orchestrator] Freeplay GameAction log failed: #{e.message}")
-          end
+          # TAB A fix: the executor already audits this load as a GameAction
+          # with the metadata above. The old manual GameAction.create! here
+          # recorded every freeplay TWICE and left the executor copy
+          # unflagged, so freeplay money counted as a REAL deposit in
+          # cashout-multiplier and deposit-only-transfer math.
 
           reply_text = rules.format_message(rules.freeplay_message || 'fp loaded ✅', {
             amount: fp_amount.to_s,
@@ -782,41 +768,31 @@ module Games
           }
         end
 
+        # TAB A fix (same F12 class): deterministic order_id so concurrent
+        # duplicates of the SAME payment cannot double-load via the bonus path.
+        bonus_order_id = deterministic_payment_order_id(payment[:id])
+        return already_loaded_response(deposit_amount) if bonus_order_id.nil?
+
         result = execute_game_api(
           game_slug: game_slug,
           action: 'recharge',
           username: username,
-          amount: total_load.to_i
+          amount: total_load.to_i,
+          metadata: {
+            deposit_bonus: true,
+            deposit_amount: deposit_amount,
+            bonus_amount: bonus_amount,
+            payment_id: payment[:id],
+            source: 'bella_bonus'
+          },
+          order_id: bonus_order_id
         )
 
         if result[:success]
-          begin
-            ag = pick_agent_game(game_slug)
-            if ag
-              GameAction.create!(
-                account_id: account.id,
-                agent_game_id: ag.id,
-                contact_id: contact.id,
-                conversation_id: conversation&.id,
-                action_type: 'load',
-                order_id: GameAction.generate_order_id(prefix: 'bonus'),
-                game_username: username,
-                amount: total_load,
-                status: 'success',
-                metadata: {
-                  deposit_bonus: true,
-                  deposit_amount: deposit_amount,
-                  bonus_amount: bonus_amount,
-                  payment_id: payment[:id],
-                  source: 'bella_bonus'
-                },
-                executed_at: Time.current
-              )
-            end
-          rescue StandardError => e
-            Rails.logger.error("[Orchestrator] Bonus GameAction log failed: #{e.message}")
-          end
-
+          # TAB A fix: the executor already audits this load as a GameAction
+          # with the metadata above. The old manual GameAction.create! here
+          # recorded every bonus load TWICE, double-counting deposits in
+          # cashout-multiplier math.
           mark_payment_loaded(payment[:id], game_slug: game_slug, game_username: username)
 
           reply_text = rules.format_message(rules.deposit_bonus_message || 'Loaded with {bonus_pct}% bonus ✅', {
@@ -3316,7 +3292,7 @@ module Games
                 .where(contact_id: contact_id, games: { slug: game_slug })
     end
 
-    def execute_game_api(game_slug:, action:, username:, amount: nil)
+    def execute_game_api(game_slug:, action:, username:, amount: nil, metadata: nil, order_id: nil)
       ag = pick_agent_game(game_slug)
       return { success: false, error: 'game unavailable' } unless ag
 
@@ -3327,7 +3303,8 @@ module Games
         result = executor.load_player(
           game_username: username,
           amount: amount,
-          metadata: { source: 'bella_orchestrator' }
+          metadata: metadata || { source: 'bella_orchestrator' },
+          order_id: order_id
         )
         { success: result[:ok], error: result[:error], balance: nil }
       when 'agent_balance', 'balance'
