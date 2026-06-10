@@ -67,3 +67,57 @@ Highest per-file change ratios in v4 (lines touched ÷ current length): SLATable
 5. Onboarding: P logo tile next to greeting, purple Continue.
 6. Owner dashboard: "Top questions Patra AI handled" card only appears when the account has AI-handled conversations; full-page skeleton on first load; checklist single-column at 768px.
 7. Keyboard-tab across Patra buttons → purple focus ring.
+
+---
+
+# OVERNIGHT MASTER RUN (v5 reconciled / v6 / MASTER)
+
+Base: `ROLLBACK_HASH_MASTER=779b40b0cede27dda91ed94e1736f3c5271c68ca`. 21 commits, ~78 app files (+4752/−3842; ~5k of that is the 4 Captain SVG fill swaps). Pure UI — **zero .rb changes** (one .erb view copy edit). Local only, no push.
+
+## V5/V6 RECONCILIATION
+v5 (P/F/G/H) queue text unrecoverable (never logged); H1/H2 marked **DEFERRED-BACKEND** per instructions; rest assumed absorbed where overlapping. v6 reconstructed from one-liners; Z absorbed by this ship pack.
+
+## WHAT WAS DONE
+
+| Item | Summary |
+|---|---|
+| L auth | All auth screens verified already Patra (prior session); SAML login was the one stock straggler → rebuilt on the Patra auth shell. Testimonials confirmed unused. |
+| X inbox | 17/22 inbox-v5 spec points verified done. Fixed: ✦ Auto-reply pill on bot bubbles, spec typing bounce (6px dots, translateY), send button Patra gradient. Reactions = unbuilt feature (KNOWN_REMAINING). |
+| T settings | automationSafety/replyStyle/gameRules/playerTiers/referrals were raw dark-only slate → shared `.pat-tpage` treatment (tokens both themes, Patra CTAs, skel loaders). knowledge/labels verified. |
+| U primitives | Toast link purple; Banner 'blue' variant → iris; tooltip border+shadow; confirm dialogs verified inherited. |
+| V flagships | Contacts 10/10 parity; games card icon/typography/manage-players dark gradient fixed; AI training verified spec-exact. |
+| W remnants | Stock n-blue accents → iris across 17 files (inbox menus, macros, calendar, shared Button/Checkbox/ChoiceToggle, 4 Captain SVGs ×624 fills, link texts). Kept: woot- (violet-remapped), Label palette options, semantic colors. |
+| Y hygiene | 0 console.logs in 86 touched files; eslint --fix normalized 64 files. |
+| O1 debrand | All 28 PWA/favicon icons were still Chatwoot art → regenerated as the Patra mark @1024 (Pillow installed as tooling); manifest Patra colors; chatwoot.com links/copy → patrahq; super-admin alert; widget bot avatar → P tile. |
+| O2 aria | 14 icon-only controls gained aria-labels (card quick-actions, composer tools, copilot, dismiss, screenshot); PATRA.A11Y group. |
+| O3 phone | Auth card padding @sm; dashboard 1-col KPIs/stacked topbar @480; contacts two-pane stacks @768; inbox verified. |
+| O4 tests | 3 spec files (HandoffCard gating, SuggestedReplyCard apply→bus, pat-skel contract). **BLOCKED-BY-DEPS:** vitest 4.1 (security pin) needs vite≥6, repo pins vite 5.4.21 — specs can't execute until pins align. CustomRoles prefill spec skipped (feature never built — v5). |
+| O5 demo | Games got a designed empty state (had none) + skel loader; companies empty polish; inbox empty copy i18n'd; report empty copy humanized; fake-data sweep clean (v2 had emptied sample arrays). |
+| PUB1 widget | Theming mechanism documented (per-inbox widgetColor → --widget-color; launcher recolored at runtime). Defaults only: Patra purple fallback color, launcher pre-load color, header weight. Config always wins. |
+| PUB2 survey | Patra gradient accent bar, purple submit + focus rings on the public CSAT card. |
+| PUB3 portal | Additive scss polish (article rhythm, accent card hover, accent search ring) respecting per-portal color; no Chatwoot branding found. |
+| PUB4 errors | Self-contained branded 404/422/500: inline CSS + inline SVG P mark, zero external deps. |
+| Δ1 loop | Pass 1: 7 mockups covered (4 delta'd in X/V, dashboard-v2 + settings via parallel audits → 5 fixes incl. sparkline area fill, channel stagger, snav slide, button brightness/sm). Pass 2: value-level verification of every fix = all present, 0 regressions, 0 new fixable deltas → **converged at 2 passes**. |
+
+## KNOWN_REMAINING (master)
+- **DEFERRED-BACKEND:** v5 H1/H2 (text unrecovered, backend-touching).
+- vitest/vite pin conflict blocks running the O4 specs (`ERR_PACKAGE_PATH_NOT_EXPORTED vite/module-runner`).
+- Message emoji reactions: skeleton class only, feature unbuilt.
+- KPI trend pills need prior-period data from the dashboard API (no-fake-data).
+- T-phase light-settings pages' body copy is hardcoded English (predates v2).
+- patrahq.com/terms + /privacy links assume those pages exist — Genius to confirm.
+- Settings-card cursor glow (spec) needs per-card JS listeners — skipped as logic.
+- `public/assets/images/chatwoot_bot.png` file remains on disk (now unreferenced; deletion needs explicit OK).
+
+## MASTER VERIFY (for Genius)
+`pnpm exec vite build` (green — every entry: dashboard, widget, survey, portal, v3, sdk built in the final run). Then:
+1. **Auth:** /app/login, signup, SSO (SAML), reset, verify — all on the dark Patra shell incl. SAML; cards readable at 375px.
+2. **Inbox:** bot replies show the ✦ Auto-reply pill; typing dots bounce; send button is purple gradient; tab through composer icons — focus rings + screen-reader labels.
+3. **PWA/debrand:** browser tab + pinned-app icon = purple P everywhere (hard-refresh to bust favicon cache); signup T&C links to patrahq.com; no user-visible "Chatwoot" anywhere.
+4. **Empty account:** dashboard/games/companies/inbox/reports all show designed empty states, zero fake data.
+5. **Widget (test page):** launcher purple before config load; bubbles/footer follow the inbox color; "Powered by Patra"; bot avatar = P tile.
+6. **Survey:** open a CSAT link — gradient top bar, purple submit.
+7. **Help center:** category cards lift toward the portal color on hover; search focus ring follows it.
+8. **Error pages:** /404 → branded page with P mark while Rails is up (and when down).
+9. **Settings:** the 5 light pages (automation safety, reply style, game rules, player tiers, referrals) now themed in BOTH themes.
+10. After fixing the vitest/vite pin: `pnpm test app/javascript/dashboard/components/widgets/specs`.
