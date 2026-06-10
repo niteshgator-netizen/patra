@@ -95,12 +95,13 @@ A5 Finish early? Do NOT invent features. Deepen the bug hunt, expand audits, re-
       IP-whitelist: verified Patra only DISPLAYS health (test_connection) — external whitelist correctly NOT claimed controllable.
 
 ## PHASE 5 — RE-PROOF (wall or S6 path after money-adjacent changes + once at end)
-- [ ] Final wall run / S6 record
+- [x] MID-RUN (after all code changes, 2026-06-10): INTENT SUITE 128/128 LOCAL GREEN (real detector via tmp/self_tests/h1_intent_suite_local.rb — verified by me now). ruby -c Syntax OK on all touched files (orchestrator, referral_bonus_service, harness). All 6 TAB A self-tests pass (f21-f26). Harness/preflight/smoke = WALL-LOCAL-UNRUNNABLE → exact Render commands in Phase 1 section; harness now includes TABA-1/2/3 sections proving tonight's fixes on real code.
+- [ ] Final wall attempt at end of run
 
 ## PHASE 6 — AUDIT-ONLY
-- [ ] ROLES audit → PATRA_ROLES_AUDIT.md
-- [ ] BACKUP pages/connectors audit → PATRA_BACKUP_AUDIT.md
-- [ ] AI MEMORY audit (VaultContextBuilder, rotate_player_memory_job, player_memory_writer)
+- [x] ROLES audit → PATRA_ROLES_AUDIT.md. CRITICAL (verified by me directly, agent_games_controller.rb:1-2,73,101): money endpoints load_player/cashout_player/add_player/reset_player_password have NO role guard — any agent can call them (caps + approval gate + audit trail still apply). NOTHING enforced tonight by design → HANDOFF-B-3 dark-flag diff written. Also unguarded: game_rules, player_tiers, reply_preferences (incl. confirm_before_cashout!), referrals#create/update, cashier_claims.
+- [ ] BACKUP pages/connectors audit → PATRA_BACKUP_AUDIT.md (Explore agent running)
+- [ ] AI MEMORY audit (agent running; verify claims before writing)
 
 ## PHASE 7 — MORNING SUMMARY (top of this file)
 - [ ] Write 2-min readable summary + verdict
@@ -135,6 +136,10 @@ account.custom_attributes['webhook_url'] is only ever POSTed by the controller's
 (patra/settings_controller.rb:42-67). No listener emits real events to it (webhook_listener.rb
 uses inbox.channel.webhook_url). Decide: emit conversation/payment events to this URL via a
 listener, or drop the field from the settings UI. Until then it is BACKEND-MISSING.
+
+## HANDOFF-B-3: role guards for money endpoints (agent_games_controller.rb + siblings — TAB B lane)
+See PATRA_ROLES_AUDIT.md for the full table + exact dark-flag diff (PATRA_RESTRICT_MONEY_ACTIONS,
+default OFF). Do NOT apply live tonight — operator decision in the morning.
 
 ═══ HANDOFF-C ═══
 (exact file/line/diff for TAB C-owned fixes)
