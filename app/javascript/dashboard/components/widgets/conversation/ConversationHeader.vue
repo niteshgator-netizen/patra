@@ -262,6 +262,19 @@ const otherParticipants = computed(() => {
   return participants.filter(a => a.id !== currentUser.value?.id);
 });
 
+/* C3: real typing events only — other AGENTS typing in this conversation
+   (action-cable fed conversationTypingStatus store). */
+const isOtherAgentTyping = computed(() => {
+  if (!currentChat.value?.id) return false;
+  const userList =
+    store.getters['conversationTypingStatus/getUserList'](
+      currentChat.value.id
+    ) || [];
+  return userList.some(
+    u => u.type !== 'contact' && u.id !== currentUser.value?.id
+  );
+});
+
 const autoReplyEnabled = computed(
   () => currentChat.value?.additional_attributes?.auto_reply !== false
 );
@@ -335,7 +348,11 @@ const fetchConversationWatchers = () => {
             >
               {{ p.name?.charAt(0) }}
             </span>
-            <span class="patra-participants-text">are also viewing</span>
+            <span class="patra-participants-text">
+              are also viewing<template v-if="isOtherAgentTyping">
+                · typing</template
+              >
+            </span>
           </div>
         </div>
         <div class="patra-conv-head-sub">
