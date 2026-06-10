@@ -880,4 +880,13 @@ Rails.application.routes.draw do
   # ----------------------------------------------------------------------
   # Routes for testing
   resources :widget_tests, only: [:index] unless Rails.env.production?
+
+  # ======================================================================
+  # == PATRA TAB-C ROUTES — SUPER ADMIN OPERATOR CONSOLE (marked block) ==
+  # All TAB-C routes live ONLY inside this block. Auth is enforced at the
+  # controller layer (SuperAdmin::ApplicationController#authenticate_super_admin!).
+  namespace :super_admin do
+    resources :patra_admin_audit_logs, only: [:index, :show]
+  end
+  # == END PATRA TAB-C ROUTES ==
 end

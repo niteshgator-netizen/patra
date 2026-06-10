@@ -29,7 +29,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
    end-of-file block; failed replace → re-read + re-apply minimal.
 
 ## QUEUE
-- [ ] ADM5 — immutable admin audit trail (FIRST — ADM2/ADM4 depend on it)
+- [x] ADM5 — immutable admin audit trail (FIRST — ADM2/ADM4 depend on it)
 - [ ] ADM1 — platform command center
 - [ ] ADM2 — account lifecycle & control
 - [ ] ADM3 — integration health matrix
@@ -80,5 +80,28 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 ## DEFERRED-SECURITY
 
 ## SPECS-UNRUN
+- ALL TAB-C specs are written but UNRUN locally: `bundle exec rspec` fails with "command not found:
+  rspec" — the gem bundle is not installed in this Windows checkout (exit 127 verified 2026-06-10).
+  Setup to run them:
+  1. `bundle install` (needs Ruby + Postgres headers; on Render/CI this is already done)
+  2. `RAILS_ENV=test bundle exec rails db:create db:schema:load` (loads my additive migration too)
+  3. `bundle exec rspec spec/lib/patra/ spec/controllers/super_admin/patra_admin_audit_logs_controller_spec.rb`
+  Every TAB-C file passes `ruby -c`. No pass is claimed for any spec below — they are written-not-run.
+
+## ADM5 — SHIPPED (specs written, unrun)
+- Files: db/migrate/20260610090000_create_patra_admin_audit_logs.rb (ADDITIVE create_table),
+  app/models/patra_admin_audit_log.rb (readonly? after persist + before_destroy raise),
+  lib/patra/admin_audit.rb (Patra::AdminAudit.record + deep credential scrubber),
+  app/dashboards/patra_admin_audit_log_dashboard.rb (FORM_ATTRIBUTES = [], COLLECTION_FILTERS
+  action:/admin:/since:/before:), app/controllers/super_admin/patra_admin_audit_logs_controller.rb
+  (newest-first default order), routes only: [:index, :show] in marked block.
+- Append-only contract: ONLY write path is Patra::AdminAudit.record; model raises
+  ActiveRecord::ReadOnlyRecord on update/destroy; no create/update/destroy routes (spec asserts
+  RoutingError). DB-level immutability (REVOKE UPDATE/DELETE on patra_admin_audit_logs) = documented
+  FUTURE HARDENING for Genius/psql — app cannot do it safely in a migration shared across envs.
+- Scrubber: masks values under keys matching secret/password/credential/token/api_key/auth/session/
+  cookie/otp (case-insensitive) at ANY depth, and any string value that looks like an opaque ≥32-char
+  hex/base64 blob even under innocent keys.
+- target_type stores base_class (SuperAdmin target would store 'User') so polymorphic lookups work.
 
 ## HANDOFFS
