@@ -1,0 +1,66 @@
+name: Run Patra specs
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'spec/**', 'app/**', 'lib/**', 'config/**', '.github/workflows/run_specs.yml' ]
+jobs:
+  rspec:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: chatwoot_test }
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: [ "6379:6379" ]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: postgres
+      REDIS_URL: redis://localhost:6379
+      SECRET_KEY_BASE: dummy_secret_key_base_for_test_only_000000000000000000000000
+      FRONTEND_URL: http://localhost:3000
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: test_dummy_primary_key_000000000000
+      ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: test_dummy_determ_key_0000000000000
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: test_dummy_salt_00000000000000000000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with: { ruby-version: 3.4.4, bundler-cache: true }
+      - name: pgvector + DB from migrations (schema.rb is stale — never schema:load)
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d chatwoot_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          bundle exec rails db:create db:migrate
+      - name: Run Patra specs
+        run: |
+          bundle exec rspec \
+            spec/controllers/webhooks/telegram_secret_validation_spec.rb \
+            spec/controllers/api/v1/accounts/patra/tenancy_hardening_spec.rb \
+            spec/controllers/api/v1/accounts/patra_live_ai_endpoints_spec.rb \
+            spec/controllers/patra_suspension_safety_net_spec.rb \
+            spec/controllers/super_admin/patra_admin_audit_logs_controller_spec.rb \
+            spec/controllers/super_admin/patra_dashboard_controller_spec.rb \
+            spec/controllers/super_admin/patra_accounts_controller_spec.rb \
+            spec/controllers/super_admin/patra_game_health_controller_spec.rb \
+            spec/controllers/super_admin/patra_impersonations_controller_spec.rb \
+            spec/controllers/super_admin/platform_banners_controller_spec.rb \
+            spec/lib/patra/admin_audit_spec.rb \
+            spec/lib/patra/finance_analytics_spec.rb \
+            spec/lib/patra/game_health_query_spec.rb \
+            spec/services/games/money_handlers_spec.rb \
+            spec/services/games/action_executor_spec.rb \
+            spec/services/games/fast_api_client_spec.rb \
+            spec/services/games/asp_net_panel_base_client_spec.rb \
+            spec/services/games/winback_service_spec.rb \
+            spec/services/ai/deepseek_client_spec.rb \
+            spec/services/ai/ai_fleet_spec.rb \
+            spec/services/facebook/patra_graph_service_spec.rb \
+            spec/jobs/patra_payment_jobs_spec.rb \
+            spec/models/patra_models_spec.rb
