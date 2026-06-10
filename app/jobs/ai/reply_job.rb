@@ -9,6 +9,18 @@
 class Ai::ReplyJob < ApplicationJob
   queue_as :default
 
+  # Bounded retry posture. Without these, any unhandled error falls through to
+  # Sidekiq's DEFAULT 25 retries over ~3 weeks — one poisoned message would
+  # re-hit DeepSeek dozens of times. ActiveJob picks the LAST matching handler,
+  # so transient send errors get 5 attempts; everything else gets 3, then a
+  # loud give-up log instead of an endless retry storm.
+  retry_on StandardError, wait: :polynomially_longer, attempts: 3 do |job, error|
+    Rails.logger.error("[AiReply] GIVING UP after 3 attempts args=#{job.arguments.inspect[0, 120]} #{error.class}: #{error.message}")
+  end
+  retry_on Messaging::TransientSendError, wait: :polynomially_longer, attempts: 5 do |job, error|
+    Rails.logger.error("[AiReply] GIVING UP on transient sends after 5 attempts args=#{job.arguments.inspect[0, 120]} #{error.message}")
+  end
+
   HTTP_TIMEOUT = 10
   AI_SOURCE_ID = 'ai_auto'.freeze
   REPLY_LOCK_KEY = 'patra:reply_lock:conv:%<conv_id>s'.freeze
