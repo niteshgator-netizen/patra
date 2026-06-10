@@ -62,6 +62,13 @@ const oldReportRoutes = [
     meta,
     component: TeamReports,
   },
+  {
+    // Same singular/plural mismatch as inbox: /reports/team 404'd.
+    path: 'team',
+    redirect: to => {
+      return { name: 'team_reports', params: to.params };
+    },
+  },
 ];
 
 const revisedReportRoutes = [

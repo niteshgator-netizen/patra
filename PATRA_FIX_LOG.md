@@ -26,7 +26,9 @@ Run date: 2026-06-10 · Branch: main · No pushes in this run.
 
 ## FIX2 — Team report 404
 
-(pending)
+- Checked components first: `TeamReports.vue`, `TeamReportsIndex.vue`, `TeamReportsShow.vue` all exist on disk and are already imported + registered in `reports.routes.js` (paths `teams`, `teams_overview`, `teams/:id`). So this is the same singular/plural mismatch as FIX1, NOT a missing-page case — no nav link removal needed.
+- **Decision:** same additive redirect as FIX1 — registered `team` → named route `team_reports`. Plural `teams` URL and command-bar link untouched.
+- `pnpm exec vite build` → green (✓ built in 37.28s).
 
 ## FIX3 — Blank profile page
 
