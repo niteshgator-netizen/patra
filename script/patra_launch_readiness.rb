@@ -291,6 +291,63 @@ ping('queue latency snapshot') do
   true
 end
 
+# ──────────────── 5b. TAB B LAUNCH ADDITIONS (appended 2026-06-10) ────────────
+# Additive only — nothing above this line was changed.
+section('5b. TAB B LAUNCH ADDITIONS')
+
+ping('env completeness vs .env.example (names only)') do
+  example = File.join(__dir__, '..', '.env.example')
+  raise '.env.example not found' unless File.exist?(example)
+
+  names = File.readlines(example).filter_map do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?('#')
+
+    line.split('=', 2).first if line.include?('=')
+  end.uniq
+  unset = names.reject { |n| ENV.key?(n) }
+  puts "        #{names.size} names in .env.example, #{unset.size} not set in this environment"
+  if unset.any?
+    puts "        unset (review — many are optional): #{unset.first(25).join(', ')}#{unset.size > 25 ? ', ...' : ''}"
+  end
+  true
+end
+
+ping('HB live-AI endpoints routed + controllers load') do
+  r1 = Rails.application.routes.recognize_path(
+    "/api/v1/accounts/#{ACCOUNT_ID}/conversations/123/patra_ai_analysis", method: :post
+  )
+  raise "analysis route resolves to #{r1[:controller]}" unless r1[:controller] == 'api/v1/accounts/patra_ai_analysis'
+
+  r2 = Rails.application.routes.recognize_path(
+    "/api/v1/accounts/#{ACCOUNT_ID}/patra_playground/messages", method: :post
+  )
+  raise "playground route resolves to #{r2[:controller]}" unless r2[:controller] == 'api/v1/accounts/patra_playground'
+
+  # constantize so a load error fails here, not on first live request
+  Api::V1::Accounts::PatraAiAnalysisController
+  Api::V1::Accounts::PatraPlaygroundController
+  Ai::PlaygroundPromptBuilder
+  true
+end
+
+ping('telegram webhook secret posture') do
+  enforcing = ENV['TELEGRAM_WEBHOOK_VALIDATE_SECRET'] == 'true'
+  if enforcing
+    puts '        enforcement ON — webhooks must have been re-registered (re-save telegram channels)'
+  else
+    warn!('telegram webhook secret enforcement OFF (warn-only mode) — re-register webhooks then set TELEGRAM_WEBHOOK_VALIDATE_SECRET=true')
+  end
+  true
+end
+
+ping('no plaintext secrets snapshot files tracked by git') do
+  tracked = `git ls-files chatwoot_vars.json sidekiq_vars.json redis_vars.json pgvector_vars.json patra-automation-BACKUP/ 2>/dev/null`.strip
+  raise "tracked secret files found: #{tracked}" unless tracked.empty?
+
+  true
+end
+
 # ─────────────────────────── 6. SUMMARY ───────────────────────────────────────
 section('6. SUMMARY')
 puts "LAUNCH READINESS: #{$p} pass / #{$w} warn / #{$f} fail"
