@@ -9,7 +9,12 @@ class Api::V1::Accounts::Patra::HolidaysController < Api::V1::Accounts::BaseCont
   end
 
   def create
-    holiday = Current.account.holidays.create!(holiday_params)
+    attrs = holiday_params
+    if attrs[:inbox_id].present? && !Current.account.inboxes.exists?(attrs[:inbox_id])
+      return render json: { error: 'inbox does not belong to this account' }, status: :unprocessable_entity
+    end
+
+    holiday = Current.account.holidays.create!(attrs)
     render json: holiday, status: :created
   end
 

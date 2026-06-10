@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Patra::IncidentController < Api::V1::Accounts::BaseController
+  before_action :check_admin_authorization?
+
   def pause_ai
     attrs = Current.account.custom_attributes || {}
     attrs['ai_paused'] = true
@@ -9,7 +11,9 @@ class Api::V1::Accounts::Patra::IncidentController < Api::V1::Accounts::BaseCont
   end
 
   def broadcast_open
-    message = params[:message]
+    message = params[:message].to_s.strip
+    return render json: { error: 'message required' }, status: :unprocessable_entity if message.blank?
+
     count = 0
     Current.account.conversations.open.find_each do |conv|
       user = current_user

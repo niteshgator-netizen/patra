@@ -2,6 +2,9 @@
 
 class Api::V1::Accounts::ReferralsController < Api::V1::Accounts::BaseController
   before_action :set_referral, only: [:update]
+  # Bonus amounts/eligibility are account-wide money config — admins only.
+  # create/update stay agent-accessible: agents log and verify referrals mid-chat.
+  before_action :check_admin_authorization?, only: [:update_settings]
 
   def index
     @referrals = Current.account.referrals.includes(:referrer_contact, :referred_contact)
