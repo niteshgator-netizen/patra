@@ -404,6 +404,10 @@
       "TOGGLE_EDITOR_SIZE": "Toggle editor size",
       "DISMISS_SUGGESTION": "Dismiss suggestion",
       "VIEW_SCREENSHOT": "View payment screenshot"
+    },
+    "INBOX_EMPTY": {
+      "TITLE": "All clear!",
+      "TEXT": "No conversations in this view. New messages will appear here automatically."
     }
   }
 }

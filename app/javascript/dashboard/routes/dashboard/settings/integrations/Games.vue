@@ -255,8 +255,21 @@ export default {
           <span>{{ $t('GAMES.TIP_BANNER') }}</span>
         </div>
 
-        <div v-if="isLoading" class="loading-state">
-          {{ $t('GAMES.LOADING') }}
+        <div v-if="isLoading" class="flex flex-col gap-3 py-4">
+          <div v-for="n in 4" :key="n" class="pat-skel h-24 w-full rounded-xl" />
+        </div>
+
+        <div
+          v-else-if="!mergedGames.length"
+          class="flex flex-col items-center justify-center gap-2 py-16 text-center"
+        >
+          <span class="text-4xl" aria-hidden="true">🎰</span>
+          <p class="text-base font-medium" style="color: var(--text, inherit)">
+            {{ $t('GAMES.EMPTY_STATE.TITLE') }}
+          </p>
+          <p class="text-sm max-w-md" style="color: var(--text-3, inherit)">
+            {{ $t('GAMES.EMPTY_STATE.SUBTITLE') }}
+          </p>
         </div>
 
         <div v-else class="games-grid">

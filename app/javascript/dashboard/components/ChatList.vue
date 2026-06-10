@@ -1010,10 +1010,9 @@ watch(conversationFilters, (newVal, oldVal) => {
       class="patra-empty-inbox"
     >
       <div class="patra-empty-icon">💬</div>
-      <div class="patra-empty-title">All clear!</div>
+      <div class="patra-empty-title">{{ $t('PATRA.INBOX_EMPTY.TITLE') }}</div>
       <div class="patra-empty-text">
-        No conversations in this view. New messages will appear here
-        automatically.
+        {{ $t('PATRA.INBOX_EMPTY.TEXT') }}
       </div>
     </div>
     <ConversationBulkActions
