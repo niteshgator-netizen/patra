@@ -44,7 +44,7 @@ Rails.application.reloader.to_prepare do
     # with source:'dynamic' (predating the source tag). load_from_hash!
     # only cleans up source:'schedule' entries, so these need explicit removal.
     # Remove names from this list once they've been through a deploy cycle.
-    %w[bulk_auto_assignment_job].each { |name| Sidekiq::Cron::Job.destroy(name) }
+    %w[bulk_auto_assignment_job remove_stale_contact_inboxes_job.rb remove_stale_redis_keys_job.rb].each { |name| Sidekiq::Cron::Job.destroy(name) }
 
     Sidekiq::Cron::Job.load_from_hash!(schedule, source: 'schedule')
   end

@@ -30,7 +30,28 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   tmp/self_tests/h3_customer_migration_test.rb ALL PASS (13 asserts) + ruby -c OK.
   RSpec spec/services/backup/customer_migration_spec.rb written (SPECS-UNRUN locally).
   BackupPages stay standby — nothing in H1-H3 activates anything.
-- [ ] H4 dead crons (.rb-suffixed names) + full cron audit
+- [x] H4 dead crons + full cron audit. FINDING (a, read-verified): the two ".rb" entries were
+  NAME-malformed only — sidekiq-cron names are labels; both classes
+  (Internal::RemoveStaleContactInboxesJob / RemoveStaleRedisKeysJob) exist and were resolvable,
+  so the jobs were likely RUNNING under ugly names, not dead. Fixed anyway: renamed both keys
+  (no other same-pattern siblings — checked all 30), added old .rb names to the sidekiq.rb
+  explicit-destroy list so stale Redis entries are cleaned on deploy.
+  AUDIT of all 30 crons: every class resolves to a real file (90/90 asserts). Per-record-rescue
+  fixes applied (non-hot, non-WIP): contacts/lifecycle_update_job (per-contact),
+  contacts/segmentation_job (per-contact), contacts/activity_score_job (per-account),
+  cashier/expire_claims_job (per-claim), payments/handle_health_monitor_job (per-account),
+  contacts/re_engage_job (per-contact), reengage_dormant_contacts_job (per-account + .to_i on
+  reengage_days — string value would have raised on "14".days).
+  Already-safe (verified): daily_summary, send_scheduled, proactive_session_refresh, email_poll
+  (per-inbox), imap_check (per-handle/per-contact), shift_report, rotate_player_memory,
+  dormant_player_job, refresh_fb_tokens, winback (owner-WIP service — per-account+per-contact
+  rescue VERIFIED by read, no change needed). Stock Chatwoot trigger/housekeeping jobs
+  (trigger_*, delete_accounts, periodic_assignment, remove_old_notification, remove_orphans,
+  fetch_imap, remove_stale_*) delegate to per-record sub-jobs or are upstream-stable —
+  REPORT-ONLY, no edits (fork-divergence not worth it). Sla::CheckViolationsJob per-account
+  rescue lands with H5. Proof: tmp/self_tests/h4_schedule_classes_test.rb ALL PASS (90) +
+  spec/configs/schedule_classes_spec.rb (constantize + performable on Render) + ruby -c OK on
+  all 9 touched files.
 - [ ] H5 SLA wiring (sla_alerts_enabled / first_response / resolution mirrors)
 - [ ] H6 Patra::WebhookEmitter (4 events, non-hot seams, never blocks money path)
 - [ ] H7 panda master blank balance — diagnose + patra_panda_probe.rb
@@ -104,6 +125,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   `ruby tmp/self_tests/h2_drip_scheduler_test.rb` → ALL PASS 21)
 - H3: `bundle exec rspec spec/services/backup/customer_migration_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h3_customer_migration_test.rb` → ALL PASS 13)
+- H4: `bundle exec rspec spec/configs/schedule_classes_spec.rb spec/configs/schedule_spec.rb`
+  (local equivalent ran: `ruby tmp/self_tests/h4_schedule_classes_test.rb` → ALL PASS 90)
 
 ## COMMITS
 (one line per item as committed)

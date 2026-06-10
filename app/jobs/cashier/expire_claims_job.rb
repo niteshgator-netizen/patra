@@ -8,6 +8,9 @@ module Cashier
       CashierClaim.expired_due.find_each do |claim|
         claim.expire!
         notify_cashiers(claim)
+      rescue StandardError => e
+        # One bad claim must not block expiry of the remaining claims.
+        Rails.logger.error("[ExpireClaimsJob] claim=#{claim.id} #{e.class}: #{e.message}")
       end
     end
 

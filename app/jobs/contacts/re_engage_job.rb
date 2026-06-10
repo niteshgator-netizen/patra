@@ -13,6 +13,9 @@ module Contacts
 
         eligible_contacts(account, reengage_days).find_each do |contact|
           send_reengage(account, contact, template)
+        rescue StandardError => e
+          # One bad contact must not kill the whole sweep.
+          Rails.logger.error("[ReEngageJob] contact=#{contact.id} #{e.class}: #{e.message}")
         end
       end
     end

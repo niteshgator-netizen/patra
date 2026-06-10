@@ -13,6 +13,9 @@ module Contacts
 
           attrs['lifecycle_stage'] = stage
           contact.update!(custom_attributes: attrs)
+        rescue StandardError => e
+          # One bad contact must not kill the whole sweep.
+          Rails.logger.error("[LifecycleUpdateJob] contact=#{contact.id} #{e.class}: #{e.message}")
         end
       end
     end
