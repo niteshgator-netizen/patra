@@ -112,7 +112,7 @@ const dayClasses = day => ({
     isInCurrentMonth(day),
   'bg-n-brand text-white':
     isSelectedStartOrEndDate(day) && isInCurrentMonth(day),
-  'bg-n-blue-4 dark:bg-n-blue-5':
+  'bg-n-iris-4 dark:bg-n-iris-5':
     (isInRange(day) || isHoveringInRange(day)) &&
     !isSelectedStartOrEndDate(day) &&
     isInCurrentMonth(day),
@@ -163,7 +163,7 @@ const dayClasses = day => ({
             !isLastDayOfMonth(day) &&
             isInCurrentMonth(day)
           "
-          class="absolute bottom-0 w-6 h-8 ltr:-right-4 rtl:-left-4 bg-n-blue-4 dark:bg-n-blue-5 -z-10"
+          class="absolute bottom-0 w-6 h-8 ltr:-right-4 rtl:-left-4 bg-n-iris-4 dark:bg-n-iris-5 -z-10"
         />
       </div>
     </div>

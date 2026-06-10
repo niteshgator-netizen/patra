@@ -408,9 +408,7 @@ const isBlacklisted = computed(
   () => attrs.value.blacklisted === true || attrs.value.blacklisted === 'true'
 );
 
-const lastVaultMsgId = computed(
-  () => attrs.value?.vault_cursor_msg_id || null
-);
+const lastVaultMsgId = computed(() => attrs.value?.vault_cursor_msg_id || null);
 
 const gameCredentials = computed(() => {
   const creds = [];
@@ -709,10 +707,7 @@ watch(() => props.contact?.id, loadExtras);
           paymentStatusPill.label
         }}</span>
       </div>
-      <div
-        class="field pat-blacklist-row"
-        :class="{ active: isBlacklisted }"
-      >
+      <div class="field pat-blacklist-row" :class="{ active: isBlacklisted }">
         <span class="k">{{ $t('BLACKLIST.TOGGLE') }}</span>
         <span class="v">
           <button
@@ -792,6 +787,7 @@ watch(() => props.contact?.id, loadExtras);
               type="button"
               class="att-thumb shrink-0 !aspect-auto h-[72px] w-[56px]"
               :disabled="!(row.entry.image_thumb_url || row.entry.image_url)"
+              :aria-label="$t('PATRA.A11Y.VIEW_SCREENSHOT')"
               @click="openFinanceFullImage(row.entry)"
             >
               <img
@@ -878,11 +874,7 @@ watch(() => props.contact?.id, loadExtras);
         </ul>
       </div>
       <div v-if="hasPendingCashout" class="patra-cashout-approve">
-        <button
-          type="button"
-          class="patra-approve-btn"
-          @click="approveCashout"
-        >
+        <button type="button" class="patra-approve-btn" @click="approveCashout">
           {{ $t('PLAYER_PROFILE.APPROVE_PAY_CASHOUT') }}
         </button>
       </div>
@@ -1030,7 +1022,9 @@ watch(() => props.contact?.id, loadExtras);
             />
           </label>
           <label class="pat-mem-field">
-            <span class="pat-mem-flabel">{{ $t('PLAYER_PROFILE.PATIENCE') }}</span>
+            <span class="pat-mem-flabel">{{
+              $t('PLAYER_PROFILE.PATIENCE')
+            }}</span>
             <input
               v-model="memoryDraft.patience"
               type="text"
@@ -1039,7 +1033,9 @@ watch(() => props.contact?.id, loadExtras);
             />
           </label>
           <label class="pat-mem-field">
-            <span class="pat-mem-flabel">{{ $t('PLAYER_PROFILE.ATTITUDE') }}</span>
+            <span class="pat-mem-flabel">{{
+              $t('PLAYER_PROFILE.ATTITUDE')
+            }}</span>
             <input
               v-model="memoryDraft.attitude"
               type="text"

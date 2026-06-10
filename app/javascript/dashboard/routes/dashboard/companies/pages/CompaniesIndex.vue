@@ -179,15 +179,23 @@ onMounted(() => {
         @create="openCreateCompanyDialog"
       >
         <div v-if="isFetchingList" class="flex flex-col gap-4 py-2">
-          <div v-for="n in 5" :key="n" class="pat-skel h-20 w-full rounded-xl" />
+          <div
+            v-for="n in 5"
+            :key="n"
+            class="pat-skel h-20 w-full rounded-xl"
+          />
         </div>
         <div
           v-else-if="companies.length === 0"
-          class="flex items-center justify-center p-8"
+          class="flex flex-col items-center justify-center gap-2 p-12 text-center"
         >
-          <span class="text-n-slate-11 text-base">{{
+          <span class="text-4xl" aria-hidden="true">🏢</span>
+          <span class="text-n-slate-12 text-base font-medium">{{
             t('COMPANIES.EMPTY_STATE.TITLE')
           }}</span>
+          <p class="text-n-slate-11 text-sm max-w-md">
+            {{ t('COMPANIES.EMPTY_STATE.INDEX_SUBTITLE') }}
+          </p>
         </div>
         <div v-else class="flex flex-col gap-4">
           <CompaniesCard

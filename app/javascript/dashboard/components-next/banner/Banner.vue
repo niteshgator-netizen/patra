@@ -24,7 +24,8 @@ const bannerClass = computed(() => {
       'bg-n-amber-3 border-n-amber-4 text-n-amber-11 [&_.link]:text-n-amber-11',
     teal: 'bg-n-teal-3 border-n-teal-4 text-n-teal-11 [&_.link]:text-n-teal-11',
     ruby: 'bg-n-ruby-3 border-n-ruby-4 text-n-ruby-11 [&_.link]:text-n-ruby-11',
-    blue: 'bg-n-blue-3 border-n-blue-4 text-n-blue-11 [&_.link]:text-n-blue-11',
+    // 'blue' kept as the API name; renders the Patra violet (iris) scale
+    blue: 'bg-n-iris-3 border-n-iris-4 text-n-iris-11 [&_.link]:text-n-iris-11',
   };
 
   return classMap[props.color];
@@ -36,7 +37,7 @@ const buttonClass = computed(() => {
     amber: 'bg-n-amber-4 hover:bg-n-amber-5 text-n-amber-11',
     teal: 'bg-n-teal-4 hover:bg-n-teal-5 text-n-teal-11',
     ruby: 'bg-n-ruby-4 hover:bg-n-ruby-5 text-n-ruby-11',
-    blue: 'bg-n-blue-4 hover:bg-n-blue-5 text-n-blue-11',
+    blue: 'bg-n-iris-4 hover:bg-n-iris-5 text-n-iris-11',
   };
 
   return classMap[props.color];

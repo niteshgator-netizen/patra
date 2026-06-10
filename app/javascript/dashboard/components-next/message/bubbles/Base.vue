@@ -30,8 +30,7 @@ const router = useRouter();
 
 const isHandoffMessage = computed(
   () =>
-    contentType.value === 'ai_handoff' ||
-    additionalAttributes.value?.ai_handoff
+    contentType.value === 'ai_handoff' || additionalAttributes.value?.ai_handoff
 );
 
 const varaintBaseMap = {
@@ -134,6 +133,13 @@ const replyToPreview = computed(() => {
     >
       {{ t('PATRA.MESSAGE.INTERNAL_NOTE') }}
     </p>
+    <span
+      v-if="variant === MESSAGE_VARIANTS.BOT"
+      class="patra-bubble-ai-pill"
+      aria-hidden="true"
+    >
+      ✦ {{ t('PATRA.MESSAGE.AUTO_REPLY') }}
+    </span>
     <!-- Patra AI handoff message -->
     <div v-if="isHandoffMessage" class="patra-thread-handoff">
       <div class="patra-th-header">
@@ -141,26 +147,17 @@ const replyToPreview = computed(() => {
         <span class="patra-th-title">{{ $t('PATRA.AI_CARD.HANDED_BY') }}</span>
       </div>
       <div class="patra-th-grid">
-        <div
-          v-if="additionalAttributes?.intent"
-          class="patra-th-row"
-        >
+        <div v-if="additionalAttributes?.intent" class="patra-th-row">
           <span class="patra-th-label">{{ $t('PATRA.AI_CARD.INTENT') }}</span>
           <span class="patra-th-value">{{ additionalAttributes.intent }}</span>
         </div>
-        <div
-          v-if="additionalAttributes?.confidence"
-          class="patra-th-row"
-        >
-          <span class="patra-th-label">{{ $t('PATRA.AI_CARD.CONFIDENCE') }}</span>
-          <span class="patra-th-value">{{
-            Math.round(additionalAttributes.confidence * 100)
-          }}%</span>
+        <div v-if="additionalAttributes?.confidence" class="patra-th-row">
+          <span class="patra-th-label">{{
+            $t('PATRA.AI_CARD.CONFIDENCE')
+          }}</span>
+          <span class="patra-th-value">{{ Math.round(additionalAttributes.confidence * 100) }}%</span>
         </div>
-        <div
-          v-if="additionalAttributes?.reason"
-          class="patra-th-row"
-        >
+        <div v-if="additionalAttributes?.reason" class="patra-th-row">
           <span class="patra-th-label">{{ $t('PATRA.AI_CARD.REASON') }}</span>
           <span class="patra-th-value">{{ additionalAttributes.reason }}</span>
         </div>
@@ -255,6 +252,22 @@ body:not(.dark) .patra-conv-bubble {
   );
   border: 1px solid rgba(139, 92, 246, 0.32);
   color: var(--pb-text);
+}
+
+/* spec ✦ pill above AI auto-replies */
+.patra-bubble-ai-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: rgba(139, 92, 246, 0.18);
+  color: var(--pb-patra-3, #a78bfa);
+  border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .patra-conv-bubble--private {

@@ -1451,7 +1451,6 @@ export default {
         v-else
         key="reply-bottom-panel"
         :conversation-id="conversationId"
-        @open-canned-responses="openCannedResponses"
         :enable-multiple-file-upload="enableMultipleFileUpload"
         :enable-whats-app-templates="showWhatsappTemplates"
         :enable-content-templates="showContentTemplates"
@@ -1462,6 +1461,7 @@ export default {
         :is-note="isPrivate"
         :is-editor-disabled="isEditorDisabled"
         :on-file-upload="onFileUpload"
+        @open-canned-responses="openCannedResponses"
         :on-send="onSendReply"
         :conversation-type="conversationType"
         :recording-audio-duration-text="recordingAudioDurationText"
@@ -1494,9 +1494,7 @@ export default {
             @click="smartComposeEnabled = !smartComposeEnabled"
           >
             ✦
-            {{
-              smartComposeEnabled ? 'Smart Compose on' : 'Smart Compose'
-            }}
+            {{ smartComposeEnabled ? 'Smart Compose on' : 'Smart Compose' }}
           </button>
         </template>
       </ReplyBottomPanel>
@@ -1549,6 +1547,12 @@ export default {
 .patra-conv-composer:has(.ProseMirror-focused) {
   border-color: #6e56cf !important;
   box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
+}
+
+/* spec send button — Patra gradient + glow over the stock n-brand solid */
+.patra-conv-composer :deep(button[type='''submit'''].bg-n-brand) {
+  background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
+  box-shadow: 0 3px 12px rgba(110, 86, 207, 0.4);
 }
 
 .patra-conv-composer.is-private {
@@ -1953,7 +1957,10 @@ body:not(.dark) .patra-conv-composer {
 
 .pat-composer :deep(.patra-composer-tools button:hover:not(:disabled)),
 .pat-composer
-  :deep(.patra-composer-right > button:not(.patra-composer-send):hover:not(:disabled)) {
+  :deep(
+    .patra-composer-right
+      > button:not(.patra-composer-send):hover:not(:disabled)
+  ) {
   color: var(--text, #ededf2);
   background: var(--surface-3, #1b1925);
   transform: none;

@@ -172,6 +172,7 @@ export default {
           }"
           sm
           icon="i-ph-sparkle-fill"
+          :aria-label="$t('PATRA.A11Y.COPILOT_MENU')"
           @click="toggleCopilotMenu"
         />
         <CopilotMenuBar
@@ -189,6 +190,8 @@ export default {
         class="text-n-slate-11"
         sm
         icon="i-lucide-maximize-2"
+        :aria-label="$t('PATRA.A11Y.TOGGLE_EDITOR_SIZE')"
+        v-tooltip.top-end="$t('PATRA.A11Y.TOGGLE_EDITOR_SIZE')"
         @click="$emit('toggleEditorSize')"
       />
     </div>

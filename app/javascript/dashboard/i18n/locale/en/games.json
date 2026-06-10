@@ -112,6 +112,10 @@
       "UPDATED": "Game settings updated",
       "DEACTIVATED": "Game deactivated",
       "ERROR": "Something went wrong. Try again."
+    },
+    "EMPTY_STATE": {
+      "TITLE": "No games connected yet",
+      "SUBTITLE": "Connect your first game platform to start automating loads, cashouts and freeplay."
     }
   }
 }

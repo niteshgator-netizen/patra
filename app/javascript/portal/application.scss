@@ -49,3 +49,60 @@ body {
     }
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   PATRA — help-center polish (additive, CSS only). The per-portal
+   accent color is respected everywhere via --dynamic-hover-color
+   (set from window.portalConfig.portalColor by portalThemeHelper);
+   Patra purple is only the fallback when a portal has no color.
+   ───────────────────────────────────────────────────────────────── */
+
+// article reading rhythm
+#cw-article-content.article-content {
+  line-height: 1.75;
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
+  }
+
+  a {
+    text-underline-offset: 3px;
+    transition: color 0.15s;
+
+    &:hover {
+      color: var(--dynamic-hover-color, #6e56cf);
+    }
+  }
+}
+
+// category cards lift toward the portal accent on hover
+#category-block {
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.2s,
+    box-shadow 0.25s;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--dynamic-hover-color, #6e56cf) !important;
+    box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.18);
+  }
+}
+
+// hero search focus ring follows the portal accent
+#portal-bg-gradient input:focus {
+  outline: none;
+  border-color: var(--dynamic-hover-color, #6e56cf);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--dynamic-hover-color, #6e56cf) 15%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #category-block,
+  #category-block:hover {
+    transition: none;
+    transform: none;
+  }
+}

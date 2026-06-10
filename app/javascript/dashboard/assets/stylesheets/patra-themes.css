@@ -443,6 +443,17 @@
   transition: all .22s cubic-bezier(.23,1,.32,1);
 }
 
+/* spec: primary buttons also brighten on hover */
+.pat-btn:hover {
+  filter: brightness(1.12);
+}
+
+/* spec .btn.sm small variant */
+.pat-btn.sm {
+  font-size: 12px;
+  padding: 7px 13px;
+}
+
 /* Button hover lift */
 .pat-hbtn:hover,
 .pat-game-action:hover,
@@ -783,7 +794,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 .dark .accordion--title:hover,
 .dark .snav-item:hover {
   background: rgba(110,86,207,.08);
-  transform: translateX(3px);
+  transform: translateX(2px);
   box-shadow: -3px 0 0 var(--patra-purple);
 }
 
@@ -2575,10 +2586,10 @@ aside.pat-rail.patra-nav-rail {
 }
 .dark .gcard .gcard-ic {
   font-size: 28px;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
-  background: var(--surface-2, #131119);
+  background: linear-gradient(135deg, var(--surface-2, #131119), var(--surface-3, #1B1925));
   border: 1px solid var(--border, #171520);
   display: inline-flex;
   align-items: center;
@@ -2586,7 +2597,7 @@ aside.pat-rail.patra-nav-rail {
   transition: transform .3s cubic-bezier(.34,1.56,.64,1);
 }
 .dark .gcard:hover .gcard-ic {
-  transform: scale(1.08) rotate(-4deg);
+  transform: scale(1.1) rotate(-5deg);
   border-color: var(--patra, #6E56CF) !important;
 }
 .dark .gcard .gn {
@@ -2597,7 +2608,7 @@ aside.pat-rail.patra-nav-rail {
 }
 .dark .gcard .gd {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   color: var(--text-3, #75727F) !important;
   margin-top: 2px;
 }
@@ -2706,6 +2717,15 @@ aside.pat-rail.patra-nav-rail {
 .dark .gcard-btn.cfg:hover {
   filter: brightness(1.1);
   box-shadow: 0 5px 16px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .gcard-btn.mp {
+  background: linear-gradient(135deg, rgba(110, 86, 207, 0.16), rgba(139, 92, 246, 0.06)) !important;
+  border-color: rgba(139, 92, 246, 0.32) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .gcard-btn.mp:hover {
+  background: linear-gradient(135deg, rgba(110, 86, 207, 0.26), rgba(139, 92, 246, 0.12)) !important;
+  border-color: var(--patra, #6E56CF) !important;
 }
 
 /* ── 7. ADD GAME MODAL ── */
@@ -4780,13 +4800,15 @@ html:not(.dark) body:not(.dark) .account-wrap,
 html:not(.dark) body:not(.dark) .pat-page-wrap,
 html:not(.dark) body:not(.dark) .pat-list-wrap,
 html:not(.dark) body:not(.dark) .pat-reports-wrap,
+html:not(.dark) body:not(.dark) .pat-tpage,
 html[data-theme="light"] body .pat-settings-shell,
 html[data-theme="light"] body .pat-settings-body,
 html[data-theme="light"] body .pat-overview-wrap,
 html[data-theme="light"] body .account-wrap,
 html[data-theme="light"] body .pat-page-wrap,
 html[data-theme="light"] body .pat-list-wrap,
-html[data-theme="light"] body .pat-reports-wrap {
+html[data-theme="light"] body .pat-reports-wrap,
+html[data-theme="light"] body .pat-tpage {
   --canvas: #F6F5F9 !important;
   --surface: #FFFFFF !important;
   --surface-2: #F2F0F7 !important;
@@ -5246,4 +5268,112 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
   .pat-skel::after {
     animation: none;
   }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   T — LIGHT SETTINGS PAGES SHARED TREATMENT (.pat-tpage)
+   automationSafety / replyStyle / gameRules / playerTiers / referrals.
+   Dark token set here (the established cured form); light values come
+   from the PART 1 wrapper override which includes .pat-tpage. Cures the
+   raw slate-800/600 utilities those pages used (dark-only, stock look).
+   ════════════════════════════════════════════════════════════════════ */
+.pat-tpage {
+  --canvas: #050409;
+  --surface: #0c0b12;
+  --surface-2: #131119;
+  --surface-3: #1b1925;
+  --surface-4: #252233;
+  --border: #171520;
+  --border-hi: #2e2940;
+  --patra: #6e56cf;
+  --patra-3: #a78bfa;
+  --text: #ededf2;
+  --text-2: #a8a6b6;
+  --text-3: #75727f;
+  --text-4: #54515e;
+  --green: #3fb950;
+  --red: #f85149;
+
+  background: var(--canvas);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+}
+
+.pat-tpage h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.pat-tpage h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pat-tpage .text-slate-400 {
+  color: var(--text-2) !important;
+}
+
+.pat-tpage .text-slate-500 {
+  color: var(--text-3) !important;
+}
+
+.pat-tpage .bg-slate-800,
+.pat-tpage .bg-slate-900 {
+  background: var(--surface-2) !important;
+}
+
+.pat-tpage .border-slate-600,
+.pat-tpage .border-slate-700 {
+  border-color: var(--border) !important;
+}
+
+.pat-tpage select,
+.pat-tpage textarea,
+.pat-tpage input[type='text'],
+.pat-tpage input[type='number'] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+}
+
+.pat-tpage select:focus,
+.pat-tpage textarea:focus,
+.pat-tpage input[type='text']:focus,
+.pat-tpage input[type='number']:focus {
+  border-color: var(--patra);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
+}
+
+.pat-tpage input[type='checkbox'] {
+  accent-color: var(--patra);
+}
+
+.pat-tpage hr {
+  border-color: var(--border);
+}
+
+/* indigo CTA buttons → Patra gradient */
+.pat-tpage .bg-indigo-600 {
+  background: linear-gradient(135deg, var(--patra), #5b45b0) !important;
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(110, 86, 207, 0.3);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.pat-tpage .bg-indigo-600:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(110, 86, 207, 0.4);
+}
+
+.pat-tpage .bg-indigo-600:focus-visible {
+  outline: 2px solid var(--patra);
+  outline-offset: 2px;
 }

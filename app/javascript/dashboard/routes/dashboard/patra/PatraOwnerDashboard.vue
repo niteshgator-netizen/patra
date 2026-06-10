@@ -116,7 +116,10 @@ const sparkPoints = computed(() => {
   );
   const max = Math.max(...ordered, 1);
   return ordered
-    .map((v, i) => `${Math.round((i * 60) / 6)},${(18 - (v / max) * 14).toFixed(1)}`)
+    .map(
+      (v, i) =>
+        `${Math.round((i * 60) / 6)},${(18 - (v / max) * 14).toFixed(1)}`
+    )
     .join(' ');
 });
 
@@ -298,7 +301,10 @@ onUnmounted(() => {
 
           <div class="patra-kpis pat-dash-grid">
             <!-- TODO: wire backend — KPI drill-down -->
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-violet">
                   <svg
@@ -318,9 +324,13 @@ onUnmounted(() => {
                 v-if="sparkPoints"
                 class="patra-sparkline"
                 viewBox="0 0 60 20"
-                width="60"
-                height="20"
+                preserveAspectRatio="none"
               >
+                <polygon
+                  :points="`0,20 ${sparkPoints} 60,20`"
+                  fill="rgba(110, 86, 207, 0.16)"
+                  stroke="none"
+                />
                 <polyline
                   fill="none"
                   stroke="#6e56cf"
@@ -328,7 +338,7 @@ onUnmounted(() => {
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   :points="sparkPoints"
-                  opacity="0.6"
+                  opacity="0.8"
                 />
               </svg>
               <div class="patra-kpi-l l">
@@ -336,7 +346,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-blue">
                   <svg
@@ -355,7 +368,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-green">
                   <svg
@@ -374,7 +390,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-violet">
                   <svg viewBox="0 0 24 24" fill="#8B5CF6">
@@ -392,7 +411,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-red">
                   <svg
@@ -416,7 +438,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="patra-kpi patra-card pat-stat-card" @click="noopPlaceholder">
+            <div
+              class="patra-kpi patra-card pat-stat-card"
+              @click="noopPlaceholder"
+            >
               <div class="patra-kpi-top">
                 <div class="patra-kpi-ic patra-kpi-ic-green">
                   <svg
@@ -453,7 +478,7 @@ onUnmounted(() => {
               </div>
               <div v-if="channelEntries.length">
                 <div
-                  v-for="row in channelEntries"
+                  v-for="(row, index) in channelEntries"
                   :key="row.name"
                   class="patra-ch-row"
                 >
@@ -472,7 +497,11 @@ onUnmounted(() => {
                     <div class="patra-ch-nm">{{ row.name }}</div>
                     <div class="patra-ch-bar">
                       <i
-                        :style="{ width: `${row.pct}%`, background: row.color }"
+                        :style="{
+                          width: `${row.pct}%`,
+                          background: row.color,
+                          animationDelay: `${index * 0.1}s`,
+                        }"
                       />
                     </div>
                   </div>
@@ -553,12 +582,16 @@ onUnmounted(() => {
                   <div class="patra-leg">
                     <span class="patra-leg-sw patra-leg-sw-amber" />
                     {{ legendEscalated }}
-                    <span class="patra-leg-v">{{ formatPercent(stats.escalation_rate) }}</span>
+                    <span class="patra-leg-v">{{
+                      formatPercent(stats.escalation_rate)
+                    }}</span>
                   </div>
                   <div class="patra-leg">
                     <span class="patra-leg-sw patra-leg-sw-muted" />
                     {{ legendStillOpen }}
-                    <span class="patra-leg-v">{{ formatPercent(stats.still_open_rate) }}</span>
+                    <span class="patra-leg-v">{{
+                      formatPercent(stats.still_open_rate)
+                    }}</span>
                   </div>
                 </div>
               </div>
@@ -591,7 +624,9 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <div class="patra-ms pat-stat-card">
-                  <div class="patra-ms-n n">{{ stats.new_customers_today }}</div>
+                  <div class="patra-ms-n n">
+                    {{ stats.new_customers_today }}
+                  </div>
                   <div class="patra-ms-l l">
                     {{ $t('PATRA.DASHBOARD.NEW_CUSTOMERS') }}
                   </div>
@@ -693,11 +728,7 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="patra-topq">
-              <div
-                v-for="(q, i) in topQuestions"
-                :key="i"
-                class="patra-tq-row"
-              >
+              <div v-for="(q, i) in topQuestions" :key="i" class="patra-tq-row">
                 <span class="patra-tq-label">{{ q.question }}</span>
                 <div class="patra-tq-bar-wrap">
                   <div class="patra-tq-bar" :style="{ width: q.pct + '%' }" />
@@ -734,9 +765,16 @@ onUnmounted(() => {
                     :key="`${day}-${hour}`"
                     class="patra-hm-cell"
                     :style="{
-                      opacity: heatmapCells.map[`${heatmapDayIndex(day)}-${hour}`]
-                        ? 0.15 + 0.85 * (heatmapCells.map[`${heatmapDayIndex(day)}-${hour}`] / heatmapCells.max)
-                        : 0.05
+                      opacity: heatmapCells.map[
+                        `${heatmapDayIndex(day)}-${hour}`
+                      ]
+                        ? 0.15 +
+                          0.85 *
+                            (heatmapCells.map[
+                              `${heatmapDayIndex(day)}-${hour}`
+                            ] /
+                              heatmapCells.max)
+                        : 0.05,
                     }"
                   />
                 </template>
@@ -767,7 +805,10 @@ onUnmounted(() => {
                 </div>
                 <span class="patra-card-more">{{ activeAgentsCount }}</span>
               </div>
-              <ul v-if="stats.active_agents?.length" class="patra-agent-list pat-dash-table">
+              <ul
+                v-if="stats.active_agents?.length"
+                class="patra-agent-list pat-dash-table"
+              >
                 <!-- TODO: wire backend — agent drill-down -->
                 <li
                   v-for="(agent, index) in stats.active_agents"
@@ -925,8 +966,7 @@ onUnmounted(() => {
   right: -5%;
   width: 700px;
   height: 560px;
-  background:
-    radial-gradient(circle at 40% 40%, var(--mesh-1), transparent 60%),
+  background: radial-gradient(circle at 40% 40%, var(--mesh-1), transparent 60%),
     radial-gradient(circle at 70% 70%, var(--mesh-2), transparent 60%);
   animation: patra-mesh-a 22s ease-in-out infinite alternate;
 }
@@ -1214,8 +1254,10 @@ onUnmounted(() => {
 
 .patra-sparkline {
   display: block;
-  margin-top: 4px;
-  opacity: 0.7;
+  margin-top: 12px;
+  width: 100%;
+  height: 30px;
+  opacity: 0.85;
 }
 
 .patra-spark {
@@ -1290,16 +1332,34 @@ onUnmounted(() => {
 
 /* C4: staggered entrance per spec (dashboard-v2 mockup) — transform/opacity
    only, GPU-friendly. */
-.patra-kpi:nth-child(1) { animation-delay: 0s; }
-.patra-kpi:nth-child(2) { animation-delay: 0.06s; }
-.patra-kpi:nth-child(3) { animation-delay: 0.12s; }
-.patra-kpi:nth-child(4) { animation-delay: 0.18s; }
-.patra-kpi:nth-child(5) { animation-delay: 0.24s; }
-.patra-kpi:nth-child(6) { animation-delay: 0.3s; }
+.patra-kpi:nth-child(1) {
+  animation-delay: 0s;
+}
+.patra-kpi:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.patra-kpi:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.patra-kpi:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.patra-kpi:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.patra-kpi:nth-child(6) {
+  animation-delay: 0.3s;
+}
 
-.patra-grid > .patra-card:nth-child(1) { animation-delay: 0.1s; }
-.patra-grid > .patra-card:nth-child(2) { animation-delay: 0.16s; }
-.patra-card-full { animation-delay: 0.22s; }
+.patra-grid > .patra-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.patra-grid > .patra-card:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.patra-card-full {
+  animation-delay: 0.22s;
+}
 
 .patra-kpi::after {
   content: '';
@@ -1843,6 +1903,32 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .patra-checklist-wrap :deep(ul) {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* O3: phone (375px) — single-column KPIs, stacked topbar, wrapping footer */
+@media (max-width: 480px) {
+  .patra-kpis,
+  .patra-mini-stats,
+  .patra-loading-skel-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .patra-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 16px 0;
+  }
+
+  .patra-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .patra-loads-footer {
+    flex-wrap: wrap;
+    gap: 12px;
   }
 }
 

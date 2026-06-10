@@ -130,7 +130,8 @@
       }
     },
     "EMPTY_STATE": {
-      "TITLE": "No companies found"
+      "TITLE": "No companies found",
+      "INDEX_SUBTITLE": "Companies group your contacts by organization. Create your first company to get started."
     }
   },
   "COMPANIES_LAYOUT": {

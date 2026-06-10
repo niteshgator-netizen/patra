@@ -154,7 +154,7 @@ export default {
     class="flex items-center justify-center w-full h-full min-h-screen overflow-auto bg-n-background"
   >
     <div
-      class="flex flex-col w-full h-full bg-n-solid-1 rounded-lg border border-solid border-n-weak shadow-md lg:w-2/5 lg:h-auto"
+      class="pat-survey-card flex flex-col w-full h-full bg-n-solid-1 border border-solid border-n-weak shadow-md lg:w-2/5 lg:h-auto"
     >
       <div class="w-full px-12 pt-12 pb-6 m-auto my-0">
         <img v-if="logo" :src="logo" alt="Patra logo" class="mb-6 logo" />
@@ -206,5 +206,47 @@ export default {
 <style scoped lang="scss">
 .logo {
   max-height: 3rem;
+}
+
+/* PUB2 — Patra brand treatment for the public survey card.
+   Literal purples: standalone public page, brand colors are
+   theme-invariant. */
+.pat-survey-card {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px -24px rgba(80, 60, 140, 0.35);
+}
+
+.pat-survey-card::before {
+  content: '';
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, #6e56cf, #8b5cf6, #a78bfa);
+}
+
+.pat-survey-card :deep(button.bg-n-brand) {
+  background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
+  border-radius: 10px;
+  box-shadow: 0 3px 12px rgba(110, 86, 207, 0.3);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.pat-survey-card :deep(button.bg-n-brand:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(110, 86, 207, 0.4);
+}
+
+.pat-survey-card :deep(button.bg-n-brand:focus-visible) {
+  outline: 2px solid #6e56cf;
+  outline-offset: 2px;
+}
+
+.pat-survey-card :deep(textarea:focus) {
+  border-color: #6e56cf;
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.12);
+  outline: none;
 }
 </style>

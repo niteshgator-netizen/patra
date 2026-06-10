@@ -869,14 +869,14 @@ const menuItems = computed(() => {
   /* A0: block above sets DARK token values on the bare rail class — give the
      tokens light values in light mode so borders/text/icons resolve light. */
   body:not(.dark) .pat-rail.patra-nav-rail,
-  [data-theme="light"] .pat-rail.patra-nav-rail {
-    --canvas: #F6F5F9;
-    --surface: #FFFFFF;
-    --surface-2: #F2F0F7;
-    --border: #E5E3EB;
-    --border-hi: #D6D3DE;
-    --text: #1A1A24;
-    --text-3: #75727F;
+  [data-theme='light'] .pat-rail.patra-nav-rail {
+    --canvas: #f6f5f9;
+    --surface: #ffffff;
+    --surface-2: #f2f0f7;
+    --border: #e5e3eb;
+    --border-hi: #d6d3de;
+    --text: #1a1a24;
+    --text-3: #75727f;
     --patra-glow: rgba(110, 86, 207, 0.28);
   }
 

@@ -177,7 +177,9 @@ const isCustomerOnline = computed(() => {
   if (!lastMsg) return false;
   const createdAt = lastMsg.created_at;
   const timestamp =
-    typeof createdAt === 'number' ? createdAt * 1000 : new Date(createdAt).getTime();
+    typeof createdAt === 'number'
+      ? createdAt * 1000
+      : new Date(createdAt).getTime();
   return Date.now() - timestamp < 5 * 60 * 1000;
 });
 
@@ -301,11 +303,11 @@ onUnmounted(() => {
   if (slaTimer) clearInterval(slaTimer);
 });
 
-const onCardMouseMove = (e) => {
+const onCardMouseMove = e => {
   const el = e.currentTarget;
   const r = el.getBoundingClientRect();
-  el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-  el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  el.style.setProperty('--mx', e.clientX - r.left + 'px');
+  el.style.setProperty('--my', e.clientY - r.top + 'px');
 };
 </script>
 
@@ -331,6 +333,7 @@ const onCardMouseMove = (e) => {
         type="button"
         class="patra-qa"
         :title="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
+        :aria-label="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
         @click.stop="$emit('resolve')"
       >
         ✓
@@ -339,6 +342,7 @@ const onCardMouseMove = (e) => {
         type="button"
         class="patra-qa"
         :title="$t('PATRA.CONVERSATION_CARD.SNOOZE')"
+        :aria-label="$t('PATRA.CONVERSATION_CARD.SNOOZE')"
         @click.stop="$emit('snooze')"
       >
         ⏰
@@ -470,7 +474,9 @@ const onCardMouseMove = (e) => {
         class="cv6-meta absolute flex flex-col items-end ltr:right-3 rtl:left-3 z-[1]"
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
-        <span class="cv6-time font-normal leading-4 text-xxs text-n-slate-11 [&_div]:text-n-slate-11">
+        <span
+          class="cv6-time font-normal leading-4 text-xxs text-n-slate-11 [&_div]:text-n-slate-11"
+        >
           <TimeAgo
             :last-activity-timestamp="chat.timestamp"
             :created-at-timestamp="chat.created_at"
@@ -495,6 +501,11 @@ const onCardMouseMove = (e) => {
               ? $t('PATRA.CONVERSATION.UNPIN')
               : $t('PATRA.CONVERSATION.PIN')
           "
+          :aria-label="
+            isPinned
+              ? $t('PATRA.CONVERSATION.UNPIN')
+              : $t('PATRA.CONVERSATION.PIN')
+          "
           @click="togglePin"
         >
           📌
@@ -504,6 +515,7 @@ const onCardMouseMove = (e) => {
             type="button"
             class="flex items-center justify-center w-7 h-7 rounded-md bg-n-solid-2 border border-n-weak text-n-slate-12 hover:bg-n-solid-3 dark:bg-n-alpha-3 dark:hover:bg-n-alpha-4 text-sm"
             :title="$t('PATRA.CONVERSATION_CARD.LABEL')"
+            :aria-label="$t('PATRA.CONVERSATION_CARD.LABEL')"
             @click="toggleLabelDropdown"
           >
             🏷️
@@ -579,7 +591,11 @@ const onCardMouseMove = (e) => {
   bottom: 11px;
   width: 3px;
   border-radius: 3px;
-  background: linear-gradient(180deg, var(--red, #f85149), var(--amber, #e3a008));
+  background: linear-gradient(
+    180deg,
+    var(--red, #f85149),
+    var(--amber, #e3a008)
+  );
 }
 
 .convo-card-v6.active::before {

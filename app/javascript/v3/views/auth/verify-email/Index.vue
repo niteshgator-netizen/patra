@@ -86,7 +86,7 @@ const onCaptchaError = () => {
       class="flex-1 flex items-center justify-center px-5 py-12 relative z-10"
     >
       <div
-        class="w-full max-w-[440px] relative bg-auth-card-bg backdrop-blur-xl border border-auth-border-hi rounded-3xl p-10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)] animate-card-in auth-card-anim"
+        class="w-full max-w-[440px] relative bg-auth-card-bg backdrop-blur-xl border border-auth-border-hi rounded-3xl p-6 sm:p-10 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)] animate-card-in auth-card-anim"
       >
         <div class="flex flex-col items-start mb-8">
           <div

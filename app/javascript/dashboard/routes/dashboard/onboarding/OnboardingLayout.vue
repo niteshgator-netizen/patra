@@ -83,7 +83,10 @@ defineEmits(['continue']);
               gradientUnits="userSpaceOnUse"
             >
               <stop offset="0%" stop-color="rgb(var(--slate-5))" />
-              <stop offset="100%" stop-color="var(--patra, rgb(var(--iris-9)))" />
+              <stop
+                offset="100%"
+                stop-color="var(--patra, rgb(var(--iris-9)))"
+              />
             </linearGradient>
           </defs>
           <path

@@ -138,8 +138,13 @@ onMounted(async () => {
             <div class="bc-preview">
               <div class="bc-preview-row">
                 <div class="bc-preview-ava">P</div>
-                <div class="bc-preview-bubble" :class="{ empty: !broadcast.content }">
-                  {{ broadcast.content || $t('PATRA.BROADCASTS.PREVIEW_EMPTY') }}
+                <div
+                  class="bc-preview-bubble"
+                  :class="{ empty: !broadcast.content }"
+                >
+                  {{
+                    broadcast.content || $t('PATRA.BROADCASTS.PREVIEW_EMPTY')
+                  }}
                 </div>
               </div>
               <p v-if="previewCount !== null" class="bc-preview-count">

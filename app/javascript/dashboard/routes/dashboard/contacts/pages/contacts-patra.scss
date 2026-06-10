@@ -139,6 +139,14 @@ body:not(.dark) .contacts-wrap,
   grid-template-columns: 380px 1fr;
   height: 100%;
   min-height: 0;
+
+  /* O3: phone — list and detail stack; list takes the viewport,
+     detail scrolls below it */
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    overflow-y: auto;
+  }
 }
 
 :deep(.list) {
