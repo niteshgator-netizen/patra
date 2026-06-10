@@ -10,6 +10,8 @@ class GameAction < ApplicationRecord
   validates :action_type, inclusion: { in: ACTION_TYPES }
   validates :status, inclusion: { in: STATUSES }
   validates :order_id, presence: true, uniqueness: { scope: :account_id }
+  # Money safety: a negative load/cashout must never be recordable.
+  validates :amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
   scope :successful, -> { where(status: 'success') }
   scope :failed, -> { where(status: 'failed') }

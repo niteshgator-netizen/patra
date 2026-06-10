@@ -12,6 +12,7 @@ class CashierClaim < ApplicationRecord
 
   validates :action_type, presence: true, inclusion: { in: ACTION_TYPES }
   validates :status, inclusion: { in: STATUSES }
+  validates :amount, numericality: { greater_than: 0 }, allow_nil: true
 
   scope :pending, -> { where(status: 'pending') }
   scope :expired_due, -> { pending.where('expires_at <= ?', Time.current) }

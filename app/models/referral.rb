@@ -6,6 +6,9 @@ class Referral < ApplicationRecord
   belongs_to :referred_contact, class_name: 'Contact', optional: true
 
   validates :status, inclusion: { in: %w[pending verified paid rejected] }
+  validates :bonus_amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  # Fraud guard: a player must not be able to refer themselves for a bonus.
+  validate :no_self_referral
 
   scope :pending, -> { where(status: 'pending') }
   scope :verified, -> { where(status: 'verified') }
@@ -21,5 +24,13 @@ class Referral < ApplicationRecord
 
   def mark_rejected!
     update!(status: 'rejected')
+  end
+
+  private
+
+  def no_self_referral
+    return if referred_contact_id.blank?
+
+    errors.add(:referred_contact_id, "can't match the referrer") if referred_contact_id == referrer_contact_id
   end
 end
