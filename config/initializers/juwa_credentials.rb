@@ -1,5 +1,5 @@
 # Juwa API credentials — loaded from ENV so they can be changed without deploy.
-# Set JUWA_AGENT_ID and JUWA_SECRET_KEY in Railway environment variables.
-# Fallback values are the production credentials.
-JUWA_AGENT_ID  = ENV.fetch('JUWA_AGENT_ID',  '101346').freeze
-JUWA_SECRET_KEY = ENV.fetch('JUWA_SECRET_KEY', 'd965d3ad04f830edcd663fabf5b777c7').freeze
+# Set JUWA_AGENT_ID and JUWA_SECRET_KEY in the deploy environment (Render).
+# No hardcoded fallbacks: missing ENV means the Juwa client raises at use time.
+JUWA_AGENT_ID  = ENV.fetch('JUWA_AGENT_ID', nil).freeze
+JUWA_SECRET_KEY = ENV.fetch('JUWA_SECRET_KEY', nil).freeze

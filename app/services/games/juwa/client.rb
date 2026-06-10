@@ -57,8 +57,8 @@ module Games
           agent_game.game&.api_base_url.presence ||
           DEFAULT_BASE_URL
         ).chomp('/')
-        @agent_id   = creds['agent_id'].presence  || ENV.fetch('JUWA_AGENT_ID',  '101346')
-        @secret_key = creds['secret_key'].presence || ENV.fetch('JUWA_SECRET_KEY', 'd965d3ad04f830edcd663fabf5b777c7')
+        @agent_id   = creds['agent_id'].presence  || ENV.fetch('JUWA_AGENT_ID', nil)
+        @secret_key = creds['secret_key'].presence || ENV.fetch('JUWA_SECRET_KEY', nil)
         raise ArgumentError, 'Missing Juwa agent_id'   if @agent_id.blank?
         raise ArgumentError, 'Missing Juwa secret_key' if @secret_key.blank?
       end
