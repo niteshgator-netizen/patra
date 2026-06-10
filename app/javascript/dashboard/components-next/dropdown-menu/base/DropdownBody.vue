@@ -35,13 +35,24 @@ const beforeClass = computed(() => {
 </template>
 
 <style scoped>
-.patra-pop {
+/* A1: dark values live under .dark only — bare-scope dark hex broke light mode */
+.dark .patra-pop {
   background: #0c0b12 !important;
   border-color: #171520 !important;
   color: #ededf2 !important;
 }
 
-.patra-pop :deep(.n-dropdown-section .text-n-slate-10) {
+.dark .patra-pop :deep(.n-dropdown-section .text-n-slate-10) {
   color: #a8a6b6 !important;
+}
+
+body:not(.dark) .patra-pop {
+  background: #ffffff !important;
+  border-color: #d6d3de !important;
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) .patra-pop :deep(.n-dropdown-section .text-n-slate-10) {
+  color: #56546a !important;
 }
 </style>

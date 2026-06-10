@@ -63,17 +63,32 @@ const triggerClick = () => {
 </template>
 
 <style scoped>
-.n-dropdown-item a:hover,
-.n-dropdown-item button:hover {
+/* A1: dark values live under .dark only — bare-scope dark hex broke light mode */
+.dark .n-dropdown-item a:hover,
+.dark .n-dropdown-item button:hover {
   background: #1b1925 !important;
 }
 
-.n-dropdown-item a,
-.n-dropdown-item button {
+.dark .n-dropdown-item a,
+.dark .n-dropdown-item button {
   color: #ededf2 !important;
 }
 
-.n-dropdown-item .text-n-slate-11 {
+.dark .n-dropdown-item :deep(.text-n-slate-11) {
   color: #a8a6b6 !important;
+}
+
+body:not(.dark) .n-dropdown-item a:hover,
+body:not(.dark) .n-dropdown-item button:hover {
+  background: #f2f0f7 !important;
+}
+
+body:not(.dark) .n-dropdown-item a,
+body:not(.dark) .n-dropdown-item button {
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) .n-dropdown-item :deep(.text-n-slate-11) {
+  color: #4a4756 !important;
 }
 </style>
