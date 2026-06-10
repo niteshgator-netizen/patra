@@ -14,7 +14,13 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   HANDOFF-B-4 diff applied verbatim. Proof (a): tmp/self_tests/h1_backup_health_check_test.rb
   ALL PASS (10 asserts, real job file loaded, private-notify trap in place) + ruby -c OK.
   RSpec spec/jobs/backup/health_check_job_spec.rb written (SPECS-UNRUN locally).
-- [ ] H2 warming clock (drip_scheduler.rb warming_started_at stamp + phase floor + day-7 gate)
+- [x] H2 warming clock (drip_scheduler.rb warming_started_at stamp + phase floor + day-7 gate) —
+  rewrite per HANDOFF-B-5: clock from stats['warming_started_at'] (stamped once, lazily on first
+  hourly sweep after entering warming, accurate to <=1h); phase = highest schedule key <= elapsed
+  days (day 0 = 'pre_warm'); promote ONLY when days >= 7 AND health_ok?. Proof (a):
+  tmp/self_tests/h2_drip_scheduler_test.rb ALL PASS (21 asserts — days 0/1/2/3/6/7/8, stale-health
+  day 7, fresh-updated_at immunity, stamp-once, garbage-stamp) + ruby -c OK. RSpec
+  spec/services/backup/drip_scheduler_spec.rb written (SPECS-UNRUN locally).
 - [ ] H3 customer-migration mass-blast → operator alert + 24h-window capped notes
 - [ ] H4 dead crons (.rb-suffixed names) + full cron audit
 - [ ] H5 SLA wiring (sla_alerts_enabled / first_response / resolution mirrors)
@@ -86,6 +92,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
 ## SPECS-UNRUN (exact Render commands)
 - H1: `bundle exec rspec spec/jobs/backup/health_check_job_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h1_backup_health_check_test.rb` → ALL PASS 10)
+- H2: `bundle exec rspec spec/services/backup/drip_scheduler_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h2_drip_scheduler_test.rb` → ALL PASS 21)
 
 ## COMMITS
 (one line per item as committed)
