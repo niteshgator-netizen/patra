@@ -353,7 +353,7 @@ module Games
         nil
       end
 
-      def http_request(method, url_str, body: nil, headers: {}, _retried: false)
+      def http_request(method, url_str, body: nil, headers: {}, _retried: false, _redirected: false)
         # First-call refresh: if session_id was never captured (new customer
         # just entered username/password), run the refresher before sending
         # any request. Only fires on the FIRST call per process; future calls
@@ -385,6 +385,22 @@ module Games
           http.request(req)
         end
 
+        # H7 (June 10 2026): follow ONE same-host redirect on GET before any
+        # session logic. Panda Master's AccountsList.aspx 301s (0-byte body) while
+        # its session is perfectly valid — previously that bounced through a
+        # pointless CapSolver refresh and then fell out of the bottom of this
+        # method as an "OK" empty response (nil balance, no error). Redirects to
+        # the login page (default.aspx / root) are NOT followed — those mean dead
+        # session and stay on the reactive-refresh path below.
+        if response.is_a?(Net::HTTPRedirection) && method == :get && !_redirected
+          target = redirect_target(uri, response['Location'])
+          if followable_redirect?(uri, target)
+            slug = @agent_game.game.slug.to_s
+            Rails.logger.warn("[AspNetPanel][#{slug}] following #{response.code} redirect #{uri.path} -> #{target}")
+            return http_request(:get, target.to_s, headers: headers, _retried: _retried, _redirected: true)
+          end
+        end
+
         # Reactive auto-refresh (Ship 3, May 21 2026).
         # ASP.NET dead sessions return HTTP 200 + login HTML page (not 401).
         # Detect by short body + login URL marker or missing __VIEWSTATE.
@@ -402,7 +418,19 @@ module Games
           end
         end
 
-        unless response.is_a?(Net::HTTPSuccess) || response.is_a?(Net::HTTPRedirection)
+        # H7: an unresolved redirect must be LOUD, not a silent empty body that
+        # downstream scrapes into nil. (Pre-fix this returned the redirect
+        # response and extract_agent_balance quietly produced nil.)
+        if response.is_a?(Net::HTTPRedirection)
+          loc = response['Location'].to_s
+          raise Games::ClientError.new(
+            "HTTP #{response.code} redirect on #{method.upcase} #{uri.path} -> #{loc.empty? ? '(no Location)' : loc} — panel endpoint moved? run script/patra_panda_probe.rb",
+            code: response.code.to_i,
+            payload: { location: loc }
+          )
+        end
+
+        unless response.is_a?(Net::HTTPSuccess)
           raise Games::ClientError.new("HTTP #{response.code} on #{method.upcase} #{uri.path}", code: response.code.to_i, payload: { snippet: response_body_utf8(response)[0..300] })
         end
         response
@@ -412,6 +440,32 @@ module Games
         raise Games::ClientError.new("Timeout: #{e.message}", code: -1)
       rescue StandardError => e
         raise Games::ClientError.new("Network error: #{e.class}: #{e.message}", code: -1)
+      end
+
+      # H7: resolve a Location header (absolute or relative) against the request URI.
+      # Returns a URI or nil if unparseable/blank.
+      def redirect_target(request_uri, raw_location)
+        return nil if raw_location.to_s.strip.empty?
+
+        URI.join(request_uri.to_s, raw_location.to_s.strip)
+      rescue StandardError
+        nil
+      end
+
+      # H7: only follow redirects that stay in the same host family (scheme/port/www
+      # changes allowed) AND do not point at the login page — default.aspx / root
+      # redirects mean dead session and must keep taking the refresh path.
+      def followable_redirect?(request_uri, target_uri)
+        return false unless target_uri
+
+        from = request_uri.host.to_s.downcase.sub(/\Awww\./, '')
+        to = target_uri.host.to_s.downcase.sub(/\Awww\./, '')
+        return false unless from == to
+
+        path = target_uri.path.to_s.downcase
+        return false if path.empty? || path == '/' || path.end_with?('default.aspx')
+
+        true
       end
 
       # Ship 3 (May 21 2026): true if response appears to be a dead-session login redirect.

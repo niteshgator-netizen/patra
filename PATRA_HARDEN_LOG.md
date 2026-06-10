@@ -73,7 +73,23 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   check_entry confirm site → payment.confirmed. Both seam calls additionally rescued.
   Proof (a): tmp/self_tests/h6_webhook_emitter_test.rb ALL PASS (17 asserts) + ruby -c OK x4.
   RSpec spec/services/patra/webhook_emitter_spec.rb (webmock) written (SPECS-UNRUN locally).
-- [ ] H7 panda master blank balance — diagnose + patra_panda_probe.rb
+- [x] H7 panda master blank balance — DIAGNOSIS (a, verified by read):
+  base_client.rb let ANY redirect response fall through the final guard (`unless success ||
+  redirection`) and be RETURNED with its 0-byte body → extract_agent_balance → nil, silently.
+  That exactly produces "session refresh WORKS + 301 + 0-byte + balance nil". Root cause of
+  the 301 itself = (c) assumption until probe runs: panda is the ONLY family panel on default
+  port 443 (orion/milky :8781, fire_kirin :8888) → most likely a same-host canonicalization
+  bounce (www/scheme/path), possibly a moved host. FIX (family client, additive): follow ONE
+  same-host non-login redirect on GET (before the CapSolver refresh path — valid sessions no
+  longer burn refresh attempts on a bounce); login-page redirects (default.aspx/root) still
+  take the reactive-refresh path; ANY unresolved redirect now raises Games::ClientError
+  carrying the Location header instead of returning empty. If the probe shows a cross-host
+  Location, update BASE_URL in panda_master/client.rb + SessionRefresher::BASE_URLS (probe
+  prints this interpretation). NEW script/patra_panda_probe.rb (read-only: GETs with stored
+  session cookie, prints status/Location/body-len/markers/all hops; zero writes).
+  Proof (a): tmp/self_tests/h7_redirect_follow_test.rb ALL PASS (9 asserts incl. orion-style
+  no-redirect path untouched: zero behavior change when no redirect occurs) + ruby -c OK x2.
+  RSpec spec/services/games/asp_net_panel/base_client_redirect_spec.rb (SPECS-UNRUN locally).
 - [ ] H8 FB token expiry alerting (1/token/day idempotent)
 - [ ] H9 stuck-pending sweeper alert (verify + spec — alert already exists)
 - [ ] H10 ReplyJob rescue posture (lock release on transient, bounded permanent)
@@ -150,6 +166,9 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   `ruby tmp/self_tests/h5_sla_check_test.rb` → ALL PASS 12)
 - H6: `bundle exec rspec spec/services/patra/webhook_emitter_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h6_webhook_emitter_test.rb` → ALL PASS 17)
+- H7: `bundle exec rspec spec/services/games/asp_net_panel/base_client_redirect_spec.rb`
+  (local equivalent ran: `ruby tmp/self_tests/h7_redirect_follow_test.rb` → ALL PASS 9)
+  + MORNING SHELL: `bundle exec rails runner script/patra_panda_probe.rb` (the deciding artifact)
 
 ## COMMITS
 (one line per item as committed)
