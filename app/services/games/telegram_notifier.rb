@@ -30,6 +30,7 @@ module Games
     EVENT_API_ERROR = 'api_error'.freeze
     EVENT_LOW_BALANCE = 'low_balance'.freeze
     EVENT_WINBACK_MANUAL = 'winback_manual'.freeze
+    EVENT_SHIFT_REPORT = 'shift_report'.freeze
 
     class << self
       def cashout_alert(cashout_request)
@@ -129,6 +130,12 @@ module Games
         lines << "\"#{message}\""
         lines << profile_url.to_s if profile_url.present?
         notify(account: account, event: EVENT_WINBACK_MANUAL, text: lines.join("\n"), plain: true)
+      end
+
+      # Shift report summary. plain: true — report text contains $/()/- which
+      # MarkdownV2 would reject unescaped.
+      def shift_report(account:, text:)
+        notify(account: account, event: EVENT_SHIFT_REPORT, text: text, plain: true)
       end
 
       def send_to_cashout_group(text, account: nil)

@@ -30,7 +30,9 @@ module Reports
         Games: #{game_breakdown.map { |g, c| "#{g} #{c}" }.join(', ')}
       MSG
 
-      Games::TelegramNotifier.notify(account, message) if defined?(Games::TelegramNotifier)
+      Games::TelegramNotifier.shift_report(account: account, text: message) if defined?(Games::TelegramNotifier)
+    rescue StandardError => e
+      Rails.logger.error("[ShiftReportJob] account=#{account.id} failed: #{e.class}: #{e.message}")
     end
   end
 end
