@@ -638,6 +638,13 @@
 .dark h1, .dark h2, .dark h3, .dark h4, .dark .text-xl, .dark .text-2xl, .dark .text-lg { font-family: 'Space Grotesk', sans-serif !important; }
 .dark .mono, .dark code, .dark .time-stamp, .dark .badge { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums; }
 
+/* B2: spec typography in LIGHT mode too — previously dark-only, so light
+   pages fell back to Inter headings / proportional numerals. */
+body:not(.dark) { font-family: 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+body:not(.dark) h1, body:not(.dark) h2, body:not(.dark) h3, body:not(.dark) h4,
+body:not(.dark) .text-xl, body:not(.dark) .text-2xl, body:not(.dark) .text-lg { font-family: 'Space Grotesk', sans-serif !important; }
+body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:not(.dark) .badge { font-family: 'JetBrains Mono', monospace !important; font-variant-numeric: tabular-nums; }
+
 /* --- SCROLLBAR --- */
 .dark ::-webkit-scrollbar { width: 7px; height: 7px; }
 .dark ::-webkit-scrollbar-track { background: transparent; }
