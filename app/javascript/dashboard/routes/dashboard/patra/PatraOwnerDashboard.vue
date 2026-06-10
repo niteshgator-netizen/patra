@@ -663,22 +663,29 @@ onUnmounted(() => {
                   }}</span>
                   <span class="patra-ap-v">{{ stats.flagged_for_review }}</span>
                 </div>
-                <div class="patra-ap-sub">
-                  {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOP_QUESTIONS') }}
-                </div>
-                <p class="patra-empty">
-                  {{ $t('OVERVIEW_REPORTS.OWNER_STATS.NO_QUESTIONS') }}
-                </p>
+                <template v-if="!topQuestions.length">
+                  <div class="patra-ap-sub">
+                    {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOP_QUESTIONS') }}
+                  </div>
+                  <p class="patra-empty">
+                    {{ $t('OVERVIEW_REPORTS.OWNER_STATS.NO_QUESTIONS') }}
+                  </p>
+                </template>
               </div>
             </div>
           </div>
 
-          <!-- Top questions Patra AI handled -->
-          <div class="patra-card pat-dash-section dash-card">
+          <!-- Top questions Patra AI handled (real data; hidden when empty) -->
+          <div
+            v-if="topQuestions.length"
+            class="patra-card pat-dash-section dash-card"
+          >
             <div class="patra-card-h dash-card-header">
               <div class="patra-card-t pat-dash-section-title">
                 <span class="patra-card-dot" />
-                <h3 class="patra-topq-title">Top questions Patra AI handled</h3>
+                <h3 class="patra-topq-title">
+                  {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOP_QUESTIONS') }}
+                </h3>
               </div>
             </div>
             <div class="patra-topq">
@@ -692,9 +699,6 @@ onUnmounted(() => {
                   <div class="patra-tq-bar" :style="{ width: q.pct + '%' }" />
                 </div>
                 <span class="patra-tq-count">{{ q.count }}</span>
-              </div>
-              <div v-if="!topQuestions.length" class="patra-empty-note">
-                No AI-handled questions yet.
               </div>
             </div>
           </div>
