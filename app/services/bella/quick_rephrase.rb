@@ -1,45 +1,27 @@
-require 'net/http'
-require 'json'
-
 module Bella
-  # One-shot Grok call to rephrase a matched cashier reply for the current customer.
+  # One-shot LLM call to rephrase a matched cashier reply for the current customer.
   # Returns the rephrased text or nil on any failure (fails CLOSED).
+  # TAB A: ported from retired Grok/xAI (Batch C) to the shared DeepseekClient -
+  # the live brain. Enabling BELLA_RAG_SHORTCUT_ENABLED previously could never
+  # produce a reply (xAI credits exhausted -> always nil -> fallthrough).
   class QuickRephrase
-    XAI_URL    = Ai::ReplyService::XAI_URL
-    MODEL      = ENV.fetch('XAI_MODEL', 'grok-4.3').freeze
-    MAX_TOKENS = 200
-    TIMEOUT    = 15
+    # deepseek-v4-flash spends max_tokens on reasoning+answer combined - too low
+    # starves the answer to empty (proven on the main reply path, which uses 800).
+    MAX_TOKENS = 800
 
     class RephraseError < StandardError; end
 
     def self.call(customer_text:, hint_reply:, conversation_id: nil)
-      api_key = ENV['XAI_API_KEY'].to_s
-      return nil if api_key.empty?
       return nil if customer_text.to_s.strip.empty?
       return nil if hint_reply.to_s.strip.empty?
 
       system_prompt = build_prompt(customer_text: customer_text, hint_reply: hint_reply)
 
-      uri = URI(XAI_URL)
-      req = Net::HTTP::Post.new(uri, {
-        'Authorization' => "Bearer #{api_key}",
-        'Content-Type'  => 'application/json',
-      })
-      req.body = JSON.dump({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        messages: [
-          { role: 'system', content: system_prompt },
-          { role: 'user', content: customer_text.to_s[0, 800] },
-        ],
-      })
-
-      res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, read_timeout: TIMEOUT) { |h| h.request(req) }
-      unless res.code == '200'
-        Rails.logger.warn("[AiReply][QuickRephrase] HTTP #{res.code} conv=#{conversation_id} body=#{res.body[0, 200]}")
-        return nil
-      end
-      text = JSON.parse(res.body).dig('choices', 0, 'message', 'content')
+      text = Ai::DeepseekClient.complete(
+        system_prompt: system_prompt,
+        user_content: customer_text.to_s[0, 800],
+        max_tokens: MAX_TOKENS
+      )
       return nil if text.to_s.strip.empty?
 
       text.strip
