@@ -95,7 +95,8 @@
     },
     "MESSAGE": {
       "INTERNAL_NOTE": "🔒 Internal Note",
-      "READ": "Read"
+      "READ": "Read",
+      "AUTO_REPLY": "Auto-reply"
     },
     "MESSAGE_SEARCH": {
       "TITLE": "Search messages",

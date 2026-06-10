@@ -758,8 +758,8 @@ export default {
 }
 
 .patra-typing-dot {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #6e56cf;
   animation: typingBounce 1.2s infinite;
@@ -775,12 +775,14 @@ export default {
 
 @keyframes typingBounce {
   0%,
-  80%,
+  60%,
   100% {
-    opacity: 0.3;
+    transform: translateY(0);
+    opacity: 0.4;
   }
 
-  40% {
+  30% {
+    transform: translateY(-5px);
     opacity: 1;
   }
 }

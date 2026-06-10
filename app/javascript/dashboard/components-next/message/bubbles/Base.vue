@@ -134,6 +134,13 @@ const replyToPreview = computed(() => {
     >
       {{ t('PATRA.MESSAGE.INTERNAL_NOTE') }}
     </p>
+    <span
+      v-if="variant === MESSAGE_VARIANTS.BOT"
+      class="patra-bubble-ai-pill"
+      aria-hidden="true"
+    >
+      ✦ {{ t('PATRA.MESSAGE.AUTO_REPLY') }}
+    </span>
     <!-- Patra AI handoff message -->
     <div v-if="isHandoffMessage" class="patra-thread-handoff">
       <div class="patra-th-header">
@@ -255,6 +262,22 @@ body:not(.dark) .patra-conv-bubble {
   );
   border: 1px solid rgba(139, 92, 246, 0.32);
   color: var(--pb-text);
+}
+
+/* spec ✦ pill above AI auto-replies */
+.patra-bubble-ai-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: rgba(139, 92, 246, 0.18);
+  color: var(--pb-patra-3, #a78bfa);
+  border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .patra-conv-bubble--private {

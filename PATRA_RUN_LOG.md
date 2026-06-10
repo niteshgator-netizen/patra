@@ -187,7 +187,7 @@ BRANCH=patra-ui-run (worktree). Pure UI run — .rb edits FORBIDDEN.
 
 ## V6 QUEUE (reconstructed)
 - [x] L login/auth suite Patra-branded (v3/views/login + auth/**, Chatwoot testimonials → Patra brand panel; detect v3 theming first)
-- [ ] X inbox perfection vs patra-inbox-v5 (gradient bubbles, ✦ AI treatment, animated typing dots, composer polish, header/card final — patra-layer classes, zero logic)
+- [x] X inbox perfection vs patra-inbox-v5 (gradient bubbles, ✦ AI treatment, animated typing dots, composer polish, header/card final — patra-layer classes, zero logic)
 - [ ] T remaining Patra settings (automationSafety, knowledge/KnowledgeBase, labels/{Index,AddLabel,EditLabel}, replyStyle + discovered siblings)
 - [ ] U primitives round 2 (toasts, banners, tooltips, confirm dialogs)
 - [ ] V spec-tighten flagships w/ delta lists first (contacts, games+config modal, AI training)
@@ -213,3 +213,4 @@ BRANCH=patra-ui-run (worktree). Pure UI run — .rb edits FORBIDDEN.
 
 ## MASTER COMPLETED ITEMS
 - L (this commit) — auth suite AUDIT: login Index, signup Index+Form, reset/password, password/Edit, verify-email, confirmation ALL already fully Patra-branded (auth-canvas token theme, P-tile gradient, mesh/grid, AuthNavBar, PATRA_AUTH i18n keys) — done by a prior session; Chatwoot Testimonials component exists but is UNUSED by signup (verified; file left in place, no deletion). The one stock straggler was login/Saml.vue (white card, bg-n-brand canvas, stock logo imgs) → rebuilt onto the same Patra auth shell (grid+mesh+AuthNavBar+auth-card, P tile, patra-light links, PATRA_AUTH footer); logic/form untouched; unused globalConfig/useStore removed. OnboardingStep.vue (v3 stepper) keeps n-brand accents (indigo-purple, acceptable). Build green 37.1s.
+- X (this commit) — inbox delta audit vs patra-inbox-v5 (subagent): 17 of 22 spec points ALREADY DONE (outgoing gradient bubbles, AI bubble gradient+border, incoming bubble, composer box/focus/padding, conv-card hover glow, tags, status pill, header layout, SLA strip, meta typography, light tokens, AI toggle spark anim w/ exact spec keyframes). Fixed the 4 fixable deltas: (1) spec ✦ "Auto-reply" pill now renders above BOT-variant bubbles (Base.vue, new patra-bubble-ai-pill, i18n key PATRA.MESSAGE.AUTO_REPLY); (2) typing dots upgraded to spec bounce (opacity-only pulse → translateY(-5px)+opacity, 6px dots, staggered delays kept; transform/opacity only); (3) composer send button: stock n-brand solid → spec Patra gradient+glow (deep rule scoped to .patra-conv-composer); (4) emoji reactions hover = feature-not-built (skeleton class only) → KNOWN_REMAINING (needs logic). Zero logic changes. Build green.

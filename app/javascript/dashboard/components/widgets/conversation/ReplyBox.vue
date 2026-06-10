@@ -1551,6 +1551,12 @@ export default {
   box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
 }
 
+/* spec send button — Patra gradient + glow over the stock n-brand solid */
+.patra-conv-composer :deep(button[type='''submit'''].bg-n-brand) {
+  background: linear-gradient(135deg, #6e56cf, #5b45b0) !important;
+  box-shadow: 0 3px 12px rgba(110, 86, 207, 0.4);
+}
+
 .patra-conv-composer.is-private {
   background: rgba(227, 160, 8, 0.08);
   border-color: rgba(227, 160, 8, 0.22);
