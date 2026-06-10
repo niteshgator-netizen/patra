@@ -4990,3 +4990,72 @@ html[data-theme="light"] body [class*="pat-"][class*="-wrap"] .card {
 /* ════════════════════════════════════════════════════════════════════
    END PATRA W8b — POST-RE-QA SURGICAL LIGHT FIX
    ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   C5 — GLOBAL MICRO-ANIMATIONS (both themes; transform/opacity only)
+   Consistent page-enter, card entrance and button-press per spec feel.
+   ════════════════════════════════════════════════════════════════════ */
+
+@keyframes pat-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pat-page-main,
+.pat-settings-body,
+.pat-overview-wrap,
+.pat-reports-wrap {
+  animation: pat-page-in 0.32s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* report/overview card entrance — previously dark-only (L832); light parity */
+body:not(.dark) .report-card {
+  animation: mIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+body:not(.dark) .report-card:nth-child(1) { animation-delay: 0s; }
+body:not(.dark) .report-card:nth-child(2) { animation-delay: 0.04s; }
+body:not(.dark) .report-card:nth-child(3) { animation-delay: 0.08s; }
+body:not(.dark) .report-card:nth-child(4) { animation-delay: 0.12s; }
+body:not(.dark) .report-card:nth-child(5) { animation-delay: 0.16s; }
+body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
+
+/* button press — Patra action buttons compress slightly on :active */
+.pat-btn:active,
+.ops-btn:active,
+.pat-hbtn:active,
+.patra-conv-head-btn:active,
+.patra-conv-head-icon-btn:active,
+.pat-rail-item:active,
+.pat-connect-cta:active,
+.sr-use:active,
+.sr-edit:active,
+.ai-hc-ask-btn:active {
+  transform: scale(0.97) !important;
+  transition-duration: 0.08s !important;
+}
+
+/* card hover — shared lift for patra cards that lack a bespoke hover */
+.lb-kpi,
+.bc-card,
+.pat-connect-card {
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.25s,
+    box-shadow 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pat-page-main,
+  .pat-settings-body,
+  .pat-overview-wrap,
+  .pat-reports-wrap,
+  body:not(.dark) .report-card {
+    animation: none;
+  }
+}
