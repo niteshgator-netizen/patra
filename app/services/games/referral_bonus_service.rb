@@ -60,8 +60,10 @@ module Games
 
         require_deposit = pref.respond_to?(:referral_require_deposit) ? pref.referral_require_deposit != false : true
         if require_deposit
+          # Only a SUCCESSFUL real deposit counts (failed loads / freeplay don't).
           has_deposit = GameAction.where(contact_id: referred.id)
-            .where(action_type: %w[load recharge])
+            .where(action_type: %w[load recharge], status: 'success')
+            .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
             .exists?
           return unless has_deposit
         end
