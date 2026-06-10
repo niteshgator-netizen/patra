@@ -5068,16 +5068,33 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
    the PART 1 wrapper override above. No bare hex, both themes.
    ════════════════════════════════════════════════════════════════════ */
 
-/* page heading (ReportHeader.vue) */
-.pat-reports-wrap .pat-rep-head .text-heading-1 {
+/* page heading (ReportHeader.vue) — reports pages + the LiveReports overview */
+.pat-reports-wrap .pat-rep-head .text-heading-1,
+.pat-overview-wrap .pat-rep-head .text-heading-1 {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   font-size: 26px;
   letter-spacing: -0.02em;
 }
-.pat-reports-wrap .pat-rep-head p {
+.pat-reports-wrap .pat-rep-head p,
+.pat-overview-wrap .pat-rep-head p {
   font-size: 13px;
 }
+
+/* heatmap intensity ramps — purple (traffic) + Patra green (resolutions).
+   rgba ramps read on both light and dark canvases. */
+.pat-hm-p1 { background: rgba(110, 86, 207, 0.14); border: 1px solid rgba(110, 86, 207, 0.12); }
+.pat-hm-p2 { background: rgba(110, 86, 207, 0.28); border: 1px solid rgba(110, 86, 207, 0.18); }
+.pat-hm-p3 { background: rgba(110, 86, 207, 0.45); border: 1px solid rgba(110, 86, 207, 0.26); }
+.pat-hm-p4 { background: rgba(110, 86, 207, 0.62); border: 1px solid rgba(110, 86, 207, 0.34); }
+.pat-hm-p5 { background: rgba(124, 95, 216, 0.82); border: 1px solid rgba(139, 92, 246, 0.45); }
+.pat-hm-p6 { background: rgba(139, 92, 246, 1); border: 1px solid rgba(167, 139, 250, 0.55); }
+.pat-hm-g1 { background: rgba(63, 185, 80, 0.14); border: 1px solid rgba(63, 185, 80, 0.12); }
+.pat-hm-g2 { background: rgba(63, 185, 80, 0.28); border: 1px solid rgba(63, 185, 80, 0.18); }
+.pat-hm-g3 { background: rgba(63, 185, 80, 0.45); border: 1px solid rgba(63, 185, 80, 0.26); }
+.pat-hm-g4 { background: rgba(63, 185, 80, 0.62); border: 1px solid rgba(63, 185, 80, 0.34); }
+.pat-hm-g5 { background: rgba(63, 185, 80, 0.82); border: 1px solid rgba(63, 185, 80, 0.45); }
+.pat-hm-g6 { background: rgba(63, 185, 80, 1); border: 1px solid rgba(63, 185, 80, 0.55); }
 
 /* filter bar (ReportFilters.vue / OverviewReportFilters.vue) */
 .pat-reports-wrap .pat-rfilter-bar {

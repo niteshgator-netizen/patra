@@ -106,7 +106,7 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 
 ### PHASE R — REPORTS SUITE
 - [x] R0 ReportContainer.vue + shared report components (design language once)
-- [ ] R1 LiveReports.vue (Overview)
+- [x] R1 LiveReports.vue (Overview)
 - [ ] R2 AgentReports (+Index/Show)
 - [ ] R3 InboxReports (+Index/Show)
 - [ ] R4 LabelReports (+Index/Show)
@@ -146,3 +146,4 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - V4-D1: Run log ownership — log copied from ../patra into THIS worktree root, committed, and maintained ONLY here (committed with each item). ../patra is owned by another autonomous run; never written again.
 - V4-D2: Spec extraction — PATRA_APP_final.html is a single-line 2.3MB file holding all 70 screens as a JS SCREENS object; screens are extracted programmatically to tmp_spec/<key>.html (untracked, not committed) for reading. Master spec wins conflicts; area mockups (patra-inbox-v5/dashboard-v2/settings/games/contacts/ai-training.html) consulted for per-screen detail.
 - R0 (this commit) — Reports shared chrome centralized: new "R0 — REPORTS SUITE SHARED DESIGN LANGUAGE" section in patra-themes.css (+~100 lines, token-only, anchored under .pat-reports-wrap so dark=page token sets / light=PART 1 override). ReportContainer mega-card → individual pat-rep-card spec cards (gap grid, entrance via existing report-card anim); ChartStats gains pat-card-t (Space Grotesk title + purple dot), pat-kpi-n (SG 28px numeral), pat-trend-pill (JetBrains Mono tinted pill, trend color now on container); ReportHeader pat-rep-head (SG 26px h1, 13px sub); ReportFilters + OverviewReportFilters wrapped as pat-rfilter-bar card. DECISION R0-a: spec "rtabs" report-type tab strip NOT added — report switching already lives in the settings sidebar nav; duplicating it as in-page tabs would be a routing/structure change beyond styling scope. Build green 37.0s.
+- R1 (this commit) — LiveReports/Overview verified already fully spec-treated (.pat-overview-wrap from a prior run: spotlight, mesh, SG typography, card/table/tooltip/pagination deep maps, light via PART 1). v4 gaps fixed: conversation heatmap was STOCK CHATWOOT BLUE (bg-n-blue-3..11) → new purple ramp pat-hm-p1..6 (default scheme now 'purple'); resolution heatmap teal → Patra-green ramp pat-hm-g1..6; ramps are rgba (read both themes), defined once in patra-themes.css; blue scheme kept available for non-Patra callers. R0 heading/sub rules extended to .pat-overview-wrap (h1 26px spec). DECISION R1-a: kept real-data structure (OwnerStats + live metric cards + 2 heatmaps + agent/team tables) — spec's donut/area/channel cards need aggregates the live store doesn't expose; no-fake-data rule wins. Build green 34.2s.
