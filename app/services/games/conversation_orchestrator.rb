@@ -410,12 +410,22 @@ module Games
       # Try to load. If username doesn't exist on Game Vault, auto-create it.
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
 
-      result = executor.load_player(
-        game_username: username,
-        amount: requested_amount,
-        payment_method: payment[:method],
-        metadata: { source: 'bella_auto', payment_id: payment[:id], message: recent_customer_text.to_s[0..200] }
-      )
+      # F12: deterministic order_id - concurrent duplicates of the SAME payment
+      # collapse on the unique index instead of double-loading.
+      load_order_id = deterministic_payment_order_id(payment[:id])
+      return already_loaded_response(requested_amount) if load_order_id.nil?
+
+      result = begin
+        executor.load_player(
+          game_username: username,
+          amount: requested_amount,
+          payment_method: payment[:method],
+          metadata: { source: 'bella_auto', payment_id: payment[:id], message: recent_customer_text.to_s[0..200] },
+          order_id: load_order_id
+        )
+      rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+        return already_loaded_response(requested_amount)
+      end
 
       # Code 8 = user not found → auto-create + retry
       if !result[:ok] && result[:code] == 8
@@ -449,13 +459,22 @@ module Games
         store_game_username(ag.game.slug, username)
         store_game_password(ag.game.slug, generated_password)
 
-        # Retry the load now that user exists
-        result = executor.load_player(
-          game_username: username,
-          amount: requested_amount,
-          payment_method: payment[:method],
-          metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] }
-        )
+        # Retry the load now that user exists. Fresh deterministic id: the
+        # failed first attempt freed the base via its attempt suffix.
+        retry_order_id = deterministic_payment_order_id(payment[:id])
+        return already_loaded_response(requested_amount) if retry_order_id.nil?
+
+        result = begin
+          executor.load_player(
+            game_username: username,
+            amount: requested_amount,
+            payment_method: payment[:method],
+            metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] },
+            order_id: retry_order_id
+          )
+        rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+          return already_loaded_response(requested_amount)
+        end
 
         if result[:ok]
           mark_payment_loaded(payment[:id], game_slug: ag.game.slug, game_username: username)
@@ -1008,12 +1027,21 @@ module Games
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
 
       # First try to load — if user doesn't exist, auto-create
-      result = executor.load_player(
-        game_username: username,
-        amount: recent_payment[:amount],
-        payment_method: recent_payment[:method],
-        metadata: { source: 'bella_username_provided', payment_id: recent_payment[:id] }
-      )
+      # F12: deterministic order_id (see handle_load_intent).
+      up_order_id = deterministic_payment_order_id(recent_payment[:id])
+      return already_loaded_response(recent_payment[:amount]) if up_order_id.nil?
+
+      result = begin
+        executor.load_player(
+          game_username: username,
+          amount: recent_payment[:amount],
+          payment_method: recent_payment[:method],
+          metadata: { source: 'bella_username_provided', payment_id: recent_payment[:id] },
+          order_id: up_order_id
+        )
+      rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+        return already_loaded_response(recent_payment[:amount])
+      end
 
       if !result[:ok] && result[:code] == 8
         # User not found — create them
@@ -1045,12 +1073,20 @@ module Games
         store_game_username(ag.game.slug, username)
         store_game_password(ag.game.slug, password)
 
-        result = executor.load_player(
-          game_username: username,
-          amount: recent_payment[:amount],
-          payment_method: recent_payment[:method],
-          metadata: { source: 'bella_username_after_create', payment_id: recent_payment[:id] }
-        )
+        up_retry_order_id = deterministic_payment_order_id(recent_payment[:id])
+        return already_loaded_response(recent_payment[:amount]) if up_retry_order_id.nil?
+
+        result = begin
+          executor.load_player(
+            game_username: username,
+            amount: recent_payment[:amount],
+            payment_method: recent_payment[:method],
+            metadata: { source: 'bella_username_after_create', payment_id: recent_payment[:id] },
+            order_id: up_retry_order_id
+          )
+        rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+          return already_loaded_response(recent_payment[:amount])
+        end
 
         if result[:ok]
           mark_payment_loaded(recent_payment[:id], game_slug: ag.game.slug, game_username: username)
@@ -1747,6 +1783,27 @@ module Games
           .exists?
       end
       false
+    end
+
+    # F12: deterministic order_id for PAYMENT-MATCHED automated loads.
+    # Same payment identity => same base, so N concurrent duplicates collapse
+    # on the DB unique index game_actions(account_id, order_id) - the
+    # payment_already_loaded? check is check-then-act and cannot stop a true
+    # race. success/pending blocks re-execution (returns nil = already
+    # loaded); failed attempts free the base via the attempt suffix so the
+    # code-8 auto-create retry still works. Manual / freeplay / bonus loads
+    # keep their original random scheme (this is only called with a payment).
+    def deterministic_payment_order_id(payment_id)
+      base = "pay#{Digest::SHA1.hexdigest("#{account.id}:#{contact&.id}:#{payment_id}")[0, 20]}"
+      existing = GameAction.where(account_id: account.id).where('order_id LIKE ?', "#{base}%")
+      return nil if existing.where(status: %w[success pending]).exists?
+
+      "#{base}_a#{existing.count}"
+    end
+
+    def already_loaded_response(amount)
+      Rails.logger.info("[Orchestrator] duplicate load suppressed (deterministic order_id) conv=#{conversation&.id} amount=#{amount}")
+      { reply: "you're all set — that $#{fmt_amt(amount)} load already went through \u{1F3B0}", labels: ['auto-load'] }
     end
 
     def mark_payment_loaded(payment_id, game_slug: nil, game_username: nil)

@@ -296,6 +296,36 @@ begin
     puts "\n[handle_transfer_between_games]  SKIPPED — need 2 self-resolving active agent_games on account 2"
   end
 
+  # ───────────────────────── F12: deterministic payment order_id ──────────────
+  puts "\n[F12 deterministic order_id]  (same payment can never double-load)"
+  reset_run; prime_contact!(contact, [src_slug])
+  o12 = orch(account, contact, [])
+  id_a = o12.send(:deterministic_payment_order_id, 'HARNESS_PAY_1')
+  id_b = o12.send(:deterministic_payment_order_id, 'HARNESS_PAY_1')
+  ok!('F12 same payment pre-insert => identical order_id (race collapses)', id_a == id_b && id_a.to_s.start_with?('pay'))
+  id_other = o12.send(:deterministic_payment_order_id, 'HARNESS_PAY_2')
+  ok!('F12 different payment => different order_id', id_other != id_a)
+
+  # Simulated race: both "processes" computed the same id before either inserted.
+  # The DB unique index (migration 20260513030000:29) lets exactly one execute.
+  r1 = exec(ag, contact).load_player(game_username: 'harnessuser1', amount: 20, order_id: id_a)
+  loser_blocked = false
+  begin
+    exec(ag, contact).load_player(game_username: 'harnessuser1', amount: 20, order_id: id_b)
+  rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+    loser_blocked = true
+  end
+  ok!('F12 RACE same payment => exactly one recharge, loser blocked',
+      r1[:ok] == true && loser_blocked && $FAKE.calls.count { |c| c[0] == :recharge } == 1)
+  ok!('F12 rerun after success => helper returns nil (already-loaded skip)',
+      o12.send(:deterministic_payment_order_id, 'HARNESS_PAY_1').nil?)
+  r3 = exec(ag, contact).load_player(game_username: 'harnessuser1', amount: 20, order_id: id_other)
+  ok!('F12 different payment unaffected => still loads', r3[:ok] == true)
+  # Money invariants (R2): executions == success GameActions; no order_id twice
+  succ = GameAction.where(contact_id: contact.id, action_type: 'load', status: 'success').count
+  recharges = $FAKE.calls.count { |c| c[0] == :recharge }
+  ok!('F12 INVARIANT recharge calls == success actions == 2', recharges == 2 && succ == 2)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
