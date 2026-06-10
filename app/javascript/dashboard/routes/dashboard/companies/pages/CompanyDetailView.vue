@@ -7,7 +7,6 @@ import { useAlert } from 'dashboard/composables';
 import Policy from 'dashboard/components/policy.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import CompaniesDetailsLayout from 'dashboard/components-next/Companies/CompaniesDetailsLayout.vue';
-import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import CompanyContactsSidebar from 'dashboard/components-next/Companies/CompanyDetail/CompanyContactsSidebar.vue';
 import CompanyProfileCard from 'dashboard/components-next/Companies/CompanyDetail/CompanyProfileCard.vue';
 import ConfirmCompanyDeleteDialog from 'dashboard/components-next/Companies/CompanyDetail/ConfirmCompanyDeleteDialog.vue';
@@ -164,12 +163,10 @@ onBeforeUnmount(() => {
         :breadcrumb-items="breadcrumbItems"
         @back="goToCompaniesList"
       >
-        <div
-          v-if="showInitialLoadingState"
-          class="flex flex-col items-center justify-center gap-3 py-24 text-n-slate-11"
-        >
-          <Spinner />
-          <span class="text-sm">{{ t('COMPANIES.DETAIL.LOADING') }}</span>
+        <div v-if="showInitialLoadingState" class="flex flex-col gap-4 py-6">
+          <div class="pat-skel h-28 w-full rounded-xl" />
+          <div class="pat-skel h-14 w-full rounded-xl" />
+          <div class="pat-skel h-14 w-2/3 rounded-xl" />
         </div>
 
         <div

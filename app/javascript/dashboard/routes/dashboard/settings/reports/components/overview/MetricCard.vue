@@ -1,6 +1,4 @@
 <script setup>
-import Spinner from 'shared/components/Spinner.vue';
-
 defineProps({
   header: {
     type: String,
@@ -51,14 +49,8 @@ defineProps({
     >
       <slot />
     </div>
-    <div
-      v-else-if="isLoading"
-      class="items-center flex text-base justify-center px-12 py-6"
-    >
-      <Spinner />
-      <span class="text-n-slate-11">
-        {{ loadingMessage }}
-      </span>
+    <div v-else-if="isLoading" class="flex w-full gap-4 px-2 py-4">
+      <div v-for="n in 4" :key="n" class="pat-skel h-14 flex-1" />
     </div>
   </div>
 </template>

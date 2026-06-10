@@ -38,10 +38,9 @@ const titleCase = computed(() => props.title.toLowerCase());
       <h3 class="text-sm text-n-slate-11">{{ title }}</h3>
     </div>
     <slot />
-    <woot-loading-state
-      v-if="isFetching"
-      :message="empty ? $t('SEARCH.SEARCHING_DATA') : $t('SEARCH.LOADING_DATA')"
-    />
+    <div v-if="isFetching" class="flex flex-col gap-2 py-2">
+      <div v-for="n in 3" :key="n" class="pat-skel h-10 w-full" />
+    </div>
     <div
       v-if="empty && !isFetching"
       class="flex items-start justify-center px-4 py-6 rounded-xl bg-n-slate-2 dark:bg-n-solid-1"

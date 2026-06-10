@@ -238,10 +238,10 @@ const updateTier = async event => {
   <div class="contact-details">
     <div class="patra-contact-actions">
       <button type="button" class="patra-merge-btn" @click="openMerge">
-        Merge
+        {{ $t('CONTACTS_LAYOUT.DETAIL_ACTIONS.MERGE') }}
       </button>
       <button type="button" class="patra-send-msg-btn" @click="sendMessage">
-        Send message
+        {{ $t('CONTACTS_LAYOUT.DETAIL_ACTIONS.SEND_MESSAGE') }}
       </button>
     </div>
     <div class="card full">
@@ -431,28 +431,28 @@ const updateTier = async event => {
         :class="['patra-dtab', { active: detailTab === 'attributes' }]"
         @click="detailTab = 'attributes'"
       >
-        Attributes
+        {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.ATTRIBUTES') }}
       </button>
       <button
         type="button"
         :class="['patra-dtab', { active: detailTab === 'history' }]"
         @click="detailTab = 'history'"
       >
-        History
+        {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.HISTORY') }}
       </button>
       <button
         type="button"
         :class="['patra-dtab', { active: detailTab === 'notes' }]"
         @click="detailTab = 'notes'"
       >
-        Notes
+        {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.NOTES') }}
       </button>
       <button
         type="button"
         :class="['patra-dtab', { active: detailTab === 'media' }]"
         @click="detailTab = 'media'"
       >
-        Media
+        {{ $t('CONTACTS_LAYOUT.DETAIL_TABS.MEDIA') }}
       </button>
     </div>
 
@@ -461,9 +461,9 @@ const updateTier = async event => {
         v-if="!contactAttributes || contactAttributes.length === 0"
         class="patra-empty-note"
       >
-        No custom attributes available.
+        {{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.ATTRIBUTES') }}
         <a @click="router.push({ name: 'settings_custom_attributes' })"
-          >Create one in Settings.</a
+          >{{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.CREATE_IN_SETTINGS') }}</a
         >
       </div>
       <div v-else>
@@ -483,7 +483,7 @@ const updateTier = async event => {
         v-if="!contactActivities || contactActivities.length === 0"
         class="patra-empty-note"
       >
-        No activity history yet.
+        {{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.HISTORY') }}
       </div>
       <div v-else class="patra-timeline">
         <div
@@ -501,11 +501,11 @@ const updateTier = async event => {
     </div>
 
     <div v-show="detailTab === 'notes'" class="patra-tabpane">
-      <div class="patra-empty-note">No notes yet.</div>
+      <div class="patra-empty-note">{{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.NOTES') }}</div>
     </div>
 
     <div v-show="detailTab === 'media'" class="patra-tabpane">
-      <div class="patra-empty-note">No media yet.</div>
+      <div class="patra-empty-note">{{ $t('CONTACTS_LAYOUT.DETAIL_EMPTY.MEDIA') }}</div>
     </div>
 
     <div class="card full profile-edit">

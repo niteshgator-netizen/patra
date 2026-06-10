@@ -349,8 +349,8 @@ const fetchConversationWatchers = () => {
               {{ p.name?.charAt(0) }}
             </span>
             <span class="patra-participants-text">
-              are also viewing<template v-if="isOtherAgentTyping">
-                · typing</template
+              {{ $t('PATRA.CONVERSATION.ALSO_VIEWING') }}<template v-if="isOtherAgentTyping">
+                {{ $t('PATRA.CONVERSATION.TYPING_SUFFIX') }}</template
               >
             </span>
           </div>
@@ -502,7 +502,7 @@ const fetchConversationWatchers = () => {
 
     <div v-if="pinnedNote" class="patra-pinned-banner">
       <span class="patra-pinned-icon">📌</span>
-      <span class="patra-pinned-label">Pinned:</span>
+      <span class="patra-pinned-label">{{ $t('PATRA.CONVERSATION.PINNED_LABEL') }}</span>
       <span class="patra-pinned-text">{{ pinnedNote }}</span>
     </div>
 

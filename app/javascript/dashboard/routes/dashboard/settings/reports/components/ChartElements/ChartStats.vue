@@ -38,7 +38,7 @@ const trendColor = (value, key) => {
 
 <template>
   <div class="text-n-slate-11">
-    <span class="text-sm">
+    <span class="pat-card-t">
       {{ metric.NAME }}
     </span>
     <div class="flex items-end text-n-slate-12">
@@ -53,13 +53,14 @@ const trendColor = (value, key) => {
       </div>
       <div
         v-else-if="fetchingStatus === STATUS.FINISHED"
-        class="text-xl font-medium"
+        class="pat-kpi-n"
       >
         {{ displayMetric(metric.KEY) }}
       </div>
       <div
         v-if="metric.trend && fetchingStatus === STATUS.FINISHED"
-        class="text-xs ml-4 flex items-center mb-0.5"
+        class="pat-trend-pill ml-4 flex items-center mb-0.5"
+        :class="trendColor(metric.trend, metric.KEY)"
       >
         <div
           v-if="metric.trend < 0"

@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import PatraDashboardAPI from 'dashboard/api/patraDashboard';
-import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import GameHealthDashboard from 'dashboard/components/widgets/GameHealthDashboard.vue';
 import OnboardingChecklist from 'dashboard/components/widgets/OnboardingChecklist.vue';
 
@@ -18,17 +17,17 @@ const activeRange = ref('today');
 const heatmapDays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const heatmapHours = Array.from({ length: 24 }, (_, i) => i);
 const channelColors = ['#0866FF', '#8B5CF6', '#58A6FF', '#3FB950', '#E3A008'];
-const rangeSevenDays = '7 days';
-const rangeThirtyDays = '30 days';
-const periodWeekToggle = 'this week ▾';
-const donutHandledLabel = 'AI handled';
-const legendAiHandled = 'Patra AI handled';
-const legendEscalated = 'Escalated to human';
-const legendStillOpen = 'Still open';
-const heatmapPeriodSuffix = '· last 7 days';
-const heatmapLess = 'Less';
-const heatmapMore = 'More';
-const agentOnlineLabel = 'online';
+const rangeSevenDays = t('PATRA.DASHBOARD.SEVEN_DAYS');
+const rangeThirtyDays = t('PATRA.DASHBOARD.THIRTY_DAYS');
+const periodWeekToggle = t('PATRA.DASHBOARD.THIS_WEEK_TOGGLE');
+const donutHandledLabel = t('PATRA.DASHBOARD.AI_HANDLED');
+const legendAiHandled = t('PATRA.DASHBOARD.LEGEND_AI_HANDLED');
+const legendEscalated = t('PATRA.DASHBOARD.LEGEND_ESCALATED');
+const legendStillOpen = t('PATRA.DASHBOARD.LEGEND_STILL_OPEN');
+const heatmapPeriodSuffix = t('PATRA.DASHBOARD.LAST_7_DAYS_SUFFIX');
+const heatmapLess = t('PATRA.DASHBOARD.HEATMAP_LESS');
+const heatmapMore = t('PATRA.DASHBOARD.HEATMAP_MORE');
+const agentOnlineLabel = t('PATRA.DASHBOARD.AGENT_ONLINE');
 
 const channelEntries = computed(() => {
   const volume = stats.value?.volume_by_channel || {};
@@ -158,7 +157,7 @@ async function loadStats(showSpinner = false, range = 'today') {
     const { data } = await PatraDashboardAPI.get({ params: { range } });
     stats.value = data;
   } catch (e) {
-    error.value = e.message || 'Failed to load dashboard';
+    error.value = e.message || t('PATRA.DASHBOARD.LOAD_ERROR');
   } finally {
     if (showSpinner) loading.value = false;
   }
@@ -279,8 +278,13 @@ onUnmounted(() => {
       </div>
 
       <div class="patra-content">
-        <div v-if="loading" class="patra-loading">
-          <Spinner />
+        <div v-if="loading" class="patra-loading-skel">
+          <div class="patra-loading-skel-kpis">
+            <div v-for="n in 5" :key="`k${n}`" class="pat-skel" />
+          </div>
+          <div class="patra-loading-skel-cards">
+            <div v-for="n in 2" :key="`c${n}`" class="pat-skel" />
+          </div>
         </div>
 
         <p v-else-if="error" class="patra-error">
@@ -663,22 +667,29 @@ onUnmounted(() => {
                   }}</span>
                   <span class="patra-ap-v">{{ stats.flagged_for_review }}</span>
                 </div>
-                <div class="patra-ap-sub">
-                  {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOP_QUESTIONS') }}
-                </div>
-                <p class="patra-empty">
-                  {{ $t('OVERVIEW_REPORTS.OWNER_STATS.NO_QUESTIONS') }}
-                </p>
+                <template v-if="!topQuestions.length">
+                  <div class="patra-ap-sub">
+                    {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOP_QUESTIONS') }}
+                  </div>
+                  <p class="patra-empty">
+                    {{ $t('OVERVIEW_REPORTS.OWNER_STATS.NO_QUESTIONS') }}
+                  </p>
+                </template>
               </div>
             </div>
           </div>
 
-          <!-- Top questions Patra AI handled -->
-          <div class="patra-card pat-dash-section dash-card">
+          <!-- Top questions Patra AI handled (real data; hidden when empty) -->
+          <div
+            v-if="topQuestions.length"
+            class="patra-card pat-dash-section dash-card"
+          >
             <div class="patra-card-h dash-card-header">
               <div class="patra-card-t pat-dash-section-title">
                 <span class="patra-card-dot" />
-                <h3 class="patra-topq-title">Top questions Patra AI handled</h3>
+                <h3 class="patra-topq-title">
+                  {{ $t('OVERVIEW_REPORTS.OWNER_STATS.TOP_QUESTIONS') }}
+                </h3>
               </div>
             </div>
             <div class="patra-topq">
@@ -692,9 +703,6 @@ onUnmounted(() => {
                   <div class="patra-tq-bar" :style="{ width: q.pct + '%' }" />
                 </div>
                 <span class="patra-tq-count">{{ q.count }}</span>
-              </div>
-              <div v-if="!topQuestions.length" class="patra-empty-note">
-                No AI-handled questions yet.
               </div>
             </div>
           </div>
@@ -1040,10 +1048,43 @@ onUnmounted(() => {
   padding: 22px 30px 40px;
 }
 
-.patra-loading {
+.patra-loading-skel {
   display: flex;
-  justify-content: center;
-  padding: 64px 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 8px 0 24px;
+}
+
+.patra-loading-skel-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+
+.patra-loading-skel-kpis .pat-skel {
+  height: 120px;
+  border-radius: 16px;
+}
+
+.patra-loading-skel-cards {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 14px;
+}
+
+.patra-loading-skel-cards .pat-skel {
+  height: 260px;
+  border-radius: 16px;
+}
+
+@media (max-width: 1200px) {
+  .patra-loading-skel-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .patra-loading-skel-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 .patra-error {
@@ -1794,6 +1835,14 @@ onUnmounted(() => {
 
   .patra-mini-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* M1: getting-started checklist is forced 3-col (!important) above — at
+   tablet widths the items crush; collapse to a single column */
+@media (max-width: 768px) {
+  .patra-checklist-wrap :deep(ul) {
+    grid-template-columns: 1fr !important;
   }
 }
 

@@ -145,12 +145,12 @@ export default {
 
 <template>
   <div
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 px-6 py-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 mt-4"
+    class="pat-rep-grid grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2 mt-4"
   >
     <div
       v-for="metric in metrics"
       :key="metric.KEY"
-      class="p-4 mb-3 rounded-md"
+      class="pat-rep-card report-card"
     >
       <ChartStats
         :metric="metric"
@@ -158,10 +158,9 @@ export default {
         :summary-fetching-key="summaryFetchingKey"
       />
       <div class="mt-4 h-72">
-        <woot-loading-state
+        <div
           v-if="accountReport.isFetching[metric.KEY]"
-          class="text-xs"
-          :message="$t('REPORT.LOADING_CHART')"
+          class="pat-skel h-full w-full"
         />
         <div v-else class="flex items-center justify-center h-72">
           <BarChart

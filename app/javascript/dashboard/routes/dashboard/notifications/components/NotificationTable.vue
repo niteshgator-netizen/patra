@@ -1,6 +1,5 @@
 <script>
 import Avatar from 'next/avatar/Avatar.vue';
-import Spinner from 'shared/components/Spinner.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { mapGetters } from 'vuex';
@@ -9,7 +8,6 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 export default {
   components: {
     Avatar,
-    Spinner,
     EmptyState,
     NextButton,
   },
@@ -54,8 +52,8 @@ export default {
     },
     aiStatusText(notification) {
       return this.needsAiAttention(notification)
-        ? 'Needs attention'
-        : 'AI handling';
+        ? this.$t('PATRA.CONVERSATION_CARD.AI_NEEDS_ATTENTION')
+        : this.$t('PATRA.CONVERSATION_CARD.AI_HANDLING');
     },
   },
 };
@@ -154,9 +152,8 @@ export default {
       v-if="showEmptyResult"
       :title="$t('NOTIFICATIONS_PAGE.LIST.404')"
     />
-    <div v-if="isLoading" class="notifications--loader">
-      <Spinner />
-      <span>{{ $t('NOTIFICATIONS_PAGE.LIST.LOADING_MESSAGE') }}</span>
+    <div v-if="isLoading" class="flex flex-col gap-3 py-4">
+      <div v-for="n in 6" :key="n" class="pat-skel h-12 w-full" />
     </div>
   </section>
 </template>
@@ -167,6 +164,13 @@ export default {
 }
 
 .notifications-table {
+  /* M1: at narrow widths the fixed-min columns (timestamp 9.125rem etc.)
+     overflow — let the table scroll horizontally instead of clipping */
+  @media (max-width: 768px) {
+    display: block;
+    overflow-x: auto;
+  }
+
   > tbody {
     > tr {
       @apply cursor-pointer;
@@ -246,13 +250,14 @@ export default {
   background: currentColor;
 }
 
+/* theme-aware: token text from the pat-page-wrap token set, rgba tint bg */
 .ai-status-pill.ai-on {
-  background: #e1f5ee;
-  color: #085041;
+  background: rgba(63, 185, 80, 0.14);
+  color: var(--green, rgb(26, 127, 55));
 }
 
 .ai-status-pill.needs-attention {
-  background: #faece7;
-  color: #712b13;
+  background: rgba(227, 160, 8, 0.15);
+  color: rgb(184, 130, 10);
 }
 </style>

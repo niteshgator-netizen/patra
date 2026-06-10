@@ -330,7 +330,7 @@ const onCardMouseMove = (e) => {
       <button
         type="button"
         class="patra-qa"
-        title="Resolve"
+        :title="$t('PATRA.CONVERSATION_CARD.RESOLVE')"
         @click.stop="$emit('resolve')"
       >
         ✓
@@ -338,7 +338,7 @@ const onCardMouseMove = (e) => {
       <button
         type="button"
         class="patra-qa"
-        title="Snooze"
+        :title="$t('PATRA.CONVERSATION_CARD.SNOOZE')"
         @click.stop="$emit('snooze')"
       >
         ⏰

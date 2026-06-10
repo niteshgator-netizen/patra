@@ -9,7 +9,6 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 
-import Spinner from 'shared/components/Spinner.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 import Table from 'dashboard/components/table/Table.vue';
 import Pagination from 'dashboard/components/table/Pagination.vue';
@@ -130,14 +129,8 @@ const table = useVueTable({
       :default-page-size="getPageSize()"
       @page-size-change="handlePageSizeChange"
     />
-    <div
-      v-if="isLoading"
-      class="items-center flex text-base justify-center p-8"
-    >
-      <Spinner />
-      <span>
-        {{ $t('OVERVIEW_REPORTS.AGENT_CONVERSATIONS.LOADING_MESSAGE') }}
-      </span>
+    <div v-if="isLoading" class="flex flex-col gap-3 p-4">
+      <div v-for="n in 5" :key="n" class="pat-skel h-9 w-full" />
     </div>
     <EmptyState
       v-else-if="!isLoading && !agents.length"

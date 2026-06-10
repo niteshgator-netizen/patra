@@ -249,4 +249,29 @@ export default {
 .pat-page-wrap :deep(.animate-loader-pulse) {
   background: var(--surface-3) !important;
 }
+
+/* S2 — spec header typography, purple unread states, mono type label */
+.pat-page-wrap :deep(h6.text-xl) {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.pat-page-wrap :deep(.notification--unread-indicator) {
+  background: var(--patra) !important;
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.5);
+}
+
+.pat-page-wrap :deep(tr.is-unread) {
+  background: rgba(110, 86, 207, 0.05);
+}
+
+.pat-page-wrap :deep(.notification--type) {
+  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 </style>

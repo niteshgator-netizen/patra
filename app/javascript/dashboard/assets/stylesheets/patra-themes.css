@@ -5040,6 +5040,30 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
   transition-duration: 0.08s !important;
 }
 
+/* Q1(e) — visible keyboard focus for custom Patra interactive elements
+   (components-next Button has its own focus-visible; these are the
+   hand-rolled buttons/tabs across the Patra screens) */
+.pat-btn:focus-visible,
+.ops-btn:focus-visible,
+.pat-hbtn:focus-visible,
+.patra-conv-head-btn:focus-visible,
+.patra-conv-head-icon-btn:focus-visible,
+.pat-rail-item:focus-visible,
+.pat-connect-cta:focus-visible,
+.sr-use:focus-visible,
+.sr-edit:focus-visible,
+.ai-hc-ask-btn:focus-visible,
+.patra-card-more-btn:focus-visible,
+.patra-range-btn:focus-visible,
+.patra-approve-btn:focus-visible,
+.patra-th-btn:focus-visible,
+.vault-copy:focus-visible,
+.save-btn:focus-visible,
+.pat-qa:focus-visible {
+  outline: 2px solid var(--patra, #6e56cf);
+  outline-offset: 2px;
+}
+
 /* card hover — shared lift for patra cards that lack a bespoke hover */
 .lb-kpi,
 .bc-card,
@@ -5056,6 +5080,170 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
   .pat-overview-wrap,
   .pat-reports-wrap,
   body:not(.dark) .report-card {
+    animation: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   R0 — REPORTS SUITE SHARED DESIGN LANGUAGE (v4)
+   One home for the PatraReports chrome: page heading, filter bar,
+   metric cards, KPI numerals, trend pills. Token-driven — dark values
+   come from each page's .pat-reports-wrap token set, light values from
+   the PART 1 wrapper override above. No bare hex, both themes.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* page heading (ReportHeader.vue) — reports pages + the LiveReports overview */
+.pat-reports-wrap .pat-rep-head .text-heading-1,
+.pat-overview-wrap .pat-rep-head .text-heading-1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+.pat-reports-wrap .pat-rep-head p,
+.pat-overview-wrap .pat-rep-head p {
+  font-size: 13px;
+}
+
+/* heatmap intensity ramps — purple (traffic) + Patra green (resolutions).
+   rgba ramps read on both light and dark canvases. */
+.pat-hm-p1 { background: rgba(110, 86, 207, 0.14); border: 1px solid rgba(110, 86, 207, 0.12); }
+.pat-hm-p2 { background: rgba(110, 86, 207, 0.28); border: 1px solid rgba(110, 86, 207, 0.18); }
+.pat-hm-p3 { background: rgba(110, 86, 207, 0.45); border: 1px solid rgba(110, 86, 207, 0.26); }
+.pat-hm-p4 { background: rgba(110, 86, 207, 0.62); border: 1px solid rgba(110, 86, 207, 0.34); }
+.pat-hm-p5 { background: rgba(124, 95, 216, 0.82); border: 1px solid rgba(139, 92, 246, 0.45); }
+.pat-hm-p6 { background: rgba(139, 92, 246, 1); border: 1px solid rgba(167, 139, 250, 0.55); }
+.pat-hm-g1 { background: rgba(63, 185, 80, 0.14); border: 1px solid rgba(63, 185, 80, 0.12); }
+.pat-hm-g2 { background: rgba(63, 185, 80, 0.28); border: 1px solid rgba(63, 185, 80, 0.18); }
+.pat-hm-g3 { background: rgba(63, 185, 80, 0.45); border: 1px solid rgba(63, 185, 80, 0.26); }
+.pat-hm-g4 { background: rgba(63, 185, 80, 0.62); border: 1px solid rgba(63, 185, 80, 0.34); }
+.pat-hm-g5 { background: rgba(63, 185, 80, 0.82); border: 1px solid rgba(63, 185, 80, 0.45); }
+.pat-hm-g6 { background: rgba(63, 185, 80, 1); border: 1px solid rgba(63, 185, 80, 0.55); }
+
+/* filter bar (ReportFilters.vue / OverviewReportFilters.vue) */
+.pat-reports-wrap .pat-rfilter-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+/* metric/chart card grid (ReportContainer.vue) — the old single mega-card
+   becomes individual spec cards */
+.pat-reports-wrap .pat-rep-grid {
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+.pat-reports-wrap .pat-rep-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  transition:
+    border-color 0.25s,
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s;
+}
+.pat-reports-wrap .pat-rep-card:hover {
+  border-color: var(--border-hi);
+  transform: translateY(-2px);
+}
+
+/* card title with the spec purple dot */
+.pat-reports-wrap .pat-card-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+.pat-reports-wrap .pat-card-t::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--patra);
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.45);
+  flex-shrink: 0;
+}
+
+/* KPI numeral */
+.pat-reports-wrap .pat-kpi-n {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* report surfaces the per-page deep maps missed (summary table card,
+   table-card outline, brand spinner) — one home for all report pages */
+.pat-reports-wrap .bg-n-solid-2 {
+  background: var(--surface) !important;
+}
+.pat-reports-wrap .outline-n-container {
+  outline-color: var(--border) !important;
+}
+.pat-reports-wrap .text-n-brand {
+  color: var(--patra-3) !important;
+}
+.pat-reports-wrap .hover\:text-n-brand:hover {
+  color: var(--patra-3) !important;
+}
+
+/* trend pill — JetBrains Mono, tinted with the trend color (currentColor) */
+.pat-reports-wrap .pat-trend-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pat-reports-wrap .pat-rep-card,
+  .pat-reports-wrap .pat-rep-card:hover {
+    transform: none;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   E1 — THEMED SKELETON SHIMMER (generalized v3 F3)
+   One loading treatment everywhere: token surfaces (light shimmer in
+   light, dark in dark via the wrapper token flips), transform-only
+   sweep, neutral alpha fallback outside Patra wrappers.
+   ════════════════════════════════════════════════════════════════════ */
+.pat-skel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}
+.pat-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--surface-3, rgba(127, 127, 127, 0.18)),
+    transparent
+  );
+  animation: pat-skel-sweep 1.4s ease infinite;
+}
+@keyframes pat-skel-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pat-skel::after {
     animation: none;
   }
 }

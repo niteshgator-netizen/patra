@@ -53,13 +53,13 @@ const dismiss = () => {
   <div v-if="suggestion && !dismissed" class="suggested-reply-card">
     <div class="sr-header">
       <span class="sr-dot" />
-      <span class="sr-title">Suggested reply</span>
+      <span class="sr-title">{{ $t('PATRA.AI_CARD.SUGGESTED_REPLY') }}</span>
       <button class="sr-dismiss" @click="dismiss">✕</button>
     </div>
     <p class="sr-text">{{ suggestion }}</p>
     <div class="sr-actions">
-      <button class="sr-use" @click="applySuggestion">Use reply</button>
-      <button class="sr-edit" @click="editSuggestion">Edit</button>
+      <button class="sr-use" @click="applySuggestion">{{ $t('PATRA.AI_CARD.USE_REPLY') }}</button>
+      <button class="sr-edit" @click="editSuggestion">{{ $t('PATRA.AI_CARD.EDIT') }}</button>
     </div>
   </div>
 </template>

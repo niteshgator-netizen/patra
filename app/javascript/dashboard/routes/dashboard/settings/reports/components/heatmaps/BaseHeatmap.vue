@@ -27,8 +27,8 @@ const props = defineProps({
   },
   colorScheme: {
     type: String,
-    default: 'blue',
-    validator: value => ['blue', 'green'].includes(value),
+    default: 'purple',
+    validator: value => ['purple', 'blue', 'green'].includes(value),
   },
 });
 const { t } = useI18n();
@@ -71,6 +71,14 @@ function getDayOfTheWeek(date) {
 }
 
 const COLOR_SCHEMES = {
+  purple: [
+    'pat-hm-p1',
+    'pat-hm-p2',
+    'pat-hm-p3',
+    'pat-hm-p4',
+    'pat-hm-p5',
+    'pat-hm-p6',
+  ],
   blue: [
     'bg-n-blue-3 border border-n-blue-4/30',
     'bg-n-blue-5 border border-n-blue-6/30',
@@ -80,12 +88,12 @@ const COLOR_SCHEMES = {
     'bg-n-blue-11 border border-n-blue-10/30',
   ],
   green: [
-    'bg-n-teal-3 border border-n-teal-4/30',
-    'bg-n-teal-5 border border-n-teal-6/30',
-    'bg-n-teal-7 border border-n-teal-8/30',
-    'bg-n-teal-8 border border-n-teal-9/30',
-    'bg-n-teal-10 border border-n-teal-8/30',
-    'bg-n-teal-11 border border-n-teal-10/30',
+    'pat-hm-g1',
+    'pat-hm-g2',
+    'pat-hm-g3',
+    'pat-hm-g4',
+    'pat-hm-g5',
+    'pat-hm-g6',
   ],
 };
 

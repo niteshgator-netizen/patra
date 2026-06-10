@@ -526,6 +526,22 @@
       "FIRST_CONTACT": "First contact",
       "PREFERRED_BONUS": "Preferred bonus %",
       "NOTES": "Notes"
-    }
+    },
+    "AI_MEMORY": "AI memory",
+    "MEMORY_EMPTY": "Patra hasn't built a memory for this player yet — it learns as they chat.",
+    "ADD_MEMORY": "Add memory",
+    "EDIT": "Edit",
+    "CLEAR": "Clear",
+    "CANCEL": "Cancel",
+    "SUMMARY": "Summary",
+    "SUMMARY_PLACEHOLDER": "Who this player is, their style, attitude, notable history…",
+    "STYLE": "Style",
+    "STYLE_PLACEHOLDER": "chatty / terse",
+    "PATIENCE": "Patience",
+    "PATIENCE_PLACEHOLDER": "high / low",
+    "ATTITUDE": "Attitude",
+    "ATTITUDE_PLACEHOLDER": "friendly / demanding",
+    "COUNTRY": "Country",
+    "APPROVE_PAY_CASHOUT": "Approve & pay cashout"
   }
 }
