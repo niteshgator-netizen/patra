@@ -347,6 +347,11 @@ class Ai::ReplyService
       return nil
     end
 
+    if human_takeover_pause_active?
+      Rails.logger.info("[AiReply] paused (human takeover) conv=#{@conversation_id} window=#{ENV.fetch('PATRA_TAKEOVER_PAUSE_MINUTES', '0')}m")
+      return nil
+    end
+
     # ============ SENDER-NAME MATCH FLOW ============
     bridge_conv_sn = nil
     if @bridge_account_id.present? && @conversation_id.present?
@@ -1274,6 +1279,20 @@ class Ai::ReplyService
     end
   end
 
+  # F16: hold AI replies while a HUMAN agent is actively working the
+  # conversation. Window from ENV PATRA_TAKEOVER_PAUSE_MINUTES, read at
+  # call-time; default 0 = feature OFF (gate inert, current behavior).
+  # The 'ai-off' label flow is a separate gate and stays untouched.
+  def human_takeover_pause_active?
+    minutes = ENV.fetch('PATRA_TAKEOVER_PAUSE_MINUTES', '0').to_i
+    return false if minutes <= 0
+
+    last = @last_human_agent_outgoing_unix.to_i
+    return false if last < FRESHNESS_UNIX_MIN
+
+    (Time.current.to_i - last) < (minutes * 60)
+  end
+
   # Unix seconds for sorting / freshness. Handles Integer and ISO8601 strings; avoids
   # `String#to_i` on timestamps (which yields a useless year fragment).
   def message_created_at_unix(raw)
@@ -1315,6 +1334,12 @@ class Ai::ReplyService
                         .select { |m| chat_message_type(m) == 0 }
                         .map { |m| message_created_at_unix(m['created_at']) }
                         .max || 0
+    # F16: last HUMAN-agent outgoing message (non-private, not the 'ai_auto'
+    # source_id ReplyJob stamps on AI-logged replies) for the takeover pause.
+    @last_human_agent_outgoing_unix = payload
+                                      .select { |m| chat_message_type(m) == 1 && m['private'] != true && m['source_id'].to_s != 'ai_auto' }
+                                      .map { |m| message_created_at_unix(m['created_at']) }
+                                      .max || 0
     # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
     # 2/3 are activity/template — skip those, they're not part of the conversation.
     raw_slice = payload
