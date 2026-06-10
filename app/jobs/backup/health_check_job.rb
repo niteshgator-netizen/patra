@@ -10,6 +10,8 @@ module Backup
     def perform
       BackupPage.find_each do |page|
         check_page(page)
+      rescue StandardError => e
+        Rails.logger.error("[Backup::HealthCheckJob] page #{page.id} check failed: #{e.class}: #{e.message}")
       end
     end
 
@@ -60,13 +62,19 @@ module Backup
     end
 
     def notify_ban(page)
-      message = "🚨 Backup page #{page.page_name} banned — status updated"
-      Games::TelegramNotifier.notify(page.account, message) if defined?(Games::TelegramNotifier)
+      Games::TelegramNotifier.api_error(account: page.account,
+                                        message: "Backup page #{page.page_name} banned - status updated",
+                                        details: "page_id=#{page.page_id}")
+    rescue StandardError => e
+      Rails.logger.error("[Backup::HealthCheckJob] notify_ban failed: #{e.class}: #{e.message}")
     end
 
     def notify_switch(old_page, new_page)
-      message = "🚨 Primary FB page banned — auto-switched to #{new_page.page_name}"
-      Games::TelegramNotifier.notify(old_page.account, message) if defined?(Games::TelegramNotifier)
+      Games::TelegramNotifier.api_error(account: old_page.account,
+                                        message: "Primary FB page banned - auto-switched to #{new_page.page_name}",
+                                        details: "from=#{old_page.page_id} to=#{new_page.page_id}")
+    rescue StandardError => e
+      Rails.logger.error("[Backup::HealthCheckJob] notify_switch failed: #{e.class}: #{e.message}")
     end
   end
 end

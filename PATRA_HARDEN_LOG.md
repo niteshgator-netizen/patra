@@ -10,7 +10,10 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
 (written last — see bottom-up progress in QUEUE)
 
 ## QUEUE
-- [ ] H1 backup ban-alert crash (health_check_job.rb per-page rescue + public api_error)
+- [x] H1 backup ban-alert crash (health_check_job.rb per-page rescue + public api_error) —
+  HANDOFF-B-4 diff applied verbatim. Proof (a): tmp/self_tests/h1_backup_health_check_test.rb
+  ALL PASS (10 asserts, real job file loaded, private-notify trap in place) + ruby -c OK.
+  RSpec spec/jobs/backup/health_check_job_spec.rb written (SPECS-UNRUN locally).
 - [ ] H2 warming clock (drip_scheduler.rb warming_started_at stamp + phase floor + day-7 gate)
 - [ ] H3 customer-migration mass-blast → operator alert + 24h-window capped notes
 - [ ] H4 dead crons (.rb-suffixed names) + full cron audit
@@ -81,7 +84,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
 (collected as found)
 
 ## SPECS-UNRUN (exact Render commands)
-(collected per item)
+- H1: `bundle exec rspec spec/jobs/backup/health_check_job_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h1_backup_health_check_test.rb` → ALL PASS 10)
 
 ## COMMITS
 (one line per item as committed)
