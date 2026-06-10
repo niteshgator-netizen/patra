@@ -326,6 +326,49 @@ begin
   recharges = $FAKE.calls.count { |c| c[0] == :recharge }
   ok!('F12 INVARIANT recharge calls == success actions == 2', recharges == 2 && succ == 2)
 
+  # ───────────────────────── F13: auto-load cap on the AUTOMATED path ─────────
+  # Verified enforcement point: ActionExecutor#load_player:71-72 ->
+  # amount_limit_error('max_load_amount') BEFORE any GameAction/panel call; the
+  # orchestrator's automated path only loads via executor.load_player.
+  puts "\n[F13 per-agent auto-load cap]  (automated orchestrator path)"
+  reset_run
+  prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{
+      'id' => 'HARNESS_PAY_CAP', 'status' => 'confirmed', 'amount' => 999,
+      'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
+    }]
+  ))
+  saved_creds = ag.credentials.to_h
+  begin
+    ag.update!(credentials: saved_creds.merge('max_load_amount' => 10))
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 999' }])
+          .send(:handle_load_intent, { intent: :load, amount: 999, game_slug: src_slug, game_username: 'harnessuser1' })
+    ok!('F13 OVER-CAP automated => NO recharge (no load executed)', !$FAKE.called?(:recharge))
+    ok!('F13 OVER-CAP automated => needs-human label', Array(r && r[:labels]).include?('needs-human'))
+    ok!('F13 OVER-CAP automated => Telegram escalation fired', $TG.any?)
+  ensure
+    ag.update!(credentials: saved_creds)
+  end
+
+  # Unset cap = unlimited (operator default, kept): same payment, no cap set
+  reset_run
+  prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{
+      'id' => 'HARNESS_PAY_CAP2', 'status' => 'confirmed', 'amount' => 999,
+      'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
+    }]
+  ))
+  begin
+    ag.update!(credentials: saved_creds.reject { |k, _| k.to_s == 'max_load_amount' })
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 999' }])
+          .send(:handle_load_intent, { intent: :load, amount: 999, game_slug: src_slug, game_username: 'harnessuser1' })
+    ok!('F13 UNSET CAP => load executes (unlimited default kept)', $FAKE.called?(:recharge) && Array(r && r[:labels]).include?('auto-load'))
+  ensure
+    ag.update!(credentials: saved_creds)
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
