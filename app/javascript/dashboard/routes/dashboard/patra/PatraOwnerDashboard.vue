@@ -100,6 +100,27 @@ const donutOffset = computed(() => {
   return circumference - (circumference * rate) / 100;
 });
 
+/* C4: real 7-day conversation-volume sparkline derived from the heatmap
+   series already in the payload (dow×hour counts, PG DOW 0=Sun..6=Sat),
+   ordered oldest→today. Empty string when no data → sparkline hidden. */
+const sparkPoints = computed(() => {
+  const raw = stats.value?.heatmap || [];
+  if (!raw.length) return '';
+  const sums = Array(7).fill(0);
+  raw.forEach(({ dow, count }) => {
+    if (dow >= 0 && dow <= 6) sums[dow] += Number(count) || 0;
+  });
+  const todayDow = new Date().getDay();
+  const ordered = Array.from(
+    { length: 7 },
+    (_, i) => sums[(todayDow + 1 + i) % 7]
+  );
+  const max = Math.max(...ordered, 1);
+  return ordered
+    .map((v, i) => `${Math.round((i * 60) / 6)},${(18 - (v / max) * 14).toFixed(1)}`)
+    .join(' ');
+});
+
 const heatmapCells = computed(() => {
   const raw = stats.value?.heatmap || [];
   const map = {};
@@ -290,6 +311,7 @@ onUnmounted(() => {
               </div>
               <div class="patra-kpi-n n">{{ stats.conversations_today }}</div>
               <svg
+                v-if="sparkPoints"
                 class="patra-sparkline"
                 viewBox="0 0 60 20"
                 width="60"
@@ -301,7 +323,7 @@ onUnmounted(() => {
                   stroke-width="1.5"
                   stroke-linecap="round"
                   stroke-linejoin="round"
-                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
+                  :points="sparkPoints"
                   opacity="0.6"
                 />
               </svg>
@@ -324,22 +346,6 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="patra-kpi-n n">{{ stats.messages_in_today }}</div>
-              <svg
-                class="patra-sparkline"
-                viewBox="0 0 60 20"
-                width="60"
-                height="20"
-              >
-                <polyline
-                  fill="none"
-                  stroke="#6e56cf"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
-                  opacity="0.6"
-                />
-              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.MESSAGES_IN') }}
               </div>
@@ -359,22 +365,6 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="patra-kpi-n n">{{ stats.messages_out_today }}</div>
-              <svg
-                class="patra-sparkline"
-                viewBox="0 0 60 20"
-                width="60"
-                height="20"
-              >
-                <polyline
-                  fill="none"
-                  stroke="#6e56cf"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
-                  opacity="0.6"
-                />
-              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.MESSAGES_OUT') }}
               </div>
@@ -393,22 +383,6 @@ onUnmounted(() => {
               <div class="patra-kpi-n n p patra-kpi-n-accent">
                 {{ formatPercent(stats.ai_handle_rate) }}
               </div>
-              <svg
-                class="patra-sparkline"
-                viewBox="0 0 60 20"
-                width="60"
-                height="20"
-              >
-                <polyline
-                  fill="none"
-                  stroke="#6e56cf"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
-                  opacity="0.6"
-                />
-              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.AI_HANDLE_RATE') }}
               </div>
@@ -433,22 +407,6 @@ onUnmounted(() => {
               <div class="patra-kpi-n n a patra-kpi-n-warn">
                 {{ stats.flagged_for_review }}
               </div>
-              <svg
-                class="patra-sparkline"
-                viewBox="0 0 60 20"
-                width="60"
-                height="20"
-              >
-                <polyline
-                  fill="none"
-                  stroke="#6e56cf"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
-                  opacity="0.6"
-                />
-              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.FLAGGED_REVIEW') }}
               </div>
@@ -472,22 +430,6 @@ onUnmounted(() => {
               <div class="patra-kpi-n n g patra-kpi-n-green">
                 {{ formattedNetToday }}
               </div>
-              <svg
-                class="patra-sparkline"
-                viewBox="0 0 60 20"
-                width="60"
-                height="20"
-              >
-                <polyline
-                  fill="none"
-                  stroke="#6e56cf"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  points="0,15 10,12 20,14 30,8 40,10 50,5 60,7"
-                  opacity="0.6"
-                />
-              </svg>
               <div class="patra-kpi-l l">
                 {{ $t('PATRA.DASHBOARD.NET_TODAY') }}
               </div>
@@ -1304,6 +1246,19 @@ onUnmounted(() => {
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   animation: patra-m-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) backwards;
 }
+
+/* C4: staggered entrance per spec (dashboard-v2 mockup) — transform/opacity
+   only, GPU-friendly. */
+.patra-kpi:nth-child(1) { animation-delay: 0s; }
+.patra-kpi:nth-child(2) { animation-delay: 0.06s; }
+.patra-kpi:nth-child(3) { animation-delay: 0.12s; }
+.patra-kpi:nth-child(4) { animation-delay: 0.18s; }
+.patra-kpi:nth-child(5) { animation-delay: 0.24s; }
+.patra-kpi:nth-child(6) { animation-delay: 0.3s; }
+
+.patra-grid > .patra-card:nth-child(1) { animation-delay: 0.1s; }
+.patra-grid > .patra-card:nth-child(2) { animation-delay: 0.16s; }
+.patra-card-full { animation-delay: 0.22s; }
 
 .patra-kpi::after {
   content: '';
