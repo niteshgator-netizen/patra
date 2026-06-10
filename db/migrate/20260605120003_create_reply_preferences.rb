@@ -1,7 +1,7 @@
 class CreateReplyPreferences < ActiveRecord::Migration[7.0]
   def change
     create_table :reply_preferences do |t|
-      t.references :account, null: false, foreign_key: true
+      t.references :account, null: false, foreign_key: true, index: false
       t.string  :reply_tone, default: 'casual'
       t.boolean :use_emojis, default: true
       t.integer :max_reply_lines, default: 2
@@ -14,6 +14,6 @@ class CreateReplyPreferences < ActiveRecord::Migration[7.0]
       t.timestamps
     end
 
-    add_index :reply_preferences, :account_id, unique: true
+    add_index :reply_preferences, :account_id, unique: true, name: 'index_reply_preferences_on_account_id'
   end
 end
