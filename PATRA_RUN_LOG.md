@@ -170,3 +170,45 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - I1 (this commit) — i18n extraction over the 61 .vue files touched by patra-ui commits. ~135 hardcoded user-facing strings moved to en locales ($t/t()): PatraAiTraining (50: page chrome, dropzone, review queue, secret phrases, tabs → PATRA.AI_TRAINING), PatraOwnerDashboard (12: ranges, donut/legend labels, heatmap labels, load error → PATRA.DASHBOARD), PatraAiHandoffCard (19 incl. computed intent labels → PATRA.AI_CARD, useI18n added), thread handoff bubble Base.vue (5), SuggestedReplyCard (3), ContactPanel (7 → PATRA.INFO_PANEL), PlayerProfileCard (19 incl. AI-memory editor + trait chips → PLAYER_PROFILE in conversation.json), ConversationHeader presence/pinned (3), ConversationCard Snooze/Resolve tooltips (2, reusing CONVERSATION_CARD), NotificationTable AI pills (2, reused AI_HANDLING/AI_NEEDS_ATTENTION), ContactDetails tabs/actions/empties (11 → CONTACTS_LAYOUT.DETAIL_*). All target JSONs re-validated; no @ values (no escapes needed). SKIPPED deliberately (logged): channel brand names (Facebook/SMS/... proper nouns), heatmap day abbreviations (double as data keys in heatmapDayIndex), emptyPlaceholder '—'/'512-dim'/file-ext technicals, aria-labels covered where user-visible. Build green.
 - Q1 (this commit) — sweeps: (a) bare dark-token wrappers 0 violations (4 scanner hits all carry in-file body:not(.dark) cures); (b) rogue hex 0 (all added hex = var fallbacks / theme-scoped cure values / brand+spec colors); (c) z-index: single z-20 added, no conflicts vs 50/70 scale; (d) animations transform/opacity only (mIn, pat-page-in, pat-skel-sweep), transitions paint-only per C5 precedent; (e) FIXED — added shared purple focus-visible ring for 17 hand-rolled Patra button classes in patra-themes.css.
 - Q2 (this commit) — PATRA_UI_AUDIT.md written: per-item table w/ commits+files, tweak-not-rebuild compliance (SLATable 67% flagged as mechanical re-indent, semantic ~10 lines; all real rewrites <=27%), Q1 results, decisions, known-remaining, VERIFY steps. Final build GREEN. v4 COMPLETE — STOP. No push, no deploy.
+
+---
+
+# PATRA OVERNIGHT MASTER RUN (v5/v6 reconciled + MASTER)
+
+ROLLBACK_HASH_MASTER=779b40b0c66886763074372e8932da77815226b5
+STARTED_MASTER=2026-06-09
+BRANCH=patra-ui-run (worktree). Pure UI run — .rb edits FORBIDDEN.
+
+## V5/V6 RECONCILIATION (DECISION M-D0)
+- v5 (phases P/F/G/H) was NEVER appended to this log and no reconstruction text exists in the master prompt — v5's queue is UNRECOVERABLE. Identifiable instruction honored: H1/H2 are backend-touching → marked DEFERRED-BACKEND below. Remaining v5 intent is assumed absorbed by v6/MASTER coverage where overlapping; logged as unrecoverable, not silently skipped.
+- [ ] H1 — DEFERRED-BACKEND (zero-.rb run; text unrecovered)
+- [ ] H2 — DEFERRED-BACKEND (zero-.rb run; text unrecovered)
+- v6 (L/X/T/U/V/W/Y/Z) also never appended; reconstructed from the master prompt's one-liners. Z has no one-liner → treated as the ship-pack item, absorbed by MASTER SHIP PACK.
+
+## V6 QUEUE (reconstructed)
+- [ ] L login/auth suite Patra-branded (v3/views/login + auth/**, Chatwoot testimonials → Patra brand panel; detect v3 theming first)
+- [ ] X inbox perfection vs patra-inbox-v5 (gradient bubbles, ✦ AI treatment, animated typing dots, composer polish, header/card final — patra-layer classes, zero logic)
+- [ ] T remaining Patra settings (automationSafety, knowledge/KnowledgeBase, labels/{Index,AddLabel,EditLabel}, replyStyle + discovered siblings)
+- [ ] U primitives round 2 (toasts, banners, tooltips, confirm dialogs)
+- [ ] V spec-tighten flagships w/ delta lists first (contacts, games+config modal, AI training)
+- [ ] W [AUDIT] full-app dual-theme remnant sweep (n-blue/raw-hex/woot- legacy) + fixes
+- [ ] Y hygiene (strip console.logs from patra-ui commits, eslint --fix touched files only)
+- [x] Z — absorbed by MASTER SHIP PACK (no one-liner; logged)
+
+## MASTER QUEUE
+- [ ] O1 DEBRAND (titles, PWA manifest/icons, user-facing "Chatwoot" → Patra)
+- [ ] O2 ARIA PASS (icon-only controls get aria-label/tooltip)
+- [ ] O3 PHONE PASS 375px (inbox, auth, dashboard, contacts, settings shells, More pages)
+- [ ] O4 COMPONENT TESTS (HandoffCard, CustomRoles prefill, pat-skel)
+- [ ] O5 DEMO-READINESS (empty-account states everywhere, no fake data)
+- [ ] PUB1 EMBEDDABLE WIDGET (detect widget theming first, log mechanism)
+- [ ] PUB2 PUBLIC CSAT SURVEY
+- [ ] PUB3 PUBLIC HELP CENTER (portal js/scss only)
+- [ ] PUB4 STATIC ERROR PAGES (404/422/500, self-contained)
+- [ ] Δ1 SPEC DELTA LOOP (7 mockups, repeat until zero new fixable deltas or 3 passes)
+- [ ] SHIP PACK (log + PATRA_UI_AUDIT.md master section + final build green, STOP)
+
+## MASTER DECISIONS
+- M-D0: see reconciliation above.
+
+## MASTER COMPLETED ITEMS
