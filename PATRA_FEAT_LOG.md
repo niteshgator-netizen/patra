@@ -33,7 +33,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - [x] ADM1 — platform command center
 - [x] ADM2 — account lifecycle & control
 - [x] ADM3 — integration health matrix
-- [ ] ADM4 — impersonation / support-login
+- [x] ADM4 — impersonation / support-login
 - [ ] ADM6 — platform banner
 - [ ] ADM7 — suspension safety-net
 - [ ] FINAL — proofs + morning summary
@@ -129,7 +129,56 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
   per-game summary, credential-leak guard), spec/controllers/super_admin/
   patra_game_health_controller_spec.rb (auth + mocked matrix render).
 
-## SECURITY-MODEL (ADM4) — filled when ADM4 ships
+## SECURITY-MODEL (ADM4)
+Files: app/controllers/concerns/patra_impersonation_guard.rb (new concern, my lane),
+app/controllers/super_admin/patra_impersonations_controller.rb, application_controller.rb (+include,
+2 lines), users/_impersonate.erb (REPLACED — see finding below), _navigation.html.erb (indicator+exit),
+routes `resource :patra_impersonation` in marked block, spec (.../patra_impersonations_controller_spec.rb).
+
+Requirement-by-requirement:
+1. SUPER-ADMIN ONLY — devise authenticate_super_admin! (route layer) + explicit
+   `current_super_admin.is_a?(SuperAdmin)` re-check inside #create (session-creation layer).
+2. AUDIT BEFORE SESSION — Patra::AdminAudit.record('impersonation.start', admin, target user,
+   required reason, IP, timestamp, target_account_ids) runs BEFORE the marker is set and BEFORE the
+   SSO link is generated; if the audit insert raises, no marker and no link exist (spec proves it).
+3. DISTINCT MARKER — session['patra_impersonation'] = {impersonator_id, target_user_id, started_at,
+   expires_at} PLUS the explicit session[:impersonator_id]. Never silent: red banner + exit button
+   render in the console nav on every page while active, and every console response carries
+   X-Patra-Impersonation header.
+4. TIME-BOX — expires_at = 30 minutes, checked by a before_action on EVERY console request
+   (concern included in SuperAdmin::ApplicationController). Expired or unparseable expiry ⇒
+   auto-exit (marker cleared + 'impersonation.auto_exit' audit row, best-effort rescue so a broken
+   audit can never brick the console; manual enter/exit DO hard-fail on audit errors).
+5. ONE-CLICK EXIT — DELETE /super_admin/patra_impersonation: 'impersonation.exit' audit row with
+   duration_seconds, marker cleared, deliberately NOT behind the kill-switch (an operator must
+   always be able to exit).
+6. PROMINENT INDICATOR — console-side banner shipped; SPA-side banner is frontend → DEFERRED-FRONTEND
+   below documents the exact header + JSON endpoint contract.
+7. NEVER IMPERSONATE A SUPER-ADMIN — STI check (`target.is_a?(SuperAdmin)`) ⇒ 403 + audited
+   'impersonation.denied_super_admin_target'; the users/_impersonate partial also hides the form.
+8. NEVER EXPOSE CREDENTIALS/TOKENS — login uses the EXISTING one-time SSO token (SecureRandom.hex(32),
+   5-min Redis TTL, generate_sso_link_with_impersonation). The link/token is handed to the browser
+   redirect only — never persisted, never logged (spec asserts the audit row doesn't contain the
+   token; ADM5 scrubber would mask 64-char hex anyway). Target passwords/JWTs never touched.
+Kill-switch: #create requires PATRA_ADMIN_CONSOLE_ACTIONS=true (default OFF) — 403 with zero rows.
+
+SECURITY FINDING (closed): app/views/super_admin/users/_impersonate.erb previously rendered a raw
+`generate_sso_link_with_impersonation` link — UNAUDITED impersonation with no reason, no time-box,
+no marker. Replaced with a form into the audited #create flow. Residual: the model method itself
+(app/models/concerns/sso_authenticatable.rb) still exists and is callable from console/other code —
+model concerns are outside the TAB-C lane ⇒ see DEFERRED-SECURITY.
+
+## ADM4 — DEFERRED-SECURITY (reasoned, not loose)
+- SPA token revocation on exit: SSO login issues the SPA its own auth token; exit/expiry clears the
+  ADMIN-side marker + audit but cannot revoke the SPA token without editing user/token code outside
+  my lane (and Chatwoot tokens have no per-session revocation primitive). Mitigations shipped:
+  30-min marker, exit notice tells the operator to close impersonated tabs, one-time 5-min SSO token.
+  Proper fix (HANDOFF-B): rotate target user tokens on impersonation exit.
+- sso_authenticatable#generate_sso_link_with_impersonation remains callable outside the audited flow
+  (model concern, not my lane). UI path closed. Proper fix (HANDOFF-B): make the method require an
+  audit context or delete it in favor of the audited controller.
+- DB-level immutability for patra_admin_audit_logs (REVOKE UPDATE/DELETE) — run once via psql by
+  Genius: `psql $DATABASE_URL -c "REVOKE UPDATE, DELETE ON patra_admin_audit_logs FROM <app_role>;"`
 
 ## ADM7 FINDINGS — filled when ADM7 done
 

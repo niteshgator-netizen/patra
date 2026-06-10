@@ -1,8 +1,24 @@
+<%# PATRA TAB-C (ADM4): audited impersonation. This partial previously linked
+    page.resource.generate_sso_link_with_impersonation directly — an UNAUDITED
+    impersonation path (no reason, no time-box, no audit row). It now goes
+    through SuperAdmin::PatraImpersonationsController#create. %>
 <section class="main-content__body">
  <hr/>
   <div class="form-actions">
-  <p class="text-color-red">Caution: Any actions executed after impersonate will appear as if performed by the impersonated user - [<%= page.resource.name %> ]</p>
-    <a class='button' target='_blank' href='<%= page.resource.generate_sso_link_with_impersonation %>'>Impersonate user </a>
+    <p class="text-color-red">
+      Caution: actions performed while impersonating appear as the impersonated user
+      [<%= page.resource.name %>]. Every impersonation is audited (who/why/when/IP) and
+      auto-expires after 30 minutes.
+    </p>
+    <% if page.resource.is_a?(SuperAdmin) %>
+      <p class="text-color-red"><strong>This user is a super admin — impersonation is blocked.</strong></p>
+    <% else %>
+      <%= form_with url: super_admin_patra_impersonation_path, method: :post, local: true,
+                    data: { confirm: "Impersonate #{page.resource.name}? This is audited." } do %>
+        <input type="hidden" name="user_id" value="<%= page.resource.id %>" />
+        <input type="text" name="reason" placeholder="Reason (required, goes to audit trail)" required style="width:280px;" />
+        <button class="button" type="submit">Impersonate user</button>
+      <% end %>
+    <% end %>
   </div>
 </section>
-

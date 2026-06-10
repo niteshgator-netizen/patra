@@ -22,6 +22,16 @@ as defined by the routes in the `admin/` namespace
 
 <div class="border-slate-100 border-r w-56 flex-shrink-0 justify-between h-full flex flex-col" role="navigation">
   <div>
+    <%# PATRA TAB-C (ADM4): prominent impersonation indicator + one-click exit %>
+    <% if respond_to?(:patra_impersonation_active?) && patra_impersonation_active? %>
+      <div style="background:#dc2626;color:#fff;padding:10px 12px;font-size:12px;">
+        <strong>IMPERSONATION ACTIVE</strong><br/>
+        user #<%= patra_impersonation[:target_user_id] %> · expires <%= patra_impersonation[:expires_at] %>
+        <%= form_with url: super_admin_patra_impersonation_path, method: :delete, local: true do %>
+          <button type="submit" style="margin-top:6px;background:#fff;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-weight:700;cursor:pointer;">EXIT impersonation</button>
+        <% end %>
+      </div>
+    <% end %>
     <div class="flex mx-4 mb-4 border-slate-100 border-b py-6">
       <%= link_to super_admin_root_url, class: 'block', 'aria-label': 'Patra Admin Dashboard' do %>
         <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
