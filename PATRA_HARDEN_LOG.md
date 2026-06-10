@@ -52,7 +52,15 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   rescue lands with H5. Proof: tmp/self_tests/h4_schedule_classes_test.rb ALL PASS (90) +
   spec/configs/schedule_classes_spec.rb (constantize + performable on Render) + ruby -c OK on
   all 9 touched files.
-- [ ] H5 SLA wiring (sla_alerts_enabled / first_response / resolution mirrors)
+- [x] H5 SLA wiring — HANDOFF-B-1 applied + extended: sla_alerts_enabled=false skips the
+  account (default true when unset, string "false" honored); first_response threshold =
+  custom_attributes['first_response_limit_minutes'] with policy fallback; NEW check_resolution
+  mirror on resolution_limit_minutes (policy resolution_time_threshold fallback — column
+  verified in schema:1203) alerting ONCE per conversation via durable Redis stamp (7d TTL,
+  key sla_resolution_violated_<id>); accounts with custom limits now checked even with ZERO
+  sla_policies (the settings page's whole point); per-account rescue added (H4 promise).
+  Proof (a): tmp/self_tests/h5_sla_check_test.rb ALL PASS (12 asserts) + ruby -c OK.
+  RSpec spec/jobs/sla/check_violations_job_spec.rb written (SPECS-UNRUN locally).
 - [ ] H6 Patra::WebhookEmitter (4 events, non-hot seams, never blocks money path)
 - [ ] H7 panda master blank balance — diagnose + patra_panda_probe.rb
 - [ ] H8 FB token expiry alerting (1/token/day idempotent)
@@ -127,6 +135,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   `ruby tmp/self_tests/h3_customer_migration_test.rb` → ALL PASS 13)
 - H4: `bundle exec rspec spec/configs/schedule_classes_spec.rb spec/configs/schedule_spec.rb`
   (local equivalent ran: `ruby tmp/self_tests/h4_schedule_classes_test.rb` → ALL PASS 90)
+- H5: `bundle exec rspec spec/jobs/sla/check_violations_job_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h5_sla_check_test.rb` → ALL PASS 12)
 
 ## COMMITS
 (one line per item as committed)
