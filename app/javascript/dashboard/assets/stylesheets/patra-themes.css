@@ -5040,6 +5040,30 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
   transition-duration: 0.08s !important;
 }
 
+/* Q1(e) — visible keyboard focus for custom Patra interactive elements
+   (components-next Button has its own focus-visible; these are the
+   hand-rolled buttons/tabs across the Patra screens) */
+.pat-btn:focus-visible,
+.ops-btn:focus-visible,
+.pat-hbtn:focus-visible,
+.patra-conv-head-btn:focus-visible,
+.patra-conv-head-icon-btn:focus-visible,
+.pat-rail-item:focus-visible,
+.pat-connect-cta:focus-visible,
+.sr-use:focus-visible,
+.sr-edit:focus-visible,
+.ai-hc-ask-btn:focus-visible,
+.patra-card-more-btn:focus-visible,
+.patra-range-btn:focus-visible,
+.patra-approve-btn:focus-visible,
+.patra-th-btn:focus-visible,
+.vault-copy:focus-visible,
+.save-btn:focus-visible,
+.pat-qa:focus-visible {
+  outline: 2px solid var(--patra, #6e56cf);
+  outline-offset: 2px;
+}
+
 /* card hover — shared lift for patra cards that lack a bespoke hover */
 .lb-kpi,
 .bc-card,
