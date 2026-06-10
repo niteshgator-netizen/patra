@@ -158,11 +158,13 @@ begin
       puts "  invoke_anthropic error: #{e.class}: #{e.message[0, 160]}"; nil
     end
 
-    # Inspect the teed raw response to report which field carried the text.
+    # Inspect the teed raw response to report which field the parser ACTUALLY
+    # selected. Mirrors reply_service invoke_anthropic: content FIRST,
+    # reasoning_content only when content is blank (reply_service.rb ~:2114-2116).
     raw = ($LAST_POST&.parsed_response rescue nil)
     rc_len = raw.is_a?(Hash) ? raw.dig('choices', 0, 'message', 'reasoning_content').to_s.strip.length : 0
     ct_len = raw.is_a?(Hash) ? raw.dig('choices', 0, 'message', 'content').to_s.strip.length : 0
-    field = rc_len.positive? ? 'reasoning_content' : (ct_len.positive? ? 'content' : 'none')
+    field = ct_len.positive? ? 'content' : (rc_len.positive? ? 'reasoning_content' : 'none')
     code  = ($LAST_POST&.code rescue nil)
 
     puts "  routed=deepseek http=#{code.inspect} raw_field=#{field} (content_len=#{ct_len} reasoning_len=#{rc_len})"
