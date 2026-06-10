@@ -127,7 +127,7 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - [x] D3 Render spec section in PatraOwnerDashboard (real data, hidden when empty)
 
 ### PHASE M — RESPONSIVE PASS
-- [ ] M1 Audit all v2/v3/v4-styled screens @768/1024, fix overflow/stacking
+- [x] M1 Audit all v2/v3/v4-styled screens @768/1024, fix overflow/stacking
 
 ### PHASE E — EMPTY STATES & SKELETONS
 - [ ] E1 Sweep primary screens: themed skeletons + empty states, no raw "Loading..."
@@ -157,3 +157,12 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - S3 (this commit) — SEARCH FINDING: a full search PAGE exists (modules/search/SearchView.vue at /accounts/:id/search/:tab, not just an overlay) and is already pat-page-wrap-treated. Spec gaps fixed: focus/active accents were stock blue (TabBar active text-n-blue-11, input focus icon) → patra-3 via deep cures; input focus border n-brand → patra; grouped result section headers → Space Grotesk + spec purple dot (::before) + canvas-matched sticky fade (was n-surface-1); woot-loading-state "Searching/Loading" → pat-skel shimmer rows (all 4 result lists share SearchResultSection). Empty states (per-section + full) verified themed via slate->token maps. DECISION S3-a: spec topbar h1 not added — input-first layout is the existing UX and ACCEPT list (input/grouped results/empty state) is satisfied. Build green.
 - S4 (this commit) — Onboarding: pages verified wrapped + functional stepped flow (timeline sections, enrichment wait, form rows/selects all token-mapped). Spec gaps fixed: greeting icon placeholder → REAL P logo asset (components-next Logo.vue → /brand-assets/patra-logo-tile.png, 32px); greeting + section titles → Space Grotesk display; Continue CTA (NextButton blue/bg-n-brand) → Patra purple gradient via deep rule; timeline connector + pointer SVGs were stock --blue-9 → var(--patra); enrichment spinner blue → patra-3. Both themes via wrapper tokens. Build green.
 - D1/D2/D3 (this commit) — DISCOVERY (read-only): intent evidence persists two ways: (a) orchestrator applies a ~50-label vocabulary to conversations (auto-load, awaiting-payment, cashout-rules, download-link, payment-*, transfer-*, needs-human, ...; grepped from conversation_orchestrator.rb without editing it); (b) conversation custom attrs carry last_intent_confidence/reason (per-conversation, used by C1 handoff card). D2: NO new endpoint needed — Api::V1::Accounts::Patra::DashboardController#top_questions_for ALREADY aggregates real "top questions Patra AI handled" (AI-sourced outgoing msgs → conversations minus needs-human → incoming text tally, top 5, Current.account-scoped, read-only AR); the v2 label summary_reports/label endpoint also exists as an alternative signal. Zero .rb changes; hot files untouched. D3: section was rendering ALWAYS (permanent "No AI-handled questions yet." card + permanent empty note in AI-perf card) → standalone card now hidden when empty (v-if), its 2 hardcoded English strings swapped to existing report.json keys (TOP_QUESTIONS/NO_QUESTIONS); AI-perf card's sub+empty note now only shows when there are no questions (no duplication, no permanent placeholder). Build green 52.2s.
+- M1 (this commit) — Responsive audit @768/@1024, per-screen verdicts:
+  * Inbox <768: VERIFIED handled (v2 36517e29a — ChatList/ConversationBox max-md swap on conversationId). 0 changes.
+  * Owner dashboard: kpis 2-col + grid 1fr + mini-stats 2-col @1200 verified; heatmap overflow-x verified; FIXED: getting-started checklist was forced 3-col !important at all widths → 1-col @768.
+  * Reports suite: ReportContainer md:grid-cols-2 ✓, BotMetrics lg:4/2 ✓, CSAT+SLA KPI grids sm:3/1 ✓, filter bars stack (flex-col lg:row) ✓, summary tables overflow-auto ✓, heatmaps min-w+scroll ✓; FIXED: SLATable 12-col grid crushed at 768 → overflow-x-auto card + min-w-40rem inner (also swapped its spinner+LOADING for pat-skel rows; unused Spinner import removed).
+  * Notifications: FIXED — fixed-min columns clipped at <768 → table display:block + overflow-x-auto @768.
+  * Companies: header flex-col sm:row ✓, cards fluid ✓, detail grid layout components-next responsive ✓.
+  * Search/Onboarding: max-w-5xl / max-w-580 single-column ✓.
+  * Leaderboard auto-fit minmax ✓; BroadcastComposer 1fr @900 ✓; settings forms inherit pat-page-wrap fluid width ✓.
+  Build green.

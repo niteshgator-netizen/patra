@@ -1801,6 +1801,14 @@ onUnmounted(() => {
   }
 }
 
+/* M1: getting-started checklist is forced 3-col (!important) above — at
+   tablet widths the items crush; collapse to a single column */
+@media (max-width: 768px) {
+  .patra-checklist-wrap :deep(ul) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .patra-card,
   .patra-kpi,

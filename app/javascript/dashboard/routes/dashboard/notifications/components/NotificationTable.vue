@@ -164,6 +164,13 @@ export default {
 }
 
 .notifications-table {
+  /* M1: at narrow widths the fixed-min columns (timestamp 9.125rem etc.)
+     overflow — let the table scroll horizontally instead of clipping */
+  @media (max-width: 768px) {
+    display: block;
+    overflow-x: auto;
+  }
+
   > tbody {
     > tr {
       @apply cursor-pointer;

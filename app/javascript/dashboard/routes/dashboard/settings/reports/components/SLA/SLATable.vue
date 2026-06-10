@@ -2,13 +2,11 @@
 import TableFooter from 'dashboard/components/widgets/TableFooter.vue';
 import TableHeaderCell from 'dashboard/components/widgets/TableHeaderCell.vue';
 import SLAReportItem from './SLAReportItem.vue';
-import Spinner from 'shared/components/Spinner.vue';
 export default {
   name: 'SLATable',
   components: {
     SLAReportItem,
     TableFooter,
-    Spinner,
     TableHeaderCell,
   },
   props: {
@@ -57,42 +55,43 @@ export default {
 <template>
   <div>
     <div
-      class="min-w-full shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 p-6"
+      class="min-w-full shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 p-6 overflow-x-auto"
     >
-      <div
-        class="grid content-center h-12 grid-cols-12 gap-4 px-6 py-0 bg-n-slate-2 rounded-md"
-      >
-        <TableHeaderCell
-          :span="6"
-          :label="$t('SLA_REPORTS.TABLE.HEADER.CONVERSATION')"
-        />
-        <TableHeaderCell
-          :span="2"
-          :label="$t('SLA_REPORTS.TABLE.HEADER.POLICY')"
-        />
-        <TableHeaderCell
-          :span="2"
-          :label="$t('SLA_REPORTS.TABLE.HEADER.AGENT')"
-        />
-        <TableHeaderCell :span="1" label="" />
-      </div>
+      <div class="min-w-[40rem]">
+        <div
+          class="grid content-center h-12 grid-cols-12 gap-4 px-6 py-0 bg-n-slate-2 rounded-md"
+        >
+          <TableHeaderCell
+            :span="6"
+            :label="$t('SLA_REPORTS.TABLE.HEADER.CONVERSATION')"
+          />
+          <TableHeaderCell
+            :span="2"
+            :label="$t('SLA_REPORTS.TABLE.HEADER.POLICY')"
+          />
+          <TableHeaderCell
+            :span="2"
+            :label="$t('SLA_REPORTS.TABLE.HEADER.AGENT')"
+          />
+          <TableHeaderCell :span="1" label="" />
+        </div>
 
-      <div v-if="isLoading" class="flex items-center justify-center h-32">
-        <Spinner />
-        <span>{{ $t('SLA_REPORTS.LOADING') }}</span>
-      </div>
-      <div v-else-if="slaReports.length > 0">
-        <SLAReportItem
-          v-for="slaReport in slaReports"
-          :key="slaReport.applied_sla.id"
-          :sla-name="slaReport.applied_sla.sla_name"
-          :conversation="slaReport.conversation"
-          :conversation-id="slaReport.conversation.id"
-          :sla-events="slaReport.sla_events"
-        />
-      </div>
-      <div v-else class="flex items-center justify-center h-32">
-        {{ $t('SLA_REPORTS.NO_RECORDS') }}
+        <div v-if="isLoading" class="flex flex-col gap-3 py-4">
+          <div v-for="n in 5" :key="n" class="pat-skel h-10 w-full" />
+        </div>
+        <div v-else-if="slaReports.length > 0">
+          <SLAReportItem
+            v-for="slaReport in slaReports"
+            :key="slaReport.applied_sla.id"
+            :sla-name="slaReport.applied_sla.sla_name"
+            :conversation="slaReport.conversation"
+            :conversation-id="slaReport.conversation.id"
+            :sla-events="slaReport.sla_events"
+          />
+        </div>
+        <div v-else class="flex items-center justify-center h-32">
+          {{ $t('SLA_REPORTS.NO_RECORDS') }}
+        </div>
       </div>
     </div>
     <TableFooter
