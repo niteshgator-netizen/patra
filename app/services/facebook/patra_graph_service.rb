@@ -7,6 +7,28 @@ class Facebook::PatraGraphService
   GRAPH_VERSION = 'v18.0'
   HTTP_TIMEOUT = 15
 
+  # Typed Graph error: subclasses StandardError so every existing rescue still
+  # catches it, but callers can now branch on fb_code (190 = dead token,
+  # 4/17/32/613 = rate limits) instead of string-matching messages.
+  class GraphApiError < StandardError
+    RATE_LIMIT_CODES = [4, 17, 32, 613].freeze
+
+    attr_reader :fb_code
+
+    def initialize(message, fb_code: nil)
+      super(message)
+      @fb_code = fb_code
+    end
+
+    def token_expired?
+      fb_code == 190
+    end
+
+    def rate_limited?
+      RATE_LIMIT_CODES.include?(fb_code)
+    end
+  end
+
   class << self
     def exchange_oauth_code(code:, redirect_uri:, app_id:, app_secret:)
       resolved_id, resolved_secret = resolve_app_credentials(app_id, app_secret)
@@ -318,8 +340,17 @@ class Facebook::PatraGraphService
 
     def raise_graph_error!(response, context)
       body = response.parsed_response
-      msg = body.is_a?(Hash) ? body['error']&.slice('message', 'code', 'type') : response.body
-      raise StandardError, "Facebook Graph error (#{context}): #{msg || response.code}"
+      err = body.is_a?(Hash) ? (body['error'] || {}) : {}
+      code = err['code'].to_i
+      msg = err.present? ? err.slice('message', 'code', 'type') : response.body
+
+      if code == 190
+        Rails.logger.error("[PatraGraphService] PAGE TOKEN DEAD (OAuth 190) during #{context} — refresh token or re-connect the page")
+      elsif GraphApiError::RATE_LIMIT_CODES.include?(code)
+        Rails.logger.warn("[PatraGraphService] FB rate limit (code #{code}) during #{context} — back off before retrying")
+      end
+
+      raise GraphApiError.new("Facebook Graph error (#{context}): #{msg || response.code}", fb_code: code)
     end
   end
 end
