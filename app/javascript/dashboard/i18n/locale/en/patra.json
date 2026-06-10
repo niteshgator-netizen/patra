@@ -273,7 +273,10 @@
       "RANK": "Rank",
       "RESOLVED": "Resolved",
       "RESPONSE_TIME": "Avg response time",
-      "EMPTY": "No agent activity yet for this period."
+      "EMPTY": "No agent activity yet for this period.",
+      "ACTIVE_AGENTS": "Active agents",
+      "TOTAL_RESOLVED": "Total resolved",
+      "RANKINGS": "Agent rankings"
     },
     "KNOWLEDGE": {
       "TITLE": "Knowledge Base",
