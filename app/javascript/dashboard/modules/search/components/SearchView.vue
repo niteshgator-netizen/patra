@@ -701,4 +701,46 @@ onUnmounted(() => {
 .pat-page-wrap :deep(.animate-loader-pulse) {
   background: var(--surface-3) !important;
 }
+
+/* S3 — spec search chrome: purple focus/active accents, grouped section
+   headers with the Patra dot, canvas-matched sticky fade */
+.pat-page-wrap :deep(.text-n-blue-11) {
+  color: var(--patra-3) !important;
+}
+
+.pat-page-wrap :deep(.hover\:text-n-brand:hover) {
+  color: var(--patra-3) !important;
+}
+
+.pat-page-wrap :deep(.border-n-brand) {
+  border-color: var(--patra) !important;
+}
+
+.pat-page-wrap :deep(.sticky h3) {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text) !important;
+}
+
+.pat-page-wrap :deep(.sticky h3::before) {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--patra);
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.45);
+  flex-shrink: 0;
+}
+
+.pat-page-wrap :deep(.bg-gradient-to-b.from-n-surface-1) {
+  background-image: linear-gradient(
+    to bottom,
+    var(--canvas) 80%,
+    transparent
+  ) !important;
+}
 </style>
