@@ -1842,7 +1842,13 @@ class Ai::ReplyService
     match = Array(response.parsed_response).find { |c| c['short_code'].to_s == 'payment_info' }
 
     if match.nil?
-      Rails.logger.warn("[AiReply] payment_info canned response not found in account=#{account_id}")
+      fallback = payment_info_from_handles
+      if fallback.present?
+        Rails.logger.info("[AiReply] payment_info canned response missing account=#{account_id} - using live payment-handle fallback")
+        write_canned_cache('payment_info', fallback)
+        return fallback
+      end
+      Rails.logger.warn("[AiReply] payment_info canned response not found in account=#{account_id} and no active payment handles")
       return ''
     end
 
@@ -1851,6 +1857,30 @@ class Ai::ReplyService
     content
   rescue StandardError => e
     Rails.logger.warn("[AiReply] payment_info fetch error #{e.class}: #{e.message}")
+    ''
+  end
+
+  # When ops has not created the payment_info canned response, build the
+  # payment block from the LIVE active payment handles (the same records the
+  # Payments screen manages): first-priority active non-cooldown handle per
+  # platform. Empty when no usable handles -> caller keeps the '' escalation
+  # path. Cached under the same canned key (TTL 600s) so a later canned
+  # response takes over within 10 minutes.
+  def payment_info_from_handles
+    account = Account.find_by(id: account_id)
+    return '' unless account.respond_to?(:payment_handles)
+
+    usable = account.payment_handles.where(status: 'active').order(:priority).to_a.reject(&:in_cooldown?)
+    return '' if usable.empty?
+
+    lines = usable.group_by(&:platform).map do |platform, hs|
+      h = hs.first
+      label = h.display_person_name ? " (#{h.display_person_name})" : ''
+      "#{platform.to_s.upcase}: #{h.display_handle}#{label}"
+    end
+    "Payment methods (live):\n#{lines.join("\n")}"
+  rescue StandardError => e
+    Rails.logger.warn("[AiReply] payment_info handle fallback failed #{e.class}: #{e.message}")
     ''
   end
 
