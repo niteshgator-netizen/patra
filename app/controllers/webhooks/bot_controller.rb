@@ -28,6 +28,8 @@ class Webhooks::BotController < ActionController::API
 
   # POST /bot
   def events
+    return if signature_rejected?
+
     # JSON bodies parse into string-keyed hashes; symbol lookups (:object, :entry)
     # would be nil and we'd drop every webhook as "non-page". Indifferent access
     # matches MessengerController's params['object'] pattern without changing call sites.
@@ -50,6 +52,58 @@ class Webhooks::BotController < ActionController::API
   end
 
   private
+
+  # X-Hub-Signature-256 HMAC of the RAW body (same construction as
+  # MetaTokenVerifyConcern). LOG-ONLY by default: invalid signatures are
+  # logged + counted but still processed. Set PATRA_ENFORCE_WEBHOOK_SIGNATURE=true
+  # to 401-reject them. Internal errors fail open — a verification bug must
+  # never take down message intake.
+  def signature_rejected?
+    verdict = valid_hub_signature?
+    return false if verdict == :skipped || verdict == true
+
+    note_invalid_signature
+    if enforce_signature?
+      head :unauthorized
+      return true
+    end
+    false
+  rescue StandardError => e
+    Rails.logger.error("[BotBridge] signature check crashed (failing open): #{e.class}: #{e.message}")
+    false
+  end
+
+  def valid_hub_signature?
+    secret = webhook_app_secret
+    if secret.blank?
+      Rails.logger.warn('[BotBridge] FB_APP_SECRET not configured — signature check skipped while enforcement is on') if enforce_signature?
+      return :skipped
+    end
+
+    signature = request.headers['X-Hub-Signature-256'].to_s
+    return false unless signature.start_with?('sha256=')
+
+    expected = "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', secret, request.raw_post)}"
+    ActiveSupport::SecurityUtils.secure_compare(expected, signature)
+  end
+
+  def webhook_app_secret
+    ENV['FB_APP_SECRET'].presence || GlobalConfigService.load('FB_APP_SECRET', nil)
+  end
+
+  def enforce_signature?
+    ENV['PATRA_ENFORCE_WEBHOOK_SIGNATURE'].to_s.casecmp('true').zero?
+  end
+
+  def note_invalid_signature
+    Rails.logger.warn("[BotBridge] INVALID X-Hub-Signature-256 enforce=#{enforce_signature?} ip=#{request.remote_ip} ua=#{request.user_agent.to_s[0, 80]}")
+    redis = Redis.new(Redis::Config.app)
+    key = "patra:webhook:invalid_signature:#{Time.now.utc.strftime('%Y%m%d')}"
+    redis.incr(key)
+    redis.expire(key, 7 * 86_400)
+  rescue StandardError => e
+    Rails.logger.warn("[BotBridge] invalid-signature counter skipped: #{e.message}")
+  end
 
   def enqueue_message_events(payload)
     Array(payload[:entry]).each do |entry|
