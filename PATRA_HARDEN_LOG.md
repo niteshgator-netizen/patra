@@ -21,7 +21,15 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   tmp/self_tests/h2_drip_scheduler_test.rb ALL PASS (21 asserts — days 0/1/2/3/6/7/8, stale-health
   day 7, fresh-updated_at immunity, stamp-once, garbage-stamp) + ruby -c OK. RSpec
   spec/services/backup/drip_scheduler_spec.rb written (SPECS-UNRUN locally).
-- [ ] H3 customer-migration mass-blast → operator alert + 24h-window capped notes
+- [x] H3 customer-migration mass-blast → operator alert + 24h-window capped notes —
+  rewrite per HANDOFF-B-6: ONE Telegram api_error operator alert (fires first, rescued,
+  carries from/to page + contact count); "we moved" note ONLY when the contact has an INBOUND
+  message in the last 24h (last_activity_at pre-filter + authoritative inbound check);
+  cap PATRA_MIGRATION_MAX_NOTES (default 50, 0 = alert-only, garbage → default); 1 note/sec;
+  per-contact rescue; cap-skips logged. account stamp now records notes_sent. Proof (a):
+  tmp/self_tests/h3_customer_migration_test.rb ALL PASS (13 asserts) + ruby -c OK.
+  RSpec spec/services/backup/customer_migration_spec.rb written (SPECS-UNRUN locally).
+  BackupPages stay standby — nothing in H1-H3 activates anything.
 - [ ] H4 dead crons (.rb-suffixed names) + full cron audit
 - [ ] H5 SLA wiring (sla_alerts_enabled / first_response / resolution mirrors)
 - [ ] H6 Patra::WebhookEmitter (4 events, non-hot seams, never blocks money path)
@@ -94,6 +102,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   `ruby tmp/self_tests/h1_backup_health_check_test.rb` → ALL PASS 10)
 - H2: `bundle exec rspec spec/services/backup/drip_scheduler_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h2_drip_scheduler_test.rb` → ALL PASS 21)
+- H3: `bundle exec rspec spec/services/backup/customer_migration_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h3_customer_migration_test.rb` → ALL PASS 13)
 
 ## COMMITS
 (one line per item as committed)
