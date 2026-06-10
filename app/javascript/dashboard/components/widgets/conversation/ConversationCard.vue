@@ -383,7 +383,7 @@ const onCardMouseMove = (e) => {
     <div class="px-0 py-3 flex-1 min-w-0 border-line">
       <div
         v-if="showMetaSection"
-        class="flex items-center min-w-0 gap-1"
+        class="flex items-center min-w-0 gap-1 ltr:pr-16 rtl:pl-16"
         :class="{
           'ltr:ml-2 rtl:mr-2': !compact,
           'mx-2': compact,
