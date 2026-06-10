@@ -2575,10 +2575,10 @@ aside.pat-rail.patra-nav-rail {
 }
 .dark .gcard .gcard-ic {
   font-size: 28px;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
-  background: var(--surface-2, #131119);
+  background: linear-gradient(135deg, var(--surface-2, #131119), var(--surface-3, #1B1925));
   border: 1px solid var(--border, #171520);
   display: inline-flex;
   align-items: center;
@@ -2586,7 +2586,7 @@ aside.pat-rail.patra-nav-rail {
   transition: transform .3s cubic-bezier(.34,1.56,.64,1);
 }
 .dark .gcard:hover .gcard-ic {
-  transform: scale(1.08) rotate(-4deg);
+  transform: scale(1.1) rotate(-5deg);
   border-color: var(--patra, #6E56CF) !important;
 }
 .dark .gcard .gn {
@@ -2597,7 +2597,7 @@ aside.pat-rail.patra-nav-rail {
 }
 .dark .gcard .gd {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 11px !important;
+  font-size: 12px !important;
   color: var(--text-3, #75727F) !important;
   margin-top: 2px;
 }
@@ -2706,6 +2706,15 @@ aside.pat-rail.patra-nav-rail {
 .dark .gcard-btn.cfg:hover {
   filter: brightness(1.1);
   box-shadow: 0 5px 16px var(--patra-glow, rgba(110,86,207,.55)) !important;
+}
+.dark .gcard-btn.mp {
+  background: linear-gradient(135deg, rgba(110, 86, 207, 0.16), rgba(139, 92, 246, 0.06)) !important;
+  border-color: rgba(139, 92, 246, 0.32) !important;
+  color: var(--patra-3, #A78BFA) !important;
+}
+.dark .gcard-btn.mp:hover {
+  background: linear-gradient(135deg, rgba(110, 86, 207, 0.26), rgba(139, 92, 246, 0.12)) !important;
+  border-color: var(--patra, #6E56CF) !important;
 }
 
 /* ── 7. ADD GAME MODAL ── */
