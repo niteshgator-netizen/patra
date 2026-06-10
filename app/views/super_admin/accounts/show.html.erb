@@ -25,6 +25,8 @@ as well as a link to its edit page.
     </h1>
 
     <div>
+      <%# PATRA TAB-C: lifecycle & control panel (suspend/reactivate/flags, audited) %>
+      <%= link_to("Patra Control Panel", super_admin_patra_account_path(page.resource), class: "button") %>
       <%= if accessible_action?(page.resource, :edit)
         link_to("Edit", [:edit, namespace, page.resource], class: "button")
       end %>

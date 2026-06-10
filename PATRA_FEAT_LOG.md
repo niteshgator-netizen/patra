@@ -31,7 +31,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 ## QUEUE
 - [x] ADM5 — immutable admin audit trail (FIRST — ADM2/ADM4 depend on it)
 - [x] ADM1 — platform command center
-- [ ] ADM2 — account lifecycle & control
+- [x] ADM2 — account lifecycle & control
 - [ ] ADM3 — integration health matrix
 - [ ] ADM4 — impersonation / support-login
 - [ ] ADM6 — platform banner
@@ -92,6 +92,24 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - ERB note: views with `<%= helper do %>` blocks can't be parsed by plain ERB (no erubi gem locally) —
   plain-ERB "syntax error" on form_with/link_to blocks is a false positive; pre-existing nav partial
   fails the same check unedited. All .rb files ruby -c clean.
+
+## ADM2 — SHIPPED (specs written, unrun)
+- Files: app/controllers/super_admin/patra_accounts_controller.rb (NEW controller per D6),
+  app/views/super_admin/patra_accounts/show.html.erb (panel + confirm-dialog action forms),
+  accounts/show.html.erb (+1 "Patra Control Panel" button), routes member posts in marked block,
+  spec/controllers/super_admin/patra_accounts_controller_spec.rb.
+- Panel: status badge, plan/subscription '—' (D4 billing absent), player/agent/conversation counts,
+  30d net via FinanceAnalytics.account_scan, flagged-player risk, integration health via
+  GameHealthQuery (healthy/degraded/down counts), created/last-active (max message created_at),
+  last 10 audit rows for the account.
+- Actions: suspend / reactivate (flip the VERIFIED enum — no new enforcement built, per VERIFIED
+  FACTS; cross-check spec proves a suspended account 401s at /api/v1 via existing
+  EnsureCurrentAccountHelper) · toggle any features.yml flag (enable_features!/disable_features!,
+  name whitelisted against Featurable::FEATURE_LIST). ALL actions: super-admin only + kill-switch
+  (403 when off, audit row count stays 0) + required reason + data-confirm + ADM5 audit BEFORE the
+  change + reversible. NO delete path. NO billing mutations (viewing only — logged decision).
+- Audit actions recorded: account.suspend, account.reactivate, account.feature_toggle
+  (metadata: feature/from/to — booleans only, no secrets).
 
 ## SECURITY-MODEL (ADM4) — filled when ADM4 ships
 

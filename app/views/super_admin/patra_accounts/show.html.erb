@@ -1,0 +1,137 @@
+<%# ADM2 — per-account lifecycle & control panel %>
+<% content_for(:title) { "Patra Control — #{@account.name}" } %>
+
+<style>
+  .patra-acct { padding: 24px; max-width: 1100px; }
+  .patra-acct h1 { margin: 0 0 4px; font-size: 20px; }
+  .patra-acct .patra-sub { color: #64748b; font-size: 13px; margin-bottom: 16px; }
+  .patra-acct .patra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .patra-acct .patra-panel { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #fff; margin-bottom: 16px; }
+  .patra-acct .patra-panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #534AB7; margin: 0 0 12px; }
+  .patra-acct .patra-stat { display: inline-block; margin: 0 18px 10px 0; }
+  .patra-acct .patra-stat .v { font-size: 18px; font-weight: 700; }
+  .patra-acct .patra-stat .l { font-size: 12px; color: #64748b; }
+  .patra-acct table.patra-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .patra-acct table.patra-table th { text-align: left; color: #64748b; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+  .patra-acct table.patra-table td { padding: 4px 8px; border-bottom: 1px solid #f1f5f9; }
+  .patra-acct .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .patra-acct .badge.active { background: #dcfce7; color: #166534; }
+  .patra-acct .badge.suspended { background: #fee2e2; color: #991b1b; }
+  .patra-acct .neg { color: #dc2626; } .patra-acct .pos { color: #16a34a; }
+  .patra-acct .muted { color: #94a3b8; }
+  .patra-acct .danger-zone { border-color: #fecaca; }
+  .patra-acct input[type=text] { border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; width: 280px; }
+</style>
+
+<div class="patra-acct">
+  <h1>
+    <%= @account.name %>
+    <span class="badge <%= @account.status %>"><%= @account.status.upcase %></span>
+  </h1>
+  <div class="patra-sub">
+    Account #<%= @account.id %> · created <%= @account.created_at.to_date %> ·
+    last player message: <%= @last_active_at ? @last_active_at.to_date : 'never' %> ·
+    <%= link_to 'Administrate record', super_admin_account_path(@account) %>
+  </div>
+
+  <% unless Patra::AdminConsole.actions_enabled? %>
+    <div class="patra-panel" style="border-color:#fde68a;background:#fffbeb;">
+      Console actions are <strong>disabled</strong> (read-only). Set <code>PATRA_ADMIN_CONSOLE_ACTIONS=true</code> to enable suspend/reactivate/feature toggles.
+    </div>
+  <% end %>
+
+  <div class="patra-grid">
+    <div class="patra-panel">
+      <h2>Usage</h2>
+      <span class="patra-stat"><span class="v"><%= @counts[:players] %></span><br/><span class="l">players</span></span>
+      <span class="patra-stat"><span class="v"><%= @counts[:agents] %></span><br/><span class="l">agents</span></span>
+      <span class="patra-stat"><span class="v"><%= @counts[:conversations] %></span><br/><span class="l">conversations</span></span>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Money (last 30 days)</h2>
+      <span class="patra-stat"><span class="v pos">$<%= @money[:deposits][:total] %></span><br/><span class="l">deposits</span></span>
+      <span class="patra-stat"><span class="v neg">$<%= @money[:cashouts][:total] %></span><br/><span class="l">cashouts</span></span>
+      <span class="patra-stat"><span class="v <%= @money[:net].negative? ? 'neg' : 'pos' %>">$<%= @money[:net] %></span><br/><span class="l">NET</span></span>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Risk</h2>
+      <span class="patra-stat"><span class="v"><%= @money[:risk][:flagged_players_total] %></span><br/><span class="l">flagged players</span></span>
+      <% if @money[:malformed_count].positive? %>
+        <div class="muted" style="font-size:12px;">⚠ <%= @money[:malformed_count] %> malformed finance entries skipped</div>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Integrations</h2>
+      <% if @agent_games.any? %>
+        <span class="patra-stat"><span class="v pos"><%= @integration_health.fetch('healthy', 0) %></span><br/><span class="l">healthy</span></span>
+        <span class="patra-stat"><span class="v"><%= @integration_health.fetch('degraded', 0) %></span><br/><span class="l">degraded</span></span>
+        <span class="patra-stat"><span class="v <%= @integration_health.fetch('down', 0).positive? ? 'neg' : '' %>"><%= @integration_health.fetch('down', 0) %></span><br/><span class="l">down</span></span>
+      <% else %>
+        <div class="muted">No game connections.</div>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Billing</h2>
+      <span class="patra-stat"><span class="v muted">—</span><br/><span class="l">plan (billing not initialized)</span></span>
+      <span class="patra-stat"><span class="v muted">—</span><br/><span class="l">subscription</span></span>
+    </div>
+  </div>
+
+  <div class="patra-panel danger-zone">
+    <h2>Lifecycle (audited, reversible)</h2>
+    <% if @account.active? %>
+      <%= form_with url: suspend_super_admin_patra_account_path(@account), method: :post, local: true,
+                    data: { confirm: "Suspend #{@account.name}? All API requests for this account will be blocked on their next request. This is reversible." } do %>
+        <input type="text" name="reason" placeholder="Reason (required, goes to audit trail)" required />
+        <button class="button" type="submit">Suspend account</button>
+      <% end %>
+    <% else %>
+      <%= form_with url: reactivate_super_admin_patra_account_path(@account), method: :post, local: true,
+                    data: { confirm: "Reactivate #{@account.name}?" } do %>
+        <input type="text" name="reason" placeholder="Reason (required, goes to audit trail)" required />
+        <button class="button" type="submit">Reactivate account</button>
+      <% end %>
+    <% end %>
+    <div class="muted" style="font-size:12px;margin-top:8px;">
+      No delete here by design. Suspension enforcement: API base blocks non-active accounts on the next request (see ADM7 notes in PATRA_FEAT_LOG.md).
+    </div>
+  </div>
+
+  <div class="patra-panel">
+    <h2>Feature Flags (audited)</h2>
+    <%= form_with url: toggle_feature_super_admin_patra_account_path(@account), method: :post, local: true,
+                  data: { confirm: 'Toggle this feature for this account?' } do %>
+      <select name="feature">
+        <% @features.each do |name, enabled| %>
+          <option value="<%= name %>"><%= name %> — currently <%= enabled ? 'ON' : 'OFF' %></option>
+        <% end %>
+      </select>
+      <input type="text" name="reason" placeholder="Reason (required)" required />
+      <button class="button" type="submit">Toggle</button>
+    <% end %>
+  </div>
+
+  <div class="patra-panel">
+    <h2>Recent Admin Actions on this Account</h2>
+    <% if @recent_audits.any? %>
+      <table class="patra-table">
+        <thead><tr><th>When</th><th>Action</th><th>Reason</th></tr></thead>
+        <tbody>
+          <% @recent_audits.each do |log| %>
+            <tr>
+              <td><%= log.created_at %></td>
+              <td><%= log.action %></td>
+              <td><%= log.reason %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% else %>
+      <div class="muted">No audited actions yet.</div>
+    <% end %>
+  </div>
+</div>

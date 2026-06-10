@@ -887,6 +887,13 @@ Rails.application.routes.draw do
   # controller layer (SuperAdmin::ApplicationController#authenticate_super_admin!).
   namespace :super_admin do
     resources :patra_admin_audit_logs, only: [:index, :show]
+    resources :patra_accounts, only: [:show] do
+      member do
+        post :suspend
+        post :reactivate
+        post :toggle_feature
+      end
+    end
   end
   # == END PATRA TAB-C ROUTES ==
 end
