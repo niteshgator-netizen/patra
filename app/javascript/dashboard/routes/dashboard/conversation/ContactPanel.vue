@@ -405,22 +405,14 @@ onMounted(() => {
       <div v-show="sidebarTab === 'copilot'" class="patra-copilot-tab">
         <PatraAiHandoffCard :conversation-id="conversationId" />
         <SuggestedReplyCard :conversation-id="conversationId" />
-        <div class="patra-confidence-section">
+        <!-- C1: confidence rows render ONLY from real data (fake 98%/91%
+             placeholder rows removed per no-fake-data rule). -->
+        <div
+          v-if="currentChat?.additional_attributes?.last_intent_confidence"
+          class="patra-confidence-section"
+        >
           <div class="patra-conf-title">Confidence scores</div>
-          <div
-            v-if="currentChat?.additional_attributes?.cashout_sla_policy"
-            class="patra-conf-row"
-          >
-            <span class="patra-conf-label">Cashout SLA policy</span>
-            <div class="patra-conf-bar">
-              <div class="patra-conf-fill" style="width: 98%" />
-            </div>
-            <span class="patra-conf-pct">98%</span>
-          </div>
-          <div
-            v-if="currentChat?.additional_attributes?.last_intent_confidence"
-            class="patra-conf-row"
-          >
+          <div class="patra-conf-row">
             <span class="patra-conf-label">Intent match</span>
             <div class="patra-conf-bar">
               <div
@@ -440,13 +432,6 @@ onMounted(() => {
                   0) * 100
               )
             }}%</span>
-          </div>
-          <div class="patra-conf-row">
-            <span class="patra-conf-label">RAG knowledge base</span>
-            <div class="patra-conf-bar">
-              <div class="patra-conf-fill" style="width: 91%" />
-            </div>
-            <span class="patra-conf-pct">91%</span>
           </div>
         </div>
         <!-- Copilot input -->

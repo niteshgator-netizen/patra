@@ -28,7 +28,24 @@ const intentLabel = computed(() => {
   return null;
 });
 
-const show = computed(() => true);
+/* C1: render ONLY when real AI handoff data exists on the conversation —
+   otherwise the card is fully hidden. */
+const show = computed(() => {
+  const a = attrs.value;
+  return Boolean(
+    intentLabel.value ||
+      a.last_intent_confidence ||
+      a.last_intent_reason ||
+      a.cashout_sla_policy ||
+      a.sentiment ||
+      a.safety_flags ||
+      a.detected_entities ||
+      a.awaiting_load_amount ||
+      a.ai_already_did ||
+      a.customer_context ||
+      a.ai_insight
+  );
+});
 
 const sentimentClass = computed(() => {
   const s = attrs.value.sentiment?.toLowerCase();
@@ -53,7 +70,7 @@ const askPatraAi = () => {
 </script>
 
 <template>
-  <div class="ai-handoff-card">
+  <div v-if="show" class="ai-handoff-card">
     <div class="ai-hc-header">
       <span class="ai-dot" :class="aiOff ? 'dot-off' : 'dot-on'" />
       <span class="ai-hc-title">

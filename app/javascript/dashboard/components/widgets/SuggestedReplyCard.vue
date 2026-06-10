@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue';
 import PatraAiAPI from 'dashboard/api/patraAi';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 const props = defineProps({
   conversationId: { type: [Number, String], required: true },
@@ -27,10 +29,15 @@ const fetchSuggestion = async () => {
 
 watch(() => props.conversationId, fetchSuggestion, { immediate: true });
 
-const applySuggestion = () => emit('apply', suggestion.value);
+/* C1: Apply inserts the suggested reply into the composer via the same bus
+   event the copilot uses (Editor.vue listens for INSERT_INTO_RICH_EDITOR). */
+const applySuggestion = () => {
+  emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, suggestion.value);
+  emit('apply', suggestion.value);
+};
 
 const editSuggestion = () => {
-  emit('apply', suggestion.value);
+  applySuggestion();
   const el = document.querySelector(
     '.reply-box--container textarea, .reply-box--container .ProseMirror'
   );
