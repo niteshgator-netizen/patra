@@ -1569,12 +1569,18 @@ body:not(.dark) .patra-conv-composer {
   position: relative;
   padding: 0;
   margin-top: 0;
+  border-color: var(--pc-border, #e5e3eb) !important;
+}
+
+/* Patra mockup border overrides — beat Chatwoot n-weak rgb(28,32,36) defaults.
+   A7: borders read --pc-border (dark #171520 / light #e5e3eb) instead of a
+   literal dark hex that bled into light mode. */
+:global(.dark .patra-conv-composer-wrap) {
   border-color: #171520 !important;
 }
 
-/* Patra mockup border overrides — beat Chatwoot n-weak rgb(28,32,36) defaults */
-:global(.patra-conv-composer-wrap) {
-  border-color: #171520 !important;
+:global(body:not(.dark) .patra-conv-composer-wrap) {
+  border-color: #e5e3eb !important;
 }
 
 .patra-conv-composer,
@@ -1584,11 +1590,11 @@ body:not(.dark) .patra-conv-composer {
 .patra-conv-composer :deep(.patra-composer-tab),
 .patra-conv-composer :deep(.patra-composer-tab-chip),
 .patra-conv-composer :deep(.patra-composer-bar) {
-  border-color: #171520 !important;
+  border-color: var(--pc-border, #e5e3eb) !important;
 }
 
 .patra-conv-composer :deep(.patra-composer-bar) {
-  border-top-color: #171520 !important;
+  border-top-color: var(--pc-border, #e5e3eb) !important;
 }
 
 .patra-conv-composer :deep(.patra-composer-tab.is-active:not(.is-note)) {
@@ -1604,15 +1610,16 @@ body:not(.dark) .patra-conv-composer {
   min-height: 44px;
   font-size: 13.5px;
   line-height: 1.55;
-  color: #ededf2;
+  /* A7: tokenized — literal #ededf2 made editor text invisible in light */
+  color: var(--text, #1a1a24);
 }
 
 .patra-conv-composer :deep(.ProseMirror) {
-  color: #ededf2;
+  color: var(--text, #1a1a24);
 }
 
 .patra-conv-composer :deep(.ProseMirror p.is-editor-empty:first-child::before) {
-  color: #54515e;
+  color: var(--text-4, #908da0);
 }
 
 .emoji-dialog {

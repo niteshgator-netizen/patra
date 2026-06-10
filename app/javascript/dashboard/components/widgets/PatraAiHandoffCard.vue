@@ -167,7 +167,8 @@ const askPatraAi = () => {
   color: #75727f;
 }
 .ai-hc-value {
-  color: #ededf2;
+  /* A7: tokenized — hardcoded dark-theme hex broke light mode */
+  color: var(--text, #1a1a24);
   font-weight: 500;
   text-align: right;
 }
@@ -218,7 +219,7 @@ const askPatraAi = () => {
 
 .ai-hc-section-text {
   font-size: 12px;
-  color: #ededf2;
+  color: var(--text, #1a1a24);
   line-height: 1.4;
 }
 </style>

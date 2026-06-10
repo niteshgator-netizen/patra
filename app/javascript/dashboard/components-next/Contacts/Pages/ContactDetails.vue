@@ -694,7 +694,8 @@ const updateTier = async event => {
 }
 .patra-tl-title {
   font-size: 12px;
-  color: #ededf2;
+  /* A7: tokenized — hardcoded dark-theme hex broke light mode */
+  color: var(--text, #1a1a24);
 }
 .patra-tl-time {
   font-size: 10px;
@@ -710,6 +711,6 @@ const updateTier = async event => {
   color: #75727f;
 }
 .patra-attr-val {
-  color: #ededf2;
+  color: var(--text, #1a1a24);
 }
 </style>

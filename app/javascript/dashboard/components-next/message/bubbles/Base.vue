@@ -356,7 +356,8 @@ body:not(.dark) .patra-conv-bubble {
 
 .patra-th-value {
   font-size: 11px;
-  color: #ededf2;
+  /* A7: tokenized — hardcoded dark-theme hex broke light mode */
+  color: var(--text, #1a1a24);
 }
 
 .patra-th-actions {

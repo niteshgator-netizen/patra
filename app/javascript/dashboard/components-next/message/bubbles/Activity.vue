@@ -32,7 +32,8 @@ const readableTime = computed(() =>
   position: relative;
   font-family: 'JetBrains Mono', ui-monospace, monospace !important;
   font-size: 11px;
-  color: #54515e;
+  /* A7: tokenized — hardcoded dark hex broke light mode */
+  color: var(--text-4, #908da0);
 }
 
 :deep(.patra-conv-day-sep)::before {
@@ -42,12 +43,12 @@ const readableTime = computed(() =>
   right: 0;
   top: 50%;
   height: 1px;
-  background: #171520;
+  background: var(--border, #e5e3ee);
   z-index: 0;
 }
 
 :deep(.patra-conv-day-sep span) {
-  background: #050409;
+  background: var(--canvas, #f6f5f9);
   padding: 0 12px;
   position: relative;
   z-index: 1;

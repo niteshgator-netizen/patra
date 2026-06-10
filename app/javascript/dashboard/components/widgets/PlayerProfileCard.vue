@@ -1207,7 +1207,7 @@ watch(() => props.contact?.id, loadExtras);
 
 .patra-vault-cursor {
   font-size: 10px;
-  color: #54515e;
+  color: var(--text-4, #908da0);
   margin-left: auto;
 }
 

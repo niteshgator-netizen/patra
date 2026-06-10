@@ -155,9 +155,16 @@ onMounted(() => {
   background: rgba(5, 4, 9, 0.6) !important;
 }
 
-.modal-container.patra-pop {
+/* A7: dark values live under .dark only — bare-scope dark hex broke light mode */
+.dark .modal-container.patra-pop {
   background: #0c0b12 !important;
   border: 1px solid #171520 !important;
   color: #ededf2 !important;
+}
+
+body:not(.dark) .modal-container.patra-pop {
+  background: #ffffff !important;
+  border: 1px solid #d6d3de !important;
+  color: #1a1a24 !important;
 }
 </style>

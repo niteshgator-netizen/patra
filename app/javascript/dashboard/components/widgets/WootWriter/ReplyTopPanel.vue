@@ -196,8 +196,16 @@ export default {
 </template>
 
 <style scoped>
+/* A7: dark border under .dark only; light gets the light border */
+.dark .patra-composer-tabs-row {
+  border-color: #171520 !important;
+}
+
+body:not(.dark) .patra-composer-tabs-row {
+  border-color: #e5e3eb !important;
+}
+
 .patra-composer-tabs-row {
   margin-bottom: 9px;
-  border-color: #171520 !important;
 }
 </style>

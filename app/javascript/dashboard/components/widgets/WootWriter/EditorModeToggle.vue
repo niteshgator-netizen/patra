@@ -114,7 +114,7 @@ const translateValue = computed(() => {
 
   gap: 4px;
   border: 1px solid transparent;
-  border-color: #171520 !important;
+  border-color: var(--pt-border, #e5e3eb) !important;
   border-radius: 0;
   background: transparent;
 }
@@ -152,12 +152,12 @@ body:not(.dark) .patra-composer-tabs {
 .patra-composer-tab.is-note.is-active {
   background: rgba(227, 160, 8, 0.15);
   color: var(--pt-amber);
-  border-color: #171520 !important;
+  border-color: var(--pt-border, #e5e3eb) !important;
 }
 
 .patra-composer-tab-chip {
   display: none;
   border: 1px solid transparent;
-  border-color: #171520 !important;
+  border-color: var(--pt-border, #e5e3eb) !important;
 }
 </style>

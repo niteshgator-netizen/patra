@@ -182,18 +182,33 @@ dialog.patra-pop-dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 
-form.patra-pop {
+/* A7: dark values live under .dark only — bare-scope dark hex broke light mode */
+.dark form.patra-pop {
   background: #0c0b12 !important;
   border: 1px solid #171520 !important;
   color: #ededf2 !important;
 }
 
-form.patra-pop h3 {
+.dark form.patra-pop h3 {
   color: #ededf2 !important;
 }
 
-form.patra-pop p {
+.dark form.patra-pop p {
   color: #a8a6b6 !important;
+}
+
+body:not(.dark) form.patra-pop {
+  background: #ffffff !important;
+  border: 1px solid #d6d3de !important;
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) form.patra-pop h3 {
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) form.patra-pop p {
+  color: #4a4756 !important;
 }
 
 .dialog-position-top {

@@ -240,34 +240,36 @@ const handleCreateAssistant = () => {
 </template>
 
 <style scoped>
-.pat-captain-page-layout {
+/* A7: Patra dark palette forced over n-* utilities — dark scope only.
+   In light mode the n-* utilities already resolve correct light values. */
+.dark .pat-captain-page-layout {
   background: #050409;
   color: #ededf2;
 }
 
-.pat-captain-page-layout :deep(.text-n-slate-12) {
+.dark .pat-captain-page-layout :deep(.text-n-slate-12) {
   color: #ededf2 !important;
 }
 
-.pat-captain-page-layout :deep(.text-n-slate-11) {
+.dark .pat-captain-page-layout :deep(.text-n-slate-11) {
   color: #a8a6b6 !important;
 }
 
-.pat-captain-page-layout :deep(.bg-n-surface-1),
-.pat-captain-page-layout :deep(.bg-n-solid-1),
-.pat-captain-page-layout :deep(.bg-n-solid-2),
-.pat-captain-page-layout :deep(.bg-n-slate-3) {
+.dark .pat-captain-page-layout :deep(.bg-n-surface-1),
+.dark .pat-captain-page-layout :deep(.bg-n-solid-1),
+.dark .pat-captain-page-layout :deep(.bg-n-solid-2),
+.dark .pat-captain-page-layout :deep(.bg-n-slate-3) {
   background: #0c0b12 !important;
 }
 
-.pat-captain-page-layout :deep(.border-n-weak),
-.pat-captain-page-layout :deep(.bg-n-weak) {
+.dark .pat-captain-page-layout :deep(.border-n-weak),
+.dark .pat-captain-page-layout :deep(.bg-n-weak) {
   border-color: #171520 !important;
   background-color: #171520 !important;
 }
 
-.pat-captain-page-layout :deep(.group-hover\:bg-n-slate-3:hover),
-.pat-captain-page-layout :deep(.hover\:bg-n-slate-3:hover) {
+.dark .pat-captain-page-layout :deep(.group-hover\:bg-n-slate-3:hover),
+.dark .pat-captain-page-layout :deep(.hover\:bg-n-slate-3:hover) {
   background: #1b1925 !important;
 }
 </style>

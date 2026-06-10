@@ -293,39 +293,76 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.patra-pop {
+/* A7: dark values live under .dark only — bare-scope dark hex broke light mode */
+.dark .patra-pop {
   background: #0c0b12 !important;
   outline-color: #171520 !important;
   color: #ededf2 !important;
 }
 
-.patra-pop input[type='search'] {
+.dark .patra-pop input[type='search'] {
   background: #131119 !important;
   color: #ededf2 !important;
 }
 
-.patra-pop button:hover:not(:disabled) {
+.dark .patra-pop button:hover:not(:disabled) {
   background: #1b1925 !important;
 }
 
-.patra-pop button.bg-n-alpha-1 {
+.dark .patra-pop button.bg-n-alpha-1 {
   background: #1b1925 !important;
   color: #6e56cf !important;
 }
 
-.patra-pop .text-n-slate-11 {
+.dark .patra-pop .text-n-slate-11 {
   color: #a8a6b6 !important;
 }
 
-.patra-pop .text-n-slate-12 {
+.dark .patra-pop .text-n-slate-12 {
   color: #ededf2 !important;
 }
 
-.patra-pop .bg-n-alpha-3 {
+.dark .patra-pop .bg-n-alpha-3 {
   background: #0c0b12 !important;
 }
 
-.patra-pop .h-px {
+.dark .patra-pop .h-px {
   background: #171520 !important;
+}
+
+body:not(.dark) .patra-pop {
+  background: #ffffff !important;
+  outline-color: #d6d3de !important;
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) .patra-pop input[type='search'] {
+  background: #f2f0f7 !important;
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) .patra-pop button:hover:not(:disabled) {
+  background: #f2f0f7 !important;
+}
+
+body:not(.dark) .patra-pop button.bg-n-alpha-1 {
+  background: #ece9f2 !important;
+  color: #6e56cf !important;
+}
+
+body:not(.dark) .patra-pop .text-n-slate-11 {
+  color: #4a4756 !important;
+}
+
+body:not(.dark) .patra-pop .text-n-slate-12 {
+  color: #1a1a24 !important;
+}
+
+body:not(.dark) .patra-pop .bg-n-alpha-3 {
+  background: #ffffff !important;
+}
+
+body:not(.dark) .patra-pop .h-px {
+  background: #e5e3eb !important;
 }
 </style>

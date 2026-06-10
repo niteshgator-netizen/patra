@@ -58,27 +58,29 @@ const updateCurrentPage = page => {
 </template>
 
 <style scoped>
-.pat-companies-layout {
+/* A7: Patra dark palette forced over n-* utilities — dark scope only.
+   In light mode the n-* utilities already resolve correct light values. */
+.dark .pat-companies-layout {
   background: #050409;
   color: #ededf2;
 }
 
-.pat-companies-layout :deep(.text-n-slate-12) {
+.dark .pat-companies-layout :deep(.text-n-slate-12) {
   color: #ededf2 !important;
 }
 
-.pat-companies-layout :deep(.text-n-slate-11) {
+.dark .pat-companies-layout :deep(.text-n-slate-11) {
   color: #a8a6b6 !important;
 }
 
-.pat-companies-layout :deep(.bg-n-surface-1),
-.pat-companies-layout :deep(.bg-n-solid-1),
-.pat-companies-layout :deep(.bg-n-solid-2) {
+.dark .pat-companies-layout :deep(.bg-n-surface-1),
+.dark .pat-companies-layout :deep(.bg-n-solid-1),
+.dark .pat-companies-layout :deep(.bg-n-solid-2) {
   background: #0c0b12 !important;
 }
 
-.pat-companies-layout :deep(.border-n-weak),
-.pat-companies-layout :deep(.border-n-container) {
+.dark .pat-companies-layout :deep(.border-n-weak),
+.dark .pat-companies-layout :deep(.border-n-container) {
   border-color: #171520 !important;
 }
 </style>

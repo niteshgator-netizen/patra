@@ -785,15 +785,24 @@ export default {
   }
 }
 
-.patra-typing-composer .patra-typing {
+/* A7: dark values live under .dark only — bare-scope dark hex broke light mode */
+.dark .patra-typing-composer .patra-typing {
   background: rgba(19, 17, 25, 0.95);
   border: 1px solid #2e2940;
+}
+
+body:not(.dark) .patra-typing-composer .patra-typing {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d6d3de;
+}
+
+.patra-typing-composer .patra-typing {
   border-radius: 999px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .patra-conv-composer-wrap {
-  background: color-mix(in srgb, #0c0b12 80%, transparent);
+  background: color-mix(in srgb, var(--surface, #ffffff) 80%, transparent);
   backdrop-filter: blur(14px);
 }
 </style>

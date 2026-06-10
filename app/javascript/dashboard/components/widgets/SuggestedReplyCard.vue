@@ -70,7 +70,8 @@ const dismiss = () => {
 .sr-dot { width: 6px; height: 6px; border-radius: 50%; background: #8b5cf6; flex-shrink: 0; }
 .sr-title { font-size: 11px; font-weight: 600; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.05em; flex: 1; }
 .sr-dismiss { background: none; border: none; color: #75727f; cursor: pointer; font-size: 14px; padding: 0; }
-.sr-text { color: #ededf2; line-height: 1.5; margin: 4px 0 8px; }
+/* A7: tokenized — hardcoded dark-theme hex broke light mode */
+.sr-text { color: var(--text, #1a1a24); line-height: 1.5; margin: 4px 0 8px; }
 .sr-actions { display: flex; gap: 6px; }
 .sr-use {
   flex: 1;

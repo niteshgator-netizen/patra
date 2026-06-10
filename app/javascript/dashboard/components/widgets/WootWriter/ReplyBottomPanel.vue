@@ -539,7 +539,8 @@ body:not(.dark) .patra-composer-bar {
 }
 
 .patra-composer-bar :deep(.patra-composer-tools button:hover:not(:disabled)) {
-  color: #ededf2;
+  /* A7: tokenized — was literal #ededf2 (invisible hover color in light) */
+  color: var(--text, #1a1a24);
   background: var(--pb-surface-2);
   transform: translateY(-2px);
 }
@@ -561,7 +562,7 @@ body:not(.dark) .patra-composer-bar {
     .patra-composer-right
       > button:not(.patra-composer-send):hover:not(:disabled)
   ) {
-  color: #ededf2;
+  color: var(--text, #1a1a24);
   background: var(--pb-surface-2);
   transform: translateY(-2px);
 }
