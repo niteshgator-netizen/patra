@@ -1,5 +1,78 @@
 # PATRA OVERNIGHT GUARDIAN — TAB A RUN LOG (state file)
 
+═══════════════════════════════════════════════════════════════════════════
+MORNING SUMMARY (TAB A, 2026-06-10) — 2-minute read
+═══════════════════════════════════════════════════════════════════════════
+
+VERDICT: SAFE TO DEPLOY after the Render wall goes green. All TAB A changes are local
+commits only — NOTHING pushed (per rules). Working tree clean of my files.
+
+WALL COUNTS
+- Intent suite: **128/128 LOCAL GREEN** (real detector, run by me tonight).
+- Harness / preflight / smoke / consistency / readiness: WALL-LOCAL-UNRUNNABLE (no local
+  Rails — gems not installed; did NOT bundle install). Run on Render Web Shell in order:
+    bundle exec rails runner script/patra_money_harness.rb        # expect 64/64 (57 prior + 7 new TABA)
+    bundle exec rails runner script/patra_money_preflight.rb      # expect 28/28
+    bundle exec rails runner script/patra_intent_suite.rb         # expect 128/128
+    bundle exec rails runner script/patra_reply_smoke.rb          # expect 100/100
+    bundle exec rails runner script/patra_rules_consistency_check.rb   # section 5 must say 27/27 mapped
+    bundle exec rails runner script/patra_launch_readiness.rb
+    bundle exec rails runner script/patra_balance_probe.rb        # paste output for F18 fix
+- Local proof tonight: 8 pure-Ruby self-tests (f21-f28) ALL PASS, failing-first for every fix;
+  ruby -c Syntax OK on all 4 hot files + every touched file.
+
+BUGS FIXED (one line + hash; full evidence in BUG LOG below)
+1. BUG-1 6497ee553 — freeplay/bonus loads were double-recorded AND the unflagged twin made
+   freeplay count as a REAL deposit (inflated cashout limits, corrupted deposit-only transfers).
+2. BUG-2 ff1b2add2 — account-creation payment load was the 5th load site WITHOUT the F12
+   deterministic order_id → same payment could double-load in a race. Closed.
+3. BUG-3 1b82031de — "keep 30 in and cash out 50" cashed out $30 (first-number parse);
+   now verb-adjacent/detector amount.
+4. BUG-4 ef8a682e7 — referral freeplay bonuses NEVER paid (wrong username key); fixed +
+   active-games-only + platform-slug mapping.
+5. BUG-5 06c896a92 — RAG-shortcut QuickRephrase still called retired Grok → ported to DeepSeek
+   (flag stays OFF).
+6. BUG-7 07b2e4197 + 4c2030ae4 — VIP auto-promotion (and referral deposit gate) counted
+   failed/pending/freeplay loads as deposits; now success+non-freeplay only.
+7. F-RAG 03b0ec7f7 — RAG_TO_INTENT_MAP now covers all 27 DB labels (greeting_chitchat→greeting,
+   unclear→nil fallthrough, crash-proof).
+8. BUG-6 found but NOT fixed (TAB B lane): backup-page ban alerts crash the health sweep
+   (private notify, F2/F3 class) → HANDOFF-B-4 exact diff.
+
+WIRED vs REPORT-ONLY UI (full table: PATRA_UI_WIRING_AUDIT.md)
+- ~70 settings controls audited: everything WIRED except (a) Referral settings page — was 100%
+  decorative, I wired enabled/amounts/require-deposit/bonus-type (7aa71e219; kill switch defaults
+  OFF so behavior unchanged until you flip it), 2 fields still decorative (tracking_method, message
+  texts); (b) Patra Business Settings: webhook_url + both SLA limits + sla_alerts_enabled are
+  BACKEND-MISSING → HANDOFF-B-1/B-2.
+- IP whitelist: UI only DISPLAYS panel health (Test Connection) — whitelisting is set on each
+  game's own panel, never from Patra.
+
+ROLES / BACKUP / MEMORY (audit-only, nothing enforced live)
+- ROLES (PATRA_ROLES_AUDIT.md): any agent can call the manual load/cashout/add-player/reset
+  API endpoints — no role guard (caps + >$500 approval gate + audit trail still apply).
+  Dark-flag diff ready → HANDOFF-B-3. TAB B already gated referral settings/backup pages/incident.
+- BACKUP (PATRA_BACKUP_AUDIT.md): scaffold half-built; ban-alert crash (BUG-6), warming clock
+  broken two ways, customer-migration mass-blast = FB policy risk → HANDOFF-B-4/5/6 with diffs.
+  Keep backup pages on 'standby' until those land.
+- MEMORY: write path (rotate job 03:30, fold at 1000 msgs) + read path (reply_service prompt)
+  intact and memory_enabled-gated. Orchestrator/winback/QuickRephrase/summary do NOT use memory.
+  VaultContextBuilder is dead code. No wiring tonight (only safe target is owner-WIP winback) —
+  recommend TAB B passes player memory into WinbackService context.
+
+ASSUMPTIONS + REVERTED: see ASSUMPTIONS section (8 entries, incl. referral kill-switch rationale).
+REVERTED: none — zero rollbacks, no failed experiments chained.
+
+HANDOFFS: B-1 (SLA fields), B-2 (webhook_url), B-3 (money-endpoint role guards, dark flag),
+B-4 (backup ban-alert crash), B-5 (warming clock), B-6 (migration blast). HANDOFF-C: none.
+
+THE 4 OPERATOR MOVES (unchanged): 1) whitelist .244+.245 on every game panel, then Test All →
+green; 2) flip CHATWOOT_BRIDGE_INBOX_ID env to 28/29 (bridge already self-heals, F11 verified);
+3) live FB message test; 4) real-dollar test (load + cashout + transfer) AFTER the wall is green.
+
+DO NOT PUSH from this machine — Genius deploys per the standard sequence.
+═══════════════════════════════════════════════════════════════════════════
+
 OWNER: TAB A (overnight guardian). Siblings: TAB B (backend hardening, PATRA_LAUNCH_LOG.md), TAB C (admin console, PATRA_FEAT_LOG.md) — NEVER touch their logs or lanes.
 ROLLBACK_HASH=5bfb2862a396b21f95361d1dd9dcc01637ec04a4
 STARTED: 2026-06-10
@@ -96,7 +169,7 @@ A5 Finish early? Do NOT invent features. Deepen the bug hunt, expand audits, re-
 
 ## PHASE 5 — RE-PROOF (wall or S6 path after money-adjacent changes + once at end)
 - [x] MID-RUN (after all code changes, 2026-06-10): INTENT SUITE 128/128 LOCAL GREEN (real detector via tmp/self_tests/h1_intent_suite_local.rb — verified by me now). ruby -c Syntax OK on all touched files (orchestrator, referral_bonus_service, harness). All 6 TAB A self-tests pass (f21-f26). Harness/preflight/smoke = WALL-LOCAL-UNRUNNABLE → exact Render commands in Phase 1 section; harness now includes TABA-1/2/3 sections proving tonight's fixes on real code.
-- [ ] Final wall attempt at end of run
+- [x] END-OF-RUN: ruby -c Syntax OK on all 4 hot files + all touched files; all 8 self-tests (f21-f28) PASS; intent suite 128/128 local; R7 commit audit — 15 tabA commits touch ONLY in-lane files (4 services games/bella + harness + 4 md), zero sibling files, zero frontend. Wall scripts themselves parse OK; Render run is the morning step.
 
 ## PHASE 6 — AUDIT-ONLY
 - [x] ROLES audit → PATRA_ROLES_AUDIT.md. CRITICAL (verified by me directly, agent_games_controller.rb:1-2,73,101): money endpoints load_player/cashout_player/add_player/reset_player_password have NO role guard — any agent can call them (caps + approval gate + audit trail still apply). NOTHING enforced tonight by design → HANDOFF-B-3 dark-flag diff written. Also unguarded: game_rules, player_tiers, reply_preferences (incl. confirm_before_cashout!), referrals#create/update, cashier_claims.
@@ -109,10 +182,17 @@ A5 Finish early? Do NOT invent features. Deepen the bug hunt, expand audits, re-
       WIRING DECISION (S7, logged under ASSUMPTIONS): report-only, NO memory wiring tonight. The only high-value additive target (winback message generation) lives in winback_service.rb = owner-WIP untouchable (S5); injecting memory into orchestrator handler replies would change canned money-reply texts (not provably additive, A1 risk). Recommend morning follow-up: pass player_memory_lines into WinbackService context build (TAB B).
 
 ## PHASE 7 — MORNING SUMMARY (top of this file)
-- [ ] Write 2-min readable summary + verdict
+- [x] Written at the very top of this file. VERDICT: safe to deploy after Render wall green. DO NOT PUSH (and I didn't).
 
-═══ ASSUMPTIONS ═══
-(append as made)
+═══ ASSUMPTIONS (S7 decisions made without a human) ═══
+1. Did NOT run `bundle install` to get the wall running locally — long native-gem risk on Windows, Gemfile = TAB B lane (and TAB B logged local ruby 3.4.9 vs Gemfile 3.4.4 mismatch). Proof = pure-Ruby self-tests + ruby -c + Render wall in the morning.
+2. BUG-4 fix makes referral auto-pay functional for the first time; I deliberately ALSO wired referral_enabled (DB default false) as a kill switch in the same flow, so net behavior stays OFF until the operator opts in. Safest combination of "fix the bug" + "don't activate money paths overnight".
+3. F-RAG 'greeting_chitchat' → :greeting maps to NO orchestrator handler on purpose — handle returns nil and the LLM brain replies (identical runtime outcome to before, but consciously mapped; checker now 27/27).
+4. New customer-facing strings in the orchestrator use \u{2014}/\u{1F3B0} escapes (ASCII source per A2) to match existing copy style.
+5. NO memory wiring tonight (only high-value target = winback_service.rb which is S5-untouchable owner-WIP); reported instead.
+6. NO role enforcement tonight (per instructions — risk of locking the owner out); dark-flag diff handed to TAB B.
+7. QuickRephrase port (BUG-5) treated as a bug fix, not a feature: the flagged path could never work on the retired Grok credits; fail-closed semantics preserved; flag remains OFF.
+8. Harness TABA-2 emulates the true race by pre-seeding the winner's row on the unique index (amount differs so legacy guard can't see it) — a serial double-call cannot reach the new code path because check-then-act already catches it.
 
 ═══ HANDOFF-B ═══
 
@@ -226,6 +306,15 @@ Status: DONE — commit ef8a682e7. Proof (b): tmp/self_tests/f25_referral_bonus_
 Flow: chitchat RAG shortcut (BELLA_RAG_SHORTCUT_ENABLED, currently flag-off). Evidence (a): quick_rephrase.rb posted to Ai::ReplyService::XAI_URL with XAI_API_KEY — Batch C retired Grok (credits exhausted), so enabling the flag could never produce a reply (nil → fallthrough; fail-closed but feature dead).
 Fix: route through shared Ai::DeepseekClient.complete (TAB B's hardened client — called, not edited), max_tokens 800 (mirrors live path; low values starve flash reasoning+answer). Fail-closed semantics + persona prompt unchanged.
 Status: DONE — commit 06c896a92. Proof (b): tmp/self_tests/f27_quick_rephrase_deepseek_test.rb ALL PASS (9), failing-first confirmed (3 FAIL pre-fix), ruby -c OK.
+
+## BUG-6 (HIGH within backup feature, dormant until BackupPage rows exist) — ban alerts crash the health sweep
+Flow: backup-page health check. Evidence (a, verified): health_check_job.rb:64,69 call private keyword-only Games::TelegramNotifier.notify positionally (telegram_notifier.rb:160,162) — F2/F3 crash class. First detected ban → NoMethodError → find_each aborts → retries re-crash; promotion/migration side-effects land silently before the crash.
+Fix: NOT applied (app/jobs = TAB B lane) → HANDOFF-B-4 exact diff. Dormant in prod while no BackupPage rows are active.
+
+## BUG-7 (MED, money-rules) — VIP auto-promotion counted failed/pending/freeplay loads as deposits
+Flow: tier auto-promote (drives tier overrides incl. freeplay_amount + max-cashout posture). Evidence (a): tier_auto_promote_service.rb:26-32 summed action_type load/recharge with NO status filter and NO freeplay exclusion — 10 failed $100 loads ⇒ VIP.
+Fix: deposits = status 'success' AND non-freeplay (orchestrator cashout-math convention). Same class fixed in referral deposit gate (referral_bonus_service has_deposit).
+Status: DONE — commits 07b2e4197 + 4c2030ae4. Proof (b): tmp/self_tests/f28_tier_promote_status_test.rb ALL PASS (6, failing-first 2 FAIL pre-fix); f26 extended to 13 asserts ALL PASS. ruby -c OK.
 
 ## Phase-2 candidates examined and CLEARED (no bug):
 - handle_username_provided / handle_load_intent: F12 order_id + rescue present at all 4 sites (read-verified :415-427, :464-477, :1031-1043, :1076-1088).
