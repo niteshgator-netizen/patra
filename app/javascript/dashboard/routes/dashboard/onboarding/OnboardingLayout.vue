@@ -83,7 +83,7 @@ defineEmits(['continue']);
               gradientUnits="userSpaceOnUse"
             >
               <stop offset="0%" stop-color="rgb(var(--slate-5))" />
-              <stop offset="100%" stop-color="rgb(var(--blue-9))" />
+              <stop offset="100%" stop-color="var(--patra, rgb(var(--iris-9)))" />
             </linearGradient>
           </defs>
           <path
@@ -102,7 +102,7 @@ defineEmits(['continue']);
           fill="none"
           class="absolute start-[42px] top-1/2 -translate-y-1/2 z-10 rtl:-scale-x-100"
         >
-          <path d="M6 0L0 3L6 6Z" fill="rgb(var(--blue-9))" />
+          <path d="M6 0L0 3L6 6Z" fill="var(--patra, rgb(var(--iris-9)))" />
         </svg>
         <NextButton
           type="submit"

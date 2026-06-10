@@ -11,6 +11,7 @@ import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { frontendURL } from 'dashboard/helper/URLHelper';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Logo from 'dashboard/components-next/icon/Logo.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import OnboardingLayout from './OnboardingLayout.vue';
 import OnboardingSection from './OnboardingSection.vue';
@@ -280,6 +281,9 @@ const handleSubmit = async () => {
           :is-loading="isSubmitting"
           :disabled="isEnriching"
         >
+          <template #greeting-icon>
+            <Logo class="size-8 rounded-lg" />
+          </template>
           <OnboardingSection
             :title="t('ONBOARDING_NEXT.YOUR_DETAILS')"
             icon="i-lucide-user"
@@ -624,5 +628,27 @@ const handleSubmit = async () => {
 
 .pat-page-wrap :deep(.animate-loader-pulse) {
   background: var(--surface-3) !important;
+}
+
+/* S4 — spec welcome: display typography + Patra accents over stock blue */
+.pat-page-wrap :deep(.text-heading-1) {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+
+.pat-page-wrap :deep(.text-heading-3) {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+}
+
+.pat-page-wrap :deep(.text-n-blue-10) {
+  color: var(--patra-3) !important;
+}
+
+.pat-page-wrap :deep(.bg-n-brand) {
+  background: linear-gradient(135deg, var(--patra), #5b45b0) !important;
+  box-shadow: 0 4px 14px rgba(110, 86, 207, 0.35);
 }
 </style>
