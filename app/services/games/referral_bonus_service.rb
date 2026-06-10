@@ -83,16 +83,23 @@ module Games
     def pay_freeplay_bonus(contact:, amount:, reason:)
       # Find the contact's preferred game or first available
       begin
-        preferred_slug = contact.custom_attributes&.dig('preferred_platform')
-        agent_game = if preferred_slug
-          AgentGame.joins(:game).find_by(account_id: @account.id, games: { slug: preferred_slug })
-        end
-        agent_game ||= AgentGame.where(account_id: @account.id).first
+        attrs = contact.custom_attributes || {}
+        # TAB A fix: (1) vault stores 'milkyway'-style values while agent_games
+        # use 'milky_way' slugs - map them; (2) usernames are stored under
+        # "game_username_<slug>" (orchestrator store_game_username), the old
+        # "<slug>_username" key never matched so referral bonuses NEVER paid;
+        # (3) only active agent_games - never load freeplay on a dead panel.
+        preferred_raw = attrs['preferred_platform'].to_s.downcase.strip
+        preferred_slug = Games::ConversationOrchestrator::PREFERRED_PLATFORM_TO_SLUG[preferred_raw] ||
+                         preferred_raw.presence
 
+        actives = AgentGame.where(account_id: @account.id, status: 'active').includes(:game).to_a
+        ordered = actives.sort_by { |ag| ag.game.slug == preferred_slug ? 0 : 1 }
+        agent_game = ordered.find { |ag| attrs["game_username_#{ag.game.slug}"].present? }
         return unless agent_game
 
         game_slug = agent_game.game.slug
-        username = contact.custom_attributes&.dig("#{game_slug}_username")
+        username = attrs["game_username_#{game_slug}"]
         return unless username
 
         executor = Games::ActionExecutor.new(agent_game: agent_game, contact: contact)
