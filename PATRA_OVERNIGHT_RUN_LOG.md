@@ -172,6 +172,11 @@ Flow: referral. Evidence (a): referral_bonus_service.rb:95 read custom_attribute
 Fix: use game_username_<slug> key; map via PREFERRED_PLATFORM_TO_SLUG; consider only active agent_games, preferring the player's preferred slug, else first active game where the player actually has a username.
 Status: DONE — commit ef8a682e7. Proof (b): tmp/self_tests/f25_referral_bonus_username_test.rb ALL PASS (8), failing-first confirmed (4 FAIL pre-fix), ruby -c OK. NOTE: this makes referral auto-pay LIVE for the first time (it could never fire before). Pays $5+$5 freeplay via the normal capped/blacklist-guarded executor path after referred player's first deposit. If operator prefers it stay dormant on launch day, revert ef8a682e7.
 
+## BUG-5 (LOW, latent) — RAG-shortcut QuickRephrase still called retired Grok/xAI
+Flow: chitchat RAG shortcut (BELLA_RAG_SHORTCUT_ENABLED, currently flag-off). Evidence (a): quick_rephrase.rb posted to Ai::ReplyService::XAI_URL with XAI_API_KEY — Batch C retired Grok (credits exhausted), so enabling the flag could never produce a reply (nil → fallthrough; fail-closed but feature dead).
+Fix: route through shared Ai::DeepseekClient.complete (TAB B's hardened client — called, not edited), max_tokens 800 (mirrors live path; low values starve flash reasoning+answer). Fail-closed semantics + persona prompt unchanged.
+Status: DONE — commit 06c896a92. Proof (b): tmp/self_tests/f27_quick_rephrase_deepseek_test.rb ALL PASS (9), failing-first confirmed (3 FAIL pre-fix), ruby -c OK.
+
 ## Phase-2 candidates examined and CLEARED (no bug):
 - handle_username_provided / handle_load_intent: F12 order_id + rescue present at all 4 sites (read-verified :415-427, :464-477, :1031-1043, :1076-1088).
 - transfer loads: random order_id but the whole flow is gated by recent_cashout_duplicate? on the cashout side (:2406-2409) — single-funding protected.
