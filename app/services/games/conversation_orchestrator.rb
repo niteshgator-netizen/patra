@@ -884,11 +884,15 @@ module Games
         }
       end
 
-      # Parse requested amount from message
-      requested_amount = nil
-      msg = (latest_customer_text || recent_customer_text).to_s
-      if msg.match?(/\$?\d+/)
-        requested_amount = msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+      # Parse requested amount: detector-verified amount first, then the number
+      # right after a cashout verb, then (legacy) the first number in the text.
+      # TAB A fix: first-number parsing took the wrong amount on messages like
+      # "keep 30 in and cash out 50" (it took 30, the keep-in amount).
+      requested_amount = (intent.is_a?(Hash) && intent[:amount].to_f > 0) ? intent[:amount].to_f : nil
+      if requested_amount.nil?
+        msg = (latest_customer_text || recent_customer_text).to_s
+        verb_m = msg.match(/(?:cash\s*out|cashout|redeem|withdraw|payout|take\s+out)\s+\$?(\d+(?:\.\d{1,2})?)/i)
+        requested_amount = verb_m ? verb_m[1].to_f : msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
       end
 
       # Calculate deposit history for multiplier check
@@ -3003,7 +3007,10 @@ module Games
       return { reply: 'which game do you want to cash part of out from?', labels: ['partial-needs-game'] } unless game_slug
 
       msg = (latest_customer_text || recent_customer_text).to_s
-      amount = msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+      # TAB A fix: prefer the number right after the cashout verb - first-number
+      # parsing cashed out the wrong amount on "keep 30 in and cash out 50".
+      verb_m = msg.match(/(?:cash\s*out|cashout|redeem|withdraw|payout|take\s+out)\s+\$?(\d+(?:\.\d{1,2})?)/i)
+      amount = verb_m ? verb_m[1].to_f : msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
       if amount.nil? || amount <= 0
         return { reply: 'how much do you want to cash out? the rest stays in to play', labels: ['partial-needs-amount'] }
       end
