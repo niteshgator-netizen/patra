@@ -43,19 +43,33 @@ module Games
       referred = referral.referred_contact
       return unless referred
 
-      # Check if referred player has made a deposit (configurable requirement)
       begin
-        has_deposit = GameAction.where(contact_id: referred.id)
-          .where(action_type: %w[load recharge])
-          .exists?
+        # TAB A: wire the Settings -> Referrals page (these values persisted to
+        # ReplyPreference but were never read - the page was decorative and the
+        # amounts hardcoded). referral_enabled defaults FALSE, so auto-pay stays
+        # OFF until the operator flips it. respond_to? guards keep this safe if
+        # the columns migration has not deployed yet (winback pattern).
+        pref = ReplyPreference.for_account(@account.id)
+        return unless pref.respond_to?(:referral_enabled) && pref.referral_enabled
 
-        # For now, require at least one deposit before paying referral bonus
-        # TODO: Make this configurable via a referral_settings table
-        return unless has_deposit
+        # Only the freeplay payout path exists - any other configured bonus
+        # type is left at 'verified' for manual handling (cashier already
+        # gets the Telegram escalation from the orchestrator).
+        bonus_type = pref.respond_to?(:referral_bonus_type) ? (pref.referral_bonus_type.presence || 'freeplay') : 'freeplay'
+        return unless bonus_type == 'freeplay'
 
-        # Default bonus amount — $5 freeplay each
-        referrer_bonus = 5.0
-        referred_bonus = 5.0
+        require_deposit = pref.respond_to?(:referral_require_deposit) ? pref.referral_require_deposit != false : true
+        if require_deposit
+          has_deposit = GameAction.where(contact_id: referred.id)
+            .where(action_type: %w[load recharge])
+            .exists?
+          return unless has_deposit
+        end
+
+        referrer_bonus = (pref.respond_to?(:referral_bonus_referrer) ? pref.referral_bonus_referrer : nil).to_f
+        referrer_bonus = 5.0 unless referrer_bonus.positive?
+        referred_bonus = (pref.respond_to?(:referral_bonus_new_player) ? pref.referral_bonus_new_player : nil).to_f
+        referred_bonus = 5.0 unless referred_bonus.positive?
 
         # Pay referrer bonus
         pay_freeplay_bonus(
