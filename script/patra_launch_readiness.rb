@@ -239,14 +239,22 @@ else
     c.positive?
   end
 
-  # FB Inbox 5 exists + channel type
+  # FB bridge inbox exists + channel type (F11: bridge auto-falls-back at runtime,
+  # but the ENV should still point at a real Channel::Api inbox)
   ping('FB bridge inbox exists and is Channel::Api') do
     inbox_id = ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '5').to_i
     ib = Inbox.find_by(id: inbox_id)
-    raise "bridge inbox #{inbox_id} not found" if ib.nil?
+    if ib.nil? || ib.channel_type != 'Channel::Api'
+      avail = Inbox.where(channel_type: 'Channel::Api').order(:id)
+                   .map { |i| "inbox#{i.id} account=#{i.account_id} name=#{i.name.inspect}" }
+      state = ib.nil? ? 'not found' : "is #{ib.channel_type} (not Channel::Api)"
+      raise "bridge inbox #{inbox_id} #{state}. Available Channel::Api inboxes: " \
+            "#{avail.any? ? avail.join(' | ') : 'NONE'}. " \
+            'Bridge auto-falls-back to the first Channel::Api inbox at runtime (F11), but fix CHATWOOT_BRIDGE_INBOX_ID.'
+    end
 
     puts "        inbox#{inbox_id} name=#{ib.name.inspect} channel_type=#{ib.channel_type}"
-    ib.channel_type == 'Channel::Api'
+    true
   end
 
   # pending GameActions stuck > 1h

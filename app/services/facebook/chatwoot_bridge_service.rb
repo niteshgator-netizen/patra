@@ -385,7 +385,35 @@ class Facebook::ChatwootBridgeService
   end
 
   def resolved_inbox_id
-    @resolved_inbox_id ||= bridge_inbox&.id || ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
+    @resolved_inbox_id ||= bridge_inbox&.id || fallback_inbox_id
+  end
+
+  # ENV CHATWOOT_BRIDGE_INBOX_ID may point at a deleted inbox (it has). Only
+  # trust it when that inbox EXISTS and is Channel::Api; otherwise fall back
+  # to the account's first Channel::Api inbox with a WARN. Last resort: the
+  # raw ENV value (original behavior) so the failure stays loud downstream.
+  def fallback_inbox_id
+    env_id = ENV.fetch('CHATWOOT_BRIDGE_INBOX_ID', '2').to_i
+    return env_id if Inbox.exists?(id: env_id, channel_type: 'Channel::Api')
+
+    first_api = Inbox.where(account_id: env_account_id, channel_type: 'Channel::Api').order(:id).first
+    if first_api
+      Rails.logger.warn(
+        "[BotBridge] CHATWOOT_BRIDGE_INBOX_ID=#{env_id} missing or not Channel::Api - " \
+        "falling back to first Channel::Api inbox=#{first_api.id} account=#{env_account_id}"
+      )
+      return first_api.id
+    end
+
+    Rails.logger.error("[BotBridge] no usable bridge inbox (env=#{env_id}, no Channel::Api on account #{env_account_id})")
+    env_id
+  rescue StandardError => e
+    Rails.logger.error("[BotBridge] inbox fallback lookup failed: #{e.class}: #{e.message}")
+    env_id
+  end
+
+  def env_account_id
+    ENV.fetch('CHATWOOT_BRIDGE_ACCOUNT_ID', '2').to_i
   end
 
   def api_token
