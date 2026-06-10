@@ -1306,9 +1306,15 @@ class Ai::ReplyService
     end
 
     payload = Array(response.parsed_response['payload'])
-    # Captured for the freshness check in `call`. Use the raw payload (every
-    # message type) so activity events still count as "the conversation is alive".
-    @latest_timestamp = Time.current.to_i
+    # Captured for the freshness check in `call`: the REAL latest incoming
+    # (customer) message time. Was hardcoded Time.current, which made the
+    # staleness gate a permanent no-op. Empty / outgoing-only payloads leave
+    # it 0 -> below FRESHNESS_UNIX_MIN -> gate passes -> the existing
+    # no-usable-history path handles them exactly as before.
+    @latest_timestamp = payload
+                        .select { |m| chat_message_type(m) == 0 }
+                        .map { |m| message_created_at_unix(m['created_at']) }
+                        .max || 0
     # Chatwoot serializes message_type as an integer: 0 = incoming, 1 = outgoing.
     # 2/3 are activity/template — skip those, they're not part of the conversation.
     raw_slice = payload
