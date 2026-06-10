@@ -444,6 +444,55 @@ begin
     end
   end
 
+  # ──────────────── TABA overnight fixes (BUG-1/2/3, 2026-06-10) ──────────────
+  puts "\n[TABA-1 freeplay/bonus single-record]  (executor audits once, flag preserved)"
+  reset_run; prime_contact!(contact, [src_slug])
+  o_fp = orch(account, contact, [])
+  r = o_fp.send(:execute_game_api, game_slug: src_slug, action: 'recharge',
+                username: 'harnessuser1', amount: 5,
+                metadata: { freeplay: true, source: 'bella_freeplay' })
+  fp_actions = GameAction.where(contact_id: contact.id, action_type: 'load').to_a
+  ok!('TABA-1 freeplay-style load => exactly ONE GameAction (no duplicate)', r[:success] == true && fp_actions.size == 1)
+  ok!('TABA-1 the single record carries the freeplay flag',
+      fp_actions.first&.metadata&.dig('freeplay').to_s == 'true')
+
+  puts "\n[TABA-2 account-creation payment load dedup]  (F12 5th site)"
+  reset_run; prime_contact!(contact, [])
+  contact.update!(custom_attributes: {
+                    'patra_finance_logs' => [{
+                      'id' => 'HARNESS_PAY_AC', 'status' => 'confirmed', 'amount' => 30,
+                      'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
+                    }]
+                  })
+  r1 = orch(account, contact, [{ 'role' => 'user', 'content' => 'create me an account' }])
+         .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
+  first_recharges = $FAKE.calls.count { |c| c[0] == :recharge }
+  ok!('TABA-2 first create+load => recharge once, account created',
+      first_recharges == 1 && r1[:reply].to_s.include?('all set'))
+  # Simulate the race loser: a second process that did NOT see the stored creds
+  # (drop game_username_* but KEEP the finance log + the winner's GameAction).
+  contact.update!(custom_attributes: {
+                    'patra_finance_logs' => [{
+                      'id' => 'HARNESS_PAY_AC', 'status' => 'confirmed', 'amount' => 30,
+                      'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
+                    }]
+                  })
+  r2 = orch(account, contact, [{ 'role' => 'user', 'content' => 'create me an account' }])
+         .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
+  ok!('TABA-2 race loser => NO second recharge (deterministic order_id)',
+      $FAKE.calls.count { |c| c[0] == :recharge } == first_recharges)
+  ok!('TABA-2 race loser reply says load already went through',
+      r2[:reply].to_s.match?(/already went through/i))
+
+  puts "\n[TABA-3 redeem-partial verb-adjacent amount]  (keep 30 in and cash out 50 => $50)"
+  reset_run; prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'keep 30 in and cash out 50' }])
+        .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  wd = $FAKE.calls.find { |c| c[0] == :withdraw }
+  ok!('TABA-3 withdraws the CASH OUT amount ($50), not the keep-in ($30)',
+      wd && wd[1].to_f == 50.0)
+  ok!('TABA-3 reply confirms the $50 cashout', r[:reply].to_s.include?('50'))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
