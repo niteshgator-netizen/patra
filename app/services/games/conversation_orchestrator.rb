@@ -1249,13 +1249,32 @@ module Games
       store_game_username(ag.game.slug, auto_username)
       store_game_password(ag.game.slug, generated_password)
 
-      # Load the payment
-      result = executor.load_player(
-        game_username: auto_username,
-        amount: recent_payment[:amount],
-        payment_method: recent_payment[:method],
-        metadata: { source: 'bella_account_created', payment_id: recent_payment[:id] }
-      )
+      # Load the payment.
+      # TAB A fix: this was the 5th automated payment-load site and the only
+      # one missed by F12 - without the deterministic order_id, two concurrent
+      # "create my account" messages could double-load the same payment.
+      ac_order_id = deterministic_payment_order_id(recent_payment[:id])
+      if ac_order_id.nil?
+        return {
+          reply: "all set! username: #{auto_username}, password: #{generated_password} (save this!) \u{2014} your $#{fmt_amt(recent_payment[:amount])} load already went through \u{1F3B0}",
+          labels: ['account-created', 'auto-load', 'new-account-created']
+        }
+      end
+
+      result = begin
+        executor.load_player(
+          game_username: auto_username,
+          amount: recent_payment[:amount],
+          payment_method: recent_payment[:method],
+          metadata: { source: 'bella_account_created', payment_id: recent_payment[:id] },
+          order_id: ac_order_id
+        )
+      rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+        return {
+          reply: "all set! username: #{auto_username}, password: #{generated_password} (save this!) \u{2014} your $#{fmt_amt(recent_payment[:amount])} load already went through \u{1F3B0}",
+          labels: ['account-created', 'auto-load', 'new-account-created']
+        }
+      end
 
       if result[:ok]
         mark_payment_loaded(recent_payment[:id], game_slug: ag.game.slug, game_username: auto_username)
