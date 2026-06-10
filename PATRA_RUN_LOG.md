@@ -116,7 +116,7 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - [x] R8 SLAReports.vue
 
 ### PHASE S — SPEC SCREENS NOT YET TOUCHED
-- [ ] S1 COMPANIES (Index + DetailView + components-next/Companies)
+- [x] S1 COMPANIES (Index + DetailView + components-next/Companies)
 - [ ] S2 NOTIFICATIONS PAGE (NotificationsView + NotificationTable)
 - [ ] S3 SEARCH (full experience — overlay/page)
 - [ ] S4 ONBOARDING (Index/Layout/Section/FormRow/FormSelect)
@@ -152,3 +152,4 @@ BRANCH=patra-ui-run (worktree C:\Users\kam work\patra-ui) — commit normally, N
 - R6 (this commit) — BotReports page verified treated (pat-reports-wrap + deep maps; bot charts purple via constants). BotMetrics: stock mega-card (shadow/outline/bg-n-solid-2 strip) → pat-rep-grid of 4 individual pat-rep-card KPI cards w/ entrance anim; ReportMetricCard value → pat-kpi-n (Space Grotesk 28px; only consumer is BotMetrics, verified by grep). Real data only (live bot metrics API). Build green.
 - R7 (this commit) — CsatResponses page verified treated (pat-reports-wrap + full deep maps incl. tables/selects; the "v3 F5" treatment is present). Gaps fixed: CSAT KPI strip (mega-card + divider pattern) → 3 individual pat-rep-card KPI cards; CsatMetricCard value → pat-kpi-n; CsatContactCell hover:text-n-brand cured to patra-3 via R0 rule. Rating-distribution bar keeps semantic CSAT rating colors (not chrome palette). Build green.
 - R8 (this commit) — SLAReports page verified treated (pat-reports-wrap + full deep maps incl. SLA table/pagination); SLA components grep = 0 stock blue/teal/hex. Gap fixed: SLA KPI strip (mega-card + dividers) → 3 pat-rep-card KPI cards; SLAMetricCard value → pat-kpi-n. PHASE R COMPLETE: all 9 report screens spec-consistent, both themes, purple palette, 0 stock-blue remnants. Build green.
+- S1 (this commit) — Companies: both pages verified wrapped (.pat-page-wrap + full token deep maps; CompaniesListLayout dark-scope from A7). Spec gaps fixed: header title → Space Grotesk 24px display (.pat-comp-title); hidden "..."-menu Add Company replaced with the spec primary CTA button (existing COMPANIES.ACTIONS.CREATE key; n-brand bg re-gradiented to Patra purple under wrapper); company cards get spec hover (purple outline + lift, reduced-motion guarded). CompanyMoreActions.vue left in place (now unused; no file deletion without explicit OK). Detail view structure (profile card + contacts sidebar + danger zone) matches spec detail layout; covered by existing deep maps. Build green.

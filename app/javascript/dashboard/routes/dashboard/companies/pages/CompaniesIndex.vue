@@ -386,4 +386,37 @@ onMounted(() => {
 .pat-page-wrap :deep(.animate-loader-pulse) {
   background: var(--surface-3) !important;
 }
+
+/* S1 — spec display title + primary CTA + card hover */
+.pat-page-wrap :deep(.pat-comp-title) {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.pat-page-wrap :deep(.bg-n-brand) {
+  background: linear-gradient(135deg, var(--patra), #5b45b0) !important;
+  box-shadow: 0 4px 14px rgba(110, 86, 207, 0.35);
+}
+
+.pat-page-wrap :deep(.group\/cardLayout) {
+  transition:
+    outline-color 0.25s,
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s;
+}
+
+.pat-page-wrap :deep(.group\/cardLayout:hover) {
+  outline-color: var(--patra) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pat-page-wrap :deep(.group\/cardLayout),
+  .pat-page-wrap :deep(.group\/cardLayout:hover) {
+    transform: none;
+  }
+}
 </style>

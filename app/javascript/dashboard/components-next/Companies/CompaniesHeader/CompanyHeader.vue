@@ -1,8 +1,8 @@
 <script setup>
 import Input from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import CompanySortMenu from './components/CompanySortMenu.vue';
-import CompanyMoreActions from './components/CompanyMoreActions.vue';
 
 defineProps({
   showSearch: { type: Boolean, default: true },
@@ -20,7 +20,7 @@ const emit = defineEmits(['search', 'update:sort', 'create']);
     <div
       class="flex items-start sm:items-center justify-between w-full py-6 gap-2 mx-auto max-w-5xl"
     >
-      <span class="text-xl font-medium truncate text-n-slate-12">
+      <span class="pat-comp-title text-xl font-medium truncate text-n-slate-12">
         {{ headerTitle }}
       </span>
       <div class="flex items-center flex-col sm:flex-row flex-shrink-0 gap-4">
@@ -49,7 +49,12 @@ const emit = defineEmits(['search', 'update:sort', 'create']);
             :active-ordering="activeOrdering"
             @update:sort="emit('update:sort', $event)"
           />
-          <CompanyMoreActions @create="emit('create')" />
+          <Button
+            :label="$t('COMPANIES.ACTIONS.CREATE')"
+            icon="i-lucide-plus"
+            size="sm"
+            @click="emit('create')"
+          />
         </div>
       </div>
     </div>
