@@ -140,7 +140,19 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   are no-ops, only exact 'true' guards) + ruby -c OK x6. RSpec request spec
   spec/controllers/api/v1/accounts/patra/money_action_guard_spec.rb covers both flag states
   + admin pass + reads-open (SPECS-UNRUN locally).
-- [ ] H13 terms/privacy pages (already exist — verify + OPERATOR-CONFIRM markers)
+- [x] H13 terms/privacy — PREMISE STALE (a, verified): /terms + /privacy ALREADY EXIST and
+  resolve — routes.rb:15-16 → LegalController (unauthenticated, layout 'legal' with full
+  Patra-branded styling) → comprehensive real ToS (17 sections incl. AI features, billing,
+  Meta platform terms, indemnification, Delaware governing law) + Privacy Policy (12 sections
+  incl. Meta data-deletion flow, GDPR/CCPA rights, retention table) dated May 9 2026. Signup
+  TERMS_ACCEPT (en) links https://www.patrahq.com/terms + /privacy → resolve. No 404 in code.
+  Changes this run: OPERATOR-CONFIRM erb comments added on the contact-email blocks (both
+  pages) + governing-law state (terms §14) — confirm support@patrahq.com is monitored and
+  Delaware is the real formation state; landing page footer Legal links fixed from dead
+  href="#" to /privacy + /terms (public/patra-landing.html:895 — static file, no vite build
+  needed); NEW spec/requests/legal_pages_spec.rb (unauthenticated 200 + route_to proof).
+  NOTE for operator: if a 404 was seen live, it predates routes.rb:15-16 or was on a host not
+  running this app (www vs apex DNS) — the morning spec run settles it.
 - [ ] FINAL self-audit + DUMP
 
 ## PHASE 0 — READ REPORT (return shapes, verified by read 2026-06-10)
@@ -224,6 +236,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   equivalent ran: `ruby tmp/self_tests/h11_shared_cooldown_test.rb` → ALL PASS 12)
 - H12: `bundle exec rspec spec/controllers/api/v1/accounts/patra/money_action_guard_spec.rb`
   (local equivalent ran: `ruby tmp/self_tests/h12_money_guard_test.rb` → ALL PASS 5)
+- H13: `bundle exec rspec spec/requests/legal_pages_spec.rb` (no local equivalent — needs
+  Rails routing; views/layout verified by read, erb comments are non-rendering)
 
 ## COMMITS
 (one line per item as committed)
