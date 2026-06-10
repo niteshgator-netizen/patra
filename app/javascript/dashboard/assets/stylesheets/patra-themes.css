@@ -5059,3 +5059,99 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
     animation: none;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   R0 — REPORTS SUITE SHARED DESIGN LANGUAGE (v4)
+   One home for the PatraReports chrome: page heading, filter bar,
+   metric cards, KPI numerals, trend pills. Token-driven — dark values
+   come from each page's .pat-reports-wrap token set, light values from
+   the PART 1 wrapper override above. No bare hex, both themes.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* page heading (ReportHeader.vue) */
+.pat-reports-wrap .pat-rep-head .text-heading-1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+.pat-reports-wrap .pat-rep-head p {
+  font-size: 13px;
+}
+
+/* filter bar (ReportFilters.vue / OverviewReportFilters.vue) */
+.pat-reports-wrap .pat-rfilter-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+/* metric/chart card grid (ReportContainer.vue) — the old single mega-card
+   becomes individual spec cards */
+.pat-reports-wrap .pat-rep-grid {
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+.pat-reports-wrap .pat-rep-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  transition:
+    border-color 0.25s,
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s;
+}
+.pat-reports-wrap .pat-rep-card:hover {
+  border-color: var(--border-hi);
+  transform: translateY(-2px);
+}
+
+/* card title with the spec purple dot */
+.pat-reports-wrap .pat-card-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+.pat-reports-wrap .pat-card-t::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--patra);
+  box-shadow: 0 0 8px rgba(110, 86, 207, 0.45);
+  flex-shrink: 0;
+}
+
+/* KPI numeral */
+.pat-reports-wrap .pat-kpi-n {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* trend pill — JetBrains Mono, tinted with the trend color (currentColor) */
+.pat-reports-wrap .pat-trend-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pat-reports-wrap .pat-rep-card,
+  .pat-reports-wrap .pat-rep-card:hover {
+    transform: none;
+  }
+}
