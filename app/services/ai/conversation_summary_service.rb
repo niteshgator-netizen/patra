@@ -10,7 +10,12 @@ module Ai
     end
 
     def call
-      text = @messages.map do |m|
+      # flatten + respond_to? guard: grouped/paired inputs (Array(hash) yields
+      # [k,v] pairs) used to raise "undefined method 'outgoing?' for an
+      # instance of Array" and return 'Summary unavailable' for every call.
+      text = @messages.flatten.filter_map do |m|
+        next unless m.respond_to?(:outgoing?)
+
         role = m.outgoing? ? 'Agent' : 'Customer'
         "#{role}: #{m.content}"
       end.join("\n")
