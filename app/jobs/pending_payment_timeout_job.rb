@@ -19,6 +19,9 @@ class PendingPaymentTimeoutJob < ApplicationJob
       Rails.logger.info(
         "[PendingPayment] reminder due conv=#{conv.id} pending_since=#{pending_at.iso8601}"
       )
+    rescue StandardError => e
+      # One bad conversation must not kill the sweep (or the stuck-action alert below).
+      Rails.logger.error("[PendingPayment] conv=#{conv.id} #{e.class}: #{e.message}")
     end
 
     alert_stuck_game_actions

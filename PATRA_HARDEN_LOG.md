@@ -99,7 +99,15 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   warn). Healthy refreshes stay silent. Alert helper never raises.
   Proof (a): tmp/self_tests/h8_fb_token_alert_test.rb ALL PASS (12 asserts) + ruby -c OK.
   RSpec spec/jobs/patra/refresh_fb_tokens_job_spec.rb written (SPECS-UNRUN locally).
-- [ ] H9 stuck-pending sweeper alert (verify + spec — alert already exists)
+- [x] H9 stuck-pending sweeper — VERIFIED (a): alert_stuck_game_actions already alerts (not
+  just logs) via api_error for GameActions pending >1h, throttled 1/hour via Redis setex
+  'patra:stuck_pending_alert', read-only (no status mutation), alert failures rescued. Only
+  gap fixed: per-conversation rescue in the reminder sweep (one corrupt row could previously
+  kill the run before reaching the stuck-action alert). Note: throttle is GLOBAL across
+  accounts (fine for single-account prod; logged, not changed).
+  Proof (a): tmp/self_tests/h9_stuck_pending_alert_test.rb ALL PASS (10 asserts incl.
+  mutation-trap structs proving read-only) + ruby -c OK.
+  RSpec spec/jobs/pending_payment_timeout_job_spec.rb written (SPECS-UNRUN locally).
 - [ ] H10 ReplyJob rescue posture (lock release on transient, bounded permanent)
 - [ ] H11 re-engagement shared cooldown (verify existing + PATRA_REENGAGE_MAP.md + spec)
 - [ ] H12 role guards dark flag (PATRA_RESTRICT_MONEY_ACTIONS, default OFF)
