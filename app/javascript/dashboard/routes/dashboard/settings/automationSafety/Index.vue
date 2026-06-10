@@ -1,10 +1,10 @@
 <template>
-  <div class="flex-1 overflow-auto p-6">
+  <div class="pat-tpage flex-1 overflow-auto p-6">
     <div class="max-w-2xl">
       <h2 class="text-lg font-medium mb-4">Automation &amp; Safety</h2>
       <p class="text-sm text-slate-400 mb-6">Control game transfers, player win-back, and fraud guards.</p>
 
-      <div v-if="loading" class="text-sm text-slate-400">Loading...</div>
+      <div v-if="loading" class="flex flex-col gap-3"><div v-for="n in 4" :key="n" class="pat-skel h-10 w-full" /></div>
 
       <div v-else class="space-y-8">
         <!-- TRANSFER -->

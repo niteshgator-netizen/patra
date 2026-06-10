@@ -1,5 +1,5 @@
 <template>
-  <div class="flex-1 overflow-auto p-6">
+  <div class="pat-tpage flex-1 overflow-auto p-6">
     <div class="max-w-3xl">
       <h2 class="text-lg font-medium mb-4">Referrals</h2>
       <p class="text-sm text-slate-400 mb-6">Track player referrals and bonuses.</p>
@@ -8,7 +8,7 @@
       <div class="border border-slate-700 rounded-lg p-4 mb-8">
         <h3 class="text-sm font-medium mb-4">Referral Settings</h3>
 
-        <div v-if="settingsLoading" class="text-sm text-slate-400">Loading settings...</div>
+        <div v-if="settingsLoading" class="flex flex-col gap-3"><div v-for="n in 2" :key="n" class="pat-skel h-10 w-full" /></div>
 
         <div v-else class="space-y-6">
           <div class="grid grid-cols-2 gap-4">
@@ -65,7 +65,7 @@
 
       <!-- Referrals List -->
       <h3 class="text-sm font-medium mb-3">Referral History</h3>
-      <div v-if="loading" class="text-sm text-slate-400">Loading...</div>
+      <div v-if="loading" class="flex flex-col gap-3"><div v-for="n in 4" :key="n" class="pat-skel h-10 w-full" /></div>
 
       <div v-else>
         <div v-if="referrals.length === 0" class="text-sm text-slate-500">No referrals yet.</div>
