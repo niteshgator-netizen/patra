@@ -536,6 +536,25 @@ const fetchConversationWatchers = () => {
   z-index: 5;
 }
 
+/* A4 root cause: the --ph-* tokens above are DARK values on the bare header
+   class, so every descendant (pin/take-over buttons, AI toggle off-state,
+   more-actions trigger) resolved dark surfaces in light mode. Light values: */
+body:not(.dark) .patra-conv-head {
+  --ph-surface: #ffffff;
+  --ph-surface-2: #f2f0f7;
+  --ph-surface-3: #ece9f2;
+  --ph-surface-4: #dddae5;
+  --ph-border: #e5e3eb;
+  --ph-border-hi: #d6d3de;
+  --ph-patra-glow: rgba(110, 86, 207, 0.28);
+  --ph-text: #1a1a24;
+  --ph-text-2: #4a4756;
+  --ph-text-3: #75727f;
+  --ph-text-4: #a0a0ab;
+  --ph-green: #1a7f37;
+  --ph-amber: #9a6700;
+}
+
 @media (min-width: 1280px) {
   .patra-conv-head {
     flex-direction: row;
@@ -1152,7 +1171,8 @@ body:not(.dark) .patra-conv-head-icon-btn {
   background: rgba(110, 86, 207, 0.06);
   border-bottom: 1px solid rgba(110, 86, 207, 0.12);
   font-size: 12px;
-  color: #a78bfa;
+  /* A3/A4: tokenized — hardcoded dark-theme hex washed out in light */
+  color: var(--patra-3, #a78bfa);
 }
 
 .patra-pinned-icon {
@@ -1161,11 +1181,11 @@ body:not(.dark) .patra-conv-head-icon-btn {
 
 .patra-pinned-label {
   font-weight: 600;
-  color: #8b5cf6;
+  color: var(--patra-2, #8b5cf6);
 }
 
 .patra-pinned-text {
-  color: #ededf2;
+  color: var(--text, #1a1a24);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
