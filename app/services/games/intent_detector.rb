@@ -11,7 +11,9 @@ module Games
       /top\s*up\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /deposit\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /load\s+(\d+(?:\.\d{1,2})?)\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
-      /(\d+(?:\.\d{1,2})?)\s*\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
+      # \b: digits glued to a word ("slickrick7 on juwa") are a USERNAME tail,
+      # not an amount (golden-suite H1 fix).
+      /\b(\d+(?:\.\d{1,2})?)\s*\$?\s+(?:on|to|for|in)\s+([a-z0-9_]{3,20})/i,
       # Amount-less: "load please on gameroom", "load it", "load on juwa", "load me up"
       /\b(?:load|recharge|top\s*up)\b(?:\s+(?:me|it|please|up|now|my\s+account))*(?:\s+(?:on|to|for|in)\s+[a-z0-9_]{3,20})?/i,
       # "put 5 on gv" — imperative load via "put" (game token like "gv" is only 2 chars,
@@ -483,7 +485,12 @@ module Games
         text = message_text.to_s
         Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
 
-        return { intent: :greeting } if text.strip.match?(GREETING_PATTERNS) && text.strip.split.size <= 5
+        # Greeting only when nothing intent-shaped follows: "hey can i load 20"
+        # must fall through to :load, not die as :greeting (golden-suite H1 fix).
+        if text.strip.match?(GREETING_PATTERNS) && text.strip.split.size <= 5 &&
+           !text.match?(/\b(?:load|cash\s*out|cashout|redeem|withdraw|deposit|account|password|bonus|freeplay|fp|username)\b/i)
+          return { intent: :greeting }
+        end
 
         # Status check before load/cashout — "any update on my load?" should not become :load
         if match_any(text, STATUS_CHECK_PATTERNS) && !match_any(text, LOAD_PATTERNS.first(6))
