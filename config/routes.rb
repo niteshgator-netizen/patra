@@ -894,6 +894,7 @@ Rails.application.routes.draw do
         post :toggle_feature
       end
     end
+    resource :patra_game_health, only: [:show], controller: 'patra_game_health'
   end
   # == END PATRA TAB-C ROUTES ==
 end

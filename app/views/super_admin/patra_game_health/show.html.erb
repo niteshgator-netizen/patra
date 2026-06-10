@@ -1,0 +1,91 @@
+<%# ADM3 — integration health matrix (read-only; never triggers live connections) %>
+<% content_for(:title) { 'Patra Game Health Matrix' } %>
+
+<style>
+  .patra-gh { padding: 24px; }
+  .patra-gh h1 { margin: 0 0 4px; font-size: 20px; }
+  .patra-gh .patra-sub { color: #64748b; font-size: 13px; margin-bottom: 16px; }
+  .patra-gh table { border-collapse: collapse; font-size: 13px; }
+  .patra-gh th { text-align: left; color: #64748b; padding: 6px 10px; border-bottom: 2px solid #e2e8f0; }
+  .patra-gh td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .patra-gh .cell { border-radius: 6px; padding: 4px 8px; display: inline-block; min-width: 90px; }
+  .patra-gh .cell.healthy { background: #dcfce7; color: #166534; }
+  .patra-gh .cell.degraded { background: #fef3c7; color: #92400e; }
+  .patra-gh .cell.down { background: #fee2e2; color: #991b1b; font-weight: 700; }
+  .patra-gh .meta { font-size: 11px; color: #64748b; display: block; }
+  .patra-gh .err { font-size: 11px; color: #b91c1c; display: block; max-width: 220px; overflow-wrap: anywhere; }
+  .patra-gh tr.has-down { background: #fff7f7; }
+  .patra-gh .muted { color: #94a3b8; }
+  .patra-gh .summary td { border-top: 2px solid #e2e8f0; font-weight: 600; }
+</style>
+
+<div class="patra-gh">
+  <h1>Game Health Matrix</h1>
+  <div class="patra-sub">
+    Read-only snapshot of persisted connection state — never triggers live game calls.
+    Down platform-wide: <strong class="<%= @matrix[:down_total].positive? ? 'err' : '' %>"><%= @matrix[:down_total] %></strong>
+  </div>
+
+  <% if @matrix[:rows].any? %>
+    <table>
+      <thead>
+        <tr>
+          <th>Account</th>
+          <% @matrix[:games].each do |game| %>
+            <th><%= game.name %></th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% @matrix[:rows].each do |row| %>
+          <tr class="<%= 'has-down' if row[:down_count].positive? %>">
+            <td>
+              <%= link_to (row[:account_name].presence || "##{row[:account_id]}"), super_admin_patra_account_path(row[:account_id]) %>
+              <% if row[:down_count].positive? %><span class="err"><%= row[:down_count] %> down</span><% end %>
+            </td>
+            <% @matrix[:games].each do |game| %>
+              <td>
+                <% cell = row[:cells][game.id] %>
+                <% if cell %>
+                  <span class="cell <%= cell[:health] %>"><%= cell[:health] %></span>
+                  <span class="meta">
+                    status: <%= cell[:status] %> · conn: <%= cell[:connection_status] %>
+                    <% if cell[:session_age_minutes] %> · session <%= cell[:session_age_minutes] %>m<% end %>
+                  </span>
+                  <% if cell[:last_checked_at] %>
+                    <span class="meta">checked <%= cell[:last_checked_at] %></span>
+                  <% end %>
+                  <% if cell[:failure_count].positive? %>
+                    <span class="meta">failures: <%= cell[:failure_count] %></span>
+                  <% end %>
+                  <% if cell[:last_error].present? %>
+                    <span class="err"><%= cell[:last_error] %></span>
+                  <% end %>
+                <% else %>
+                  <span class="muted">—</span>
+                <% end %>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+        <tr class="summary">
+          <td>Per-game summary</td>
+          <% @matrix[:games].each do |game| %>
+            <td>
+              <% s = @matrix[:per_game_summary][game.id] %>
+              <% if s && s[:total].positive? %>
+                <%= s[:healthy] %> ok
+                <% if s[:degraded].positive? %> · <%= s[:degraded] %> degraded<% end %>
+                <% if s[:down].positive? %> · <span class="err" style="display:inline;"><%= s[:down] %> down</span><% end %>
+              <% else %>
+                <span class="muted">0</span>
+              <% end %>
+            </td>
+          <% end %>
+        </tr>
+      </tbody>
+    </table>
+  <% else %>
+    <div class="muted">No game connections exist yet.</div>
+  <% end %>
+</div>

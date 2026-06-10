@@ -32,7 +32,7 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
 - [x] ADM5 — immutable admin audit trail (FIRST — ADM2/ADM4 depend on it)
 - [x] ADM1 — platform command center
 - [x] ADM2 — account lifecycle & control
-- [ ] ADM3 — integration health matrix
+- [x] ADM3 — integration health matrix
 - [ ] ADM4 — impersonation / support-login
 - [ ] ADM6 — platform banner
 - [ ] ADM7 — suspension safety-net
@@ -110,6 +110,24 @@ S8 routes.rb SHARED with TAB B: re-read immediately before every edit; your rout
   change + reversible. NO delete path. NO billing mutations (viewing only — logged decision).
 - Audit actions recorded: account.suspend, account.reactivate, account.feature_toggle
   (metadata: feature/from/to — booleans only, no secrets).
+
+## ADM3 — SHIPPED (specs written, unrun)
+- Logged choice: health_status/session_age_minutes are PRIVATE instance methods inside
+  Api::V1::Accounts::Patra::GameHealthController#index — extracting them would mean editing an API
+  controller outside the TAB-C lane, so the read-only logic was REPLICATED into
+  Patra::GameHealthQuery (same thresholds: failure_count>=3 down, >0 degraded, else healthy) with a
+  KEEP-IN-SYNC comment in both the module and this log. The API controller was NOT touched.
+- Files: app/controllers/super_admin/patra_game_health_controller.rb (read-only, one query),
+  app/views/super_admin/patra_game_health/show.html.erb (matrix rows=accounts cols=games,
+  down-first sort + row highlight, per-game summary row, session age, last-checked, last-error
+  TEXT only), route `resource :patra_game_health` in marked block, nav link.
+- 🔒 Cells render last_connection_message (error text, 255-char truncated by the model) and
+  status/timestamps ONLY. Spec asserts the serialized matrix contains neither credential values nor
+  credential keys. Never triggers live connections (reads persisted columns only — spec mocks
+  .matrix and the builder itself does pure AR reads).
+- Specs: spec/lib/patra/game_health_query_spec.rb (threshold parity, matrix shape, down-first sort,
+  per-game summary, credential-leak guard), spec/controllers/super_admin/
+  patra_game_health_controller_spec.rb (auth + mocked matrix render).
 
 ## SECURITY-MODEL (ADM4) — filled when ADM4 ships
 
