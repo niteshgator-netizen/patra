@@ -597,9 +597,9 @@ const memoryTraitChips = computed(() => {
   const m = playerMemory.value;
   if (!m) return [];
   return [
-    { label: 'Style', value: m.traits.style },
-    { label: 'Patience', value: m.traits.patience },
-    { label: 'Attitude', value: m.traits.attitude },
+    { label: t('PLAYER_PROFILE.STYLE'), value: m.traits.style },
+    { label: t('PLAYER_PROFILE.PATIENCE'), value: m.traits.patience },
+    { label: t('PLAYER_PROFILE.ATTITUDE'), value: m.traits.attitude },
   ].filter(c => c.value && String(c.value).trim());
 });
 
@@ -740,7 +740,7 @@ watch(() => props.contact?.id, loadExtras);
         <span class="v">{{ paymentMethodDisplay }}</span>
       </div>
       <div v-if="contactCountry" class="ppc-stat">
-        <span class="ppc-label">Country</span>
+        <span class="ppc-label">{{ $t('PLAYER_PROFILE.COUNTRY') }}</span>
         <span class="ppc-value">{{ contactCountry }}</span>
       </div>
       <div class="sub-label">{{ $t('PLAYER_PROFILE.TIER_BADGE') }}</div>
@@ -883,7 +883,7 @@ watch(() => props.contact?.id, loadExtras);
           class="patra-approve-btn"
           @click="approveCashout"
         >
-          Approve & pay cashout
+          {{ $t('PLAYER_PROFILE.APPROVE_PAY_CASHOUT') }}
         </button>
       </div>
     </AccordionItem>
@@ -958,7 +958,7 @@ watch(() => props.contact?.id, loadExtras);
 
     <AccordionItem patra :is-open="memoryOpen" compact @toggle="toggleMemory">
       <template #title>
-        AI memory
+        {{ $t('PLAYER_PROFILE.AI_MEMORY') }}
         <span
           v-if="playerMemory && playerMemory.messagesSummarized"
           class="acc-badge"
@@ -989,7 +989,7 @@ watch(() => props.contact?.id, loadExtras);
           </p>
           <div class="pat-mem-actions">
             <button type="button" class="vault-copy" @click="startEditMemory">
-              Edit
+              {{ $t('PLAYER_PROFILE.EDIT') }}
             </button>
             <button
               type="button"
@@ -997,55 +997,54 @@ watch(() => props.contact?.id, loadExtras);
               :disabled="savingMemory"
               @click="clearMemory"
             >
-              Clear
+              {{ $t('PLAYER_PROFILE.CLEAR') }}
             </button>
           </div>
         </template>
         <div v-else class="empty-note">
-          Patra hasn't built a memory for this player yet — it learns as they
-          chat.
+          {{ $t('PLAYER_PROFILE.MEMORY_EMPTY') }}
           <div class="pat-mem-actions">
             <button type="button" class="vault-copy" @click="startEditMemory">
-              Add memory
+              {{ $t('PLAYER_PROFILE.ADD_MEMORY') }}
             </button>
           </div>
         </div>
       </template>
 
       <div v-else class="pat-mem-edit">
-        <div class="pat-mem-flabel">Summary</div>
+        <div class="pat-mem-flabel">{{ $t('PLAYER_PROFILE.SUMMARY') }}</div>
         <textarea
           v-model="memoryDraft.summary"
           class="pat-mem-input"
           rows="4"
-          placeholder="Who this player is, their style, attitude, notable history…"
+          :placeholder="$t('PLAYER_PROFILE.SUMMARY_PLACEHOLDER')"
         />
         <div class="pat-mem-edit-grid">
           <label class="pat-mem-field">
-            <span class="pat-mem-flabel">Style</span>
+            <span class="pat-mem-flabel">{{ $t('PLAYER_PROFILE.STYLE') }}</span>
             <input
               v-model="memoryDraft.style"
               type="text"
               class="pat-mem-input"
-              placeholder="chatty / terse"
+              :placeholder="$t('PLAYER_PROFILE.STYLE_PLACEHOLDER')"
             />
           </label>
           <label class="pat-mem-field">
-            <span class="pat-mem-flabel">Patience</span>
+            <span class="pat-mem-flabel">{{ $t('PLAYER_PROFILE.PATIENCE') }}</span>
             <input
               v-model="memoryDraft.patience"
               type="text"
               class="pat-mem-input"
-              placeholder="high / low"
+              :placeholder="$t('PLAYER_PROFILE.PATIENCE_PLACEHOLDER')"
             />
           </label>
           <label class="pat-mem-field">
-            <span class="pat-mem-flabel">Attitude</span>
+            <span class="pat-mem-flabel">{{ $t('PLAYER_PROFILE.ATTITUDE') }}</span>
             <input
               v-model="memoryDraft.attitude"
               type="text"
               class="pat-mem-input"
-              placeholder="friendly / demanding"
+              :placeholder="$t('PLAYER_PROFILE.ATTITUDE_PLACEHOLDER')"
             />
           </label>
         </div>
@@ -1064,7 +1063,7 @@ watch(() => props.contact?.id, loadExtras);
             :disabled="savingMemory"
             @click="cancelEditMemory"
           >
-            Cancel
+            {{ $t('PLAYER_PROFILE.CANCEL') }}
           </button>
         </div>
       </div>

@@ -17,17 +17,17 @@ const activeRange = ref('today');
 const heatmapDays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const heatmapHours = Array.from({ length: 24 }, (_, i) => i);
 const channelColors = ['#0866FF', '#8B5CF6', '#58A6FF', '#3FB950', '#E3A008'];
-const rangeSevenDays = '7 days';
-const rangeThirtyDays = '30 days';
-const periodWeekToggle = 'this week ▾';
-const donutHandledLabel = 'AI handled';
-const legendAiHandled = 'Patra AI handled';
-const legendEscalated = 'Escalated to human';
-const legendStillOpen = 'Still open';
-const heatmapPeriodSuffix = '· last 7 days';
-const heatmapLess = 'Less';
-const heatmapMore = 'More';
-const agentOnlineLabel = 'online';
+const rangeSevenDays = t('PATRA.DASHBOARD.SEVEN_DAYS');
+const rangeThirtyDays = t('PATRA.DASHBOARD.THIRTY_DAYS');
+const periodWeekToggle = t('PATRA.DASHBOARD.THIS_WEEK_TOGGLE');
+const donutHandledLabel = t('PATRA.DASHBOARD.AI_HANDLED');
+const legendAiHandled = t('PATRA.DASHBOARD.LEGEND_AI_HANDLED');
+const legendEscalated = t('PATRA.DASHBOARD.LEGEND_ESCALATED');
+const legendStillOpen = t('PATRA.DASHBOARD.LEGEND_STILL_OPEN');
+const heatmapPeriodSuffix = t('PATRA.DASHBOARD.LAST_7_DAYS_SUFFIX');
+const heatmapLess = t('PATRA.DASHBOARD.HEATMAP_LESS');
+const heatmapMore = t('PATRA.DASHBOARD.HEATMAP_MORE');
+const agentOnlineLabel = t('PATRA.DASHBOARD.AGENT_ONLINE');
 
 const channelEntries = computed(() => {
   const volume = stats.value?.volume_by_channel || {};
@@ -157,7 +157,7 @@ async function loadStats(showSpinner = false, range = 'today') {
     const { data } = await PatraDashboardAPI.get({ params: { range } });
     stats.value = data;
   } catch (e) {
-    error.value = e.message || 'Failed to load dashboard';
+    error.value = e.message || t('PATRA.DASHBOARD.LOAD_ERROR');
   } finally {
     if (showSpinner) loading.value = false;
   }

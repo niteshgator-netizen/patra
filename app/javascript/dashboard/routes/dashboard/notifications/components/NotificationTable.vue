@@ -52,8 +52,8 @@ export default {
     },
     aiStatusText(notification) {
       return this.needsAiAttention(notification)
-        ? 'Needs attention'
-        : 'AI handling';
+        ? this.$t('PATRA.CONVERSATION_CARD.AI_NEEDS_ATTENTION')
+        : this.$t('PATRA.CONVERSATION_CARD.AI_HANDLING');
     },
   },
 };

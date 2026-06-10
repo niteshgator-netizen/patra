@@ -175,7 +175,7 @@ onMounted(() => {
           :class="{ active: sidebarTab === 'details' }"
           @click="sidebarTab = 'details'"
         >
-          Details
+          {{ $t('PATRA.INFO_PANEL.DETAILS_TAB') }}
         </button>
         <button
           class="patra-sidebar-tab"
@@ -183,7 +183,7 @@ onMounted(() => {
           @click="sidebarTab = 'copilot'"
         >
           <svg viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px;flex-shrink:0;"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"/></svg>
-          Patra AI
+          {{ $t('PATRA.INFO_PANEL.PATRA_AI_TAB') }}
         </button>
       </div>
       <div v-show="sidebarTab === 'details'">
@@ -300,11 +300,11 @@ onMounted(() => {
               >
                 <div class="card-t display">
                   <span class="dot" />
-                  Attachments
+                  {{ $t('PATRA.INFO_PANEL.ATTACHMENTS') }}
                   <span class="patra-media-count"
                     >MEDIA · {{ attachmentCount }}</span
                   >
-                  <a class="patra-media-viewall">View all →</a>
+                  <a class="patra-media-viewall">{{ $t('PATRA.INFO_PANEL.VIEW_ALL') }}</a>
                 </div>
                 <div class="patra-media-grid">
                   <div
@@ -411,9 +411,9 @@ onMounted(() => {
           v-if="currentChat?.additional_attributes?.last_intent_confidence"
           class="patra-confidence-section"
         >
-          <div class="patra-conf-title">Confidence scores</div>
+          <div class="patra-conf-title">{{ $t('PATRA.INFO_PANEL.CONFIDENCE_SCORES') }}</div>
           <div class="patra-conf-row">
-            <span class="patra-conf-label">Intent match</span>
+            <span class="patra-conf-label">{{ $t('PATRA.INFO_PANEL.INTENT_MATCH') }}</span>
             <div class="patra-conf-bar">
               <div
                 class="patra-conf-fill"
@@ -439,7 +439,7 @@ onMounted(() => {
           <input
             v-model="copilotQuery"
             type="text"
-            placeholder="Ask Patra AI anything…"
+            :placeholder="$t('PATRA.INFO_PANEL.ASK_PLACEHOLDER')"
             class="patra-cop-input"
             @keydown.enter="askCopilot"
           />

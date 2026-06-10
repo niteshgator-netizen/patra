@@ -1,15 +1,18 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import PatraAiTrainingAPI from 'dashboard/api/patraAiTraining';
 
 // Phase H.10 item 10: unified AI Training page with three tabs —
 // Upload Training Data, Review Queue, Secret Phrases.
 
+const { t } = useI18n();
+
 const TABS = [
-  { key: 'upload', label: 'Upload Training Data' },
-  { key: 'review', label: 'Review Queue' },
-  { key: 'phrases', label: 'Secret Phrases' },
+  { key: 'upload', label: t('PATRA.AI_TRAINING.TAB_UPLOAD') },
+  { key: 'review', label: t('PATRA.AI_TRAINING.TAB_REVIEW') },
+  { key: 'phrases', label: t('PATRA.AI_TRAINING.TAB_PHRASES') },
 ];
 
 const activeTab = ref('upload');
@@ -19,60 +22,56 @@ const spotlightRef = ref(null);
 const fileInputRef = ref(null);
 
 const emptyPlaceholder = '—';
-const breadcrumb = 'Settings / AI Training';
-const pageTitle = 'Patra AI Training';
-const pageSubtitle =
-  'Upload training examples, review human takeovers, and manage secret phrases.';
-const statTrainingPairsLabel = 'Training pairs in knowledge base';
+const breadcrumb = t('PATRA.AI_TRAINING.BREADCRUMB');
+const pageTitle = t('PATRA.AI_TRAINING.TITLE');
+const pageSubtitle = t('PATRA.AI_TRAINING.SUBTITLE');
+const statTrainingPairsLabel = t('PATRA.AI_TRAINING.STAT_TRAINING_PAIRS');
 const statEmbeddingsValue = '512-dim';
-const statEmbeddingsLabel = 'Voyage embeddings';
-const statHandleRateLabel = 'AI handle rate this week';
-const statAwaitingReviewLabel = 'Awaiting review';
-const uploadCardTitle = 'Upload training data';
-const dropzonePrefix = 'Drop a ';
+const statEmbeddingsLabel = t('PATRA.AI_TRAINING.STAT_EMBEDDINGS');
+const statHandleRateLabel = t('PATRA.AI_TRAINING.STAT_HANDLE_RATE');
+const statAwaitingReviewLabel = t('PATRA.AI_TRAINING.STAT_AWAITING_REVIEW');
+const uploadCardTitle = t('PATRA.AI_TRAINING.UPLOAD_TITLE');
+const dropzonePrefix = t('PATRA.AI_TRAINING.DROPZONE_PREFIX');
 const dropzoneJsonExt = '.json';
-const dropzoneMiddle = ' training file here, or ';
-const dropzoneBrowseLabel = 'browse';
-const dropzoneHint = 'customer_text + cashier_text pairs · max 10MB';
-const selectedFilePrefix = 'Selected:';
-const chooseFileLabel = 'Choose file';
-const uploadLabel = 'Upload';
-const uploadingLabel = 'Uploading…';
-const uploadHistoryTitle = 'Upload history';
-const noUploadsLabel = 'No uploads yet.';
-const reviewQueueTitle = 'Review queue';
-const reviewQueueDesc =
-  'Human replies captured when agents take over from Patra AI. Approve to add them to the training data.';
-const reviewQueueEmpty =
-  'Review queue is empty — nothing waiting for approval.';
-const confidenceSuffix = ' confidence';
-const viewConversationLabel = 'View conversation';
-const customerLabel = 'Customer';
-const humanReplyLabel = 'Human reply';
-const savingLabel = 'Saving…';
-const approveTrainingLabel = '✓ Approve into training';
-const discardLabel = 'Discard';
-const addSecretPhraseTitle = 'Add secret phrase';
-const addSecretPhraseDesc =
-  'When a customer message contains a secret phrase, Patra AI can notify you or pause itself so a human takes over.';
-const phraseFieldLabel = 'Phrase';
-const phrasePlaceholder = 'e.g. let me talk to a real person';
-const actionLabel = 'Action';
-const notifyOnlyLabel = 'Notify only';
-const pauseAiNotifyLabel = 'Pause AI & notify';
-const activeLabel = 'Active';
-const addingPhraseLabel = 'Adding…';
-const addPhraseLabel = 'Add phrase';
-const configuredPhrasesTitle = 'Configured phrases';
-const noPhrasesLabel = 'No secret phrases yet.';
-const triggersSuffix = ' triggers';
-const togglePhraseAriaLabel = 'Toggle phrase active';
-const editLabel = 'Edit';
-const deletePhraseAriaLabel = 'Delete phrase';
+const dropzoneMiddle = t('PATRA.AI_TRAINING.DROPZONE_MIDDLE');
+const dropzoneBrowseLabel = t('PATRA.AI_TRAINING.DROPZONE_BROWSE');
+const dropzoneHint = t('PATRA.AI_TRAINING.DROPZONE_HINT');
+const selectedFilePrefix = t('PATRA.AI_TRAINING.SELECTED_FILE');
+const chooseFileLabel = t('PATRA.AI_TRAINING.CHOOSE_FILE');
+const uploadLabel = t('PATRA.AI_TRAINING.UPLOAD');
+const uploadingLabel = t('PATRA.AI_TRAINING.UPLOADING');
+const uploadHistoryTitle = t('PATRA.AI_TRAINING.UPLOAD_HISTORY');
+const noUploadsLabel = t('PATRA.AI_TRAINING.NO_UPLOADS');
+const reviewQueueTitle = t('PATRA.AI_TRAINING.REVIEW_QUEUE');
+const reviewQueueDesc = t('PATRA.AI_TRAINING.REVIEW_QUEUE_DESC');
+const reviewQueueEmpty = t('PATRA.AI_TRAINING.REVIEW_QUEUE_EMPTY');
+const confidenceSuffix = t('PATRA.AI_TRAINING.CONFIDENCE_SUFFIX');
+const viewConversationLabel = t('PATRA.AI_TRAINING.VIEW_CONVERSATION');
+const customerLabel = t('PATRA.AI_TRAINING.CUSTOMER');
+const humanReplyLabel = t('PATRA.AI_TRAINING.HUMAN_REPLY');
+const savingLabel = t('PATRA.AI_TRAINING.SAVING');
+const approveTrainingLabel = t('PATRA.AI_TRAINING.APPROVE_TRAINING');
+const discardLabel = t('PATRA.AI_TRAINING.DISCARD');
+const addSecretPhraseTitle = t('PATRA.AI_TRAINING.ADD_PHRASE_TITLE');
+const addSecretPhraseDesc = t('PATRA.AI_TRAINING.ADD_PHRASE_DESC');
+const phraseFieldLabel = t('PATRA.AI_TRAINING.PHRASE');
+const phrasePlaceholder = t('PATRA.AI_TRAINING.PHRASE_PLACEHOLDER');
+const actionLabel = t('PATRA.AI_TRAINING.ACTION');
+const notifyOnlyLabel = t('PATRA.AI_TRAINING.NOTIFY_ONLY');
+const pauseAiNotifyLabel = t('PATRA.AI_TRAINING.PAUSE_AI_NOTIFY');
+const activeLabel = t('PATRA.AI_TRAINING.ACTIVE');
+const addingPhraseLabel = t('PATRA.AI_TRAINING.ADDING_PHRASE');
+const addPhraseLabel = t('PATRA.AI_TRAINING.ADD_PHRASE');
+const configuredPhrasesTitle = t('PATRA.AI_TRAINING.CONFIGURED_PHRASES');
+const noPhrasesLabel = t('PATRA.AI_TRAINING.NO_PHRASES');
+const triggersSuffix = t('PATRA.AI_TRAINING.TRIGGERS_SUFFIX');
+const togglePhraseAriaLabel = t('PATRA.AI_TRAINING.TOGGLE_PHRASE');
+const editLabel = t('PATRA.AI_TRAINING.EDIT');
+const deletePhraseAriaLabel = t('PATRA.AI_TRAINING.DELETE_PHRASE');
 const deletePhraseIcon = '🗑';
-const saveLabel = 'Save';
-const cancelLabel = 'Cancel';
-const deletePhraseConfirm = 'Delete this secret phrase?';
+const saveLabel = t('PATRA.AI_TRAINING.SAVE');
+const cancelLabel = t('PATRA.AI_TRAINING.CANCEL');
+const deletePhraseConfirm = t('PATRA.AI_TRAINING.DELETE_PHRASE_CONFIRM');
 const ingestedLabel = '✓ ingested';
 
 // ── Upload tab ─────────────────────────────────────────────────────

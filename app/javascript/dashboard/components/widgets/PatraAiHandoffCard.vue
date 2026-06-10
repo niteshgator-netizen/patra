@@ -1,6 +1,9 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+
+const { t } = useI18n();
 
 const props = defineProps({
   conversationId: { type: [Number, String], required: true },
@@ -21,10 +24,10 @@ const attrs = computed(() =>
 );
 
 const intentLabel = computed(() => {
-  if (attrs.value.awaiting_load_amount) return 'Load deposit — awaiting amount';
+  if (attrs.value.awaiting_load_amount) return t('PATRA.AI_CARD.INTENT_LOAD_AWAITING');
   if (attrs.value.sender_match_state === 'awaiting_details')
-    return 'Payment match — awaiting details';
-  if (attrs.value.sender_match_state === 'matched') return 'Payment matched ✓';
+    return t('PATRA.AI_CARD.INTENT_PAYMENT_AWAITING');
+  if (attrs.value.sender_match_state === 'matched') return t('PATRA.AI_CARD.INTENT_PAYMENT_MATCHED');
   return null;
 });
 
@@ -78,35 +81,35 @@ const askPatraAi = () => {
       </span>
     </div>
     <div v-if="attrs.last_intent_confidence" class="ai-hc-intent">
-      <span class="ai-hc-label">Confidence</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.CONFIDENCE') }}</span>
       <span class="ai-hc-value">{{ Math.round(attrs.last_intent_confidence * 100) }}%</span>
     </div>
     <div v-if="intentLabel" class="ai-hc-intent">
-      <span class="ai-hc-label">Intent</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.INTENT') }}</span>
       <span class="ai-hc-value">{{ intentLabel }}</span>
     </div>
     <div v-if="attrs.last_intent_reason" class="ai-hc-intent">
-      <span class="ai-hc-label">Reason</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.REASON') }}</span>
       <span class="ai-hc-value">{{ attrs.last_intent_reason }}</span>
     </div>
     <div v-if="attrs.cashout_sla_policy" class="ai-hc-intent">
-      <span class="ai-hc-label">Cashout SLA</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.CASHOUT_SLA') }}</span>
       <span class="ai-hc-value">{{ attrs.cashout_sla_policy }}</span>
     </div>
     <div v-if="attrs.sentiment" class="ai-hc-intent">
-      <span class="ai-hc-label">Sentiment</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.SENTIMENT') }}</span>
       <span class="ai-hc-value" :class="sentimentClass">{{ attrs.sentiment }}</span>
     </div>
     <div v-if="attrs.safety_flags" class="ai-hc-intent">
-      <span class="ai-hc-label">Safety</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.SAFETY') }}</span>
       <span class="ai-hc-value">{{ attrs.safety_flags }}</span>
     </div>
     <div v-if="attrs.detected_entities" class="ai-hc-intent">
-      <span class="ai-hc-label">Entities</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.ENTITIES') }}</span>
       <span class="ai-hc-value">{{ attrs.detected_entities }}</span>
     </div>
     <div v-if="attrs.awaiting_load_amount" class="ai-hc-intent">
-      <span class="ai-hc-label">Awaiting amount</span>
+      <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.AWAITING_AMOUNT') }}</span>
       <span class="ai-hc-value">${{ attrs.awaiting_load_amount }}</span>
     </div>
     <div v-if="aiOff" class="ai-hc-intent" style="margin-top: 6px">
@@ -115,26 +118,26 @@ const askPatraAi = () => {
         class="ai-hc-session-link"
         @click.prevent="scrollToFirstAiMessage"
       >
-        View full AI session →
+        {{ $t('PATRA.AI_CARD.VIEW_FULL_SESSION') }}
       </a>
     </div>
 
     <div v-if="attrs.ai_already_did" class="ai-hc-section">
-      <div class="ai-hc-section-title">AI already did</div>
+      <div class="ai-hc-section-title">{{ $t('PATRA.AI_CARD.AI_ALREADY_DID') }}</div>
       <div class="ai-hc-section-text">{{ attrs.ai_already_did }}</div>
     </div>
 
     <div v-if="attrs.customer_context" class="ai-hc-section">
-      <div class="ai-hc-section-title">Context</div>
+      <div class="ai-hc-section-title">{{ $t('PATRA.AI_CARD.CONTEXT') }}</div>
       <div class="ai-hc-section-text">{{ attrs.customer_context }}</div>
     </div>
 
     <div v-if="attrs.ai_insight" class="ai-hc-section">
-      <div class="ai-hc-section-title">Insight</div>
+      <div class="ai-hc-section-title">{{ $t('PATRA.AI_CARD.INSIGHT') }}</div>
       <div class="ai-hc-section-text">{{ attrs.ai_insight }}</div>
     </div>
 
-    <button class="ai-hc-ask-btn" @click="askPatraAi">Ask Patra AI</button>
+    <button class="ai-hc-ask-btn" @click="askPatraAi">{{ $t('PATRA.AI_CARD.ASK_PATRA') }}</button>
   </div>
 </template>
 

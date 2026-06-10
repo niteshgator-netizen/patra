@@ -138,21 +138,21 @@ const replyToPreview = computed(() => {
     <div v-if="isHandoffMessage" class="patra-thread-handoff">
       <div class="patra-th-header">
         <span class="patra-th-dot" />
-        <span class="patra-th-title">Handed to you by Patra AI</span>
+        <span class="patra-th-title">{{ $t('PATRA.AI_CARD.HANDED_BY') }}</span>
       </div>
       <div class="patra-th-grid">
         <div
           v-if="additionalAttributes?.intent"
           class="patra-th-row"
         >
-          <span class="patra-th-label">Intent</span>
+          <span class="patra-th-label">{{ $t('PATRA.AI_CARD.INTENT') }}</span>
           <span class="patra-th-value">{{ additionalAttributes.intent }}</span>
         </div>
         <div
           v-if="additionalAttributes?.confidence"
           class="patra-th-row"
         >
-          <span class="patra-th-label">Confidence</span>
+          <span class="patra-th-label">{{ $t('PATRA.AI_CARD.CONFIDENCE') }}</span>
           <span class="patra-th-value">{{
             Math.round(additionalAttributes.confidence * 100)
           }}%</span>
@@ -161,7 +161,7 @@ const replyToPreview = computed(() => {
           v-if="additionalAttributes?.reason"
           class="patra-th-row"
         >
-          <span class="patra-th-label">Reason</span>
+          <span class="patra-th-label">{{ $t('PATRA.AI_CARD.REASON') }}</span>
           <span class="patra-th-value">{{ additionalAttributes.reason }}</span>
         </div>
       </div>
@@ -175,7 +175,7 @@ const replyToPreview = computed(() => {
             })
           "
         >
-          View conversation
+          {{ $t('PATRA.AI_CARD.VIEW_CONVERSATION') }}
         </button>
       </div>
     </div>

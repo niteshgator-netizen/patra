@@ -296,7 +296,6 @@
       "ID": "(ID: {identifier})"
     }
   },
-
   "CONTACTS_LAYOUT": {
     "HEADER": {
       "TITLE": "Contacts",
@@ -389,7 +388,13 @@
     "PAGINATION_FOOTER": {
       "SHOWING": "Showing {startItem}–{endItem} of {totalItems} contact | Showing {startItem}–{endItem} of {totalItems} contacts"
     },
-    "DETAIL_EMPTY": "Select a contact from the list to view their profile, Player Vault, and activity.",
+    "DETAIL_EMPTY": {
+      "HISTORY": "No activity history yet.",
+      "NOTES": "No notes yet.",
+      "MEDIA": "No media yet.",
+      "ATTRIBUTES": "No custom attributes available.",
+      "CREATE_IN_SETTINGS": "Create one in Settings."
+    },
     "META_SEPARATOR": "·",
     "FILTER_TABS": {
       "ALL": "All Contacts",
@@ -632,7 +637,17 @@
       "LIST_EMPTY_STATE_TITLE": "No contacts available in this view 📋",
       "ACTIVE_EMPTY_STATE_TITLE": "No contacts are active at the moment 🌙"
     },
-    "LOAD_MORE": "Load more"
+    "LOAD_MORE": "Load more",
+    "DETAIL_TABS": {
+      "ATTRIBUTES": "Attributes",
+      "HISTORY": "History",
+      "NOTES": "Notes",
+      "MEDIA": "Media"
+    },
+    "DETAIL_ACTIONS": {
+      "MERGE": "Merge",
+      "SEND_MESSAGE": "Send message"
+    }
   },
   "CONTACTS_BULK_ACTIONS": {
     "ASSIGN_LABELS": "Assign Labels",
@@ -659,7 +674,6 @@
       "CONFIRM_SINGLE": "Delete contact"
     }
   },
-
   "COMPOSE_NEW_CONVERSATION": {
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "We couldn’t complete the search. Please try again."
