@@ -20,6 +20,8 @@ class PendingPaymentTimeoutJob < ApplicationJob
         "[PendingPayment] reminder due conv=#{conv.id} pending_since=#{pending_at.iso8601}"
       )
     end
+
+    alert_stuck_game_actions
   end
 
   def self.mark_pending!(conversation)
@@ -34,6 +36,41 @@ class PendingPaymentTimeoutJob < ApplicationJob
   end
 
   private
+
+  # GameActions stuck 'pending' >1h mean a load/cashout started and never
+  # resolved — a human needs to look. Alert via Telegram, throttled once/hour
+  # (setex pattern). READ-ONLY: no GameAction state is ever mutated here.
+  def alert_stuck_game_actions
+    stuck = GameAction.where(status: 'pending')
+                      .where('created_at < ?', 1.hour.ago)
+                      .order(:created_at)
+                      .limit(50)
+                      .to_a
+    return if stuck.empty?
+
+    Rails.logger.warn("[PendingPayment] #{stuck.size} GameActions stuck pending >1h ids=#{stuck.map(&:id).inspect}")
+
+    redis = Redis.new(Redis::Config.app)
+    throttle_key = 'patra:stuck_pending_alert'
+    return if redis.get(throttle_key).present?
+
+    redis.setex(throttle_key, 1.hour.to_i, '1')
+
+    stuck.group_by(&:account_id).each do |account_id, actions|
+      lines = actions.map do |a|
+        hours = ((Time.current - a.created_at) / 1.hour).round(1)
+        "##{a.id} #{a.action_type} $#{a.amount} #{a.game_username} (#{hours}h)"
+      end
+      Games::TelegramNotifier.api_error(
+        account: Account.find_by(id: account_id),
+        message: "#{actions.size} game action(s) stuck PENDING >1h — needs a human look",
+        details: lines.join("\n")
+      )
+    end
+  rescue StandardError => e
+    # Alerting must never break the sweep itself.
+    Rails.logger.error("[PendingPayment] stuck-action alert failed: #{e.class}: #{e.message}")
+  end
 
   def parse_time(value)
     return if value.blank?
