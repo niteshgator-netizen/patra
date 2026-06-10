@@ -22,14 +22,17 @@ module Games
       return if current_tier&.name == 'selected' # selected is manual-only, don't downgrade
 
       # Calculate total deposits
+      # TAB A fix: only SUCCESSFUL, non-freeplay loads are deposits. Failed and
+      # pending loads and freeplay credits counted toward VIP promotion before
+      # (10 failed $100 loads = VIP). Same convention as the orchestrator's
+      # cashout-multiplier math.
       begin
-        total_deposits = GameAction.where(contact_id: @contact.id)
-          .where(action_type: %w[load recharge])
-          .sum(:amount).to_f
+        deposits_scope = GameAction.where(contact_id: @contact.id)
+          .where(action_type: %w[load recharge], status: 'success')
+          .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
 
-        deposit_count = GameAction.where(contact_id: @contact.id)
-          .where(action_type: %w[load recharge])
-          .count
+        total_deposits = deposits_scope.sum(:amount).to_f
+        deposit_count = deposits_scope.count
 
         # Check threshold
         meets_amount = total_deposits >= vip_tier.auto_promote_deposit_threshold
