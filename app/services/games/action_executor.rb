@@ -372,6 +372,33 @@ module Games
         "account=#{action.account_id} contact=#{action.contact_id} " \
         "game=#{agent_game.game&.slug} order=#{action.order_id} code=#{code}"
       )
+      emit_money_webhook(action, ok: ok)
+    rescue StandardError
+      nil
+    end
+
+    # Customer webhook (Patra Business Settings webhook_url). emit() is a
+    # no-op without a URL and only enqueues — no inline network I/O here.
+    def emit_money_webhook(action, ok:)
+      event = case action.action_type.to_s
+              when 'load', 'recharge' then ok ? 'load.success' : 'load.failed'
+              when 'cashout' then ok ? 'cashout.executed' : nil
+              end
+      return if event.nil?
+
+      Patra::WebhookEmitter.emit(
+        account: action.account,
+        event: event,
+        payload: {
+          action_id: action.id,
+          action_type: action.action_type,
+          amount: action.amount.to_f,
+          game: agent_game.game&.slug,
+          game_username: action.game_username,
+          contact_id: action.contact_id,
+          order_id: action.order_id
+        }
+      )
     rescue StandardError
       nil
     end

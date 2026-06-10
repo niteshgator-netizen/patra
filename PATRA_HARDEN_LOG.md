@@ -61,7 +61,18 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   sla_policies (the settings page's whole point); per-account rescue added (H4 promise).
   Proof (a): tmp/self_tests/h5_sla_check_test.rb ALL PASS (12 asserts) + ruby -c OK.
   RSpec spec/jobs/sla/check_violations_job_spec.rb written (SPECS-UNRUN locally).
-- [ ] H6 Patra::WebhookEmitter (4 events, non-hot seams, never blocks money path)
+- [x] H6 Patra::WebhookEmitter — NEW app/services/patra/webhook_emitter.rb +
+  app/jobs/patra/webhook_emit_job.rb. emit() = no-op without webhook_url, enqueue-only (zero
+  inline network I/O in the money path), enqueue failures swallowed; deliver() (in the job) =
+  3s timeout, ONE retry, every error rescued, never raises → job never retry-storms. Body
+  {event, account_id, timestamp, payload}. HMAC X-Patra-Signature when
+  custom_attributes['webhook_secret'] set (no UI field exists yet — DOCUMENTED in the class
+  header; set via console/custom_attributes). Seams wired (both NON-HOT): action_executor
+  log_money [MONEY] site → load.success/load.failed (action_type load|recharge) +
+  cashout.executed (action_type cashout, ok only); payments/email_confirmation_service
+  check_entry confirm site → payment.confirmed. Both seam calls additionally rescued.
+  Proof (a): tmp/self_tests/h6_webhook_emitter_test.rb ALL PASS (17 asserts) + ruby -c OK x4.
+  RSpec spec/services/patra/webhook_emitter_spec.rb (webmock) written (SPECS-UNRUN locally).
 - [ ] H7 panda master blank balance — diagnose + patra_panda_probe.rb
 - [ ] H8 FB token expiry alerting (1/token/day idempotent)
 - [ ] H9 stuck-pending sweeper alert (verify + spec — alert already exists)
@@ -137,6 +148,8 @@ To roll back everything from this run: `git reset --hard 3a46f24e411be564b3e821e
   (local equivalent ran: `ruby tmp/self_tests/h4_schedule_classes_test.rb` → ALL PASS 90)
 - H5: `bundle exec rspec spec/jobs/sla/check_violations_job_spec.rb` (local equivalent ran:
   `ruby tmp/self_tests/h5_sla_check_test.rb` → ALL PASS 12)
+- H6: `bundle exec rspec spec/services/patra/webhook_emitter_spec.rb` (local equivalent ran:
+  `ruby tmp/self_tests/h6_webhook_emitter_test.rb` → ALL PASS 17)
 
 ## COMMITS
 (one line per item as committed)

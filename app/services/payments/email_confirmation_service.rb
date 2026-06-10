@@ -87,6 +87,19 @@ module Payments
           Rails.logger.warn("[EmailConfirmationService] email data extraction failed: #{e.message}")
         end
 
+        # Customer webhook — no-op without a configured webhook_url, never raises.
+        Patra::WebhookEmitter.emit(
+          account: @account,
+          event: 'payment.confirmed',
+          payload: {
+            contact_id: @contact.id,
+            amount: (entry['email_amount'].presence || entry['amount']).to_f,
+            platform: entry['platform'],
+            transaction_id: entry['transaction_id'],
+            confirmed_at: entry['email_confirmed_at']
+          }
+        )
+
         true
       else
         entry['email_check_attempts'] = entry['email_check_attempts'].to_i + 1
