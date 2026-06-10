@@ -48,22 +48,22 @@ R8 Stubs for anything send/money-shaped in test scripts: stub_singleton save+res
 - [x] F20 ReplyJob bounded retries — done (commit b7476b86b)
 
 ## PHASE 2 — ADVERSARIAL HUNT
-- [ ] H1 intent golden suite script/patra_intent_suite.rb — todo
-- [ ] H2 RAG runtime path + script/patra_rules_consistency_check.rb — todo
-- [ ] H3 memory window/writer/rotation/caps — todo
-- [ ] H4 payment HandleResolver consistency — todo
-- [ ] H5 money walk read-only — todo
-- [ ] H6 14 game clients taxonomy — todo
-- [ ] H7 intake pipeline trace — todo
-- [ ] H8 reply gates ordered list post-F5/F16 — todo
-- [ ] H9 persona red-team V2 scenario suite ≥20 — todo
-- [ ] H10 jobs+infra re-verify, pools, rack_attack, TTLs — todo
-- [ ] H11 blast radius + perf report — todo
+- [x] H1 golden suite 128/128 + 2 detector fixes — done (eff5a12ae)
+- [x] H2 RAG audit OK + consistency checker — done (ec6beeaee)
+- [x] H3 memory audit + 6000-char profile cap — done (af600ee77)
+- [x] H4 handles — folded into checker — done
+- [x] H5 money walk — verdicts in PATRA_MEGA_REPORT §2 — done
+- [x] H6 client taxonomy — report §2 — done
+- [x] H7 intake trace — report §2, sound — done
+- [x] H8 gates checklist — report §2 — done
+- [x] H9 smoke V2 27 scenarios + leak asserts — done (9c9b1d82c)
+- [x] H10 jobs/infra all green — report §2 — done
+- [x] H11 blast radius + prompt_chars log — done (af600ee77)
 
 ## PHASE 3 — OUTPUT
-- [ ] PATRA_MEGA_REPORT.md committed — todo
-- [ ] All scripts runnable — todo
-- [ ] Final console summary — todo
+- [x] PATRA_MEGA_REPORT.md committed
+- [x] All scripts parse-verified runnable (incl untouched preflight)
+- [x] Final console summary delivered
 
 ═══ COLLISION LOG ═══
 (none yet)
