@@ -101,12 +101,13 @@ const sectionTitle = computed(() =>
   padding: 9px 13px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #a8a6b6;
+  /* A3: tokenized — was hardcoded dark #a8a6b6 (washed out in light) */
+  color: var(--text-2, #56546a);
 }
 .patra-pinned-icon {
   width: 14px;
   height: 14px;
-  color: #e3a008;
+  color: var(--amber, #e3a008);
   flex-shrink: 0;
 }
 .patra-pinned-title {
@@ -115,7 +116,7 @@ const sectionTitle = computed(() =>
 }
 .patra-pinned-caret {
   font-size: 10px;
-  color: #75727f;
+  color: var(--text-3, #75727f);
 }
 .patra-pinned-list {
   max-height: 10rem;
@@ -124,7 +125,7 @@ const sectionTitle = computed(() =>
 }
 .patra-pinned-item {
   font-size: 12.5px;
-  color: #a8a6b6;
+  color: var(--text-2, #56546a);
   padding: 4px 6px;
   border-radius: 7px;
   cursor: pointer;
@@ -133,7 +134,7 @@ const sectionTitle = computed(() =>
   background: rgba(227, 160, 8, 0.08);
 }
 .patra-pinned-sender {
-  color: #ededf2;
+  color: var(--text, #1a1a24);
   font-weight: 600;
 }
 </style>
