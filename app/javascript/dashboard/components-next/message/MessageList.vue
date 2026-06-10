@@ -200,4 +200,10 @@ const getInReplyToMessage = parentMessage => {
   list-style: none;
   background: transparent;
 }
+
+/* A5: --pt-* tokens above are DARK values on the bare class — light values: */
+body:not(.dark) .patra-conv-thread {
+  --pt-canvas: #f6f5f9;
+  --pt-border: #e5e3eb;
+}
 </style>

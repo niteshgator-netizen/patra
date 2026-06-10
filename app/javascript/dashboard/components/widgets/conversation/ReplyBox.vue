@@ -1556,6 +1556,15 @@ export default {
   border-color: rgba(227, 160, 8, 0.22);
 }
 
+/* A5: --pc-* tokens above are DARK values on the bare class — light values: */
+body:not(.dark) .patra-conv-composer {
+  --pc-surface: #ffffff;
+  --pc-canvas: #f6f5f9;
+  --pc-border: #e5e3eb;
+  --pc-patra-glow: rgba(110, 86, 207, 0.28);
+  --pc-amber: #9a6700;
+}
+
 .patra-conv-composer-box {
   position: relative;
   padding: 0;

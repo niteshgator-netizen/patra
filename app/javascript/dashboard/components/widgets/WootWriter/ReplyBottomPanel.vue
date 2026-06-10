@@ -494,6 +494,20 @@ export default {
   border-color: #171520 !important;
 }
 
+/* A5: --pb-* tokens above are DARK values on the bare class — light values: */
+body:not(.dark) .patra-composer-bar {
+  --pb-surface-2: #f2f0f7;
+  --pb-surface-3: #ece9f2;
+  --pb-border: #e5e3eb;
+  --pb-text-2: #4a4756;
+  --pb-text-3: #75727f;
+  --pb-text-4: #a0a0ab;
+  --pb-patra-glow: rgba(110, 86, 207, 0.28);
+
+  border-top-color: #e5e3eb !important;
+  border-color: #e5e3eb !important;
+}
+
 .patra-composer-tools {
   display: flex;
   align-items: center;

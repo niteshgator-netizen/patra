@@ -119,6 +119,17 @@ const translateValue = computed(() => {
   background: transparent;
 }
 
+/* A5: --pt-* tokens above are DARK values on the bare class — light values: */
+body:not(.dark) .patra-composer-tabs {
+  --pt-surface-2: #f2f0f7;
+  --pt-text-3: #75727f;
+  --pt-text: #1a1a24;
+  --pt-amber: #9a6700;
+  --pt-border: #e5e3eb;
+
+  border-color: #e5e3eb !important;
+}
+
 .patra-composer-tab {
   font-size: 12px;
   font-weight: 500;

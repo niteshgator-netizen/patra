@@ -221,6 +221,18 @@ const replyToPreview = computed(() => {
   transform: translateY(-1px);
 }
 
+/* A5: --pb-* tokens above are DARK values on the bare class — light values: */
+body:not(.dark) .patra-conv-bubble {
+  --pb-bubble-in: #f2f0f7;
+  --pb-border: #e5e3eb;
+  --pb-patra-glow: rgba(110, 86, 207, 0.28);
+  --pb-text: #1a1a24;
+  --pb-text-3: #75727f;
+  --pb-text-4: #a0a0ab;
+  --pb-amber: #9a6700;
+  --pb-red: #cf222e;
+}
+
 .patra-conv-bubble--user {
   background: var(--pb-bubble-in);
   border: 1px solid var(--pb-border);
