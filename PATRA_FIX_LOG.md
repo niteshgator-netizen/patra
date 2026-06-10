@@ -18,7 +18,11 @@ Run date: 2026-06-10 · Branch: main · No pushes in this run.
 
 ## FIX1 — Inbox report 404
 
-(pending)
+- **Root cause (verified by reading code):** `reports.routes.js` registers the inbox report at path `inboxes` (plural, route name `inbox_reports`), while Agent and Label use singular paths (`agent`, `label`). `/reports/inbox` (singular) matched nothing and fell through to the `not_found` catch-all in `dashboard.routes.js:135`.
+- Grepped the entire `app/javascript` tree: **no nav link, sidebar item, or command anywhere points to singular `reports/inbox`** — the sidebar only links `patra_reports`; the command bar (useGoToCommandHotKeys.js) uses the working plural `reports/inboxes`. So the 404 comes from typed/bookmarked URLs, and there was no nav target to "correct".
+- **Decision: register the missing singular route as a redirect** (`inbox` → named route `inbox_reports`), using the same redirect shape already used for the empty path in the same file. Additive only — the working plural URL and command-bar links are untouched. Did NOT rename `inboxes`→`inbox` because that would break the currently-working plural URL and the command-bar hotkey paths.
+- Registration shape after fix: agent → `agent` ✓, label → `label` ✓, inbox → `inbox` (redirect) + `inboxes` ✓ — all singular paths now resolve.
+- `pnpm exec vite build` → green (✓ built in 41.07s).
 
 ## FIX2 — Team report 404
 

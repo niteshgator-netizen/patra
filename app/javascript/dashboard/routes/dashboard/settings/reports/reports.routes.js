@@ -43,6 +43,14 @@ const oldReportRoutes = [
     component: InboxReports,
   },
   {
+    // Agent/Label register singular paths; /reports/inbox 404'd because only
+    // the plural path existed. Redirect keeps both URLs working.
+    path: 'inbox',
+    redirect: to => {
+      return { name: 'inbox_reports', params: to.params };
+    },
+  },
+  {
     path: 'label',
     name: 'label_reports',
     meta,
