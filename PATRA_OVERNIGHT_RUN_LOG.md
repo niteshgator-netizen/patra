@@ -100,8 +100,13 @@ A5 Finish early? Do NOT invent features. Deepen the bug hunt, expand audits, re-
 
 ## PHASE 6 — AUDIT-ONLY
 - [x] ROLES audit → PATRA_ROLES_AUDIT.md. CRITICAL (verified by me directly, agent_games_controller.rb:1-2,73,101): money endpoints load_player/cashout_player/add_player/reset_player_password have NO role guard — any agent can call them (caps + approval gate + audit trail still apply). NOTHING enforced tonight by design → HANDOFF-B-3 dark-flag diff written. Also unguarded: game_rules, player_tiers, reply_preferences (incl. confirm_before_cashout!), referrals#create/update, cashier_claims.
-- [ ] BACKUP pages/connectors audit → PATRA_BACKUP_AUDIT.md (Explore agent running)
-- [ ] AI MEMORY audit (agent running; verify claims before writing)
+- [x] BACKUP pages/connectors audit → PATRA_BACKUP_AUDIT.md. Scaffold half-built; found BUG-6 (ban alerts crash the health sweep — F2/F3 class, verified telegram_notifier.rb:160 private), warming-clock double bug, and a CustomerMigration mass-blast policy risk → HANDOFF-B-4/5/6 with exact diffs. Nothing changed (TAB B lane), nothing enabled. Safe while no BackupPage rows are active.
+- [x] AI MEMORY audit (claims verified by my own greps):
+      WRITE: Ai::PlayerMemoryWriter (patra_player_memory custom attr) via RotatePlayerMemoryJob (cron 03:30 daily, fold at 1000 msgs / 500 per run), gated by memory_enabled — intact.
+      READ: ONLY reply_service player_memory_lines (:1576-1602, memory_enabled-gated) + PlayerProfileCard.vue (dashboard display/edit). NO other consumer.
+      Flows WITHOUT memory: ConversationOrchestrator (all money/intent replies), WinbackService AI messages, QuickRephrase, ConversationSummaryService.
+      VaultContextBuilder (app/services/ai/vault_context_builder.rb) is defined but called NOWHERE — dead code (TAB B lane file; left alone, noted).
+      WIRING DECISION (S7, logged under ASSUMPTIONS): report-only, NO memory wiring tonight. The only high-value additive target (winback message generation) lives in winback_service.rb = owner-WIP untouchable (S5); injecting memory into orchestrator handler replies would change canned money-reply texts (not provably additive, A1 risk). Recommend morning follow-up: pass player_memory_lines into WinbackService context build (TAB B).
 
 ## PHASE 7 — MORNING SUMMARY (top of this file)
 - [ ] Write 2-min readable summary + verdict
@@ -140,6 +145,51 @@ listener, or drop the field from the settings UI. Until then it is BACKEND-MISSI
 ## HANDOFF-B-3: role guards for money endpoints (agent_games_controller.rb + siblings — TAB B lane)
 See PATRA_ROLES_AUDIT.md for the full table + exact dark-flag diff (PATRA_RESTRICT_MONEY_ACTIONS,
 default OFF). Do NOT apply live tonight — operator decision in the morning.
+
+## HANDOFF-B-4: Backup::HealthCheckJob ban alerts crash (app/jobs/backup/health_check_job.rb — TAB B lane)
+BUG-6 (a, verified): :64,:69 call Games::TelegramNotifier.notify(page.account, message) — notify is
+PRIVATE (telegram_notifier.rb:160) + keyword-only (:162) → NoMethodError on first detected ban,
+aborts find_each (later pages unchecked), 3 retries re-crash. Same class as F2/F3. Exact diff:
+```ruby
+    def perform
+      BackupPage.find_each do |page|
+        check_page(page)
+      rescue StandardError => e
+        Rails.logger.error("[Backup::HealthCheckJob] page #{page.id} check failed: #{e.class}: #{e.message}")
+      end
+    end
+    # ...
+    def notify_ban(page)
+      Games::TelegramNotifier.api_error(account: page.account,
+                                        message: "Backup page #{page.page_name} banned - status updated",
+                                        details: "page_id=#{page.page_id}")
+    rescue StandardError => e
+      Rails.logger.error("[Backup::HealthCheckJob] notify_ban failed: #{e.class}: #{e.message}")
+    end
+
+    def notify_switch(old_page, new_page)
+      Games::TelegramNotifier.api_error(account: old_page.account,
+                                        message: "Primary FB page banned - auto-switched to #{new_page.page_name}",
+                                        details: "from=#{old_page.page_id} to=#{new_page.page_id}")
+    rescue StandardError => e
+      Rails.logger.error("[Backup::HealthCheckJob] notify_switch failed: #{e.class}: #{e.message}")
+    end
+```
+(api_error is public and already used account-scoped by the orchestrator :304.)
+
+## HANDOFF-B-5: DripScheduler warming clock broken (app/services/backup/drip_scheduler.rb — TAB B lane)
+(a, verified): days_in_warming derives from updated_at, but health_check_job.rb:20
+update!(health_check_at:) touches updated_at hourly → stuck at day 1 forever. AND
+WARMING_SCHEDULE[days] only matches exact days 1/3/7 — any other day falls through to
+'fully_active' (premature promote). Proposed: stamp stats['warming_started_at'] when status
+flips to warming; days from that stamp; phase = WARMING_SCHEDULE.select { |d,_| days >= d }.values.last;
+promote only when days >= 7 && health_ok?.
+
+## HANDOFF-B-6: CustomerMigration mass-blast (app/services/backup/customer_migration.rb — TAB B lane)
+(a, verified): on auto-switch it MessageBuilder-posts to EVERY contact's last conversation —
+untagged, no 24h-window check, no cap → F19-class FB #10 violations that endanger the fresh
+backup page immediately. Recommend: replace the blast with a Telegram operator alert +
+per-contact "we moved" note only on the contact's NEXT inbound (inside the 24h window).
 
 ═══ HANDOFF-C ═══
 (exact file/line/diff for TAB C-owned fixes)
