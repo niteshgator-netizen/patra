@@ -186,7 +186,7 @@ BRANCH=patra-ui-run (worktree). Pure UI run — .rb edits FORBIDDEN.
 - v6 (L/X/T/U/V/W/Y/Z) also never appended; reconstructed from the master prompt's one-liners. Z has no one-liner → treated as the ship-pack item, absorbed by MASTER SHIP PACK.
 
 ## V6 QUEUE (reconstructed)
-- [ ] L login/auth suite Patra-branded (v3/views/login + auth/**, Chatwoot testimonials → Patra brand panel; detect v3 theming first)
+- [x] L login/auth suite Patra-branded (v3/views/login + auth/**, Chatwoot testimonials → Patra brand panel; detect v3 theming first)
 - [ ] X inbox perfection vs patra-inbox-v5 (gradient bubbles, ✦ AI treatment, animated typing dots, composer polish, header/card final — patra-layer classes, zero logic)
 - [ ] T remaining Patra settings (automationSafety, knowledge/KnowledgeBase, labels/{Index,AddLabel,EditLabel}, replyStyle + discovered siblings)
 - [ ] U primitives round 2 (toasts, banners, tooltips, confirm dialogs)
@@ -212,3 +212,4 @@ BRANCH=patra-ui-run (worktree). Pure UI run — .rb edits FORBIDDEN.
 - M-D0: see reconciliation above.
 
 ## MASTER COMPLETED ITEMS
+- L (this commit) — auth suite AUDIT: login Index, signup Index+Form, reset/password, password/Edit, verify-email, confirmation ALL already fully Patra-branded (auth-canvas token theme, P-tile gradient, mesh/grid, AuthNavBar, PATRA_AUTH i18n keys) — done by a prior session; Chatwoot Testimonials component exists but is UNUSED by signup (verified; file left in place, no deletion). The one stock straggler was login/Saml.vue (white card, bg-n-brand canvas, stock logo imgs) → rebuilt onto the same Patra auth shell (grid+mesh+AuthNavBar+auth-card, P tile, patra-light links, PATRA_AUTH footer); logic/form untouched; unused globalConfig/useStore removed. OnboardingStep.vue (v3 stepper) keeps n-brand accents (indigo-purple, acceptable). Build green 37.1s.
