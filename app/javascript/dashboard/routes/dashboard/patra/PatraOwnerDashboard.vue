@@ -1539,7 +1539,7 @@ onUnmounted(() => {
 }
 
 .patra-donut-lbl {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1605,7 +1605,7 @@ onUnmounted(() => {
 }
 
 .patra-ms-l {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   margin-top: 3px;
   line-height: 1.3;
@@ -1674,7 +1674,7 @@ onUnmounted(() => {
 }
 
 .patra-hm-row-lbl {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   display: flex;
   align-items: center;
@@ -1682,7 +1682,7 @@ onUnmounted(() => {
 }
 
 .patra-hm-col-lbl {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-4);
   text-align: center;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -1772,7 +1772,7 @@ onUnmounted(() => {
 }
 
 .patra-role-pill {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 20px;

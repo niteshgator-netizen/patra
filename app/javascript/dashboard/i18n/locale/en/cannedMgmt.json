@@ -17,7 +17,7 @@
       "ERROR": "Couldn't add the pack — try again."
     },
     "LIST": {
-      "404": "There are no canned responses available in this account.",
+      "404": "No saved replies yet — add one, or load the sweepstakes pack below.",
       "TITLE": "Manage canned responses",
       "DESC": "Canned Responses are predefined reply templates which can be used to quickly send out replies to conversations.",
       "TABLE_HEADER": {

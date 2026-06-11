@@ -184,7 +184,7 @@
    Class hooks come from ConversationCard.vue's template. Ungated by theme
    so the pills look right whether the dark vars resolved or not. */
 .status-pill {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 7px;
   border-radius: 10px;
   display: inline-flex;
@@ -207,7 +207,7 @@
   color: var(--patra-red);
 }
 .vip-badge {
-  font-size: 9px;
+  font-size: 11px;
   background: #7c3f00;
   color: #fbbf24;
   padding: 1px 5px;
@@ -240,7 +240,7 @@
 }
 
 .message-text--metadata {
-  font-size: 10px !important;
+  font-size: 11px !important;
   opacity: 0.6 !important;
 }
 
@@ -912,7 +912,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   position: absolute;
   top: 6px;
   right: 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: #8b5cf6;
   opacity: 0.6;
 }
@@ -1552,7 +1552,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 }
 .dark .pat-charcount {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   color: var(--text-4, #54515E) !important;
 }
 
@@ -1798,7 +1798,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 }
 .dark .patra-donut-lbl {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-3, #75727F) !important;
@@ -2040,7 +2040,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   text-overflow: ellipsis;
 }
 .dark .contact .c-tag {
-  font-size: 9px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 2px 6px !important;
   border-radius: 5px !important;
@@ -2569,7 +2569,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   margin: 14px 0 12px;
 }
 .dark .gbadge {
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 9px !important;
   border-radius: 6px !important;
@@ -3074,7 +3074,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 .dark .pat-list-wrap .role-administrator,
 .dark .pat-list-wrap .role-agent {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3089,7 +3089,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 }
 .dark .verified {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3672,7 +3672,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 .dark .role.admin,
 .dark .role.administrator {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3684,7 +3684,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 }
 .dark .role.agent {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3698,7 +3698,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   background: rgba(167, 139, 250, 0.16) !important;
   color: var(--patra-2, #8B5CF6) !important;
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   text-transform: uppercase !important;
   letter-spacing: 0.04em !important;
   padding: 3px 8px !important;

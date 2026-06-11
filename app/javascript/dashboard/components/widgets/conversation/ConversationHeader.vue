@@ -1234,7 +1234,7 @@ body:not(.dark) .patra-conv-head-icon-btn {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: #75727f;
   margin-left: 8px;
   flex-shrink: 0;
@@ -1246,7 +1246,7 @@ body:not(.dark) .patra-conv-head-icon-btn {
   border-radius: 50%;
   background: rgba(110, 86, 207, 0.2);
   color: #a78bfa;
-  font-size: 9px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1268,7 +1268,7 @@ body:not(.dark) .patra-conv-head-icon-btn {
   border: 1px solid rgba(217, 119, 6, 0.35);
   background: rgba(217, 119, 6, 0.1);
   color: #d97706;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   flex-shrink: 0;
   white-space: nowrap;
@@ -1283,7 +1283,7 @@ body:not(.dark) .patra-conv-head-icon-btn {
 }
 
 .patra-auto-reply-toggle {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
   border: 1px solid rgba(110, 86, 207, 0.2);

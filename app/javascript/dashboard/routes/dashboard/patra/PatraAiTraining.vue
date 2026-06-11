@@ -1326,7 +1326,7 @@ onUnmounted(() => {
 }
 
 .pat-at-tab-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   background: var(--patra);
   color: #fff;
@@ -1584,7 +1584,7 @@ onUnmounted(() => {
 }
 
 .pat-at-uh-tag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 20px;
@@ -1694,7 +1694,7 @@ onUnmounted(() => {
 }
 
 .pat-at-rq-ml {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1931,7 +1931,7 @@ onUnmounted(() => {
 }
 
 .pat-at-sp-triggers {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-4);
 }
 
@@ -2266,7 +2266,7 @@ onUnmounted(() => {
   color: var(--text, #ededf2);
 }
 .pat-train-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2277,7 +2277,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;

@@ -349,7 +349,7 @@ const askPatraAi = async () => {
 }
 
 .ai-hc-section-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   color: #75727f;
   text-transform: uppercase;

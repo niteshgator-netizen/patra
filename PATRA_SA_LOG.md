@@ -212,3 +212,21 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 ### 6c. Remaining Phase 0b gap-table sweep
 - Canned responses → DONE 4a. CSAT → DONE 5a. Help Center → DONE 6a. Auto-assignment → DONE 4d. Reports → DONE 5b-5d. SLA → DONE 4c (audit corrected: existed all along). Typing/presence → DONE 4b. Theme toggles → DONE 3b.
 - PROPOSED (carried, with estimates): (1) Agent capacity policies backend — model+migration+CRUD+assignment check, ~1-2 days. (2) By-intent routing — needs intent at conversation-create or post-assignment reassignment; Rules Engine lane, est. unknown until that lane lands. (3) Billing/patra_billing_subscriptions — Command Center panel auto-activates when the table ships (Phase 1 noted).
+## PHASE 7 — TYPOGRAPHY + DE-AI POLISH
+
+### 7a. Font sweep
+- All 13 sub-11px font sizes in patra-themes.css (status pills, vip-badge 9px, role badges, tags, char count, donut labels, message metadata — all 9-10px) raised to 11px. Same in ConversationHeader.vue (participants/auto-reply chips, 9-10px → 11px), PatraAiHandoffCard.vue (section titles 10px → 11px), PatraAiTraining.vue, PatraOwnerDashboard.vue, PatraReports.vue.
+- NOT raised to 12px: these are pill/badge micro-labels — at 12px the pills overflow their fixed-height rows (layout does NOT allow; spec's "where layout allows" clause applied). Body text was already ≥12px everywhere checked.
+
+### 7b. De-AI / microcopy pass (every string changed, before → after)
+1. CONVERSATION.SELECT_A_CONVERSATION: "Please select a conversation from left pane" → "Pick a conversation on the left to get started"
+2. CONVERSATION.NO_MESSAGE_1: "Uh oh! Looks like there are no messages from customers in your inbox." → "All quiet — no customer messages yet. New ones land here the moment they arrive."
+3. CONVERSATION.NO_INBOX_1: "Hola! Looks like you haven't added any inboxes yet." → "You haven't connected an inbox yet."
+4. CONVERSATION.NO_INBOX_AGENT: "Uh Oh! Looks like you are not part of any inbox. Please contact your administrator" → "You're not in any inbox yet — ask your admin to add you."
+5. CANNED_MGMT.LIST.404: "There are no canned responses available in this account." → "No saved replies yet — add one, or load the sweepstakes pack below."
+6. (earlier phases, same pass:) super admin login "Howdy, admin 👋" → "Patra Owner Console" (P1); SLA.DESCRIPTION corporate boilerplate → plain Patra voice + PER_INBOX_HINT (P4c); Leaderboard subtitle (P5c).
+- Stock illustrations: inbox no-chat SVGs replaced with Patra P-mark (Phase 3a). Other stock Chatwoot strings auto-rebrand at runtime via INSTALLATION_NAME replacement (useBranding) — left alone by design.
+
+### 7c. Dead buttons / disabled features found during the sweep
+- FIXED in earlier phases (all were genuinely dead): "Ask Patra AI" (no API call — 2c), Leaderboard rankings (read non-existent fields, always 0 — 5c), Patra overview agent table (same — 5b), Help Center portal (no nav entry, URL-only — 6a).
+- INTENTIONALLY disabled, tabled: patra_operator_console flag toggle (greyed "pending fix" — Phase 1c); brightness pill removed by design (3b). No other dead controls found statically.
