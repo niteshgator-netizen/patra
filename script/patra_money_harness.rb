@@ -87,6 +87,18 @@ end
 
 stub_singleton(Ai::DeepseekClient, :complete) { |**_k| $DEEPSEEK }
 
+# MONEYFLOWS2: stub IMAP refresh (instance method) - restored in ensure.
+if defined?(Payments::EmailConfirmationService)
+  Payments::EmailConfirmationService.class_eval do
+    unless method_defined?(:orig_check_all_harness)
+      alias_method :orig_check_all_harness, :check_all
+      def check_all
+        { checked: 0, confirmed: 0 }
+      end
+    end
+  end
+end
+
 if defined?(Contacts::BlacklistChecker)
   stub_singleton(Contacts::BlacklistChecker, :blacklisted?) { |_c| $BLACKLIST }
 end
@@ -975,6 +987,63 @@ begin
     end
   end
 
+  puts "\n[S3 payment_sent]  (email match -> load; sender memory; 2 misses then escalate; never load unverified)"
+  s3_entry = lambda do |over = {}|
+    { 'id' => "HARNESS_PAY_S3_#{over['id'] || 'X'}", 'status' => 'Email Verified', 'amount' => 30,
+      'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp',
+      'email_confirmed' => true, 'email_amount' => 30, 'email_sender_name' => 'John Doe',
+      'email_date' => Time.current.iso8601 }.merge(over)
+  end
+
+  # (a)+(c) full match -> auto-load through the normal path, name remembered
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge('patra_finance_logs' => [s3_entry.call('id' => 'A')]))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'just sent 30 from John Doe' }])
+        .send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  s3_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+  ok!('S3 verified email match => auto-loads $30 via the normal path', s3_rc && s3_rc[1].to_f == 30.0)
+  ok!('S3 match => sender name remembered on contact',
+      contact.reload.custom_attributes['payment_sender_name'].to_s.downcase.include?('john'))
+
+  # (c) same payment again -> already loaded, refuse, no second load
+  reset_run
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'i sent 30 from John Doe, load it' }])
+        .send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  ok!('S3 already-loaded => refused, NO second load',
+      !$FAKE.called?(:recharge) && r[:reply].to_s.match?(/already loaded/i))
+
+  # (b) remembered sender skips the name question entirely
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'payment_sender_name' => 'John Doe',
+    'patra_finance_logs' => [s3_entry.call('id' => 'B', 'amount' => 40, 'email_amount' => 40)]
+  ))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'i just sent it' }])
+        .send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  ok!('S3 remembered sender => no name question, loads the $40',
+      !r[:reply].to_s.match?(/what name/i) && $FAKE.calls.any? { |c| c[0] == :recharge && c[1].to_f == 40.0 })
+
+  # no name anywhere -> asks for name + screenshot, NOT a miss, never loads
+  reset_run; prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'i sent it' }])
+        .send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  ok!('S3 no name known => asks for name + screenshot, no load',
+      r[:reply].to_s.match?(/what name/i) && !$FAKE.called?(:recharge))
+  ok!('S3 asking for the name is NOT a miss',
+      contact.reload.custom_attributes['payment_match_misses'].to_i.zero?)
+
+  # (d) no matching email: miss 1, miss 2, then 3rd insist -> escalate. NEVER loads.
+  reset_run; prime_contact!(contact, [src_slug])
+  s3_miss_msgs = [{ 'role' => 'user', 'content' => 'i sent 25 from John Doe' }]
+  r1m = orch(account, contact, s3_miss_msgs).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  r2m = orch(account, contact, s3_miss_msgs).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  ok!('S3 misses 1+2 => honest not-landed replies, no telegram yet',
+      r1m[:reply].to_s.match?(/don't see it/i) && r2m[:reply].to_s.match?(/don't see it/i) && $TG.empty?)
+  r3m = orch(account, contact, s3_miss_msgs).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  ok!('S3 3rd insist => escalates with R8 context + needs-human',
+      Array(r3m[:labels]).include?('needs-human') && tg?('NEEDS FROM HUMAN'))
+  ok!('S3 unverified => NEVER loaded anything across all attempts', !$FAKE.called?(:recharge))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
@@ -1015,6 +1084,17 @@ ensure
     end
   rescue StandardError => e
     puts "[cleanup] transfer_mode restore failed: #{e.class}: #{e.message}"
+  end
+  begin
+    if defined?(Payments::EmailConfirmationService) && Payments::EmailConfirmationService.method_defined?(:orig_check_all_harness)
+      Payments::EmailConfirmationService.class_eval do
+        alias_method :check_all, :orig_check_all_harness
+        remove_method :orig_check_all_harness
+      end
+      puts '[cleanup] restored EmailConfirmationService#check_all'
+    end
+  rescue StandardError => e
+    puts "[cleanup] check_all restore failed: #{e.class}: #{e.message}"
   end
   restore_stubs
   puts '[cleanup] restored stubs'

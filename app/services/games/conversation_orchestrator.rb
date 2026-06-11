@@ -2170,35 +2170,250 @@ module Games
       end
     end
 
+    # S3 (June 10) - "i sent it": check the EMAIL payment records and only ever
+    # load on a verified match (sender name + amount + time within
+    # PATRA_PAYMENT_MATCH_WINDOW_MINUTES, default 10). Sender-name memory lives
+    # on the contact (asked once, remembered after). Two consecutive misses,
+    # then a third insist -> escalate with the full R8 context.
+    # NEVER loads without a verified email match.
     def handle_payment_sent_confirmation(intent)
-      contact = conversation.contact
-
+      # Refresh the email records via the existing IMAP ownership path.
       begin
         if defined?(Payments::EmailConfirmationService)
           Payments::EmailConfirmationService.new(contact: contact).check_all
-          Rails.logger.info("[Orchestrator] IMAP check triggered for #{contact.name}")
+          contact.reload
         end
       rescue StandardError => e
         Rails.logger.error("[Orchestrator] IMAP trigger failed: #{e.message}")
       end
 
-      begin
-        attrs = conversation.additional_attributes || {}
-        attrs['awaiting_imap_confirmation'] = true
-        conversation.update!(additional_attributes: attrs)
-      rescue StandardError => e
-        Rails.logger.error("[Orchestrator] Flag set failed: #{e.message}")
+      claim = extract_payment_claim
+      sender_name = claim[:sender_name].presence || remembered_sender_name
+
+      # No name from message, screenshot OCR, or memory -> ask for it (and the
+      # screenshot when there is none). Asking is not a miss.
+      if sender_name.blank?
+        ask = "what name did you send it from? i'll match it up"
+        ask += ' - and drop the screenshot here too' unless claim[:has_screenshot]
+        return { reply: ask, labels: ['payment-pending', 'needs-sender-name'] }
       end
 
-      safe_telegram do
-        Games::TelegramNotifier.human_escalation(
-          account: account, contact: contact,
-          reason: "Payment sent confirmation from #{contact.name} — IMAP check triggered",
-          conversation: conversation
-        )
+      matched = find_verified_email_payment(claim[:amount], sender_name, claim[:claimed_at])
+
+      if matched
+        matched_amount = parse_amount(matched['email_amount'].presence || matched['amount'])
+
+        if payment_entry_already_loaded?(matched)
+          return { reply: "that $#{fmt_amt(matched_amount)} payment was already loaded - nothing new to add. anything else?", labels: ['payment-already-loaded'] }
+        end
+
+        remember_sender_name(matched['email_sender_name'].presence || sender_name)
+        reset_payment_miss_counter
+        Rails.logger.info("[Orchestrator] payment-sent: verified email match $#{matched_amount} (#{sender_name}) - loading via the normal path")
+        completion = handle_load_intent({ intent: :load, amount: matched_amount, game_slug: chosen_game_slug(intent), game_username: nil })
+        return completion if completion.is_a?(Hash) && completion[:reply].present?
+
+        return { reply: "your $#{fmt_amt(matched_amount)} is verified - which game do you want it on?", labels: ['payment-verified'] }
       end
 
-      { reply: 'checking now — will load once confirmed!', labels: ['payment-pending'] }
+      # A verified email exists for the amount/time but under a different name:
+      # ask for the name once instead of burning a miss.
+      if sender_mismatch_candidate?(claim[:amount], claim[:claimed_at], sender_name)
+        return { reply: 'i see a payment but under a different name - what name did you send it from?', labels: ['payment-pending', 'needs-sender-name'] }
+      end
+
+      misses = increment_payment_miss_counter
+      if misses > 2
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "credit for a payment they say they sent#{claim[:amount] ? " ($#{fmt_amt(claim[:amount])})" : ''}",
+              done: "checked the email records #{misses} times - no verified match for '#{sender_name}' within #{payment_match_window_minutes} min",
+              left: 'nothing loaded - no verified email match exists',
+              suggest: 'check the payment app and inbox by hand',
+              need: 'confirm whether the money actually landed, then load or decline'
+            ),
+            conversation: conversation
+          )
+        end
+        return { reply: "i still don't see it on our end - flagged a teammate to dig in, they'll sort you out shortly.", labels: %w[payment-unverified needs-human] }
+      end
+
+      reply = if claim[:has_screenshot]
+                "don't see it on our end yet - payments can take a few minutes to land. mind double-checking the name and exact amount you sent?"
+              else
+                "don't see it on our end yet - payments can take a few minutes to land. drop the screenshot here and i'll match it up."
+              end
+      { reply: reply, labels: ['payment-pending'] }
+    end
+
+    # ---- S3 (June 10) - payment-sent matching helpers ----
+
+    # Minutes allowed between the claimed/screenshot time and the email time.
+    def payment_match_window_minutes
+      v = ENV['PATRA_PAYMENT_MATCH_WINDOW_MINUTES'].to_i
+      v.positive? ? v : 10
+    end
+
+    def remembered_sender_name
+      (contact.custom_attributes || {})['payment_sender_name'].presence
+    end
+
+    def remember_sender_name(name)
+      return if name.to_s.strip.blank?
+
+      attrs = (contact.custom_attributes || {}).merge('payment_sender_name' => name.to_s.strip)
+      contact.update(custom_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] remember_sender_name failed: #{e.message}")
+    end
+
+    # Miss counter lives on the conversation; contact fallback when the
+    # conversation is nil (some API paths + the harness). See log D3.
+    def payment_miss_count
+      if conversation
+        (conversation.additional_attributes || {})['payment_match_misses'].to_i
+      else
+        (contact.custom_attributes || {})['payment_match_misses'].to_i
+      end
+    rescue StandardError
+      0
+    end
+
+    def set_payment_miss_count(value)
+      if conversation
+        attrs = (conversation.additional_attributes || {}).merge('payment_match_misses' => value)
+        conversation.update_columns(additional_attributes: attrs)
+      else
+        attrs = (contact.custom_attributes || {}).merge('payment_match_misses' => value)
+        contact.update(custom_attributes: attrs)
+      end
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] set_payment_miss_count failed: #{e.message}")
+    end
+
+    def increment_payment_miss_counter
+      n = payment_miss_count + 1
+      set_payment_miss_count(n)
+      n
+    end
+
+    def reset_payment_miss_counter
+      set_payment_miss_count(0)
+    end
+
+    # S3 - what the player claims they sent: amount + sender name from the
+    # message text, enriched by the newest screenshot-derived ledger entry
+    # (OCR fields written by the existing vision path). Never raises.
+    def extract_payment_claim
+      text = (latest_customer_text || recent_customer_text).to_s
+      amount = text.match(/\$?\s*(\d+(?:\.\d{1,2})?)/)&.[](1)&.to_f
+      amount = nil unless amount&.positive?
+      name = nil
+      if (m = text.match(/(?:from|under|name(?:'?s)?(?:\s+is)?)\s+([a-z][a-z\s'.\-]{1,40})/i))
+        name = m[1].strip
+      end
+      name = nil if name && %w[cashapp cash venmo chime paypal zelle].include?(name.downcase)
+
+      claimed_at = Time.current
+      entry = newest_screenshot_log_entry
+      if entry
+        amount ||= parse_amount(entry['amount'])
+        name = entry['sender_name'].presence if name.blank?
+        shot_time = parse_time(entry['image_received_at'].presence || entry['recorded_at'])
+        claimed_at = shot_time if shot_time
+      end
+
+      { amount: amount, sender_name: name, claimed_at: claimed_at, has_screenshot: entry.present? }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] extract_payment_claim failed: #{e.message}")
+      { amount: nil, sender_name: nil, claimed_at: Time.current, has_screenshot: false }
+    end
+
+    def newest_screenshot_log_entry
+      logs = (contact.custom_attributes || {})['patra_finance_logs']
+      return nil unless logs.is_a?(Array)
+
+      logs.reverse_each do |log|
+        next unless log.is_a?(Hash)
+        next if log['image_url'].blank?
+
+        t = parse_time(log['image_received_at'].presence || log['recorded_at'])
+        next if t && t < 1.hour.ago
+
+        return log
+      end
+      nil
+    end
+
+    # S3 - newest email-verified, unflagged ledger entry matching amount (when
+    # given), sender name (when given), and the time window. Returns the raw
+    # entry Hash or nil. Never raises.
+    def find_verified_email_payment(amount, sender_name, claimed_at)
+      logs = (contact.custom_attributes || {})['patra_finance_logs']
+      return nil unless logs.is_a?(Array)
+
+      window = payment_match_window_minutes.minutes
+      logs.reverse_each do |log|
+        next unless log.is_a?(Hash)
+        next unless log['email_confirmed'] == true
+        next if log['flag_reason'].to_s.strip.present?
+
+        log_amount = parse_amount(log['email_amount'].presence || log['amount'])
+        next if log_amount.nil?
+        next if amount && (log_amount - amount.to_f).abs > 0.01
+
+        if sender_name.present?
+          email_name = (log['email_sender_name'].presence || log['sender_name']).to_s
+          next if email_name.blank?
+          next unless names_overlap_loose?(email_name, sender_name)
+        end
+
+        email_time = parse_time(log['email_date'].presence || log['email_confirmed_at'].presence || log['recorded_at'])
+        next if email_time && claimed_at && (email_time - claimed_at).abs > window
+
+        return log
+      end
+      nil
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] find_verified_email_payment failed: #{e.message}")
+      nil
+    end
+
+    # S3 - a verified email matches amount+time but carries a different sender
+    # name (and was not already loaded) -> worth asking for the name.
+    def sender_mismatch_candidate?(amount, claimed_at, sender_name)
+      entry = find_verified_email_payment(amount, nil, claimed_at)
+      return false unless entry
+
+      email_name = (entry['email_sender_name'].presence || entry['sender_name']).to_s
+      email_name.present? && !names_overlap_loose?(email_name, sender_name) && !payment_entry_already_loaded?(entry)
+    rescue StandardError
+      false
+    end
+
+    def payment_entry_already_loaded?(log)
+      return true if log['status'].to_s.downcase == 'loaded'
+      return true if log['game_load_success'] == true
+
+      log_id = log['id'].presence || log['transaction_id'].presence || log['image_url'].presence || "#{log['amount']}_#{log['recorded_at']}"
+      payment_already_loaded?(log_id, parse_amount(log['amount']), parse_time(log['recorded_at']))
+    rescue StandardError
+      false
+    end
+
+    # Local first-token-overlap check (EmailConfirmationService's version is a
+    # private class method - see log D7).
+    def names_overlap_loose?(a, b)
+      a = a.to_s.downcase.strip
+      b = b.to_s.downcase.strip
+      return false if a.blank? || b.blank?
+      return true if a.include?(b) || b.include?(a)
+
+      a_first = a.split(/\s+/).first
+      b_first = b.split(/\s+/).first
+      (a_first.present? && b.include?(a_first)) || (b_first.present? && a.include?(b_first))
     end
 
     # S1 (June 10) - real status check. Order: (c) finish verifiable undone work
