@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'timeout'
 ENV['RAILS_ENV'] ||= 'test'
 require File.expand_path('../config/environment', __dir__)
 # Prevent database truncation if the environment is production
@@ -39,6 +40,20 @@ rescue ActiveRecord::PendingMigrationError => e
   exit 1
 end
 RSpec.configure do |config|
+  # CI hang guardrails:
+  # 1. Re-assert the global WebMock policy before every example — some specs call
+  #    WebMock.allow_net_connect! in an after hook, which would otherwise leave real
+  #    network access enabled for every test that runs after them in the same process.
+  config.before(:each) do
+    WebMock.disable_net_connect!(allow_localhost: true)
+  end
+
+  # 2. Hard per-example timeout so a single hung test fails fast instead of
+  #    stalling the whole CI job until the runner's max-time kill.
+  config.around(:each) do |example|
+    Timeout.timeout(45, nil, 'Example exceeded 45s CI timeout') { example.run }
+  end
+
   config.include FactoryBot::Syntax::Methods
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   config.fixture_path = Rails.root.join('spec/fixtures')
