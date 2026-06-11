@@ -3190,6 +3190,22 @@ module Games
       Rails.logger.error("[Orchestrator] Telegram call failed: #{e.class}: #{e.message}")
     end
 
+    # R8 - builds a full-situation escalation message in plain language so the
+    # human reading Telegram knows the whole picture without opening the app:
+    # what the player wants, what already happened, what is still left, what
+    # Bella suggests, and what she needs from the human. Used by the
+    # escalations this run touches (R1 half-fail, R6 ladder-end, R7
+    # over-threshold). System-wide rollout to untouched handlers is Run 3.
+    def escalation_context(wants:, done: nil, left: nil, suggest: nil, need: nil)
+      parts = []
+      parts << "PLAYER WANTS: #{wants}"
+      parts << "ALREADY DONE: #{done}" if done.to_s.strip.length.positive?
+      parts << "STILL LEFT: #{left}" if left.to_s.strip.length.positive?
+      parts << "BELLA SUGGESTS: #{suggest}" if suggest.to_s.strip.length.positive?
+      parts << "NEEDS FROM HUMAN: #{need}" if need.to_s.strip.length.positive?
+      parts.join(' | ')
+    end
+
     def apply_receipt_preference(result)
       return result unless result.is_a?(Hash) && result[:reply].present?
 

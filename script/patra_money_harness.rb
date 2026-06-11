@@ -502,6 +502,26 @@ begin
       wd && wd[1].to_f == 50.0)
   ok!('TABA-3 reply confirms the $50 cashout', r[:reply].to_s.include?('50'))
 
+  # ==================== MONEYFLOWS RUN 1 (R1-R8, 2026-06-10) ==================
+  puts "\n[R8 escalation-context helper]  (plain-language full-situation Telegram text)"
+  reset_run
+  r8_text = orch(account, contact, []).send(
+    :escalation_context,
+    wants: 'cash out $60 on juwa',
+    done: 'verified balance $80',
+    left: 'payout not sent',
+    suggest: 'pay max $50, drop the rest',
+    need: 'approve the payout'
+  )
+  ok!('R8 helper includes player intent', r8_text.include?('PLAYER WANTS: cash out $60 on juwa'))
+  ok!('R8 helper includes what was already done', r8_text.include?('ALREADY DONE: verified balance $80'))
+  ok!('R8 helper includes what is still left', r8_text.include?('STILL LEFT: payout not sent'))
+  ok!('R8 helper includes Bella suggestion', r8_text.include?('BELLA SUGGESTS: pay max $50'))
+  ok!('R8 helper includes what she needs from the human', r8_text.include?('NEEDS FROM HUMAN: approve the payout'))
+  r8_min = orch(account, contact, []).send(:escalation_context, wants: 'load $20')
+  ok!('R8 helper omits empty sections (no dangling labels)',
+      r8_min == 'PLAYER WANTS: load $20')
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
