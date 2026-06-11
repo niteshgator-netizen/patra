@@ -4470,19 +4470,50 @@ module Games
       result
     end
 
+    # MEGA2 P1 - referral-hijack fix. The old version linked the NEWEST
+    # account-wide pending Referral (referred_contact_id nil) to WHOEVER
+    # created an account next - any stranger absorbed someone else's referral
+    # credit. Link ONLY on a deterministic match: exactly ONE pending Referral
+    # already referencing THIS contact (referred_contact_id is the only
+    # linkage column on referrals - no conversation_id / metadata exists).
+    # Otherwise leave every pending row untouched and escalate once per
+    # contact (idempotent via the escalated-ids stamp). Zero pendings = no-op.
+    # referral_enabled stays the master pay switch inside link_referred ->
+    # check_and_pay, so nothing auto-pays while it is off (today's default).
     def link_referred_on_account_creation
       begin
-        pending_referral = Referral.where(account_id: account.id, status: 'pending')
-                                   .where(referred_contact_id: nil)
-                                   .order(created_at: :desc)
-                                   .first
-        if pending_referral
+        pendings = Referral.where(account_id: account.id, status: 'pending')
+        return if pendings.none?
+
+        mine = pendings.where(referred_contact_id: contact.id).limit(2).to_a
+        if mine.size == 1
           Games::ReferralBonusService.new(account: account).link_referred(
-            referral: pending_referral,
+            referral: mine.first,
             referred_contact: contact
           )
-          Rails.logger.info("[Orchestrator] Linked referral #{pending_referral.id} to #{contact.name}")
+          Rails.logger.info("[Orchestrator] Linked referral #{mine.first.id} to #{contact.name} (deterministic)")
+          return
         end
+
+        pending_ids = pendings.order(:id).pluck(:id)
+        already = Array((contact.custom_attributes || {})['referral_link_escalated_ids']).map(&:to_i)
+        return if (pending_ids - already).empty?
+
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: 'referral credit (pending referral(s) exist but none deterministically match this player)',
+              done: "account created for #{contact.name}; #{pending_ids.size} pending referral(s) (ids #{pending_ids.join(', ')}) - NONE linked, nothing paid",
+              left: 'verify who referred them',
+              suggest: 'check the referral list and link the right one by hand',
+              need: 'confirm the referrer and approve the link (or ignore if unrelated)'
+            ),
+            conversation: conversation
+          )
+        end
+        attrs = (contact.custom_attributes || {})
+        contact.update(custom_attributes: attrs.merge('referral_link_escalated_ids' => (already + pending_ids).uniq))
       rescue StandardError => e
         Rails.logger.error("[Orchestrator] Referral link failed: #{e.message}")
       end
