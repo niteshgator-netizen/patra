@@ -123,8 +123,8 @@ class ActionCableListener < BaseListener
   end
 
   # 4b collision detection — same fan-out as typing (inbox members minus the
-  # acting user); agents only, so no contact tokens are needed beyond what
-  # typing_event_listener_tokens already scopes.
+  # acting user, plus the contact widget token, which has no handler for this
+  # event and ignores it — identical to how typing events behave).
   def conversation_viewing_on(event)
     conversation = event.data[:conversation]
     account = conversation.account

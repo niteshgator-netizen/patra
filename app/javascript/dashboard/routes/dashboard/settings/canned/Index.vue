@@ -190,24 +190,29 @@ const seedSweepstakesPack = async () => {
   if (seedingPack.value) return;
   seedingPack.value = true;
   let created = 0;
-  try {
-    // Sequential on purpose — each save fires the Bella RAG embed hook
-    // server-side; hammering them in parallel buys nothing.
-    for (const item of SWEEPSTAKES_PACK) {
-      if (existingShortCodes.value.has(item.short_code)) continue;
+  let failed = 0;
+  // Sequential on purpose — each save fires the Bella RAG embed hook
+  // server-side; hammering them in parallel buys nothing. Failures (e.g. a
+  // duplicate short_code created by another agent) skip that item only.
+  for (const item of SWEEPSTAKES_PACK) {
+    if (existingShortCodes.value.has(item.short_code)) continue;
+    try {
       // eslint-disable-next-line no-await-in-loop
       await store.dispatch('createCannedResponse', item);
       created += 1;
+    } catch (error) {
+      failed += 1;
     }
+  }
+  seedingPack.value = false;
+  if (failed > 0 && created === 0) {
+    useAlert(t('CANNED_MGMT.STARTER_PACK.ERROR'));
+  } else {
     useAlert(
       created > 0
         ? t('CANNED_MGMT.STARTER_PACK.SUCCESS', { n: created })
         : t('CANNED_MGMT.STARTER_PACK.NONE_ADDED')
     );
-  } catch (error) {
-    useAlert(error?.message || t('CANNED_MGMT.STARTER_PACK.ERROR'));
-  } finally {
-    seedingPack.value = false;
   }
 };
 

@@ -34,7 +34,11 @@ const isSlaMissed = computed(() => slaStatus.value?.isSlaMissed);
    first-response window remains, amber once past halfway or when we can't
    quantify (NRT/RT due states), ruby when missed. */
 const slaColor = computed(() => {
-  if (isSlaMissed.value) return 'ruby';
+  // Depend on the slaStatus OBJECT (replaced by the 60s refresh tick) — the
+  // derived booleans don't change value as time passes, so without this the
+  // computed would never re-evaluate and the amber stage would never show.
+  const status = slaStatus.value;
+  if (status?.isSlaMissed) return 'ruby';
   const frtSeconds = Number(
     appliedSLA.value?.sla_first_response_time_threshold
   );

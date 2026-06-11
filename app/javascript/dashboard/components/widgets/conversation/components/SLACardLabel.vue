@@ -37,7 +37,10 @@ const isSlaMissed = computed(() => slaStatus.value?.isSlaMissed);
 /* 4c: green → amber → red. Green while more than half the first-response
    window remains; amber past halfway or unquantifiable; ruby when missed. */
 const isSlaComfortable = computed(() => {
-  if (isSlaMissed.value) return false;
+  // Depend on the slaStatus OBJECT (replaced by the 60s refresh tick) so the
+  // teal→amber transition actually re-evaluates as time passes.
+  const status = slaStatus.value;
+  if (status?.isSlaMissed) return false;
   const frtSeconds = Number(
     appliedSLA.value?.sla_first_response_time_threshold
   );

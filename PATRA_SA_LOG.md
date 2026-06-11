@@ -152,3 +152,26 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 
 ### Verify
 - vite build ✓ green 39.8s (verified now); reviewer: SHIP, 2 low notes (stale picker highlight if theme changed via ⌘K while page open — accepted; LF/CRLF churn — cosmetic).
+## PHASE 4 — AGENT FEATURE PACK (commits: cb8bc0fac 4a · 8b7d8bce7 4b · cc2c6d679 4c · b67d28657 4d · +review-fix commit)
+
+### 4a. Canned responses (EXTENDED, not rebuilt)
+- Already existed & verified: model + Vuex + "/" autocomplete fully wired (Editor.vue suggestion plugin trigger '/' :295 → CannedResponse.vue/MentionBox → insert), mgmt UI already Patra-restyled (pat-canned-wrap).
+- ADDED: "Add sweepstakes pack" button (settings/canned/Index.vue) — seeds 8 replies sequentially through the EXISTING createCannedResponse action (each save fires the Bella RAG embed hook — untouched). Texts are 1-2 line human cashier voice; ALL business facts are [bracketed] placeholders (payment methods/handles/freeplay rules) — nothing invented. Per-account, fully editable, skips existing short_codes, per-item failure tolerant (review fix).
+
+### 4b. Collision detection (extends existing presence/typing infra, ~140 lines)
+- Backend mirror of typing: CONVERSATION_VIEWING_ON/OFF events (lib/events/types.rb), Conversations::ViewingStatusManager, POST toggle_viewing_status (conversations member route), ActionCableListener#conversation_viewing_on/off using existing typing fan-out. Wisper delivery verified (method_name mapping + SyncDispatcher subscription).
+- Frontend: conversationViewingStatus store module (150s stale-timer kills ghost entries), actionCable handlers, ConversationHeader announces on open/switch/close + re-announces every 60s, amber "X is viewing" chip in conversation header, amber eye pip on conversation list card avatar (ConversationCard.vue). i18n VIEWING_ONE/VIEWING_MANY.
+
+### 4c. SLA timers — Phase 0 audit was WRONG: SLA EXISTS in this fork
+- Correction to 0b gap table: enterprise/ folder loads (ChatwootApp.enterprise? true), SlaPolicy + AppliedSla models, sla_policies REST routes (routes.rb:145), automations `add_sla` action (enterprise action_service), FULL frontend (store, API, settings page already pat-page-wrap styled, SLACardLabel chips in list + header), AND a Patra cron job Sla::CheckViolationsJob runs EVERY MINUTE (schedule.yml:99) sending Telegram breach alerts via Audit::TelegramNotifier.sla_violation. No SLA models were built — nothing needed building.
+- ENABLE: flip the `sla` feature flag per account — Feature Gating page (Phase 1c) or Account Control Panel. Until then the settings page shows the paywall card.
+- ADDED: green→amber→red countdown (both SLACardLabel components): teal while >half the first-response window remains, amber past halfway, ruby on miss (review fix: color computed now re-evaluates on the 60s tick). Per-inbox config hint (SLA.PER_INBOX_HINT) — done via existing Automations (inbox condition → Add SLA action); de-AI'd the stock SLA description copy.
+
+### 4d. Auto-routing (surfaced — already built in fork)
+- assignment_v2 flag is ON; AssignmentPolicy (round_robin, earliest_created/longest_waiting, fair_distribution limit+window) + full REST + inbox attach/detach ALL exist. UI exists & reachable: Inbox settings → Collaborators (toggle + policy card + create/link) and Settings → assignment policy pages (sidebar route confirmed Sidebar.vue:563-571).
+- FIXED: assignmentPolicy/Index.vue was dark-locked (same unscoped CSS-var bug as profile settings) — vars now theme-scoped, light mode works.
+- PROPOSED (logged, not built): (1) Agent capacity policies — Vue scaffolding exists, NO backend model/API (est: 1 migration + model + CRUD controller + assignment-service check, ~1-2 days). (2) By-intent routing — CONFIRMED intent is written by the orchestrator AFTER assignment (additional_attributes['pending_load_intent'], post-routing; conversation_builder has no intent at create). Routing by intent needs intent-at-create or a reassignment step = Rules Engine lane, NOT touched.
+
+### Verify
+- ruby -c all 5 changed .rb ✓; vite build ✓ green ×3; reviewer (full phase diff): SHIP, 0 blockers, 2 should-fixes applied (SLA color reactivity, pack seeding per-item failure), comment nit fixed.
+- Runtime verify for Genius: open same conversation in two browsers → amber "is viewing" chip in header + eye pip in list within ~1s; close one tab → chip clears (≤2.5 min worst case via stale timer).
