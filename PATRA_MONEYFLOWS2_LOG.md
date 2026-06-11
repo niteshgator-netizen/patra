@@ -4,14 +4,30 @@
 Rollback hash (state before this run): `fa8c418acd1d32e9510c2066d69ef58d03e5de28`
 Full rollback: `git reset --hard fa8c418acd1d32e9510c2066d69ef58d03e5de28`
 
-## MORNING SUMMARY
-(filled at end of run)
+## MORNING SUMMARY (run complete, NOT pushed)
+All 3 placeholder handlers are now real lookups, one commit per rule, on local main (Run 1
+commits untouched underneath). Orchestrator changed only via tmp/bpatch.rb (assert-unique
+anchors, CRLF preserved, ruby -c after every patch; 4,106 lines now). Harness grew 905 -> 1,101
+lines, all additions additive; the only non-scenario harness changes are the IMAP instance-method
+stub (aliased, restored in ensure) and its cleanup. No existing assertion text was changed.
+Every new escalation uses Run 1's escalation_context (R8). No forbidden/owner-WIP file touched;
+no migration needed; one new ENV setting (PATRA_PAYMENT_MATCH_WINDOW_MINUTES, default 10).
 
-## RULE CHECKLIST
-- [ ] S1 status_check: re-verify + window scan + complete-undone-via-guards + real-state replies
-- [ ] S2 balance_check: classify ask, live balance, no-invented-numbers, signup offer
-- [ ] S3 payment_sent: email match (name+amount+window), sender memory, 2-miss escalate, never load unverified
-- [ ] Final log + dump
+Verified by me now: syntax of every touched file, unique-anchor patches, the three rewritten
+handlers no longer use conversation.contact (nil-conversation safe), dead flag
+awaiting_imap_confirmation removed (had zero readers).
+NOT verified locally (Rails cannot boot): harness execution - the Render gate below is the proof.
+
+RENDER GATE (operator runs):
+  bundle exec rails runner script/patra_money_harness.rb   # must end RESULT: PASS incl. all S1-S3 cases
+  reply smoke must stay 100/100 unchanged
+
+## RULE CHECKLIST + COMMITS
+- [x] Log init / Phase 0 ............ 48569c766
+- [x] S1 status_check ............... 16ec5b83f  (proof: "S1 undone work => completed via the normal load path", "S1 re-ask => NO re-execution", "S1 nothing pending", "S1 failed action => R8 telegram" x7 cases)
+- [x] S2 balance_check .............. eb99b3c44  (proof: "S2 live balance $75", "S2 API error => NO number invented + R8", "S2 no account => signup offer -> account actually created", "S2 which game", "S2 cashout-limit => min $20 max $50" x8 cases)
+- [x] S3 payment_sent ............... aa37fe985  (proof: "S3 verified email match => auto-loads $30", "S3 already-loaded => refused", "S3 remembered sender => no name question", "S3 no name => asks, not a miss", "S3 misses 1+2 then 3rd insist => escalate", "S3 NEVER loaded unverified" x8 cases)
+- [x] Final log + dump .............. (this commit)
 
 ## PHASE 0 FINDINGS (verified by reading the files this session)
 
