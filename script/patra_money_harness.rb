@@ -110,7 +110,21 @@ def ok!(label, cond)
   else $fail += 1; $fails << label; puts "  FAIL  #{label}"
   end
 end
-def reset_run(cfg = {}); $FAKE.reset!(cfg); $TG.clear; $APPROVALS.clear; $DEEPSEEK = nil; $BLACKLIST = false; end
+def reset_run(cfg = {}); $FAKE.reset!(cfg); $TG.clear; $APPROVALS.clear; $DEEPSEEK = nil; $BLACKLIST = false; revive_harness_agent_games!; end
+
+# MEGA-AUDIT FIX2: un-poison the harness agent_games between cases. Panel
+# calls are stubbed ($FAKE), so forcing the fixture rows back to
+# active/zero-failures is safe; the ORIGINAL values are restored in ensure.
+# update_all = one query, no callbacks (no degrade Telegram re-fire), and only
+# touches rows that actually need it.
+def revive_harness_agent_games!
+  return unless $HARNESS_AG_SNAPS.is_a?(Hash) && $HARNESS_AG_SNAPS.any?
+  AgentGame.where(id: $HARNESS_AG_SNAPS.keys)
+           .where("failure_count > 0 OR status <> 'active'")
+           .update_all(failure_count: 0, status: 'active')
+rescue StandardError => e
+  puts "[harness] agent_game revive failed: #{e.class}: #{e.message}"
+end
 def tg?(substr); $TG.any? { |(_m, k)| k.values.map(&:to_s).any? { |v| v.include?(substr) } }; end
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -128,8 +142,21 @@ resolvable = actives.select { |a| Games::IntentDetector.detect_game(a.game.slug)
 t_src = resolvable[0]&.game&.slug
 t_tgt = resolvable[1]&.game&.slug
 
-# snapshot the real agent_game's mutable fields (restored in ensure)
-snap = { fc: ag.failure_count, lfa: ag.last_failure_at, lua: ag.last_used_at, status: ag.status }
+# MEGA-AUDIT FIX2 (June 11): snapshot EVERY active agent_game's mutable
+# fields, not just actives.first. Intentional panel-fail cases (fail_recharge
+# transfer legs) increment the REAL target row's consecutive-failure counter
+# via record_api_result (orchestrator:3365/:3422); at 3 failures
+# (AgentGame::API_DEGRADE_FAILURE_THRESHOLD, agent_game.rb:31) the auto-degrade
+# hardening flips the row to 'degraded', pick_agent_game (:2035) then excludes
+# it, and every later section needing that game fails with 'game unavailable'
+# — generosity approvals also get created with target_id nil, which AutoResume
+# logs as 'not executable (ag= user="")'. Counters also leaked ACROSS runs:
+# only actives.first was ever restored. revive_harness_agent_games! (wired
+# into reset_run) un-poisons the rows between cases; ensure restores ALL
+# original values at the end.
+$HARNESS_AG_SNAPS = actives.to_h do |a|
+  [a.id, { fc: a.failure_count, lfa: a.last_failure_at, lua: a.last_used_at, status: a.status }]
+end
 
 contact = Contact.create!(account: account, name: 'HARNESS_TEST_CONTACT')
 
@@ -179,6 +206,21 @@ GENEROSITY_PIN_KEYS = %w[bonus_percent first_deposit_bonus_percent bonus_min_dep
 account.update!(custom_attributes: r7_acct_saved
   .reject { |k, _| GENEROSITY_PIN_KEYS.include?(k.to_s) }
   .merge('auto_load_threshold' => 1_000_000))
+
+# MEGA-AUDIT FIX2: the threshold/generosity readers prefer reply_preferences
+# COLUMNS when they exist (auto_load_threshold_pref orchestrator:3750-3752,
+# generosity_setting :697-700). The proposed auto_load_threshold migration
+# (docs/proposed_migrations/20260610_moneyflows_reply_preferences.rb) carries
+# DEFAULT 200.0 — if it was ever hand-applied on Render, the column silently
+# overrides every account-attr pin in this harness (F13's $999 would be held,
+# R7's custom-$50 case dead). Pin any such column NULL for the run so the
+# account-attr pins control; snapshot + restore in ensure. No-op when the
+# columns don't exist.
+pref_col_saved = {}
+(%w[auto_load_threshold] + GENEROSITY_PIN_KEYS).each do |k|
+  pref_col_saved[k] = pref_row.public_send(k) if pref_row.respond_to?(k) && pref_row.respond_to?("#{k}=")
+end
+pref_row.update!(pref_col_saved.transform_values { nil }) if pref_col_saved.any?
 
 # Re-establish per-scenario state. MUST run before EACH handler scenario because:
 #   (1) handle_new_account_reissue clears stored credentials, so later handlers would
@@ -1424,9 +1466,15 @@ ensure
     puts "[cleanup] GameAction delete failed: #{e.class}: #{e.message}"
   end
   begin
-    ag.update_columns(failure_count: snap[:fc], last_failure_at: snap[:lfa],
-                      last_used_at: snap[:lua], status: snap[:status])
-    puts "[cleanup] restored agent_game #{ag.id} (#{src_slug}) snapshot"
+    restored = 0
+    ($HARNESS_AG_SNAPS || {}).each do |id, s|
+      a = AgentGame.find_by(id: id)
+      next unless a
+      a.update_columns(failure_count: s[:fc], last_failure_at: s[:lfa],
+                       last_used_at: s[:lua], status: s[:status])
+      restored += 1
+    end
+    puts "[cleanup] restored #{restored} agent_game snapshot(s) (status + failure counters, ALL fixture games)"
   rescue StandardError => e
     puts "[cleanup] agent_game restore failed: #{e.class}: #{e.message}"
   end
@@ -1502,6 +1550,14 @@ ensure
     end
   rescue StandardError => e
     puts "[cleanup] referral_enabled restore failed: #{e.class}: #{e.message}"
+  end
+  begin
+    if defined?(pref_col_saved) && pref_col_saved.is_a?(Hash) && pref_col_saved.any? && defined?(pref_row) && pref_row
+      pref_row.update!(pref_col_saved)
+      puts "[cleanup] restored #{pref_col_saved.size} reply_preference threshold/generosity column(s)"
+    end
+  rescue StandardError => e
+    puts "[cleanup] pref column restore failed: #{e.class}: #{e.message}"
   end
   begin
     if defined?(Payments::EmailConfirmationService) && Payments::EmailConfirmationService.method_defined?(:orig_check_all_harness)
