@@ -832,10 +832,15 @@ class Ai::ReplyService
             esc_contact_id = fetch_sender_contact_id rescue nil
             esc_contact = esc_contact_id ? esc_account.contacts.find_by(id: esc_contact_id) : nil
             esc_conv = @conversation_id ? esc_account.conversations.find_by(display_id: @conversation_id) : nil
+            esc_last_user = @routing_last_incoming_raw_content.to_s.strip[0..160]
             Games::TelegramNotifier.human_escalation(
               account: esc_account,
               contact: esc_contact,
-              reason: reply.to_s[0..200],
+              reason: "PLAYER WANTS: #{esc_last_user.empty? ? 'see conversation' : esc_last_user} | " \
+                      "ALREADY DONE: Bella replied '#{reply.to_s[0..160]}' - player was told someone will help | " \
+                      'STILL LEFT: the underlying ask is unresolved | ' \
+                      'BELLA SUGGESTS: read the last few messages and take over quietly | ' \
+                      'NEEDS FROM HUMAN: take over this conversation and resolve the ask',
               conversation: esc_conv
             )
           end
