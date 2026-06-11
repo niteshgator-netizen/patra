@@ -859,6 +859,52 @@ begin
         .send(:handle_username_provided, { intent: :username_provided, game_slug: src_slug, game_username: 'harnessuser1' })
   ok!('R7/F12 username_provided race loser => NO recharge (deterministic id holds)', !$FAKE.called?(:recharge))
 
+  # ==================== MONEYFLOWS RUN 2 (S1-S3, 2026-06-10) ==================
+  puts "\n[S1 status_check]  (re-verify, finish undone work via guards, real-state replies)"
+  # (c) undone verifiable work -> completed through the NORMAL load path (guards apply)
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{ 'id' => 'HARNESS_PAY_S1A', 'status' => 'confirmed', 'amount' => 25,
+                               'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+  ))
+  s1_msgs = [{ 'role' => 'user', 'content' => 'did my load go through?' }]
+  r = orch(account, contact, s1_msgs).send(:handle_status_check, { intent: :status_check, game_slug: src_slug })
+  s1_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+  ok!('S1 undone work => completed via the normal load path ($25 recharge)', s1_rc && s1_rc[1].to_f == 25.0)
+  ok!('S1 undone work => carries status-check + auto-load labels',
+      Array(r[:labels]).include?('status-check') && Array(r[:labels]).include?('auto-load'))
+
+  # (c) re-ask after completion -> guard no-op, NO second execution, real-state reply
+  reset_run   # keep the GameAction + Loaded log entry
+  r = orch(account, contact, s1_msgs).send(:handle_status_check, { intent: :status_check, game_slug: src_slug })
+  ok!('S1 re-ask after done => NO re-execution (guard no-op)', !$FAKE.called?(:recharge))
+  ok!('S1 re-ask => reply states the REAL state (went through)', r[:reply].to_s.match?(/went through|already went/i))
+
+  # (b) unresolved load ask in the window, no payment -> normal path asks for payment
+  reset_run; prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 35' },
+                              { 'role' => 'user', 'content' => 'is it done yet?' }])
+        .send(:handle_status_check, { intent: :status_check, game_slug: src_slug })
+  ok!('S1 unresolved ask without payment => real state: asks for the payment, no load',
+      !$FAKE.called?(:recharge) && r[:reply].to_s.match?(/send/i))
+
+  # (d) nothing pending + nothing recent -> ask what they need
+  reset_run; prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'is it done?' }])
+        .send(:handle_status_check, { intent: :status_check, game_slug: src_slug })
+  ok!('S1 nothing pending => all-clear + asks what they need', r[:reply].to_s.match?(/all clear.*what do you need/i))
+
+  # (e) failed last action -> real-state reply + R8 escalation
+  reset_run; prime_contact!(contact, [src_slug])
+  GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                     action_type: 'load', order_id: 'HARNESS_S1_FAIL', game_username: 'harnessuser1',
+                     amount: 15, status: 'failed', metadata: {}, executed_at: Time.current)
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'did it work?' }])
+        .send(:handle_status_check, { intent: :status_check, game_slug: src_slug })
+  ok!('S1 failed action => honest reply + cashier label',
+      r[:reply].to_s.match?(/hit a snag|didn't go through/i) && Array(r[:labels]).include?('cashier-action-needed'))
+  ok!('S1 failed action => R8 telegram context', tg?('NEEDS FROM HUMAN'))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

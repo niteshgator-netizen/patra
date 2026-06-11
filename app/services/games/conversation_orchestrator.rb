@@ -2201,62 +2201,169 @@ module Games
       { reply: 'checking now — will load once confirmed!', labels: ['payment-pending'] }
     end
 
+    # S1 (June 10) - real status check. Order: (c) finish verifiable undone work
+    # through the NORMAL load path (F12 order_id + R7 threshold + approval gates
+    # all apply; a redo of done work no-ops via the F12 guard), then (a) report
+    # the most recent action's REAL recorded state - no speculative paid panel
+    # calls, recorded status + stored creds only - then (d) nothing pending ->
+    # ask what they need, (e) on error escalate with the full R8 context.
     def handle_status_check(intent)
-      contact = conversation.contact
-      game_slug = chosen_game_slug(intent) || contact.custom_attributes&.dig('preferred_platform')
+      game_slug = chosen_game_slug(intent) || (contact.custom_attributes || {})['preferred_platform']
       labels = ['status-check']
 
       begin
-        last_action = GameAction.where(contact_id: contact.id)
-        if game_slug.present?
-          last_action = last_action.joins(agent_game: :game).where(games: { slug: game_slug })
+        # (c) a verified payment that never got loaded is finishable work.
+        pending_payment = find_unloaded_confirmed_payment
+        if pending_payment
+          Rails.logger.info("[Orchestrator] status-check: unloaded verified payment $#{pending_payment[:amount]} - completing via the normal load path")
+          completion = handle_load_intent({ intent: :load, amount: pending_payment[:amount].to_f, game_slug: game_slug, game_username: nil })
+          if completion.is_a?(Hash) && completion[:reply].present?
+            completion = completion.dup
+            completion[:labels] = (Array(completion[:labels]) + labels).uniq
+            return completion
+          end
         end
-        last_action = last_action.order(created_at: :desc).first
+
+        # (b) scan the ~50-message window for a load ask that never completed.
+        unresolved = unresolved_load_ask_from_window
+        if unresolved
+          Rails.logger.info("[Orchestrator] status-check: unresolved load ask $#{unresolved[:amount]} - re-running the normal load path")
+          completion = handle_load_intent({ intent: :load, amount: unresolved[:amount], game_slug: unresolved[:game_slug] || game_slug, game_username: nil })
+          if completion.is_a?(Hash) && completion[:reply].present?
+            completion = completion.dup
+            completion[:labels] = (Array(completion[:labels]) + labels).uniq
+            return completion
+          end
+        end
+
+        # (a) report the REAL recorded state of the most recent action.
+        scope = GameAction.where(account_id: account.id, contact_id: contact.id)
+        scope = scope.joins(agent_game: :game).where(games: { slug: game_slug }) if game_slug.present?
+        last_action = scope.order(created_at: :desc).first
 
         if last_action
           action_slug = last_action.agent_game&.game&.slug || game_slug
+          when_txt = time_ago_phrase(last_action.created_at)
           case last_action.status
           when 'success'
-            amt = last_action.amount ? "$#{last_action.amount.to_i}" : ''
-            reply = "your last #{last_action.action_type} #{amt} on #{action_slug} went through ✅"
+            reply =
+              if last_action.action_type == 'add_player'
+                ready_username = stored_game_username(action_slug).presence || last_action.game_username
+                "your #{slug_label(action_slug)} account is ready - username #{ready_username}. anything else?"
+              else
+                amt_txt = last_action.amount.to_f > 0 ? "$#{fmt_amt(last_action.amount)} " : ''
+                "your last #{last_action.action_type} #{amt_txt}on #{slug_label(action_slug)} went through #{when_txt} - you're all set"
+              end
           when 'pending'
-            reply = 'still processing — will update you soon!'
+            amt_txt = last_action.amount.to_f > 0 ? " for $#{fmt_amt(last_action.amount)}" : ''
+            reply = "your #{last_action.action_type}#{amt_txt} on #{slug_label(action_slug)} is still processing (started #{when_txt}) - i'll update you the second it lands"
           when 'failed'
-            reply = "there was an issue with your last #{last_action.action_type} — let me look into it"
-            safe_telegram do
-              Games::TelegramNotifier.human_escalation(
-                account: account, contact: contact,
-                reason: "Status check — last action FAILED for #{contact.name} on #{action_slug}",
-                conversation: conversation
-              )
-            end
             labels << 'cashier-action-needed'
-          else
-            reply = 'checking on that — one moment!'
             safe_telegram do
               Games::TelegramNotifier.human_escalation(
                 account: account, contact: contact,
-                reason: "Status check from #{contact.name} — status: #{last_action.status}",
+                reason: escalation_context(
+                  wants: "status of their #{last_action.action_type} on #{action_slug}",
+                  done: "checked records: last #{last_action.action_type} $#{fmt_amt(last_action.amount)} FAILED #{when_txt} (#{last_action.api_response_message})",
+                  left: 'the failed action was never completed',
+                  suggest: 'retry it manually or make the player whole',
+                  need: 'finish or refund, then confirm in chat'
+                ),
                 conversation: conversation
               )
             end
+            reply = "your #{last_action.action_type} on #{slug_label(action_slug)} hit a snag #{when_txt} and didn't go through - a teammate is finishing it now"
+          else
+            labels << 'cashier-action-needed'
+            safe_telegram do
+              Games::TelegramNotifier.human_escalation(
+                account: account, contact: contact,
+                reason: escalation_context(
+                  wants: "status of their #{last_action.action_type} on #{action_slug}",
+                  done: "checked records: status is '#{last_action.status}' (#{when_txt})",
+                  left: 'unclear whether it completed',
+                  suggest: 'verify on the panel and tell the player',
+                  need: 'the real outcome of that action'
+                ),
+                conversation: conversation
+              )
+            end
+            reply = "your last #{last_action.action_type} on #{slug_label(action_slug)} shows '#{last_action.status}' - double-checking with the team now"
           end
         else
-          reply = "can you remind me which game? I'll check for you"
+          # (d) nothing pending + nothing recent -> ask what they need.
+          reply = "you're all clear - no loads or cashouts in flight. what do you need?"
         end
       rescue StandardError => e
         Rails.logger.error("[Orchestrator] Status check failed: #{e.message}")
-        reply = 'checking on that — one moment!'
+        labels << 'cashier-action-needed'
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Status check from #{contact.name} (lookup failed: #{e.message})",
+            reason: escalation_context(
+              wants: 'a status update on their recent activity',
+              done: "status lookup crashed (#{e.class}: #{e.message})",
+              left: 'player still has no answer',
+              suggest: 'check their ledger and recent game actions by hand',
+              need: 'reply to the player with their real status'
+            ),
             conversation: conversation
           )
         end
+        reply = 'pulling up your account now - give me one minute'
       end
 
       { reply: reply, labels: labels.uniq }
+    end
+
+    # S1 - newest customer load-ask in the message window that never produced a
+    # successful (or in-flight) load. The most recent money ask wins; if that
+    # ask already completed, nothing is unresolved (stops the scan). Never raises.
+    def unresolved_load_ask_from_window
+      return nil unless messages.is_a?(Array)
+
+      customer_msgs = messages.select do |m|
+        m.is_a?(Hash) ? (m[:role] || m['role']).to_s == 'user' : (m.respond_to?(:incoming?) && m.incoming?)
+      end
+
+      customer_msgs.last(50).reverse_each do |m|
+        text = m.is_a?(Hash) ? (m[:content] || m['content']).to_s : m.content.to_s
+        det = begin
+          Games::IntentDetector.detect(text)
+        rescue StandardError
+          nil
+        end
+        next unless det.is_a?(Hash) && det[:intent] == :load
+
+        amt = det[:amount].to_f
+        next if amt <= 0
+
+        done = GameAction.where(account_id: account.id, contact_id: contact.id,
+                                action_type: 'load', status: %w[success pending], amount: amt)
+                         .where('created_at >= ?', 24.hours.ago)
+                         .exists?
+        return nil if done
+
+        return { amount: amt, game_slug: det[:game_slug] }
+      end
+      nil
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] unresolved_load_ask_from_window failed: #{e.message}")
+      nil
+    end
+
+    # S1 - short human phrase for how long ago something happened.
+    def time_ago_phrase(time)
+      return 'just now' if time.blank?
+
+      secs = (Time.current - time).to_i
+      return 'just now' if secs < 60
+      return "#{secs / 60} min ago" if secs < 3600
+      return "#{secs / 3600}h ago" if secs < 86_400
+
+      "#{secs / 86_400}d ago"
+    rescue StandardError
+      ''
     end
 
     def handle_complaint_angry(intent = nil)
