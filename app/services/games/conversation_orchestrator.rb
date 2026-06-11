@@ -2392,7 +2392,10 @@ module Games
     def deterministic_payment_order_id(payment_id)
       base = "pay#{Digest::SHA1.hexdigest("#{account.id}:#{contact&.id}:#{payment_id}")[0, 20]}"
       existing = GameAction.where(account_id: account.id).where('order_id LIKE ?', "#{base}%")
-      return nil if existing.where(status: %w[success pending]).exists?
+      # MEGA2 P6 - 'ambiguous' (panel MAY have credited) blocks automatic
+      # re-execution exactly like success/pending; only a human redo after a
+      # balance check may move this payment again.
+      return nil if existing.where(status: %w[success pending ambiguous]).exists?
 
       "#{base}_a#{existing.count}"
     end
