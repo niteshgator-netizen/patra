@@ -16,9 +16,22 @@ class Ai::ReplyJob < ApplicationJob
   # loud give-up log instead of an endless retry storm.
   retry_on StandardError, wait: :polynomially_longer, attempts: 3 do |job, error|
     Rails.logger.error("[AiReply] GIVING UP after 3 attempts args=#{job.arguments.inspect[0, 120]} #{error.class}: #{error.message}")
+    notify_give_up(job, error, 3)
   end
   retry_on Messaging::TransientSendError, wait: :polynomially_longer, attempts: 5 do |job, error|
     Rails.logger.error("[AiReply] GIVING UP on transient sends after 5 attempts args=#{job.arguments.inspect[0, 120]} #{error.message}")
+    notify_give_up(job, error, 5)
+  end
+
+  # MEGA2 P12 - a give-up means a player message got NO reply; the logs alone
+  # were too quiet. Telegram the group (best-effort, never raises).
+  def self.notify_give_up(job, error, attempts)
+    conv = job.arguments.first
+    Games::TelegramNotifier.send_to_cashout_group(
+      "⚠️ ReplyJob GAVE UP after #{attempts} attempts conv=#{conv} - #{error.class}: #{error.message.to_s[0, 160]} - player may be waiting with no reply"
+    )
+  rescue StandardError => e
+    Rails.logger.error("[AiReply] give-up telegram failed: #{e.class}: #{e.message}")
   end
 
   HTTP_TIMEOUT = 10
@@ -74,7 +87,14 @@ class Ai::ReplyJob < ApplicationJob
     unless sent
       Rails.logger.warn("[AiReply] Facebook send failed after draft conversation=#{conversation_id}")
     end
-    log_to_chatwoot(conversation_id, reply_text)
+    # MEGA2 P12 - the FB send already happened above; a logging hiccup must
+    # NOT re-raise into a Sidekiq retry, or the retry re-sends the same
+    # message to the player (double-send). Log loudly and move on.
+    begin
+      log_to_chatwoot(conversation_id, reply_text)
+    rescue StandardError => e
+      Rails.logger.error("[AiReply] log_to_chatwoot raised after send conv=#{conversation_id} - NOT retrying (double-send guard): #{e.class}: #{e.message}")
+    end
     release_reply_lock(lock_key)
   rescue Messaging::TransientSendError => e
     # Transient outbound failure (5xx/408/429/timeout). Release the reply
@@ -119,7 +139,12 @@ class Ai::ReplyJob < ApplicationJob
       content,
       account_id: effective_account_id
     ).call
-    log_to_chatwoot(conversation_id, content) if sent
+    begin
+      log_to_chatwoot(conversation_id, content) if sent
+    rescue StandardError => e
+      # MEGA2 P12 - same double-send guard as the main path.
+      Rails.logger.error("[AiReply] blacklist log_to_chatwoot raised conv=#{conversation_id} - NOT retrying: #{e.class}: #{e.message}")
+    end
   end
 
   def log_to_chatwoot(conversation_id, content)
