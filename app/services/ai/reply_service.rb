@@ -210,6 +210,44 @@ class Ai::ReplyService
     'let me check on that for you'
   ].freeze
 
+  # ReplyGuard (June 11) - chain-of-thought / meta-reasoning markers. A reply
+  # matching ANY of these is model reasoning shipped as the reply (replay
+  # smoke found 4/220 real replies were raw DeepSeek reasoning inside
+  # `content`, one leaking the system prompt + a payment handle). Parse order
+  # (content -> reasoning_content) is correct and unchanged - this guard
+  # validates the OUTPUT instead. Case-insensitive, word-boundary.
+  COT_MARKERS = [
+    /\Awe need\b/i,
+    /\blet'?s draft\b/i,
+    /\bthe customer (?:says|said|is asking|wants|sent|messaged)\b/i,
+    /\bthe player (?:says|said|is asking|wants)\b/i,
+    /\bexamples? above\b/i,
+    /\bthe examples\b/i,
+    /\btraining examples?\b/i,
+    /\bsystem prompt\b/i,
+    /\bpersona\b/i,
+    /\bas bella\b/i,
+    /\breply like a real cashier\b/i,
+    /\bi(?:'ll| will) reply\b/i,
+    /\bso the reply should\b/i,
+    /\bmax 2 lines\b/i
+  ].freeze
+  REPLY_GUARD_MAX_CHARS = 350
+  REPLY_GUARD_MAX_LINES = 2
+  REPLY_GUARD_FALLBACK = 'one sec hun, checking that for you'
+
+  # ReplyGuard - true when text is a sane player-bound cashier line: non-blank,
+  # <= 2 non-empty lines, <= 350 chars, zero CoT markers. Class method so the
+  # replay smoke can reuse the exact same verdict.
+  def self.reply_guard_valid?(text)
+    t = text.to_s.strip
+    return false if t.empty?
+    return false if t.length > REPLY_GUARD_MAX_CHARS
+    return false if t.split(/\r?\n/).reject { |l| l.strip.empty? }.size > REPLY_GUARD_MAX_LINES
+
+    COT_MARKERS.none? { |re| t.match?(re) }
+  end
+
   # Tiered sentiment detection (Bella stays in the thread for Levels 1 & 2).
   # Level 1 = mild frustration / impatience → empathize, acknowledge, keep helping.
   # Level 2 = strong anger / accusation (scam, wtf, etc.) → apologize + solve;
@@ -515,6 +553,12 @@ class Ai::ReplyService
                 hint_reply: top[:pair].cashier_text,
                 conversation_id: @conversation_id
               )
+              # ReplyGuard - an invalid rephrase falls through to the normal
+              # brain (which has its own guarded retry) instead of shipping.
+              if rephrased.present? && !self.class.reply_guard_valid?(rephrased)
+                Rails.logger.warn("[ReplyGuard] rephrase invalid conv=#{@conversation_id} head=#{rephrased[0, 200].inspect} - falling through")
+                rephrased = nil
+              end
               if rephrased.present?
                 # Defensive: if the conversation has already used emojis, strip new ones (preserve emoji policy)
                 if emoji_already_used
@@ -2141,10 +2185,11 @@ class Ai::ReplyService
     }
     Rails.logger.info("[AiReply] prompt_chars=#{system_prompt.to_s.length} history_msgs=#{llm_messages.size} conv=#{@conversation_id}")
     # DeepSeek flash can emit reasoning_content; max_tokens caps reasoning+answer,
-    # so keep generous headroom or the reply gets starved to empty. ENV-tunable.
+    # so keep generous headroom or the reply gets starved to empty / truncated
+    # mid-reasoning (replay smoke June 11). ENV-tunable; default 800 -> 1600.
     llm_body = {
       model: use_deepseek ? ENV.fetch('DEEPSEEK_MODEL', 'deepseek-v4-flash') : MODEL,
-      max_tokens: use_deepseek ? ENV.fetch('DEEPSEEK_MAX_TOKENS', 800).to_i : MAX_TOKENS,
+      max_tokens: use_deepseek ? ENV.fetch('DEEPSEEK_MAX_TOKENS', 1600).to_i : MAX_TOKENS,
       messages: [{ role: 'system', content: system_prompt }, *llm_messages],
       **(use_deepseek ? { temperature: 0.7 } : {})
     }.to_json
@@ -2194,9 +2239,73 @@ class Ai::ReplyService
       return nil
     end
 
+    # ReplyGuard - reasoning shipped as the reply never reaches the player:
+    # one same-prompt regeneration, then the human fallback + escalation.
+    unless self.class.reply_guard_valid?(text)
+      finish = begin
+        response.parsed_response.dig('choices', 0, 'finish_reason')
+      rescue StandardError
+        nil
+      end
+      Rails.logger.warn("[ReplyGuard] invalid generation conv=#{@conversation_id} finish=#{finish} chars=#{text.length} head=#{text[0, 200].inspect}")
+      retry_text = reply_guard_retry(llm_url, llm_headers, llm_body, llm_timeout)
+      if retry_text.nil?
+        reply_guard_escalate(text)
+        return REPLY_GUARD_FALLBACK
+      end
+      text = retry_text
+    end
+
     Rails.logger.info("[ReplyService] RAG-enhanced reply. Examples: #{@rag_examples&.length || 0}, tone: #{@reply_pref&.reply_tone || 'default'}")
 
     text
+  end
+
+  # ReplyGuard - ONE same-prompt regeneration after an invalid reply. Returns
+  # valid text or nil (network/HTTP/empty/still-invalid all -> nil). Same
+  # content-first -> reasoning_content parse order as the main call.
+  def reply_guard_retry(llm_url, llm_headers, llm_body, llm_timeout)
+    response = HTTParty.post(llm_url, headers: llm_headers, body: llm_body, timeout: llm_timeout)
+    return nil unless response.success?
+
+    msg = response.parsed_response.dig('choices', 0, 'message') || {}
+    text = msg['content'].to_s.strip
+    text = msg['reasoning_content'].to_s.strip if text.blank?
+    return text if text.present? && self.class.reply_guard_valid?(text)
+
+    Rails.logger.warn("[ReplyGuard] retry also invalid conv=#{@conversation_id} chars=#{text.length} head=#{text[0, 200].inspect}")
+    nil
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyGuard] retry generation failed conv=#{@conversation_id}: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # ReplyGuard - both generations were reasoning/garbage: the player gets
+  # REPLY_GUARD_FALLBACK; the group gets the full 5-part picture.
+  def reply_guard_escalate(bad_text)
+    esc_account = Account.find_by(id: account_id)
+    return unless esc_account && defined?(Games::TelegramNotifier)
+
+    esc_contact_id = begin
+      fetch_sender_contact_id
+    rescue StandardError
+      nil
+    end
+    esc_contact = esc_contact_id ? esc_account.contacts.find_by(id: esc_contact_id) : nil
+    esc_conv = @conversation_id ? esc_account.conversations.find_by(display_id: @conversation_id) : nil
+    player_msg = @routing_last_incoming_raw_content.to_s.strip[0..160]
+    Games::TelegramNotifier.human_escalation(
+      account: esc_account,
+      contact: esc_contact,
+      reason: "PLAYER WANTS: #{player_msg.empty? ? 'see conversation' : player_msg} | " \
+              'ALREADY DONE: 2 bad generations BLOCKED by ReplyGuard (model reasoning leaked as the reply); player got a holding line | ' \
+              'STILL LEFT: the real answer | ' \
+              'BELLA SUGGESTS: reply by hand from the dashboard | ' \
+              "NEEDS FROM HUMAN: answer the player. Bad output head: #{bad_text.to_s.strip[0, 180].inspect}",
+      conversation: esc_conv
+    )
+  rescue StandardError => e
+    Rails.logger.error("[ReplyGuard] escalation failed conv=#{@conversation_id}: #{e.class}: #{e.message}")
   end
 
   # ---------- Escalation ----------
