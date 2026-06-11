@@ -895,28 +895,24 @@ module Games
         requested_amount = verb_m ? verb_m[1].to_f : msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
       end
 
-      # Calculate deposit history for multiplier check
+      # R3 (June 10) - min/max come from the LAST deposit, not the lifetime sum.
+      # The last deposit's TYPE picks the rule fields when the rule layer has
+      # type-specific ones (freeplay does: cashout_freeplay_multiplier/max);
+      # deposit/bonus/referral/keep-in use the default multipliers.
       if rules
         begin
-          total_deposits = game_actions_for_slug(contact.id, game_slug)
-            .where(action_type: 'load', status: 'success')
-            .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
-            .sum(:amount).to_f
+          last_dep = last_deposit_for_cashout(game_slug)
 
-          total_freeplay = game_actions_for_slug(contact.id, game_slug)
-            .where(action_type: 'load', status: 'success')
-            .where("metadata->>'freeplay' = ?", 'true')
-            .sum(:amount).to_f
-
-          has_real_deposits = (total_deposits - total_freeplay) > 0
-
-          if has_real_deposits
-            min_cashout = total_deposits * (rules.cashout_min_multiplier || 4)
-            max_cashout = [total_deposits * (rules.cashout_max_multiplier || 10), rules.cashout_max_amount || 250].min
+          if last_dep && last_dep[:type] == 'freeplay'
+            min_cashout = last_dep[:amount] * (rules.cashout_freeplay_multiplier || 5).to_f
+            max_cashout = (rules.cashout_freeplay_max || 50).to_f
+          elsif last_dep
+            min_cashout = last_dep[:amount] * (rules.cashout_min_multiplier || 4).to_f
+            max_cashout = [last_dep[:amount] * (rules.cashout_max_multiplier || 10).to_f, (rules.cashout_max_amount || 250).to_f].min
           else
-            # Freeplay-only player
-            min_cashout = total_freeplay * (rules.cashout_freeplay_multiplier || 5)
-            max_cashout = rules.cashout_freeplay_max || 50
+            # No load history at all - keep the legacy conservative cap.
+            min_cashout = 0.0
+            max_cashout = (rules.cashout_freeplay_max || 50).to_f
           end
 
           # Validate requested amount
@@ -924,6 +920,14 @@ module Games
             if requested_amount < (rules.cashout_min_amount || 10)
               return {
                 reply: "minimum cashout is $#{(rules.cashout_min_amount || 10).to_i}",
+                labels: []
+              }
+            end
+
+            # R3 - below the multiplier minimum: state the REAL minimum.
+            if last_dep && min_cashout > 0 && requested_amount < min_cashout
+              return {
+                reply: "min cashout on a $#{fmt_amt(last_dep[:amount])} #{last_dep[:type]} is $#{fmt_amt(min_cashout)}",
                 labels: []
               }
             end
@@ -2695,6 +2699,33 @@ module Games
     rescue StandardError => e
       Rails.logger.error("[Orchestrator] original_deposit_on_source failed: #{e.message}")
       0.0
+    end
+
+    # R3 - the player's most recent successful load on the game, with its type.
+    # Type: 'freeplay' | 'bonus' | 'referral' | 'deposit'. A keep-in from a
+    # partial cashout (R5) counts as a deposit - it drives the next cashout's
+    # rules on purpose. Never raises; nil means no load history.
+    def last_deposit_for_cashout(slug)
+      action = game_actions_for_slug(contact.id, slug)
+               .where(action_type: 'load', status: 'success')
+               .order(created_at: :desc)
+               .first
+      return nil unless action && action.amount.to_f > 0
+
+      md = action.metadata.is_a?(Hash) ? action.metadata : {}
+      type = if md['freeplay'].to_s == 'true'
+               'freeplay'
+             elsif md['deposit_bonus'].to_s == 'true'
+               'bonus'
+             elsif md['referral'].to_s == 'true'
+               'referral'
+             else
+               'deposit'
+             end
+      { amount: action.amount.to_f, type: type }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] last_deposit_for_cashout failed: #{e.message}")
+      nil
     end
 
     def record_api_result(agent_game, result)

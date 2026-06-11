@@ -615,6 +615,60 @@ begin
   ok!('R2 leftover balance never subtracts/caps => recharge is EXACTLY $10', r2_rc && r2_rc[1].to_f == 10.0)
   ok!('R2 load succeeded with auto-load label', Array(r && r[:labels]).include?('auto-load'))
 
+  puts "\n[R3 cashout min/max from LAST deposit]  (4x/10x of last dep, type-aware, real minimum stated)"
+  r3_rule = GameRule.find_or_initialize_by(account_id: account.id, game_id: ag.game.id)
+  r3_was_new = r3_rule.new_record?
+  r3_snap = r3_was_new ? nil : r3_rule.attributes.dup
+  r3_rule.assign_attributes(cashout_enabled: true, cashout_min_multiplier: 4, cashout_max_multiplier: 10,
+                            cashout_max_amount: 250, cashout_min_amount: 10,
+                            cashout_freeplay_multiplier: 5, cashout_freeplay_max: 50,
+                            cashout_require_screenshot: false)
+  r3_rule.save!
+  mk_r3_load = lambda do |amt, oid, meta = {}, at = Time.current|
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                       action_type: 'load', order_id: oid, game_username: 'harnessuser1',
+                       amount: amt, status: 'success', metadata: meta,
+                       executed_at: at, created_at: at, updated_at: at)
+  end
+  begin
+    # Below the multiplier minimum: last deposit $5 -> min $20; ask $15 -> real minimum stated
+    reset_run; prime_contact!(contact, [src_slug])
+    mk_r3_load.call(5, 'HARNESS_R3_DEP1')
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 15' }])
+          .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 15 })
+    ok!('R3 below min (last dep $5, ask $15) => states the real minimum ($20)',
+        r[:reply].to_s.match?(/min cashout on a \$5 deposit is \$20/i))
+
+    # LAST deposit governs, not the lifetime sum: old $100 + latest $5 -> min still $20
+    reset_run; prime_contact!(contact, [src_slug])
+    mk_r3_load.call(100, 'HARNESS_R3_DEP2', {}, 2.hours.ago)
+    mk_r3_load.call(5, 'HARNESS_R3_DEP3')
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 25' }])
+          .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 25 })
+    ok!('R3 LAST deposit governs (not sum) => $25 on a last $5 dep passes min, goes to cashier',
+        r[:reply].to_s.match?(/processing/i))
+    ok!('R3 pass => telegram cashout escalation fired', $TG.any?)
+
+    # Type-aware: last load is FREEPLAY $5 -> freeplay fields (5x -> min $25)
+    reset_run; prime_contact!(contact, [src_slug])
+    mk_r3_load.call(5, 'HARNESS_R3_FP1', { freeplay: true })
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 15' }])
+          .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 15 })
+    ok!('R3 freeplay-typed last dep => freeplay multiplier rules ($5 fp -> min $25)',
+        r[:reply].to_s.match?(/min cashout on a \$5 freeplay is \$25/i))
+  ensure
+    begin
+      if r3_was_new
+        r3_rule.destroy
+      else
+        r3_rule.update!(r3_snap.except('id', 'created_at', 'updated_at'))
+      end
+      puts '[cleanup] restored game_rule for R3'
+    rescue StandardError => e
+      puts "[cleanup] R3 game_rule restore failed: #{e.class}: #{e.message}"
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
