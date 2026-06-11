@@ -150,7 +150,7 @@ module Games
             game_username: game_username
           )
         )
-        return { ok: false, error: 'Cashout requires approval', code: 'approval_required', approval_request_id: request.id }
+        return { ok: false, error: 'Cashout requires approval', code: 'approval_required', approval_request_id: request&.id }
       end
 
       order_id ||= GameAction.generate_order_id(prefix: 'cash')

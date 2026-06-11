@@ -11,20 +11,30 @@ module Approvals
     end
 
     def self.create_request!(account:, user:, amount:, target:, metadata: {})
-      request = ApprovalRequest.create!(
-        account: account,
-        requesting_user: user,
-        action_type: 'cashout',
-        target_type: target.class.name,
-        target_id: target.id,
-        amount: amount,
-        status: 'pending',
-        metadata: metadata
-      )
+      # user can be nil in Sidekiq (Current.user unset) on an account with no
+      # account_users; requesting_user is a required association, so create!
+      # would raise OUT of cashout_player and the over-threshold cashout would
+      # crash instead of being held. Fail CLOSED: skip the row, still alert,
+      # caller still returns ok:false / approval_required.
+      request = nil
+      if user
+        request = ApprovalRequest.create!(
+          account: account,
+          requesting_user: user,
+          action_type: 'cashout',
+          target_type: target.class.name,
+          target_id: target.id,
+          amount: amount,
+          status: 'pending',
+          metadata: metadata
+        )
+      else
+        Rails.logger.error("[CashoutApprovalGate] no requesting user (account #{account.id}) — approval row skipped, cashout stays HELD")
+      end
 
       player = metadata[:player_name] || metadata['player_name'] || 'player'
       game = metadata[:game_name] || metadata['game_name'] || 'game'
-      agent = user.name
+      agent = user&.name || 'system'
 
       Audit::TelegramNotifier.approval_needed(
         account: account,
