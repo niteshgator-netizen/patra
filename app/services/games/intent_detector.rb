@@ -99,7 +99,12 @@ module Games
       /redeem\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /withdraw\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /payout\s+\$?(\d+(?:\.\d{1,2})?)/i,
-      /i\s+(?:want\s+|wanna\s+)?(?:to\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i
+      /i\s+(?:want\s+|wanna\s+)?(?:to\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i,
+      # bp iter1: a bare "cash out" / "redeem" message is an amount-less
+      # cashout ask (76x cluster) — the handler asks for the amount.
+      /\A\s*(?:cash\s*out|cashout|redeem|withdraw)\s*[?!.]*\s*\z/i,
+      # bp iter1: "i requested a cashout" — request-verb cashout phrasing.
+      /\brequest(?:ed|ing)?\s+(?:a\s+|the\s+|my\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i
     ].freeze
 
     USERNAME_PATTERNS = [
@@ -352,7 +357,7 @@ module Games
     # "do you have apple pay") — asks for OUR handle / what we accept. Group 1 captures
     # the platform for downstream normalization. Checked alongside the PICK patterns.
     PAYMENT_TAG_REQUEST_PATTERNS = [
-      /\b(chime|cashapp|cash\s*app|cash|venmo|paypal|zelle)\s+(?:tag|handle|info|address)\b/i,
+      /(?<!my\s)\b(chime|cashapp|cash\s*app|cash|venmo|paypal|zelle)\s*(?:tag|handle|info|address)\b/i,
       /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i,
       /\bdo\s+(?:you|u|yall|y'?all)\s+(?:have|take|accept|do)\s+(apple\s*pay|cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
     ].freeze
@@ -414,7 +419,9 @@ module Games
       /(?:did\s+you|have\s+you)\s+(?:get|got|receive|received)\s+(?:it|my\s+(?:payment|money))/i,
       /(?:is\s+it|was\s+it)\s+(?:done|loaded|processed|complete)/i,
       /still\s+waiting/i,
-      /how\s+long\s+(?:does|will|do)/i
+      /how\s+long\s+(?:does|will|do)/i,
+      # bp iter1: bare "loaded?" / "loaded??" (113x cluster)
+      /\A\s*loaded\s*[?!.]*\s*\z/i
     ].freeze
 
     COMPLAINT_ANGRY_PATTERNS = [
@@ -491,10 +498,18 @@ module Games
       return false if message_text.blank?
 
       text = message_text.to_s.downcase
+      # bp iter1: a cashout-direction message ("i requested a cashout") is
+      # never a payment-sent report — cashout branch owns those.
+      return false if text.match?(/\b(?:cash\s*out|cashout|redeem|withdraw)\b/)
+
       sent_phrases = ['i sent', 'i paid', 'just sent', 'just paid', 'sent you', 'sent it',
                       'sent the money', 'sent the payment', 'money sent', 'payment sent',
-                      'paid you', 'paid u', 'sent u']
-      return false unless sent_phrases.any? { |p| text.include?(p) }
+                      'paid you', 'paid u', 'sent u',
+                      # bp iter1: cashapp request-flow reports (355x clusters)
+                      'request sent', 'requested', 'request submitted']
+      # bp iter1: bare "sent 10" / "sent $25" (80x cluster)
+      bare_sent_amount = text.match?(/\A\s*sent\s+\$?\d+(?:\.\d{1,2})?\s*\z/i)
+      return false unless bare_sent_amount || sent_phrases.any? { |p| text.include?(p) }
       return false if text.match?(/screenshot|receipt|proof|here'?s? (the )?pic/)
 
       true
@@ -624,6 +639,12 @@ module Games
                   elsif match_any(text, LIST_PLATFORMS_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched list_platforms')
                     { intent: :list_platforms, game_slug: detect_game(text) }
+                  elsif (bare_game = bare_game_name_load(text))
+                    Rails.logger.info("[IntentDetector] matched bare game name -> amount-less load slug=#{bare_game}")
+                    { intent: :load, amount: nil, game_slug: bare_game }
+                  elsif (bare_user = bare_username_token(text))
+                    Rails.logger.info('[IntentDetector] matched bare username token')
+                    { intent: :username_provided, game_username: bare_user, game_slug: nil }
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
@@ -773,7 +794,7 @@ module Games
         # Relaxed question-guard: a BARE platform question ("PayPal?", "Chime?") is an
         # ask for our handle, so it's allowed through; longer questions ("you only have
         # cashapp?") still bail via the unchanged guard.
-        bare_platform_q = text.match?(/\A\s*(?:cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i)
+        bare_platform_q = text.match?(/\A\s*(?:cashapp|cash\s*app|chime|venmo|paypal|zelle|cash\s*tag|cashtag)\s*\?+\s*\z/i)
         # E3: an ASSERTIVE re-statement with a trailing "?" ("I said cash app
         # right?", "i asked for chime?") is a pick, not a question. Needs BOTH
         # a platform word and an i-said/asked/picked/chose lead-in.
@@ -807,6 +828,51 @@ module Games
       def normalize_platform_token(raw)
         tok = raw.to_s.downcase.gsub(/\s+/, '')
         %w[cash cashapp].include?(tok) ? 'cashapp' : tok
+      end
+
+      # bp iter1: a message that is JUST a game name (± please/pls/ok filler
+      # and punctuation) is an amount-less load ask for that game — the
+      # dominant corpus shape (juwa/orion/gv/... clusters, ~2k rows, all
+      # labeled load_deposit). The load handler is fully gated (payment gate,
+      # thresholds), so this routes a question, it never moves money itself.
+      BARE_GAME_FILLERS = /\b(?:please|pls+|plz+|ty|thanks|thank\s+you|yes|yeah|ok|okay|now|one|the)\b/i
+
+      def bare_game_name_load(text)
+        norm = text.to_s.downcase.gsub(/[^a-z0-9.\s]/, ' ').gsub(/\s+/, ' ').strip
+        return nil if norm.empty? || norm.length > 40
+
+        stripped = norm.gsub(BARE_GAME_FILLERS, ' ').gsub(/\s+/, ' ').strip
+        # match BOTH forms: filler-stripping breaks names that contain a
+        # filler word ("all in one"); raw misses "juwa please". Trailing
+        # dots dropped ("Juwa.").
+        candidates = [norm, stripped].map { |c| c.sub(/[.\s]+\z/, '') }.reject(&:empty?).uniq
+        return nil if candidates.empty?
+
+        GAME_NAME_ALIASES.each do |alias_name, slug|
+          return slug if candidates.include?(alias_name)
+        end
+        GAME_KEYWORDS.each do |slug, keywords|
+          return slug if keywords.any? { |kw| candidates.include?(kw) }
+        end
+        nil
+      end
+
+      # bp iter1: a one-token message carrying a digit or underscore that is
+      # not a game/platform/common word is a pasted game username
+      # ("Alexis726_jw", 198x clusters). Conservative: single token, must
+      # contain [0-9_], 4-30 chars — plain words can never match.
+      def bare_username_token(text)
+        tok = text.to_s.strip
+        return nil unless tok.match?(/\A[a-zA-Z][a-zA-Z0-9._]{3,29}\z/)
+        return nil unless tok.match?(/[\d_]/)
+
+        down = tok.downcase
+        return nil if common_word?(down)
+        return nil if game_related_token?(down)
+        return nil if %w[cashapp chime venmo paypal zelle].any? { |p| down.include?(p) }
+        return nil if resolve_game_slug(down).present?
+
+        down
       end
 
       def payment_pick_standdown?(text)
