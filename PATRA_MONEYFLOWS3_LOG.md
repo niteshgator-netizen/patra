@@ -4,15 +4,39 @@
 Rollback hash (state before this run): `ef718c8d29f4c2fe7466bc92c4b509eb127b5515`
 Full rollback: `git reset --hard ef718c8d29f4c2fe7466bc92c4b509eb127b5515`
 
-## MORNING SUMMARY
-(filled at end of run)
+## MORNING SUMMARY (run complete, NOT pushed)
+Freeplay, bonus, and referral now share one operator-confirmed pattern: per-contact override
+first, operator-configured auto flow preserved (GameRule / referral_enabled), and the launch
+default escalates to Telegram with the full case (WHY GIVE / WHY NOT derived from real
+GameAction data) plus a pending ApprovalRequest. Approvals::AutoResume gained a 'load' branch
+(same dark PATRA_APPROVAL_AUTORESUME flag, exactly-once appr_<id> order_id) so operator approval
+pays through the normal executor path with the right freeplay/deposit_bonus/referral metadata
+flag - R3 deposit typing and TABA-1 single-record both hold (harness-asserted, not rebuilt).
+G2's configured percent auto-attaches at the handle_load_intent sites as ONE load of
+amount+bonus on the unchanged F12 deterministic order_id. G4 migrated 28 one-liner Telegram
+reasons to full escalation_context cases (the 2 success-notification reports and the transfer
+failed-list hash keys were intentionally left). Orchestrator byte-patched only (4,597 lines,
+CRLF preserved, ruby -c after every patch; the G4 batch ran through tmp/g4_apply.rb - same
+CRLF-preserving assert-unique contract as bpatch.rb, one driver for 28 single-line sites).
+Harness grew 1,101 -> 1,393 lines, all additive; every G scenario pins and restores its
+GameRule/pref/account-key/ENV fixtures. No forbidden/owner-WIP file touched. No migration
+required (optional columns documented in docs/proposed_migrations/).
 
-## RULE CHECKLIST
-- [ ] G1 freeplay on the shared generosity pattern
-- [ ] G2 bonus on the shared generosity pattern
-- [ ] G3 referral on the shared generosity pattern
-- [ ] G4 escalation_context rollout to remaining one-liner sites
-- [ ] Final log + dump
+Verified by me now: syntax of every touched file after every patch, unique-anchor matching,
+no dangling references from the replaced freeplay handler, CRLF intact.
+NOT verified locally (Rails cannot boot): harness execution - Render is the gate.
+
+RENDER GATE (operator runs):
+  bundle exec rails runner script/patra_money_harness.rb   # RESULT: PASS incl. all R+S+G cases
+  reply smoke 100/100 unchanged; intents 128/128 unchanged
+
+## RULE CHECKLIST + COMMITS
+- [x] Log init / Phase 0 ............ a09208ca2
+- [x] G1 freeplay ................... 15b0a2c97  (proof: override approve loads $5 w/ flag; daily limit; override deny; default escalates w/ WHY GIVE/WHY NOT + pending approval; approve loads once via AutoResume w/ freeplay flag; reject -> polite decline; G1c freeplay-typed R3 lock - 10 cases)
+- [x] G2 bonus ...................... bb1a13502  (proof: unconfigured ask escalates w/ case + approval, no load; 20% => exactly $24 single load w/ metadata; min-deposit gate; first-deposit 50% wins => $30; contact 'none' blocks; G2e typing lock - 8 cases)
+- [x] G3 referral ................... 6a3492ac1  (proof: percent 10% of $50 => $5; fixed => $7; OFF escalates w/ who/what/reward + pending approval; approve pays referrer $7 once w/ referral flag; G3c typing lock - 7 cases)
+- [x] G4 escalation rollout ......... 5dfcba3ec  (28 sites migrated; proof: partial-cashout fail + duplicate-payment hold both emit PLAYER WANTS/NEEDS FROM HUMAN - 2 cases)
+- [x] Final log + dump .............. (this commit; optional columns in docs/proposed_migrations/20260610_moneyflows3_generosity_settings.rb)
 
 ## PHASE 0 FINDINGS (verified by reading the files this session)
 
