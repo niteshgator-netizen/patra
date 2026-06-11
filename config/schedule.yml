@@ -204,3 +204,9 @@ patra_stuck_pending_sweeper_job:
   cron: '*/15 * * * *'
   class: 'Patra::StuckPendingSweeperJob'
   queue: low
+
+# Daily at 0410 UTC — validate every FB page token, alert on dead/expiring (MEGA2 P11; read-only)
+patra_fb_token_health_job:
+  cron: '10 4 * * *'
+  class: 'Patra::FbTokenHealthJob'
+  queue: low
