@@ -2289,6 +2289,11 @@ module Games
     PROMPT
 
     def handle_transfer_between_games(intent)
+      # R1 (June 10) - transfer_mode 'off' declines before any parsing or panel calls.
+      if transfer_mode_pref == 'off'
+        return { reply: "we don't do game-to-game transfers right now - you can cash out or keep playing, your call.", labels: ['transfer-off'] }
+      end
+
       text = (latest_customer_text || recent_customer_text).to_s
       plan = extract_transfer_plan(text)
 
@@ -2311,7 +2316,8 @@ module Games
 
       source_username = find_game_username_for_slug(contact, source_slug)
       unless source_username
-        return { reply: "what's your #{source_ag.game.name} username? need it to cash out and transfer.", labels: ['transfer-needs-username'] }
+        # R1 - no username on the source game means they never played it here.
+        return { reply: "looks like you haven't played #{source_ag.game.name} with us yet - nothing there to move.", labels: ['transfer-no-source-account'] }
       end
 
       # Feature 3 — velocity guard also gates the transfer's cashout step.
@@ -2355,57 +2361,41 @@ module Games
 
       requested_total = targets.sum { |t| t[:amount].to_f }
 
-      # STEP 3 — THE FORK. Cashout minimum comes from the source game's GameRule,
-      # the SAME field handle_cashout_intent uses (cashout_min_amount, default 10).
-      source_rules = game_rules_for(source_slug)
-      cashout_min = (source_rules&.cashout_min_amount || 10).to_f
-
-      if balance >= cashout_min
-        # Winnings are cashable — NORMAL CASHOUT of the requested amount.
-        if requested_total <= 0
-          return { reply: "how much do you want to move off #{source_ag.game.name}?", labels: ['transfer-needs-amount'] }
+      # R1 (June 10) - the transfer_mode decides the moveable cap:
+      #   whole        -> full current balance
+      #   deposit_only -> most recent real deposit, capped by current balance
+      #   off          -> declined at the top of the handler
+      # Requested more than moveable -> move NOTHING, state the real numbers.
+      # The transfer itself stays a normal cashout + normal load; the velocity,
+      # dedup, approval-gate and credential-cap guards still apply on both legs.
+      mode = transfer_mode_pref
+      if mode == 'deposit_only'
+        deposit_amount = original_deposit_on_source(source_slug)
+        if deposit_amount <= 0
+          return { reply: "i don't see a deposit on #{source_ag.game.name} to move - a teammate will take a look.", labels: %w[cashier-action-needed transfer] }
         end
-        # STEP 6 — over-amount guard: never move more than the balance.
-        if requested_total > balance + 0.001
-          return { reply: "you've got $#{fmt_amt(balance)} on #{source_ag.game.name}, that's short of the $#{fmt_amt(requested_total)} you wanted to load.", labels: ['transfer-short'] }
-        end
-        source_amount = requested_total
-        fork = 'normal_cashout'
+        # MONEY-SAFETY CAP: never move more than the current balance, ever.
+        moveable = [deposit_amount, balance].min
+        fork = 'deposit_only'
       else
-        # Winnings too small to cash out — move per transfer_mode preference.
-        mode = transfer_mode_pref
-        if mode == 'deposit_only'
-          deposit_amount = original_deposit_on_source(source_slug)
-          if deposit_amount <= 0
-            return { reply: "your #{source_ag.game.name} winnings are below the cashout minimum and i don't see an original deposit to move — a teammate will take a look.", labels: %w[cashier-action-needed transfer] }
-          end
-
-          # Reuse the balance already read at STEP 2 — do NOT call check_player_balance again.
-          if balance >= deposit_amount
-            source_amount = deposit_amount
-          elsif transfer_deposit_shortfall_mode == 'refuse'
-            # Current balance is below their original deposit — refuse and flag.
-            safe_telegram do
-              Games::TelegramNotifier.human_escalation(
-                account: account, contact: contact,
-                reason: "DEPOSIT-ONLY SHORTFALL (refuse): #{contact&.name} has $#{fmt_amt(balance)} on #{source_ag.game.name}, less than $#{fmt_amt(deposit_amount)} deposit — not transferred.",
-                conversation: conversation
-              )
-            end
-            return { reply: "you've got $#{fmt_amt(balance)} on #{source_ag.game.name}, less than your $#{fmt_amt(deposit_amount)} deposit — want me to flag it for a teammate?", labels: %w[transfer-deposit-shortfall needs-human] }
-          else
-            # 'transfer_available' — move only what they actually have.
-            source_amount = balance
-          end
-
-          # MONEY-SAFETY CAP: never move more than the current balance, ever.
-          source_amount = [source_amount, balance].min
-          fork = 'below_min_deposit_only'
-        else
-          source_amount = balance
-          fork = 'below_min_whole'
-        end
+        moveable = balance
+        fork = 'whole_balance'
       end
+
+      if requested_total <= 0
+        return { reply: "how much do you want to move off #{source_ag.game.name}?", labels: ['transfer-needs-amount'] }
+      end
+
+      if requested_total > moveable + 0.001
+        reply = if fork == 'deposit_only'
+                  "you've got $#{fmt_amt(balance)} on #{source_ag.game.name} and your last deposit was $#{fmt_amt(deposit_amount)} - i can move up to $#{fmt_amt(moveable)}, that's short of the $#{fmt_amt(requested_total)} you wanted."
+                else
+                  "you've got $#{fmt_amt(balance)} on #{source_ag.game.name}, that's short of the $#{fmt_amt(requested_total)} you wanted to load."
+                end
+        return { reply: reply, labels: ['transfer-short'] }
+      end
+
+      source_amount = requested_total
 
       # Dedup guard (Finding-2): a rapid identical cashout (same game + amount) within the
       # window is a double-send — skip BOTH the cashout AND the downstream load.
@@ -2486,15 +2476,27 @@ module Games
 
       store_pending_transfer_create(pending_create[:slug], pending_create[:amount]) if pending_create
 
-      # STEP 5 — ALWAYS report the real state to Telegram.
-      report = "TRANSFER (#{fork}) — Cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name}."
-      report += " Loaded: #{loaded.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} OK" }.join(', ')}." if loaded.any?
-      report += " FAILED: #{failed.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} (#{x[:reason]})" }.join(', ')}." if failed.any?
-      report += if remaining > 0.001
-                  " Remaining: $#{fmt_amt(remaining)} — cashed out, tell player to request it."
-                else
-                  ' Remaining: $0 — fully loaded.'
-                end
+      # STEP 5 - ALWAYS report the real state to Telegram. Half-fails (cashout OK,
+      # load failed) use the R8 full-context format so the human sees the whole
+      # situation at a glance; clean completions keep the compact one-liner.
+      if failed.any?
+        loaded_txt = loaded.any? ? "; loaded #{loaded.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} OK" }.join(', ')}" : ''
+        report = escalation_context(
+          wants: "move $#{fmt_amt(requested_total)} off #{source_ag.game.name}",
+          done: "cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name} (#{fork})#{loaded_txt}",
+          left: "FAILED: #{failed.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} (#{x[:reason]})" }.join(', ')}. Remaining: $#{fmt_amt(remaining)} cashed out and NOT loaded - money is safe, not lost",
+          suggest: 'asked the player: load it on another game, or take the money?',
+          need: 'finish the failed load or pay the player out, then confirm in chat'
+        )
+      else
+        report = "TRANSFER (#{fork}) - Cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name}."
+        report += " Loaded: #{loaded.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} OK" }.join(', ')}." if loaded.any?
+        report += if remaining > 0.001
+                    " Remaining: $#{fmt_amt(remaining)} - cashed out, tell player to request it."
+                  else
+                    ' Remaining: $0 - fully loaded.'
+                  end
+      end
       safe_telegram do
         Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: report, conversation: conversation)
       end
@@ -2519,14 +2521,16 @@ module Games
         if pending_create
           reply += " you're not on #{slug_label(pending_create[:slug])} yet — want me to set you up?"
         elsif failed.any?
-          reply += " couldn't get #{failed.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')} through — a teammate's on it."
-          reply += " you've got $#{fmt_amt(remaining)} left over, i'll have it ready for you." if remaining > 0.001
+          # R1 half-fail - the cashed-out money is never lost: offer the choice.
+          reply += " couldn't get #{failed.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(', ')} through - your money's safe."
+          reply += " want me to load it on another game, or take the money?" if remaining > 0.001
         end
         labels = (failed.any? || pending_create) ? ['transfer-partial', 'needs-human'] : ['transfer-complete']
         return { reply: reply, labels: labels }
       end
 
-      { reply: "cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name} but couldn't load the games just now — flagged a teammate, they'll finish your transfer in a couple minutes.", labels: ['transfer-failed', 'needs-human'] }
+      # R1 half-fail - cashout landed, no load did. Money is safe; offer the choice.
+      { reply: "cashed out $#{fmt_amt(source_amount)} from #{source_ag.game.name} but couldn't load it just now - your money's safe. want me to load it on another game, or take the money?", labels: ['transfer-failed', 'needs-human'] }
     end
 
     def escalate_transfer_unclear(_plan)
@@ -2648,12 +2652,19 @@ module Games
       false
     end
 
+    # R1 (June 10) - modes: 'off' | 'deposit_only' | 'whole'. Read order:
+    # reply_preferences.transfer_mode -> account.custom_attributes['transfer_mode']
+    # -> 'deposit_only' (operator-confirmed default). Existing rows that carry the
+    # old column default 'whole' keep whole-balance transfers (see log D2).
     def transfer_mode_pref
       pref = reply_pref_cached
-      return 'whole' unless pref.respond_to?(:transfer_mode)
-      (pref.transfer_mode.presence || 'whole').to_s
+      v = pref.respond_to?(:transfer_mode) ? pref.transfer_mode.to_s.strip.downcase : ''
+      return v if %w[off deposit_only whole].include?(v)
+      ca = (account.custom_attributes || {})['transfer_mode'].to_s.strip.downcase
+      return ca if %w[off deposit_only whole].include?(ca)
+      'deposit_only'
     rescue StandardError
-      'whole'
+      'deposit_only'
     end
 
     def transfer_deposit_shortfall_mode

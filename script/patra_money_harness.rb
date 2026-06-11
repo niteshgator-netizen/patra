@@ -121,6 +121,11 @@ snap = { fc: ag.failure_count, lfa: ag.last_failure_at, lua: ag.last_used_at, st
 
 contact = Contact.create!(account: account, name: 'HARNESS_TEST_CONTACT')
 
+# MONEYFLOWS R1 fixture (assertions unchanged - see PATRA_MONEYFLOWS_LOG.md D6):
+# scenarios pin transfer_mode per scenario; the saved value is restored in ensure.
+pref_row = ReplyPreference.for_account(account.id)
+r1_saved_mode = pref_row.transfer_mode
+
 # Re-establish per-scenario state. MUST run before EACH handler scenario because:
 #   (1) handle_new_account_reissue clears stored credentials, so later handlers would
 #       otherwise bail with "no username on file";
@@ -258,6 +263,9 @@ begin
   # ───────────────────────── ORCHESTRATOR: transfer ──────────────────────────
   if t_src && t_tgt && t_src != t_tgt
     puts "\n[handle_transfer_between_games]  (src=#{t_src}, tgt=#{t_tgt})"
+    # MONEYFLOWS R1 fixture pin (assertions unchanged): these legacy scenarios have
+    # zero deposit history and were written for whole-balance transfer semantics.
+    pref_row.update!(transfer_mode: 'whole')
     plan = %({"source_game":"#{t_src}","cashout_amount":50,"loads":[{"game":"#{t_tgt}","amount":50}]})
     msgs = [{ 'role' => 'user', 'content' => "transfer 50 from #{t_src} to #{t_tgt}" }]
 
@@ -522,6 +530,77 @@ begin
   ok!('R8 helper omits empty sections (no dangling labels)',
       r8_min == 'PLAYER WANTS: load $20')
 
+  puts "\n[R1 transfer modes]  (off / deposit_only / whole, June 10 rules)"
+  if t_src && t_tgt && t_src != t_tgt
+    t_src_ag = actives.find { |a| a.game.slug == t_src }
+    r1_plan = %({"source_game":"#{t_src}","cashout_amount":30,"loads":[{"game":"#{t_tgt}","amount":30}]})
+    r1_msgs = [{ 'role' => 'user', 'content' => "move 30 from #{t_src} to #{t_tgt}" }]
+    mk_dep = lambda do |amt, oid|
+      GameAction.create!(account_id: account.id, agent_game_id: t_src_ag.id, contact_id: contact.id,
+                         action_type: 'load', order_id: oid, game_username: 'harnessuser1',
+                         amount: amt, status: 'success', metadata: {}, executed_at: Time.current)
+    end
+
+    # OFF -> decline before any panel call
+    pref_row.update!(transfer_mode: 'off')
+    reset_run(balance: 100.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = r1_plan
+    r = orch(account, contact, r1_msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!('R1 OFF => declined, no withdraw/recharge', !$FAKE.called?(:withdraw) && !$FAKE.called?(:recharge))
+    ok!('R1 OFF => reply says transfers are off', r[:reply].to_s.match?(/don't do .*transfers/i))
+
+    # DEPOSIT_ONLY happy: last deposit 30, balance 100, request 30 -> moves exactly 30
+    pref_row.update!(transfer_mode: 'deposit_only')
+    reset_run(balance: 100.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = r1_plan
+    mk_dep.call(30, 'HARNESS_R1_DEP1')
+    r = orch(account, contact, r1_msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    r1_wd = $FAKE.calls.find { |c| c[0] == :withdraw }
+    ok!('R1 DEPOSIT_ONLY request==deposit => cashes out exactly the deposit ($30)', r1_wd && r1_wd[1].to_f == 30.0)
+    ok!('R1 DEPOSIT_ONLY request==deposit => target load happened', $FAKE.called?(:recharge))
+
+    # DEPOSIT_ONLY over-ask: deposit 30, balance 100, request 50 -> move NOTHING + real numbers
+    pref_row.update!(transfer_mode: 'deposit_only')
+    reset_run(balance: 100.0); prime_contact!(contact, [t_src, t_tgt])
+    $DEEPSEEK = %({"source_game":"#{t_src}","cashout_amount":50,"loads":[{"game":"#{t_tgt}","amount":50}]})
+    mk_dep.call(30, 'HARNESS_R1_DEP2')
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => "move 50 from #{t_src} to #{t_tgt}" }])
+          .send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!('R1 DEPOSIT_ONLY over-ask => moves NOTHING', !$FAKE.called?(:withdraw) && !$FAKE.called?(:recharge))
+    ok!('R1 DEPOSIT_ONLY over-ask => states the real balance ($100)', r[:reply].to_s.include?('100'))
+
+    # DEPOSIT_ONLY capped by balance: deposit 30 but only 20 left -> request 30 moves NOTHING
+    pref_row.update!(transfer_mode: 'deposit_only')
+    reset_run(balance: 20.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = r1_plan
+    mk_dep.call(30, 'HARNESS_R1_DEP3')
+    r = orch(account, contact, r1_msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!('R1 DEPOSIT_ONLY deposit>balance => moveable capped at balance, over-ask moves NOTHING', !$FAKE.called?(:withdraw))
+    ok!('R1 DEPOSIT_ONLY deposit>balance => states the real balance ($20)', r[:reply].to_s.include?('20'))
+
+    # WHOLE: zero deposit history but balance 100 -> request 30 moves 30
+    pref_row.update!(transfer_mode: 'whole')
+    reset_run(balance: 100.0); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = r1_plan
+    r = orch(account, contact, r1_msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!('R1 WHOLE => full balance moveable, $30 request goes through', $FAKE.called?(:withdraw) && $FAKE.called?(:recharge))
+
+    # NO USERNAME on source -> "haven't played that game with us"
+    pref_row.update!(transfer_mode: 'whole')
+    reset_run(balance: 100.0); prime_contact!(contact, [t_tgt]); $DEEPSEEK = r1_plan
+    r = orch(account, contact, r1_msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!("R1 NO SOURCE USERNAME => haven't-played reply + no money moved",
+        r[:reply].to_s.match?(/haven't played/i) && !$FAKE.called?(:withdraw))
+
+    # HALF-FAIL: cashout OK, load FAIL -> offer + R8 telegram with Remaining
+    pref_row.update!(transfer_mode: 'whole')
+    reset_run(balance: 100.0, fail_recharge: true); prime_contact!(contact, [t_src, t_tgt]); $DEEPSEEK = r1_plan
+    r = orch(account, contact, r1_msgs).send(:handle_transfer_between_games, { intent: :transfer_between_games })
+    ok!('R1 HALF-FAIL => reply offers another game or take the money',
+        r[:reply].to_s.match?(/another game, or take the money/i))
+    ok!('R1 HALF-FAIL => telegram carries R8 full context + Remaining',
+        tg?('NEEDS FROM HUMAN') && tg?('Remaining'))
+    pref_row.update!(transfer_mode: r1_saved_mode)
+  else
+    puts '  SKIPPED - need 2 self-resolving active agent_games'
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
@@ -548,6 +627,14 @@ ensure
     puts '[cleanup] deleted throwaway contact'
   rescue StandardError => e
     puts "[cleanup] contact delete failed: #{e.class}: #{e.message}"
+  end
+  begin
+    if defined?(pref_row) && pref_row && pref_row.transfer_mode != r1_saved_mode
+      pref_row.update!(transfer_mode: r1_saved_mode)
+      puts '[cleanup] restored reply_preference transfer_mode'
+    end
+  rescue StandardError => e
+    puts "[cleanup] transfer_mode restore failed: #{e.class}: #{e.message}"
   end
   restore_stubs
   puts '[cleanup] restored stubs'

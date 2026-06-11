@@ -6,7 +6,7 @@ class ReplyPreference < ApplicationRecord
   validates :account_id, uniqueness: true
   validates :reply_tone, inclusion: { in: %w[casual professional minimal] }
   # Money-flow forks read these — an unknown value silently changes transfer behavior.
-  validates :transfer_mode, inclusion: { in: %w[whole deposit_only] }, allow_nil: true
+  validates :transfer_mode, inclusion: { in: %w[off whole deposit_only] }, allow_nil: true
   validates :transfer_deposit_shortfall_mode, inclusion: { in: %w[transfer_available refuse] }, allow_nil: true
   validates :max_reply_lines, numericality: { greater_than: 0, less_than_or_equal_to: 10 }
   validates :rag_example_count, numericality: { greater_than: 0, less_than_or_equal_to: 10 }
