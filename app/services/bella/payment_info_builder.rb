@@ -13,8 +13,10 @@
 #   usable = status 'active' AND not in_cooldown?
 #   best   = lowest [failure_count, priority]
 #
-# Pure read-only. Fails CLOSED: any error -> nil. Avoids ActiveSupport and
-# AR query methods on purpose so it stays pure-Ruby testable with fake rows.
+# Fails CLOSED: any error -> nil. Avoids ActiveSupport and AR query methods
+# on purpose so it stays pure-Ruby testable with fake rows. One deliberate
+# write exists (MEGA2 P13): stale failure_counts decay lazily on this read
+# path - see decay_stale_failures!.
 module Bella
   class PaymentInfoBuilder
     # Fixed display order for the all-platforms one-liner (matches
@@ -26,6 +28,7 @@ module Bella
       return nil if account.nil? || !account.respond_to?(:payment_handles)
 
       handles = account.payment_handles.to_a
+      decay_stale_failures!(account, handles)
       plat = platform.to_s.strip.downcase
 
       if !plat.empty?
@@ -77,6 +80,40 @@ module Bella
       nil
     end
 
-    private_class_method :best_handle, :display_of, :safe_log_warn
+    # MEGA2 P13 - failure_count decay: a handle whose last_failure_at is older
+    # than handle_decay_days (account custom_attributes, default 7; 0 disables)
+    # gets failure_count reset to 0, lazily on this read path (no new cron) -
+    # so a good handle stops rotting at the bottom forever (sofiamann8 case).
+    # Handles with failures but NO last_failure_at are left alone (undatable).
+    # Each decay is logged. Never raises.
+    def self.decay_stale_failures!(account, handles)
+      days = decay_days(account)
+      return if days <= 0
+
+      cutoff = Time.now.utc - (days * 86_400)
+      Array(handles).each do |h|
+        next unless h.respond_to?(:failure_count) && h.respond_to?(:last_failure_at) && h.respond_to?(:update)
+        next unless h.failure_count.to_i.positive?
+        next if h.last_failure_at.nil? || h.last_failure_at > cutoff
+
+        old = h.failure_count.to_i
+        h.update(failure_count: 0)
+        safe_log_warn("[PaymentInfoBuilder] decayed failure_count #{old} -> 0 for handle ##{h.respond_to?(:id) ? h.id : '?'} (last failure #{h.last_failure_at}, decay #{days}d)")
+      end
+    rescue StandardError => e
+      safe_log_warn("[PaymentInfoBuilder] decay failed: #{e.class}: #{e.message}")
+    end
+
+    def self.decay_days(account)
+      attrs = account.respond_to?(:custom_attributes) ? (account.custom_attributes || {}) : {}
+      v = attrs['handle_decay_days']
+      return 7 if v.nil? || v.to_s.strip.empty?
+
+      Integer(v.to_s.strip, exception: false) || 7
+    rescue StandardError
+      7
+    end
+
+    private_class_method :best_handle, :display_of, :safe_log_warn, :decay_stale_failures!, :decay_days
   end
 end
