@@ -1484,6 +1484,114 @@ begin
   ok!('G4 duplicate-payment hold => held with full context (DUPLICATE PAYMENT + NEEDS FROM HUMAN)',
       !$FAKE.called?(:recharge) && tg?('DUPLICATE PAYMENT') && tg?('NEEDS FROM HUMAN'))
 
+  # ==================== BULLETPROOF RUN (BP-F1..F4, 2026-06-11) ===============
+  # Locks in the E1-E3 live-bug fixes: tag-not-name failover + rotation alert,
+  # garbled-pick tolerance, stored-platform reuse, menu-once guard.
+  puts "\n[BP-F1 text-failover sends TAG not person name + HANDLE FAILED telegram]"
+  bp_cashapp = account.payment_handles.where(platform: 'cashapp', status: 'active').order(:priority).to_a
+  bp_ph_snaps = account.payment_handles.to_a.to_h do |h|
+    [h.id, { fc: h.failure_count, lfa: h.last_failure_at, cu: h.cooldown_until, status: h.status }]
+  end
+  if bp_cashapp.size < 2
+    puts '  SKIPPED - need >=2 active cashapp handles on account 2'
+  else
+    begin
+      reset_run
+      bp1_primary = bp_cashapp.first
+      bp1_backup = Payments::HandleSelector.new(account: account, platform: 'cashapp').pick_backup(bp1_primary)
+      bp1_svc = Ai::ReplyService.new(0, account_id: account.id)
+      # No real conversation behind display_id 0: neutralize the two HTTP
+      # helpers the failover path touches (same pattern as the replay smoke).
+      def bp1_svc.fetch_sender_contact_id; nil; end
+      def bp1_svc.add_conversation_labels!(_labels); nil; end
+      bp1_msgs = [
+        { 'role' => 'assistant', 'content' => "send it to #{bp1_primary.display_handle} for the load" },
+        { 'role' => 'user', 'content' => 'it failed, send me another one' }
+      ]
+      bp1_reply = bp1_svc.send(:maybe_reply_for_text_payment_failure, bp1_msgs)
+      ok!('BP-F1 failover reply produced', bp1_reply.to_s.strip.length.positive?)
+      ok!('BP-F1 reply carries the backup display_handle (the TAG)',
+          bp1_backup && bp1_reply.to_s.include?(bp1_backup.display_handle))
+      bp1_names = account.payment_handles.map { |h| h.try(:display_name).to_s.strip }.select { |n| n.length >= 5 }
+      ok!('BP-F1 reply contains NO configured display_name (person name)',
+          bp1_names.none? { |n| bp1_reply.to_s.downcase.include?(n.downcase) })
+      ok!('BP-F1 HANDLE FAILED rotation telegram captured', tg?('PAYMENT HANDLE FAILED'))
+    ensure
+      begin
+        bp_ph_snaps.each do |id, s|
+          h = PaymentHandle.find_by(id: id)
+          h&.update_columns(failure_count: s[:fc], last_failure_at: s[:lfa],
+                            cooldown_until: s[:cu], status: s[:status])
+        end
+        puts '[cleanup] restored payment_handle failure counters (BP-F1)'
+      rescue StandardError => e
+        puts "[cleanup] BP-F1 payment_handle restore failed: #{e.class}: #{e.message}"
+      end
+    end
+  end
+
+  puts "\n[BP-F2 garbled pick routes to the tag, never the menu]"
+  reset_run; prime_contact!(contact, [src_slug])
+  bp2_intent = Games::IntentDetector.detect('Ok i wannna use cash app')
+  ok!('BP-F2 "wannna use cash app" -> payment_method_chosen/cashapp',
+      bp2_intent.is_a?(Hash) && bp2_intent[:intent] == :payment_method_chosen && bp2_intent[:platform] == 'cashapp')
+  bp2_top = begin
+    PaymentHandle.where(account_id: account.id, platform: 'cashapp', status: 'active').order(:priority).first
+  rescue StandardError
+    nil
+  end
+  if bp2_top
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'Ok i wannna use cash app' }])
+          .send(:handle_payment_method_chosen, bp2_intent)
+    ok!('BP-F2 reply carries the cashapp tag', r[:reply].to_s.include?(bp2_top.display_handle))
+    ok!('BP-F2 reply is NOT the menu', !r[:reply].to_s.include?('which one you wanna use'))
+  else
+    puts '  BP-F2 orchestrator half SKIPPED - no active cashapp handle'
+  end
+
+  puts "\n[BP-F3 assertive / scoped-negation pick parsing]"
+  bp3_a = Games::IntentDetector.detect('i asked cash app')
+  ok!('BP-F3 "i asked cash app" -> cashapp pick',
+      bp3_a.is_a?(Hash) && bp3_a[:intent] == :payment_method_chosen && bp3_a[:platform] == 'cashapp')
+  bp3_b = Games::IntentDetector.detect('I said cash app right?')
+  ok!('BP-F3 "I said cash app right?" -> cashapp pick (trailing ? allowed when assertive)',
+      bp3_b.is_a?(Hash) && bp3_b[:intent] == :payment_method_chosen && bp3_b[:platform] == 'cashapp')
+  bp3_c = Games::IntentDetector.detect('i never said cashapp i want venmo')
+  ok!('BP-F3 "i never said cashapp i want venmo" -> venmo pick (scoped negation)',
+      bp3_c.is_a?(Hash) && bp3_c[:intent] == :payment_method_chosen && bp3_c[:platform] == 'venmo')
+  bp3_d = Games::IntentDetector.detect('i dont want cashapp')
+  ok!('BP-F3 plain negation still wins (no pick)',
+      !(bp3_d.is_a?(Hash) && bp3_d[:intent] == :payment_method_chosen))
+  bp3_e = Games::IntentDetector.detect('i told you cashapp failed')
+  ok!('BP-F3 failure report about a platform is NOT a pick (failover owns it)',
+      !(bp3_e.is_a?(Hash) && bp3_e[:intent] == :payment_method_chosen))
+
+  puts "\n[BP-F4 stored platform beats menu; menu sent at most once per conversation]"
+  if bp2_top.nil?
+    puts '  SKIPPED - no active cashapp handle'
+  else
+    # stored platform + later garble -> tag reuse, not menu
+    reset_run; prime_contact!(contact, [src_slug])
+    bp4_convo = new_harness_conversation(account, contact)
+    orch(account, contact, [], convo: bp4_convo)
+      .send(:store_expected_payment_handle!, platform: 'cashapp', handle: bp2_top.display_handle)
+    r = orch(account, contact, [], convo: bp4_convo).send(:payment_menu_or_stored_reply)
+    ok!('BP-F4 stored platform -> tag reply, not the menu',
+        r[:reply].to_s.include?(bp2_top.display_handle) && !r[:reply].to_s.include?('which one you wanna use'))
+
+    # no stored platform: menu fires exactly once, second ask escalates
+    reset_run
+    bp4b_convo = new_harness_conversation(account, contact)
+    r1 = orch(account, contact, [], convo: bp4b_convo).send(:payment_menu_or_stored_reply)
+    r2 = orch(account, contact, [], convo: bp4b_convo).send(:payment_menu_or_stored_reply)
+    ok!('BP-F4 first ask -> the menu (or single-handle fallback)',
+        r1[:reply].to_s.match?(/which one you wanna use|send your deposit/i))
+    ok!('BP-F4 second ask -> menu NOT repeated', !r2[:reply].to_s.match?(/which one you wanna use/i))
+    ok!('BP-F4 second ask -> needs-human + payment-menu-loop labels',
+        Array(r2[:labels]).include?('needs-human') && Array(r2[:labels]).include?('payment-menu-loop'))
+    ok!('BP-F4 second ask -> 5-part escalation telegram captured', tg?('NEEDS FROM HUMAN'))
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
