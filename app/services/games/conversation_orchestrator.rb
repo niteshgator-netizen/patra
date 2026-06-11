@@ -3978,25 +3978,101 @@ module Games
       "#{items[0..-2].join(', ')}, and #{items.last}"
     end
 
+    # G3 (June 10) - referral on the shared generosity pattern. referral_enabled
+    # (the BUG-4 master switch, default OFF) keeps the existing auto-pay path
+    # when ON. OFF = launch default: full case to Telegram + pending
+    # ApprovalRequest; approval pays the referrer through the normal load path
+    # (Approvals::AutoResume load branch).
     def handle_referral(intent)
-      # Create referral record for tracking + future bonus payout
-      begin
-        Games::ReferralBonusService.create(
-          account: account,
-          referrer_contact: contact
-        )
+      referral = begin
+        Games::ReferralBonusService.create(account: account, referrer_contact: contact)
       rescue StandardError => e
         Rails.logger.error("[Orchestrator] ReferralBonusService failed: #{e.message}")
+        nil
       end
+
+      pref = reply_pref_cached
+      if pref.respond_to?(:referral_enabled) && pref.referral_enabled
+        # Configured ON: the BUG-4 auto-pay path fires from link_referred once
+        # the referred player is linked (and deposits, if required). Just ack.
+        return { reply: "thanks for the referral! i've noted it - your bonus hits as soon as your friend gets going", labels: ['referral-pending'] }
+      end
+
+      escalate_referral_claim(referral)
+    end
+
+    # G3 - reward math: 'fixed' -> referral_fixed_amount; 'percent_of_deposit'
+    # (default) -> referral_percent (default 10) of the referred player's most
+    # recent real deposit. 0 = reward TBD (no deposit yet / below the minimum).
+    def referral_reward_amount(referred_contact)
+      mode = (generosity_setting('referral_reward_mode').presence || 'percent_of_deposit').to_s.strip
+      return generosity_setting('referral_fixed_amount').to_f.round(2) if mode == 'fixed'
+
+      pct = generosity_setting('referral_percent').to_f
+      pct = 10.0 unless pct.positive?
+      return 0.0 unless referred_contact
+
+      dep = GameAction.where(account_id: account.id, contact_id: referred_contact.id,
+                             action_type: 'load', status: 'success')
+                      .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+                      .order(created_at: :desc).first&.amount.to_f
+      min_dep = generosity_setting('referral_min_deposit').to_f
+      return 0.0 if min_dep.positive? && dep < min_dep
+
+      (dep * pct / 100.0).round(2)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] referral_reward_amount failed: #{e.message}")
+      0.0
+    end
+
+    # First active agent_game the contact actually has a username on.
+    def primary_agent_game_for_contact
+      attrs = contact.custom_attributes || {}
+      account.agent_games.where(status: 'active').includes(:game).to_a
+             .find { |a| attrs["game_username_#{a.game.slug}"].present? }
+    rescue StandardError
+      nil
+    end
+
+    # G3a OFF (launch default) - full case + pending approval; approve pays A.
+    def escalate_referral_claim(referral)
+      if recent_generosity_rejection?('bella_referral')
+        log_generosity_decision(kind: 'referral', decision: 'denied', amount: 0, source: 'operator_reject')
+        return { reply: "can't pay that referral right now - a teammate already looked at it", labels: ['referral-denied'] }
+      end
+
+      referred = referral&.referred_contact
+      reward = referral_reward_amount(referred)
+      mode = (generosity_setting('referral_reward_mode').presence || 'percent_of_deposit').to_s
+      pay_ag = primary_agent_game_for_contact
+      pay_slug = pay_ag&.game&.slug
+      username = pay_slug ? (contact.custom_attributes || {})["game_username_#{pay_slug}"] : nil
+      data = generosity_case_data(pay_slug)
+      referred_txt = referred ? "#{referred.name} (linked)" : 'not linked yet'
+      reward_txt = reward.positive? ? "$#{fmt_amt(reward)} (#{mode})" : "TBD (#{mode} - referred player hasn't deposited yet)"
+
+      approval = create_pending_generosity_approval(
+        source: 'bella_referral', amount: reward, game_slug: pay_slug.to_s,
+        username: username,
+        extra: { 'referral' => 'true', 'referral_id' => referral&.id.to_s,
+                 'reward_pending_referred_deposit' => (reward.positive? ? 'false' : 'true') }
+      )
 
       safe_telegram do
         Games::TelegramNotifier.human_escalation(
-          account: account,
-          contact: contact,
-          reason: 'Customer made a referral — verify and apply referral bonus if applicable'
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "referral reward - #{contact.name} referred #{referred ? referred.name : 'a friend (not linked yet)'}",
+            done: "case: referrer lifetime deposits $#{fmt_amt(data[:total_deposits])} (#{data[:deposit_count]}); referred: #{referred_txt}; reward if approved: #{reward_txt}",
+            left: 'no reward paid - referrals are operator-approved right now (referral_enabled off)',
+            suggest: reward.positive? ? "approve the $#{fmt_amt(reward)} reward" : 'wait for the referred player to deposit, or set referral_fixed_amount',
+            need: "approve or decline the referral reward for #{contact.name}"
+          ),
+          conversation: conversation
         )
       end
-      { reply: "thanks so much for the referral! i've noted it and someone will follow up with you shortly", labels: ['referral-pending'] }
+      log_generosity_decision(kind: 'referral', decision: 'escalated', amount: reward, source: 'default_master_off')
+      { reply: "thanks for the referral! i've flagged it - your reward lands once a teammate confirms it", labels: %w[referral-pending needs-human] }
     end
 
     def handle_redeem_partial_replay(intent)

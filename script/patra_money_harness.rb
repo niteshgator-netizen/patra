@@ -1243,6 +1243,77 @@ begin
     end
   end
 
+  puts "\n[G3 referral generosity pattern]  (master switch OFF escalates; approve pays A)"
+  g3_saved_enabled = pref_row.respond_to?(:referral_enabled) ? pref_row.referral_enabled : nil
+  pref_row.update!(referral_enabled: false) if pref_row.respond_to?(:referral_enabled)
+  g3_keys = %w[referral_reward_mode referral_fixed_amount referral_percent referral_min_deposit]
+  g3_set = lambda do |h|
+    base = (account.custom_attributes || {}).reject { |k, _| g3_keys.include?(k.to_s) }
+    account.update!(custom_attributes: base.merge(h))
+  end
+  g3_flag_saved = ENV['PATRA_APPROVAL_AUTORESUME']
+  g3_referred = Contact.create!(account: account, name: 'HARNESS_REFERRED_CONTACT')
+  g3_approvals = ApprovalRequest.where(account_id: account.id, action_type: 'load')
+                                .where("metadata->>'source' = 'bella_referral'")
+  begin
+    # percent math: 10% (default) of the referred player's $50 deposit = $5
+    g3_set.call({})
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: g3_referred.id,
+                       action_type: 'load', order_id: 'HARNESS_G3_REFDEP', game_username: 'refuser',
+                       amount: 50, status: 'success', metadata: {}, executed_at: Time.current)
+    g3_pct = orch(account, contact, []).send(:referral_reward_amount, g3_referred)
+    ok!('G3 percent mode (default 10%) => $5 on a $50 referred deposit', g3_pct == 5.0)
+
+    # fixed math
+    g3_set.call('referral_reward_mode' => 'fixed', 'referral_fixed_amount' => 7)
+    g3_fixed = orch(account, contact, []).send(:referral_reward_amount, g3_referred)
+    ok!('G3 fixed mode => $7 regardless of deposit', g3_fixed == 7.0)
+
+    # OFF (default) referral claim -> full case + pending approval, no money
+    reset_run; prime_contact!(contact, [src_slug])
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'i referred my cousin, where is my bonus?' }])
+          .send(:handle_referral, { intent: :referral })
+    ok!('G3 OFF => no money moved, pending reply', !$FAKE.called?(:recharge) && Array(r[:labels]).include?('needs-human'))
+    ok!('G3 OFF => case carries who/what/reward', tg?('NEEDS FROM HUMAN') && tg?('reward if approved'))
+    g3_appr = g3_approvals.where(status: 'pending').order(:id).last
+    ok!('G3 OFF => pending ApprovalRequest (source bella_referral, $7 fixed)',
+        g3_appr.present? && g3_appr.amount.to_f == 7.0)
+
+    # operator approve -> pays A once via the normal path, referral metadata flag
+    ENV['PATRA_APPROVAL_AUTORESUME'] = 'true'
+    reset_run
+    g3_appr.update_columns(status: 'approved')
+    res = Approvals::AutoResume.execute!(g3_appr)
+    g3_paid = GameAction.find_by(account_id: account.id, order_id: "appr_#{g3_appr.id}")
+    ok!('G3 approve => referrer paid $7 once via the normal path',
+        res[:ok] == true && $FAKE.calls.count { |c| c[0] == :recharge } == 1)
+    ok!('G3 paid load carries the referral metadata flag',
+        g3_paid && g3_paid.metadata['referral'].to_s == 'true' && g3_paid.amount.to_f == 7.0)
+    ENV.delete('PATRA_APPROVAL_AUTORESUME')
+
+    # G3c - referral-typed last deposit uses default multipliers in R3 typing
+    g3_type = orch(account, contact, []).send(:last_deposit_for_cashout, src_slug)
+    ok!('G3c referral-typed deposit recognized by R3 typing (assert, not rebuilt)',
+        g3_type && g3_type[:type] == 'referral')
+  ensure
+    begin
+      if g3_flag_saved.nil?
+        ENV.delete('PATRA_APPROVAL_AUTORESUME')
+      else
+        ENV['PATRA_APPROVAL_AUTORESUME'] = g3_flag_saved
+      end
+      g3_set.call({})
+      g3_approvals.delete_all
+      pref_row.update!(referral_enabled: g3_saved_enabled) if pref_row.respond_to?(:referral_enabled) && !g3_saved_enabled.nil?
+      Referral.where(account_id: account.id, referrer_contact_id: contact.id).destroy_all
+      GameAction.where(contact_id: g3_referred.id).delete_all
+      g3_referred.destroy
+      puts '[cleanup] restored G3 fixtures (flag, approvals, pref, referrals, referred contact)'
+    rescue StandardError => e
+      puts "[cleanup] G3 restore failed: #{e.class}: #{e.message}"
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
