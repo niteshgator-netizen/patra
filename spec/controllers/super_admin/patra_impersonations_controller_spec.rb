@@ -73,13 +73,20 @@ RSpec.describe 'Super Admin Patra impersonation', type: :request do
       expect(PatraAdminAuditLog.last.attributes.to_json).not_to include(token)
     end
 
+    # SuperAdmin controllers don't include RequestExceptionHandler, and the
+    # test env runs with action_dispatch.show_exceptions = true (upstream
+    # Chatwoot default), so the RecordInvalid is RENDERED as a 422 response
+    # instead of propagating to the spec. The contract is the same: the
+    # request fails and no impersonation marker is written.
     it 'writes no marker and no start row when the audit insert fails (audit-first contract)' do
       enable_console_actions
       sign_in(super_admin, scope: :super_admin)
       allow(Patra::AdminAudit).to receive(:record).and_raise(ActiveRecord::RecordInvalid)
 
-      expect { start_impersonation }.to raise_error(ActiveRecord::RecordInvalid)
+      start_impersonation
+      expect(response).to have_http_status(:unprocessable_entity)
       expect(session['patra_impersonation']).to be_nil
+      expect(PatraAdminAuditLog.count).to eq(0)
     end
 
     it 'refuses to impersonate a super admin and audits the refusal' do

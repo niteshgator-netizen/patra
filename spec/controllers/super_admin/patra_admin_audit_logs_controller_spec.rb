@@ -38,11 +38,17 @@ RSpec.describe 'Super Admin Patra audit logs', type: :request do
   end
 
   describe 'mutation surface' do
+    # test env runs with action_dispatch.show_exceptions = true (upstream
+    # Chatwoot default), so unmatched routes are RENDERED as 404 responses
+    # instead of raising ActionController::RoutingError in request specs.
     it 'exposes no create/update/destroy routes' do
       sign_in(super_admin, scope: :super_admin)
-      expect { post '/super_admin/patra_admin_audit_logs' }.to raise_error(ActionController::RoutingError)
-      expect { put "/super_admin/patra_admin_audit_logs/#{newer.id}" }.to raise_error(ActionController::RoutingError)
-      expect { delete "/super_admin/patra_admin_audit_logs/#{newer.id}" }.to raise_error(ActionController::RoutingError)
+      post '/super_admin/patra_admin_audit_logs'
+      expect(response).to have_http_status(:not_found)
+      put "/super_admin/patra_admin_audit_logs/#{newer.id}"
+      expect(response).to have_http_status(:not_found)
+      delete "/super_admin/patra_admin_audit_logs/#{newer.id}"
+      expect(response).to have_http_status(:not_found)
     end
   end
 end

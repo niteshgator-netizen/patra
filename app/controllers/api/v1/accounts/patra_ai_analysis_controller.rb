@@ -45,7 +45,7 @@ class Api::V1::Accounts::PatraAiAnalysisController < Api::V1::Accounts::BaseCont
   private
 
   def set_conversation
-    @conversation = Current.account.conversations.find(params[:conversation_id])
+    @conversation = Current.account.conversations.find_by!(display_id: params[:conversation_id])
     authorize @conversation, :show?
   end
 

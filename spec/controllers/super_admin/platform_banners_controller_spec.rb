@@ -6,12 +6,15 @@ RSpec.describe 'Super Admin platform banners (audited)', type: :request do
   let!(:super_admin) { create(:super_admin) }
 
   context 'when not on chatwoot cloud' do
+    # The controller raises ActionController::RoutingError unless cloud, but
+    # the test env runs with action_dispatch.show_exceptions = true (upstream
+    # Chatwoot default), so the error is RENDERED as a 404 response instead of
+    # propagating to the spec.
     it 'is not found (existing gate preserved)' do
       allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(false)
       sign_in(super_admin, scope: :super_admin)
-      expect do
-        get '/super_admin/platform_banners'
-      end.to raise_error(ActionController::RoutingError)
+      get '/super_admin/platform_banners'
+      expect(response).to have_http_status(:not_found)
     end
   end
 
@@ -58,12 +61,16 @@ RSpec.describe 'Super Admin platform banners (audited)', type: :request do
   end
 
   describe 'tenant-side read path (confirms end-to-end banner delivery)' do
+    # Banners are embedded in dashboard#index via ACTIVE_PLATFORM_BANNERS.
+    # GET / in this fork serves the marketing landing page when the
+    # cw_d_session_info cookie is absent (routes.rb constraint), so the
+    # dashboard must be requested via /app.
     it 'exposes active banners in app config only on cloud' do
       allow(ChatwootApp).to receive(:chatwoot_cloud?).and_return(true)
       PlatformBanner.create!(banner_message: 'Visible to tenants', banner_type: 'info', active: true)
       PlatformBanner.create!(banner_message: 'Inactive hidden', banner_type: 'info', active: false)
 
-      get '/'
+      get '/app'
       expect(response.body).to include('Visible to tenants')
       expect(response.body).not_to include('Inactive hidden')
     end

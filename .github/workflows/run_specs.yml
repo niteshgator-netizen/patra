@@ -65,3 +65,9 @@ jobs:
             spec/services/facebook/patra_graph_service_spec.rb \
             spec/jobs/patra_payment_jobs_spec.rb \
             spec/models/patra_models_spec.rb
+      - name: Upload rails test log (request-level failure diagnosis)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rails-test-log
+          path: log/test.log
