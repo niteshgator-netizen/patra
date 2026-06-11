@@ -152,11 +152,33 @@ cg_saved = {}
 end
 pref_row.update!(cg_saved.transform_values { false }) if cg_saved.any?
 
+# MEGA-AUDIT referral pin (whole run; G3 re-pins for its section): account
+# creations in R6/TABA-2 fire link_referred_on_account_creation, which links
+# ANY account-wide pending referral to the throwaway contact (orchestrator
+# :4473-4489 - PROD finding, see PATRA_MEGA_AUDIT_LOG) and, with
+# referral_enabled true, would auto-pay the real referrer through the stubbed
+# panel, leaving GameActions on a REAL contact the cleanup never touches.
+# Pin false; restored in ensure. Referred-side links are unlinked in ensure.
+ref_en_saved = pref_row.respond_to?(:referral_enabled) ? pref_row.referral_enabled : nil
+pref_row.update!(referral_enabled: false) if pref_row.respond_to?(:referral_enabled)
+
 # MONEYFLOWS R7 fixture pin (assertions unchanged - see log D6): the legacy F13
 # scenario loads $999 with the per-agent cap unset; pin the new dollar threshold
 # high so F13 keeps testing the per-agent cap. R7 scenarios set their own values.
 r7_acct_saved = (account.custom_attributes || {}).dup
-account.update!(custom_attributes: r7_acct_saved.merge('auto_load_threshold' => 1_000_000))
+# MEGA-AUDIT: also strip live generosity keys for the run (restored via
+# r7_acct_saved in ensure). compute_auto_bonus / freeplay / referral settings
+# fall through to account custom_attributes; stray live values would silently
+# drift the exact-amount assertions in R2/S1/S3/G1/G3 (e.g. a live
+# bonus_percent turns S3's $30 recharge into $30+x). G2/G3 scenarios set
+# their own values per case.
+GENEROSITY_PIN_KEYS = %w[bonus_percent first_deposit_bonus_percent bonus_min_deposit
+                         freeplay_amount freeplay_daily_limit_per_player signup_bonus_amount
+                         referral_reward_mode referral_percent referral_fixed_amount
+                         referral_min_deposit].freeze
+account.update!(custom_attributes: r7_acct_saved
+  .reject { |k, _| GENEROSITY_PIN_KEYS.include?(k.to_s) }
+  .merge('auto_load_threshold' => 1_000_000))
 
 # Re-establish per-scenario state. MUST run before EACH handler scenario because:
 #   (1) handle_new_account_reissue clears stored credentials, so later handlers would
@@ -1368,10 +1390,16 @@ begin
       tg?('PLAYER WANTS') && tg?('NEEDS FROM HUMAN'))
 
   # migrated site 2: duplicate-payment hold
+  # MEGA-AUDIT timing fix: the prior load must predate the payment's
+  # recorded_at, or payment_already_loaded?'s amount fallback
+  # (orchestrator:2316-2321, created_at >= recorded) filters the payment out
+  # and the dup guard (:423) never fires. 2 minutes keeps it inside the
+  # guard's 10-minute window.
   reset_run; prime_contact!(contact, [src_slug])
   GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
                      action_type: 'load', order_id: 'HARNESS_G4_DUP', game_username: 'harnessuser1',
-                     amount: 25, status: 'success', metadata: {}, executed_at: Time.current)
+                     amount: 25, status: 'success', metadata: {}, executed_at: 2.minutes.ago,
+                     created_at: 2.minutes.ago, updated_at: 2.minutes.ago)
   contact.update!(custom_attributes: contact.custom_attributes.merge(
     'patra_finance_logs' => [{ 'id' => 'HARNESS_G4_PAY', 'status' => 'confirmed', 'amount' => 25,
                                'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
@@ -1412,6 +1440,33 @@ ensure
   rescue StandardError => e
     puts "[cleanup] conversation cleanup failed: #{e.class}: #{e.message}"
   end
+  # MEGA-AUDIT: catch-all for pending ApprovalRequests tied to the throwaway
+  # contact (R7 bella_over_threshold targets Contact; generosity approvals
+  # carry metadata contact_id). The inline deletes in R7/G2 cover the happy
+  # path; this covers a crash between create and delete.
+  begin
+    leaked = ApprovalRequest.where(account_id: account.id, status: 'pending')
+                            .where("metadata->>'contact_id' = ? OR (target_type = 'Contact' AND target_id = ?)",
+                                   contact.id.to_s, contact.id)
+    leaked_n = leaked.count
+    leaked.delete_all if leaked_n.positive?
+    puts "[cleanup] removed #{leaked_n} leaked pending ApprovalRequest(s)" if leaked_n.positive?
+  rescue StandardError => e
+    puts "[cleanup] leaked-approval cleanup failed: #{e.class}: #{e.message}"
+  end
+  # MEGA-AUDIT: unlink any REAL referral that link_referred_on_account_creation
+  # attached to the throwaway contact during R6/TABA-2 creates (orchestrator
+  # :4473-4489 links the newest pending referral to WHOEVER creates an account
+  # next - PROD finding). Reset, don't destroy: the row belongs to real activity.
+  # Must run BEFORE contact.destroy (referrals.referred_contact_id FK).
+  begin
+    hijacked = Referral.where(account_id: account.id, referred_contact_id: contact.id)
+    hijacked_n = hijacked.count
+    hijacked.find_each { |r| r.update_columns(referred_contact_id: nil, status: 'pending') }
+    puts "[cleanup] unlinked #{hijacked_n} real referral(s) from throwaway contact" if hijacked_n.positive?
+  rescue StandardError => e
+    puts "[cleanup] referral unlink failed: #{e.class}: #{e.message}"
+  end
   begin
     contact.destroy
     puts '[cleanup] deleted throwaway contact'
@@ -1439,6 +1494,14 @@ ensure
     end
   rescue StandardError => e
     puts "[cleanup] confirm-gate pref restore failed: #{e.class}: #{e.message}"
+  end
+  begin
+    if defined?(ref_en_saved) && !ref_en_saved.nil? && defined?(pref_row) && pref_row.respond_to?(:referral_enabled)
+      pref_row.update!(referral_enabled: ref_en_saved)
+      puts '[cleanup] restored referral_enabled pref'
+    end
+  rescue StandardError => e
+    puts "[cleanup] referral_enabled restore failed: #{e.class}: #{e.message}"
   end
   begin
     if defined?(Payments::EmailConfirmationService) && Payments::EmailConfirmationService.method_defined?(:orig_check_all_harness)
