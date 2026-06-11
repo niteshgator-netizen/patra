@@ -216,25 +216,50 @@ const seedSweepstakesPack = async () => {
   }
 };
 
+/* Perf pass 2: ONE rAF-coalesced handler frame for spotlight + card glow —
+   the old pair did uncapped per-event style writes plus a layout read
+   (getBoundingClientRect) on every mousemove. Spotlight now moves via
+   compositor-only transform instead of left/top. */
+let fxRaf = null;
+let fxEvent = null;
+let fxCard = null;
+
 const onSpotlightMove = e => {
-  const el = spotlight.value;
-  if (!el) return;
-  el.style.left = `${e.clientX}px`;
-  el.style.top = `${e.clientY}px`;
-  el.style.opacity = '1';
+  fxEvent = e;
+  if (fxRaf) return;
+  fxRaf = requestAnimationFrame(() => {
+    fxRaf = null;
+    const ev = fxEvent;
+    const el = spotlight.value;
+    if (ev && el) {
+      el.style.transform = `translate3d(${ev.clientX}px, ${ev.clientY}px, 0) translate(-50%, -50%)`;
+      el.style.opacity = '1';
+    }
+    if (fxCard && ev) {
+      const rect = fxCard.getBoundingClientRect();
+      fxCard.style.setProperty('--gx', `${ev.clientX - rect.left}px`);
+      fxCard.style.setProperty('--gy', `${ev.clientY - rect.top}px`);
+      fxCard = null;
+    }
+  });
 };
 
 const onSpotlightLeave = () => {
+  // Cancel any pending frame so it can't re-light the spotlight after leave.
+  if (fxRaf) {
+    cancelAnimationFrame(fxRaf);
+    fxRaf = null;
+  }
+  fxEvent = null;
+  fxCard = null;
   const el = spotlight.value;
   if (el) el.style.opacity = '0';
 };
 
 const onCardGlow = e => {
-  const card = e.target.closest('.card');
-  if (!card) return;
-  const rect = card.getBoundingClientRect();
-  card.style.setProperty('--gx', `${e.clientX - rect.left}px`);
-  card.style.setProperty('--gy', `${e.clientY - rect.top}px`);
+  // Capture the card synchronously; the shared rAF in onSpotlightMove
+  // (same mousemove event bubbling) applies the style writes.
+  fxCard = e.target.closest('.card');
 };
 </script>
 
@@ -437,6 +462,10 @@ const onCardGlow = e => {
 
 #spotlight {
   position: fixed;
+  /* Anchor at viewport origin — the JS positions it with transform only. */
+  left: 0;
+  top: 0;
+  will-change: transform;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -468,7 +497,8 @@ const onCardGlow = e => {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  /* Perf pass 2: 100px → 64px blur (radius × area cost cut, same soft look) */
+  filter: blur(64px);
 }
 
 .mesh::before {

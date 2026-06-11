@@ -10,17 +10,19 @@
 
 ## RUN STATUS
 
-| Phase | Status | Commit |
+| Phase | Status | Commit (= rollback point AFTER that phase) |
 |---|---|---|
-| 0 — Double audit | IN PROGRESS | — |
-| 1 — Super admin owner console | pending | — |
-| 2 — Bug fixes | pending | — |
-| 3 — Empty state + theme cleanup | pending | — |
-| 4 — Agent feature pack | pending | — |
-| 5 — Owner analytics pack | pending | — |
-| 6 — Mockup gaps | pending | — |
-| 7 — Typography + de-AI polish | pending | — |
-| 8 — Lag profiling pass 2 | pending | — |
+| 0 — Double audit | DONE | 174def1c3 |
+| 1 — Super admin owner console | DONE | 89f8f6174 |
+| 2 — Bug fixes | DONE | 6a8c73c42 |
+| 3 — Empty state + theme cleanup | DONE | 537315936 |
+| 4 — Agent feature pack | DONE | cb8bc0fac (4a) · 8b7d8bce7 (4b) · cc2c6d679 (4c) · b67d28657 (4d) · ed3abb769 (review fixes) |
+| 5 — Owner analytics pack | DONE | 90663408f |
+| 6 — Mockup gaps | DONE | 0f2ebb0d2 |
+| 7 — Typography + de-AI polish | DONE | 8579454e0 |
+| 8 — Lag profiling pass 2 | DONE | (final commit, see git log) |
+
+Roll back a single phase: `git revert <hash>`. Roll back the whole run: `git reset --hard 665b6985d` (start hash, top of this file).
 
 ---
 
@@ -230,3 +232,52 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 ### 7c. Dead buttons / disabled features found during the sweep
 - FIXED in earlier phases (all were genuinely dead): "Ask Patra AI" (no API call — 2c), Leaderboard rankings (read non-existent fields, always 0 — 5c), Patra overview agent table (same — 5b), Help Center portal (no nav entry, URL-only — 6a).
 - INTENTIONALLY disabled, tabled: patra_operator_console flag toggle (greyed "pending fix" — Phase 1c); brightness pill removed by design (3b). No other dead controls found statically.
+## PHASE 8 — LAG PROFILING PASS 2 (evidence-first; P1/P2 shipped)
+
+### Audit findings (with evidence)
+(a) INFINITE ANIMATIONS + FILTERS: 9 infinite animations in patra-themes.css. Cheap (opacity/transform only — compositor): pip, slaPulse, sparkPulse, patraFloat ×3, patraSpinGlow (rotate), skeleton sweep (loading only). EXPENSIVE: `.patra-mesh-bg::before/::after` — two ~700px always-animating layers with `filter: blur(100px)` (lines 271-300). NOTE found while auditing: the mesh drift `@keyframes meshA` (transform, line 303) is SHADOWED by a later redefinition (opacity-only, line 535) — the mesh accidentally runs the cheap opacity fade instead of its intended transform drift. LEFT ALONE DELIBERATELY (fixing the name collision would make it more expensive).
+(b) NON-COALESCED DOCUMENT LISTENERS: Dashboard.vue:84 had a SECOND global spotlight (#patra-global-spotlight) with the exact pre-P1 pattern — uncapped document mousemove writing left/top (layout-triggering) on a 460px blurred fixed layer, on EVERY pointer move app-wide. This was the single biggest remaining lag source found. 24 document/window listeners total; the rest are balanced add/remove or once-only.
+(c) LAYOUT THRASH: per-event getBoundingClientRect + style writes in 7 mousemove hot paths: ConversationCard.vue (every list-card hover — hottest), GameCard.vue, ContactProfileStats.vue, canned Index.vue (spotlight + card glow), Dashboard.vue (global spotlight), PatraOwnerDashboard.vue (spotlight + 2 closest()+rect reads per event + extra per-card listeners), PatraAiTraining.vue (same).
+(d) VIRTUALIZATION: conversation list already uses a virtual list (ConversationList.vue virtualListRef) — no work needed.
+
+### Fixes shipped (motion language kept everywhere)
+1. All 7 mousemove hot paths rAF-coalesced (≤1 layout read + write batch per frame, was uncapped per event). Spotlights now move via compositor-only translate3d (was left/top), with `left:0; top:0; will-change:transform` anchors (reviewer-caught requirement, matching the P1 App.vue pattern) and pending-frame cancellation on mouseleave (no stuck-lit spotlight).
+2. Per-card duplicate listeners in PatraOwnerDashboard/PatraAiTraining folded into the single coalesced root handler via closest() unions (selector coverage reviewer-verified).
+3. Mesh blur 100px → 64px (patra-themes.css + canned Index.vue) — blur cost ∝ radius × area; look preserved.
+
+### PROPOSED (visual-risky, not done — file:line)
+- backdrop-blur-[100px] on popovers/menus/date-picker (12 spots: DropdownBody.vue:29, DropdownMenu.vue:139, Popover.vue:111/129, ResolveAction.vue:224, DatePicker.vue:373, SLAPopoverCard.vue:44, contextMenu/Index.vue:284, menuItemWithSubmenu.vue:43/53, ConversationBasicFilter.vue:150, components-next equivalents) → reduce to backdrop-blur-2xl (40px). Transient surfaces, cost only while open; visual frosted-glass signature changes slightly — Genius should eyeball one popover before a blanket change. Est: 30 min.
+- patraSpinGlow rotating conic ::before on ai-handoff-card (dark mode, 8s infinite) — one permanently-composited rotating layer; fine for one card, kill if cards multiply.
+
+### Verify
+- vite build ✓ green (twice — after fixes too). Reviewer verdict on first pass: DO NOT SHIP (missing spotlight anchors + rAF/mouseleave race + unused import) — ALL FIXED, rebuilt, re-verified compile.
+- Runtime check for Genius: cursor spotlight must track the cursor exactly on: canned responses page, owner dashboard, AI training page, main dashboard. If any spotlight sits offset from the cursor, report back (anchor fix regression test).
+
+---
+
+# FINAL DUMP
+
+## ⚠️ DEPLOY CHECKLIST FOR GENIUS (read before deploying)
+1. **MIGRATIONS — must run `rails db:migrate` on Render after deploy (Web Service shell):**
+   - 20260611100000_create_patra_plans.rb (new patra_plans table)
+   - 20260611100100_add_patra_plan_to_accounts.rb (nullable accounts.patra_plan_id + index)
+2. public/vite/ bundles are BUILT and COMMITTED (final build green, 37s). No local build needed.
+3. To turn on SLA for account 2: Feature Gating page or Account Control Panel → toggle `sla` (needs PATRA_ADMIN_CONSOLE_ACTIONS=true for the account-toggle path).
+4. Quick actions / impersonation / plan-delete / plan-assign all sit behind PATRA_ADMIN_CONSOLE_ACTIONS (unchanged kill-switch).
+5. This branch (patra-feat worktree) is COMMITTED, NEVER PUSHED — per instructions. 13 commits total on top of 665b6985d.
+
+## Runtime verifications Genius should do (can't be proven statically)
+- 2a: avatar popover icons render (both themes). 2b: P-logo switcher opens un-clipped, stays open, no console errors. 2c: "Ask Patra AI" inserts a suggested reply into the composer. 2d: private note send → yellow note, NOT delivered to FB.
+- 4b: two browsers, same conversation → "is viewing" chip + amber list pip. 4a: canned page → "Add sweepstakes pack" creates 8 editable replies (then edit the [bracketed] bits!).
+- 5d: Sweeps Report page + CSV download (auth via plain link assumed from existing export pattern — verify once).
+- 8: spotlights track cursor exactly on all four pages listed above.
+
+## Open items / PROPOSED (consolidated)
+1. Agent capacity policies backend (UI scaffolding exists) — est 1-2 days.
+2. By-intent routing — blocked on intent-at-create; Rules Engine lane.
+3. Popover backdrop-blur reduction (file list above) — est 30 min + visual sign-off.
+4. Billing tables (patra_billing_subscriptions) — Command Center panel auto-activates when shipped.
+5. Leaderboard route is agent-visible but its API is admin-only (pre-existing) — decide: open the API to agents or hide the nav item for agents.
+6. AppearanceSettings picker highlight can go stale if theme changed via ⌘K while the page is open (accepted, logged Phase 3).
+
+STOP. Run complete — committed on patra-feat, never pushed.

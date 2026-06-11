@@ -48,11 +48,24 @@ const cashoutsLabel = computed(() => {
   return `${count} · ${total}`;
 });
 
+/* Perf pass 2: rAF-coalesced layout read + style writes (was per event). */
+let statRaf = null;
+let statEl = null;
+let statX = 0;
+let statY = 0;
+
 const onStatHover = e => {
-  const card = e.currentTarget;
-  const rect = card.getBoundingClientRect();
-  card.style.setProperty('--mx', `${e.clientX - rect.left}px`);
-  card.style.setProperty('--my', `${e.clientY - rect.top}px`);
+  statEl = e.currentTarget;
+  statX = e.clientX;
+  statY = e.clientY;
+  if (statRaf) return;
+  statRaf = requestAnimationFrame(() => {
+    statRaf = null;
+    if (!statEl) return;
+    const rect = statEl.getBoundingClientRect();
+    statEl.style.setProperty('--mx', `${statX - rect.left}px`);
+    statEl.style.setProperty('--my', `${statY - rect.top}px`);
+  });
 };
 </script>
 

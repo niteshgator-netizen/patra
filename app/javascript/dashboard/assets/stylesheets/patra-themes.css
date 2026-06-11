@@ -273,7 +273,9 @@
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  /* Perf pass 2: 100px → 64px. Blur cost scales with radius × area and these
+     are two ~700px always-animating layers; 64px keeps the soft mesh look. */
+  filter: blur(64px);
 }
 
 .patra-mesh-bg::before {
@@ -321,6 +323,10 @@
 /* ── Global cursor spotlight ── */
 .patra-spotlight {
   position: fixed;
+  /* Anchor at viewport origin — the JS positions it with transform only. */
+  left: 0;
+  top: 0;
+  will-change: transform;
   width: 460px;
   height: 460px;
   border-radius: 50%;

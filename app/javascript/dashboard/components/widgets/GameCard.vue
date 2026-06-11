@@ -31,11 +31,20 @@ export default {
     },
   },
   methods: {
+    /* Perf pass 2: rAF-coalesced layout read + style writes (was per event). */
     onCardMouseMove(e) {
-      const el = e.currentTarget;
-      const r = el.getBoundingClientRect();
-      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
-      el.style.setProperty('--my', `${e.clientY - r.top}px`);
+      this.glowEl = e.currentTarget;
+      this.glowX = e.clientX;
+      this.glowY = e.clientY;
+      if (this.glowRaf) return;
+      this.glowRaf = requestAnimationFrame(() => {
+        this.glowRaf = null;
+        const el = this.glowEl;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', `${this.glowX - r.left}px`);
+        el.style.setProperty('--my', `${this.glowY - r.top}px`);
+      });
     },
   },
 };

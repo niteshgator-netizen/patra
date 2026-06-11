@@ -319,11 +319,27 @@ onUnmounted(() => {
   if (slaTimer) clearInterval(slaTimer);
 });
 
+/* Perf pass 2: rAF-coalesced — mousemove can fire >60×/s and the old handler
+   did a layout read (getBoundingClientRect) + 2 style writes per event on the
+   hovered list card. currentTarget is captured synchronously (it's null by
+   the time the frame callback runs). */
+let glowRaf = null;
+let glowEl = null;
+let glowX = 0;
+let glowY = 0;
+
 const onCardMouseMove = e => {
-  const el = e.currentTarget;
-  const r = el.getBoundingClientRect();
-  el.style.setProperty('--mx', e.clientX - r.left + 'px');
-  el.style.setProperty('--my', e.clientY - r.top + 'px');
+  glowEl = e.currentTarget;
+  glowX = e.clientX;
+  glowY = e.clientY;
+  if (glowRaf) return;
+  glowRaf = requestAnimationFrame(() => {
+    glowRaf = null;
+    if (!glowEl) return;
+    const r = glowEl.getBoundingClientRect();
+    glowEl.style.setProperty('--mx', `${glowX - r.left}px`);
+    glowEl.style.setProperty('--my', `${glowY - r.top}px`);
+  });
 };
 </script>
 
