@@ -100,9 +100,9 @@ module Games
       /withdraw\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /payout\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /i\s+(?:want\s+|wanna\s+)?(?:to\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i,
-      # bp iter1: a bare "cash out" / "redeem" message is an amount-less
-      # cashout ask (76x cluster) — the handler asks for the amount.
-      /\A\s*(?:cash\s*out|cashout|redeem|withdraw)\s*[?!.]*\s*\z/i,
+      # bp iter1/2: a bare "cash out (please)" / "redeem plz" / "check out"
+      # message is an amount-less cashout ask — the handler asks the amount.
+      /\A\s*(?:cash\s*out|cashout|redeem|withdraw|check\s*out)\s*(?:pls+|plz+|please+)?\s*[?!.]*\s*\z/i,
       # bp iter1: "i requested a cashout" — request-verb cashout phrasing.
       /\brequest(?:ed|ing)?\s+(?:a\s+|the\s+|my\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i
     ].freeze
@@ -249,7 +249,26 @@ module Games
       'mr_all_in_one' => ['mrallinone', 'mr all in one', 'mr allinone', 'all in one'],
       'ultra_panda'   => ['ultrapanda', 'ultra panda', 'ultra_panda'],
       'vblink'        => ['vblink', 'v blink', 'v-blink'],
-      'vegas_sweeps'  => ['vegassweeps', 'vegas sweeps']
+      'vegas_sweeps'  => ['vegassweeps', 'vegas sweeps'],
+      # bp iter2: real games from the live games table the detector was
+      # blind to (slugs verified against Game.pluck(:slug) 2026-06-11).
+      'billion_balls'   => ['billionballs', 'billion balls'],
+      'cash_frenzy'     => ['cashfrenzy', 'cash frenzy'],
+      'river_sweeps'    => ['riversweeps', 'river sweeps'],
+      'blue_dragon'     => ['bluedragon', 'blue dragon'],
+      'golden_dragon'   => ['goldendragon', 'golden dragon'],
+      'vegas_x'         => ['vegasx', 'vegas x'],
+      'magic_city'      => ['magiccity', 'magic city'],
+      'lightning_link'  => ['lightninglink', 'lightning link'],
+      'noble_sweeps'    => ['noblesweeps', 'noble sweeps'],
+      'joker_mania'     => ['jokermania', 'joker mania'],
+      'golden_treasure' => ['goldentreasure', 'golden treasure'],
+      'bit_play'        => ['bitplay', 'bit play'],
+      'sirenis'         => ['sirenis'],
+      'egame'           => ['egame'],
+      'spin_city'       => ['spincity', 'spin city'],
+      'yolo'            => ['yolo'],
+      'vegas_roll'      => ['vegasroll', 'vegas roll']
     }.freeze
 
     POINTS_PATTERNS = [
@@ -372,6 +391,15 @@ module Games
       /\bwhere\s+do\s+i\s+(?:deposit|load|reload|put|add)\b/i,
       /\bhow\s+(?:do\s+i|u|to|can\s+i)\s+(?:load|deposit|reload)\b/i
     ].freeze
+
+    # bp iter2: "Same chime" / "Same paypal?" — reuse-the-same-platform asks.
+    # Platform-named forms resolve directly; generic "same tag/handle" forms
+    # route to :payment_handle_again (orchestrator replies from the STORED
+    # platform, menu-once guarded).
+    SAME_HANDLE_PLATFORM = /\bsame\s+(cashapp|cash\s*app|chime|venmo|paypal|zelle)\b/i
+    SAME_HANDLE_GENERIC  = /\bsame\s+(?:cash\s*)?tag\b|\bsame\s+handle\b|\bsame\s+(?:info|address)\b/i
+    WHATS_YOUR_PLATFORM  = /\bwhat'?s?\s+(?:your|ur|the)\s+(cashapp|cash\s*app|chime|venmo|paypal|zelle)\b/i
+    WHATS_YOUR_TAG       = /\bwhat'?s?\s+(?:your|ur|the)\s+(?:cash\s*)?tag\b/i
 
     # Bug 2 fix: if the customer's message ends with "?", treat it as a
     # question and DO NOT match payment_method_chosen. "you have only cash
@@ -507,8 +535,10 @@ module Games
                       'paid you', 'paid u', 'sent u',
                       # bp iter1: cashapp request-flow reports (355x clusters)
                       'request sent', 'requested', 'request submitted']
-      # bp iter1: bare "sent 10" / "sent $25" (80x cluster)
-      bare_sent_amount = text.match?(/\A\s*sent\s+\$?\d+(?:\.\d{1,2})?\s*\z/i)
+      # bp iter1/2: "sent 10" / "sent $25" / "sent 15 2.0 please" — leading
+      # sent+amount is a payment report whatever trails it (cashout-direction
+      # guard above already vetoed redeem/withdraw mentions).
+      bare_sent_amount = text.match?(/\A\s*sent\s+\$?\d+(?:\.\d{1,2})?\b/i)
       return false unless bare_sent_amount || sent_phrases.any? { |p| text.include?(p) }
       return false if text.match?(/screenshot|receipt|proof|here'?s? (the )?pic/)
 
@@ -595,6 +625,17 @@ module Games
                     }
                   elsif (new_acct = detect_new_account_request_with_game(text))
                     new_acct
+                  elsif !text.match?(PAYMENT_METHOD_NEGATION_GUARD) && !text.match?(PAYMENT_METHOD_FAILED_PLATFORM_SCAN) &&
+                        (m = text.match(SAME_HANDLE_PLATFORM) || text.match(WHATS_YOUR_PLATFORM))
+                    # negation/failure veto: "same cashapp failed" must reach the
+                    # text-failover (backup tag + ops alert), never a re-send.
+                    platform = normalize_platform_token(m[1])
+                    Rails.logger.info("[IntentDetector] matched same/whats-your platform=#{platform}")
+                    { intent: :payment_method_chosen, platform: platform }
+                  elsif !text.match?(PAYMENT_METHOD_NEGATION_GUARD) && !text.match?(PAYMENT_METHOD_FAILED_PLATFORM_SCAN) &&
+                        (text.match?(SAME_HANDLE_GENERIC) || text.match?(WHATS_YOUR_TAG))
+                    Rails.logger.info('[IntentDetector] matched payment_handle_again (generic same-tag ask)')
+                    { intent: :payment_handle_again }
                   elsif (m = match_payment_method_pick(text))
                     raw_platform = m[1].to_s.downcase.gsub(/\s+/, '')
                     normalized = %w[cash cashapp].include?(raw_platform) ? 'cashapp' : raw_platform
@@ -639,6 +680,9 @@ module Games
                   elsif match_any(text, LIST_PLATFORMS_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched list_platforms')
                     { intent: :list_platforms, game_slug: detect_game(text) }
+                  elsif (combo = game_plus_username(text))
+                    Rails.logger.info('[IntentDetector] matched game+username combo')
+                    combo
                   elsif (bare_game = bare_game_name_load(text))
                     Rails.logger.info("[IntentDetector] matched bare game name -> amount-less load slug=#{bare_game}")
                     { intent: :load, amount: nil, game_slug: bare_game }
@@ -835,7 +879,7 @@ module Games
       # dominant corpus shape (juwa/orion/gv/... clusters, ~2k rows, all
       # labeled load_deposit). The load handler is fully gated (payment gate,
       # thresholds), so this routes a question, it never moves money itself.
-      BARE_GAME_FILLERS = /\b(?:please|pls+|plz+|ty|thanks|thank\s+you|yes|yeah|ok|okay|now|one|the)\b/i
+      BARE_GAME_FILLERS = /\b(?:please|pls+|plz+|ty|thanks|thank\s+you|yes|yeah|ok|okay|now|one|the|for|on|in|to|me|original)\b/i
 
       def bare_game_name_load(text)
         norm = text.to_s.downcase.gsub(/[^a-z0-9.\s]/, ' ').gsub(/\s+/, ' ').strip
@@ -846,6 +890,9 @@ module Games
         # filler word ("all in one"); raw misses "juwa please". Trailing
         # dots dropped ("Juwa.").
         candidates = [norm, stripped].map { |c| c.sub(/[.\s]+\z/, '') }.reject(&:empty?).uniq
+        # plural-s tolerance ("Orions" -> orion)
+        candidates += candidates.map { |c| c.sub(/s\z/, '') }.reject(&:empty?)
+        candidates.uniq!
         return nil if candidates.empty?
 
         GAME_NAME_ALIASES.each do |alias_name, slug|
@@ -855,6 +902,22 @@ module Games
           return slug if keywords.any? { |kw| candidates.include?(kw) }
         end
         nil
+      end
+
+      # bp iter2: "Juwa Dyar760" — game name + pasted username in one message
+      # (45x cluster). Both halves must independently pass their own strict
+      # checks; routes to the gated username_provided handler.
+      def game_plus_username(text)
+        tokens = text.to_s.strip.split(/\s+/)
+        return nil unless tokens.size.between?(2, 3)
+
+        user = bare_username_token(tokens.last)
+        return nil unless user
+
+        slug = bare_game_name_load(tokens[0..-2].join(' '))
+        return nil unless slug
+
+        { intent: :username_provided, game_username: user, game_slug: slug }
       end
 
       # bp iter1: a one-token message carrying a digit or underscore that is
