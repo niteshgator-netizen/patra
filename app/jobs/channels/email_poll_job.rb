@@ -30,6 +30,9 @@ module Channels
 
       Mail.find(what: :last, count: 10, order: :desc).each do |mail|
         process_email(inbox, mail)
+      rescue StandardError => e
+        # One malformed mail must not abandon the rest of this inbox's batch.
+        Rails.logger.error("[EmailPollJob] inbox=#{inbox.id} mail=#{mail.message_id rescue 'unknown'} #{e.class}: #{e.message}")
       end
     rescue StandardError => e
       Rails.logger.error("[EmailPollJob] inbox=#{inbox.id} #{e.message}")

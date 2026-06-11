@@ -20,6 +20,10 @@ module Drip
           contact: contact
         ).perform
         processed += 1
+      rescue StandardError => e
+        # One bad contact must not abort the loop: retry_on would re-run the
+        # WHOLE campaign and re-send to every already-processed contact.
+        Rails.logger.error("[Drip::ProcessCampaignJob] campaign=#{campaign_id} contact=#{contact.id} #{e.class}: #{e.message}")
       end
 
       stats = campaign.stats.merge('processed' => processed)
