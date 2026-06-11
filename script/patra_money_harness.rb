@@ -740,6 +740,60 @@ begin
   ok!('R5 "keep the rest" (no number) => nothing recorded',
       !GameAction.where(contact_id: contact.id).where("metadata->>'keep_in_from_cashout' = 'true'").exists?)
 
+  puts "\n[R6 account creation choice + failure ladder]"
+  # R6a LOCK: create on request with NO payment - no deposit gate ever
+  reset_run; prime_contact!(contact, [])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'set me up on ' + src_slug }])
+        .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
+  ok!('R6a no-payment create => account created, NO deposit gate', $FAKE.called?(:add_user) && r[:reply].to_s.include?('username'))
+  ok!('R6a => payment handle offered AFTER creation', Array(r[:labels]).include?('awaiting-payment'))
+
+  # R6b: existing account + asks to create -> ASK use-old vs make-new
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge("game_password_#{src_slug}" => 'oldpass123'))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'make me an account' }])
+        .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
+  ok!('R6b existing account + create ask => asks use-old or make-new, creates nothing yet',
+      r[:reply].to_s.match?(/use that one, or make a new one/i) && !$FAKE.called?(:add_user))
+  ok!('R6b => choice flag stored on contact', contact.reload.custom_attributes['pending_account_choice'].present?)
+
+  # use-old -> resend stored creds, no new account
+  r = orch(account, contact, []).send(:resolve_pending_account_choice, 'use that one',
+                                      contact.custom_attributes['pending_account_choice'])
+  ok!('R6b use-old => creds resent, no new account',
+      r && r[:reply].to_s.include?('harnessuser1') && r[:reply].to_s.include?('oldpass123') && !$FAKE.called?(:add_user))
+  ok!('R6b choice flag cleared after answer', contact.reload.custom_attributes['pending_account_choice'].blank?)
+
+  # make-new -> fresh account, vault creds swapped (old stays on the panel)
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge("game_password_#{src_slug}" => 'oldpass123'))
+  orch(account, contact, [{ 'role' => 'user', 'content' => 'make me an account' }])
+    .send(:handle_account_creation_request, { intent: :request_account_creation, game_slug: src_slug })
+  r = orch(account, contact, []).send(:resolve_pending_account_choice, 'make a new one',
+                                      contact.reload.custom_attributes['pending_account_choice'])
+  ok!('R6b make-new => fresh account created, vault creds swapped',
+      $FAKE.called?(:add_user) && contact.reload.custom_attributes["game_username_#{src_slug}"] != 'harnessuser1')
+
+  # R6c: reset fails -> ladder falls to create-new (no dead-end)
+  reset_run(fail_reset_player_password: true); prime_contact!(contact, [src_slug])
+  r = orch(account, contact, []).send(:handle_reset_password_intent, { intent: :reset_password, game_slug: src_slug })
+  ok!('R6c reset fails => ladder falls to create-new (no dead-end)',
+      $FAKE.called?(:add_user) && r[:reply].to_s.match?(/new .*account|all set/i))
+
+  # R6c: reset fails AND create fails -> rungs 4-5: suggest different game + Telegram human
+  reset_run(fail_reset_player_password: true, fail_add_user: true); prime_contact!(contact, [src_slug])
+  r = orch(account, contact, []).send(:handle_reset_password_intent, { intent: :reset_password, game_slug: src_slug })
+  ok!('R6c ladder end => needs-human + R8 telegram context',
+      Array(r[:labels]).include?('needs-human') && tg?('NEEDS FROM HUMAN'))
+  ok!('R6c ladder end => reply suggests a path, not a silent dead-end',
+      r[:reply].to_s.match?(/instead|teammate/i))
+
+  # R6c: reissue create-fail -> ladder end (existing reissue FAIL assertions stay green)
+  reset_run(fail_add_user: true); prime_contact!(contact, [src_slug])
+  r = orch(account, contact, []).send(:handle_new_account_reissue, { intent: :new_account_reissue, game_slug: src_slug })
+  ok!('R6c reissue create-fail => ladder-exhausted + R8 telegram',
+      Array(r[:labels]).include?('ladder-exhausted') && tg?('NEEDS FROM HUMAN'))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

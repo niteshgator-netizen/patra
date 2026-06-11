@@ -123,6 +123,13 @@ module Games
         end
       end
 
+      # R6b - a pending "use that one or make a new one?" answer takes priority.
+      pending_choice = (contact.custom_attributes || {})['pending_account_choice']
+      if pending_choice.present?
+        choice_response = resolve_pending_account_choice(latest_text, pending_choice)
+        return choice_response if choice_response
+      end
+
       # Process pending load/cashout confirmations
       pending_load = conversation.additional_attributes&.dig('pending_load_intent')
       pending_cashout = conversation.additional_attributes&.dig('pending_cashout')
@@ -1129,17 +1136,16 @@ module Games
       wants_replace = recent_customer_text.to_s.downcase.match?(/\b(diff(erent)?|another|new|change)\b.*\b(one|account|username)\b/) ||
                       recent_customer_text.to_s.downcase.match?(/\b(no|nah|nope|dont|don't)\b.*\b(use|like|want|that)\b/)
 
-      # NO DUPLICATE ACCOUNTS — unless customer asked for a different one
+      # R6b (June 10) - existing account + asks to create: ASK, don't assume.
+      # The answer ("use that one" / "make a new one") is handled next turn via
+      # resolve_pending_account_choice. NO DUPLICATE ACCOUNTS unless they choose new.
       existing_username = verified_stored_game_username(ag)
-      existing_password = existing_username.present? ? stored_game_password(ag.game.slug) : nil
       if existing_username.present? && !wants_replace
-        methods_q = payment_methods_question
-        reply = if existing_password.present?
-          "you already have a #{ag.game.name} account! username: #{existing_username}, password: #{existing_password} 🎰 #{methods_q}"
-        else
-          "you already have a #{ag.game.name} account: #{existing_username}. #{methods_q}"
-        end
-        return { reply: reply, labels: ['account-exists', 'awaiting-payment'] }
+        store_pending_account_choice(ag.game.slug)
+        return {
+          reply: "you've already got a #{ag.game.name} account (#{existing_username}) - want to use that one, or make a new one?",
+          labels: ['account-exists', 'account-choice-pending']
+        }
       end
 
       # If replace requested, clear stored credentials so we generate fresh ones
@@ -1315,6 +1321,151 @@ module Games
         end
         result
       end
+    end
+
+    # ---- R6 (June 10) - use-old / make-new choice + the failure ladder ----
+    # Ladder order: resend -> reset password -> create new account -> suggest a
+    # different game -> Telegram human. On each rung's FAILURE we fall to the
+    # next rung instead of dead-ending. Explicit new-account requests enter at
+    # the create rung; access problems enter at resend/reset.
+
+    def store_pending_account_choice(slug)
+      attrs = (contact.custom_attributes || {}).merge(
+        'pending_account_choice' => { 'game_slug' => slug, 'set_at' => Time.current.iso8601 }
+      )
+      contact.update(custom_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] store_pending_account_choice failed: #{e.message}")
+    end
+
+    def clear_pending_account_choice
+      attrs = (contact.custom_attributes || {}).dup
+      attrs.delete('pending_account_choice')
+      contact.update(custom_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] clear_pending_account_choice failed: #{e.message}")
+    end
+
+    # Returns a response hash when the answer resolves the choice, nil to fall
+    # through to normal intent handling. Stale flags (>30 min) are cleared.
+    def resolve_pending_account_choice(answer_text, pending)
+      pending = pending.is_a?(Hash) ? pending.stringify_keys : {}
+      slug = pending['game_slug']
+      set_at = pending['set_at']
+      fresh = set_at.blank? || begin
+        Time.parse(set_at) > 30.minutes.ago
+      rescue StandardError
+        true
+      end
+      unless fresh && slug.present?
+        clear_pending_account_choice
+        return nil
+      end
+
+      answer = answer_text.to_s.downcase
+      wants_new = answer.match?(/\b(new|fresh|another|different|make)\b/)
+      wants_old = answer.match?(/\b(old|same|that one|use it|keep it|first one|existing)\b/) ||
+                  answer.match?(/\buse\b.*\b(that|it|old|same)\b/)
+      return nil unless wants_new || wants_old
+
+      clear_pending_account_choice
+      ag = pick_agent_game(slug)
+      return { reply: unavailable_game_reply(slug), labels: ['game-unavailable'] } unless ag
+
+      if wants_new && !wants_old
+        # make-new: fresh account, vault creds swapped; old stays on the panel.
+        clear_game_credentials(ag.game.slug)
+        return handle_account_creation_request(intent: :request_account_creation, game_slug: ag.game.slug)
+      end
+
+      resend_or_reset_credentials(ag)
+    end
+
+    # Rungs 1-2: resend stored creds when we have both; with a username but no
+    # password, reset to mint fresh creds; with nothing stored, create new.
+    def resend_or_reset_credentials(ag)
+      username = stored_game_username(ag.game.slug)
+      password = stored_game_password(ag.game.slug)
+
+      if username.present? && password.present?
+        return {
+          reply: "here you go - #{ag.game.name} username: #{username}, password: #{password} (save this!)",
+          labels: ['credentials-resent']
+        }
+      end
+
+      return reset_password_with_ladder(ag, username) if username.present?
+
+      handle_account_creation_request(intent: :request_account_creation, game_slug: ag.game.slug)
+    end
+
+    # Rung 2 (reset password); on failure walks DOWN to create-new.
+    def reset_password_with_ladder(ag, username)
+      new_password = generate_reset_password(ag.game.slug)
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      result = begin
+        executor.reset_player_password(
+          game_username: username,
+          new_password: new_password,
+          metadata: { source: 'bella_ladder_reset', conversation_id: conversation&.id }
+        )
+      rescue StandardError => e
+        { ok: false, error: e.message }
+      end
+
+      if result[:ok]
+        store_game_password(ag.game.slug, new_password)
+        return {
+          reply: "your #{ag.game.name} login: #{username}, new password: #{new_password} (save this!)",
+          labels: ['password-reset']
+        }
+      end
+
+      Rails.logger.warn("[Orchestrator] ladder: reset failed on #{ag.game.slug} (#{result[:error]}) - trying a fresh account")
+      create_new_account_with_ladder(ag, after: "password reset failed (#{result[:error]})")
+    end
+
+    # Rung 3 (create new). On failure: rung 4 suggest a different game + rung 5
+    # Telegram the human with the full R8 context. Never a dead-end.
+    def create_new_account_with_ladder(ag, after: nil)
+      clear_game_credentials(ag.game.slug)
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      add_result, auto_username, = attempt_auto_add_player(executor, ag.game.slug, metadata: { source: 'bella_ladder_create' })
+
+      if add_result[:ok]
+        generated_password = add_result[:password]
+        store_game_username(ag.game.slug, auto_username)
+        store_game_password(ag.game.slug, generated_password)
+        return {
+          reply: "all set! your new #{ag.game.name} account - username: #{auto_username}, password: #{generated_password} (save this!)",
+          labels: ['new-account-created']
+        }
+      end
+
+      ladder_end_response(ag, after: [after, "account creation failed (#{add_result[:error]})"].compact.join('; '))
+    end
+
+    # Rungs 4-5: suggest a different game AND Telegram the human (R8 context).
+    def ladder_end_response(ag, after: nil)
+      others = active_game_names.reject { |n| n == ag.game.name }
+      suggestion = others.any? ? "want to hop on #{others.first} instead while we fix it?" : 'a teammate is on it.'
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "a working #{ag.game.name} account",
+            done: after.to_s,
+            left: "player still has no working #{ag.game.name} login",
+            suggest: others.any? ? "offered the player #{others.first} meanwhile" : 'no other active game to offer',
+            need: "fix or create the #{ag.game.name} account manually, then send the player their creds"
+          ),
+          conversation: conversation
+        )
+      end
+      {
+        reply: "#{ag.game.name} is being stubborn right now - #{suggestion} i've flagged a teammate to sort your account either way.",
+        labels: ['account-creation-failed', 'needs-human', 'ladder-exhausted']
+      }
     end
 
     def handle_multi_account_creation_request(intent)
@@ -1990,17 +2141,10 @@ module Games
           labels: ['password-reset']
         }
       else
-        safe_telegram do
-          Games::TelegramNotifier.human_escalation(
-            account: account, contact: contact,
-            reason: "Password reset failed on #{ag.game.name} for #{username}: #{result[:error]}",
-            conversation: conversation
-          )
-        end
-        {
-          reply: "hit a snag resetting your #{ag.game.name} password — flagged a teammate, they'll handle it shortly.",
-          labels: ['reset-failed', 'needs-human']
-        }
+        # R6c - reset failed: fall to the next rung (create a fresh account)
+        # instead of dead-ending at "flagged a teammate".
+        Rails.logger.warn("[Orchestrator] reset failed on #{ag.game.name} for #{username}: #{result[:error]} - walking the ladder")
+        create_new_account_with_ladder(ag, after: "password reset failed (#{result[:error]})")
       end
     end
 
@@ -3207,17 +3351,9 @@ module Games
 
       unless add_result[:ok]
         safe_telegram { Games::TelegramNotifier.load_failed(add_result[:action]) if add_result[:action] }
-        safe_telegram do
-          Games::TelegramNotifier.human_escalation(
-            account: account, contact: contact,
-            reason: "Account reissue failed on #{ag.game.name}: #{add_result[:error]}",
-            conversation: conversation
-          )
-        end
-        return {
-          reply: "hit a snag setting up your new #{ag.game.name} account — flagged a teammate, they'll sort it in a couple minutes.",
-          labels: ['account-creation-failed', 'needs-human', 'account-reissue']
-        }
+        # R6c - walk the ladder down (suggest a different game + Telegram human
+        # with full R8 context) instead of dead-ending.
+        return ladder_end_response(ag, after: "reissue: account creation failed (#{add_result[:error]})")
       end
 
       generated_password = add_result[:password]
