@@ -79,7 +79,13 @@ module Payments
           Games::TelegramNotifier.human_escalation(
             account: account,
             contact: contact,
-            reason: "Payment $#{amount} (#{target['platform']}) scored #{score}, below auto-load #{auto_load} — needs manual approval",
+            reason: [
+              "PLAYER WANTS: their $#{amount} #{target['platform']} payment loaded",
+              "ALREADY DONE: payment email found, confidence #{score} (auto-load needs #{auto_load}) — player told a teammate will confirm",
+              'STILL LEFT: the load itself',
+              "BELLA SUGGESTS: eyeball the email match, then load the $#{amount}",
+              'NEEDS FROM HUMAN: approve and load, or decline'
+            ].join(' | '),
             conversation: conv
           )
         rescue StandardError => e

@@ -104,7 +104,13 @@ class AgentGame < ApplicationRecord
         Games::TelegramNotifier.human_escalation(
           account: account,
           contact: nil,
-          reason: "GAME DOWN: #{game&.name || game&.slug} failing repeatedly (#{new_count} consecutive API failures) — set to degraded, review needed."
+          reason: [
+            "PLAYER WANTS: keep playing #{game&.name || game&.slug} (panel is failing)",
+            "ALREADY DONE: #{new_count} consecutive API failures — panel auto-set to degraded, Bella stopped routing to it",
+            'STILL LEFT: panel stays degraded until a human reactivates it',
+            'BELLA SUGGESTS: check the panel login/session, fix, then set status back to active',
+            "NEEDS FROM HUMAN: review #{game&.name || game&.slug} and reactivate when healthy"
+          ].join(' | ')
         )
       rescue StandardError => e
         Rails.logger.error("[AgentGame] degrade Telegram failed: #{e.class}: #{e.message}")
