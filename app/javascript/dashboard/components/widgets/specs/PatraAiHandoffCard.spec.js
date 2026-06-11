@@ -18,12 +18,16 @@ const mountCard = conversations =>
   });
 
 describe('PatraAiHandoffCard.vue', () => {
-  it('is fully hidden when the conversation has no AI attributes', () => {
+  // H1 wiring superseded C1: the card now always renders for a loaded
+  // conversation so the on-demand Analyze action is reachable — but with no
+  // AI attributes it shows only the header + action buttons, no data rows.
+  it('shows only the header and actions when the conversation has no AI attributes', () => {
     const wrapper = mountCard([
       { id: 1, labels: [], additional_attributes: {} },
     ]);
-    expect(wrapper.find('.patra-ai-handoff-card, .ai-hc').exists()).toBe(false);
-    expect(wrapper.text()).toBe('');
+    expect(wrapper.find('.ai-handoff-card').exists()).toBe(true);
+    expect(wrapper.find('.ai-hc-analyze-btn').exists()).toBe(true);
+    expect(wrapper.find('.ai-hc-intent').exists()).toBe(false);
   });
 
   it('is hidden when the conversation is missing entirely', () => {

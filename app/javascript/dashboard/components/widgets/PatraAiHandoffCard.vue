@@ -1,7 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
+import PatraAiAPI from 'dashboard/api/patraAi';
 
 const props = defineProps({
   conversationId: { type: [Number, String], required: true },
@@ -14,6 +16,49 @@ const conversations = useMapGetter('getAllConversations');
 const conversation = computed(() =>
   conversations.value?.find(c => c.id === Number(props.conversationId))
 );
+
+// HB-1: on-demand analysis. Fresh result wins; otherwise show what the
+// backend already persisted to custom_attributes.patra_ai_analysis.
+const analyzing = ref(false);
+const freshAnalysis = ref(null);
+
+watch(
+  () => props.conversationId,
+  () => {
+    freshAnalysis.value = null;
+  }
+);
+
+const analysis = computed(
+  () =>
+    freshAnalysis.value ||
+    conversation.value?.custom_attributes?.patra_ai_analysis ||
+    null
+);
+
+const analysisEntities = computed(() => {
+  const list = analysis.value?.entities;
+  return Array.isArray(list) ? list.join(', ') : '';
+});
+
+const runAnalysis = async () => {
+  if (analyzing.value) return;
+  analyzing.value = true;
+  try {
+    const { data } = await PatraAiAPI.analyzeConversation(props.conversationId);
+    freshAnalysis.value = data.analysis;
+  } catch (error) {
+    const status = error?.response?.status;
+    const serverError = error?.response?.data?.error;
+    if (status === 422 || status === 503) {
+      useAlert(serverError || t('PATRA.AI_CARD.ANALYZE_FAILED'));
+    } else {
+      useAlert(t('PATRA.AI_CARD.ANALYZE_FAILED'));
+    }
+  } finally {
+    analyzing.value = false;
+  }
+};
 
 const aiOff = computed(() =>
   (conversation.value?.labels || []).includes('ai-off')
@@ -31,24 +76,11 @@ const intentLabel = computed(() => {
   return null;
 });
 
-/* C1: render ONLY when real AI handoff data exists on the conversation —
-   otherwise the card is fully hidden. */
-const show = computed(() => {
-  const a = attrs.value;
-  return Boolean(
-    intentLabel.value ||
-      a.last_intent_confidence ||
-      a.last_intent_reason ||
-      a.cashout_sla_policy ||
-      a.sentiment ||
-      a.safety_flags ||
-      a.detected_entities ||
-      a.awaiting_load_amount ||
-      a.ai_already_did ||
-      a.customer_context ||
-      a.ai_insight
-  );
-});
+/* C1 (superseded by H1 wiring): the card used to render ONLY when handoff
+   data existed. With the on-demand Analyze action it renders for any loaded
+   conversation — data sections stay conditional, so an "empty" card is just
+   the header + the Analyze/Ask buttons. */
+const show = computed(() => Boolean(conversation.value));
 
 const sentimentClass = computed(() => {
   const s = attrs.value.sentiment?.toLowerCase();
@@ -142,6 +174,58 @@ const askPatraAi = () => {
       <div class="ai-hc-section-text">{{ attrs.ai_insight }}</div>
     </div>
 
+    <div v-if="analysis" class="ai-hc-section">
+      <div class="ai-hc-section-title">
+        {{ $t('PATRA.AI_CARD.ANALYSIS_TITLE') }}
+      </div>
+      <div v-if="analysis.intent" class="ai-hc-intent">
+        <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.INTENT') }}</span>
+        <span class="ai-hc-value">{{ analysis.intent }}</span>
+      </div>
+      <div v-if="analysis.confidence != null" class="ai-hc-intent">
+        <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.CONFIDENCE') }}</span>
+        <span class="ai-hc-value">{{ analysis.confidence }}%</span>
+      </div>
+      <div v-if="analysis.sentiment" class="ai-hc-intent">
+        <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.SENTIMENT') }}</span>
+        <span class="ai-hc-value">{{ analysis.sentiment }}</span>
+      </div>
+      <div v-if="analysisEntities" class="ai-hc-intent">
+        <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.ENTITIES') }}</span>
+        <span class="ai-hc-value">{{ analysisEntities }}</span>
+      </div>
+      <div v-if="analysis.safety_check?.status" class="ai-hc-intent">
+        <span class="ai-hc-label">{{ $t('PATRA.AI_CARD.SAFETY') }}</span>
+        <span
+          class="ai-hc-value"
+          :class="{
+            'ai-hc-sentiment-negative': analysis.safety_check.status !== 'ok',
+          }"
+        >
+          {{ analysis.safety_check.status
+          }}{{
+            analysis.safety_check.note ? ` — ${analysis.safety_check.note}` : ''
+          }}
+        </span>
+      </div>
+      <div v-if="analysis.suggested_reply" class="ai-hc-section">
+        <div class="ai-hc-section-title">
+          {{ $t('PATRA.AI_CARD.SUGGESTED_REPLY') }}
+        </div>
+        <div class="ai-hc-section-text">{{ analysis.suggested_reply }}</div>
+      </div>
+    </div>
+
+    <button
+      class="ai-hc-ask-btn ai-hc-analyze-btn"
+      :disabled="analyzing"
+      @click="runAnalysis"
+    >
+      {{
+        analyzing ? $t('PATRA.AI_CARD.ANALYZING') : $t('PATRA.AI_CARD.ANALYZE')
+      }}
+    </button>
+
     <button class="ai-hc-ask-btn" @click="askPatraAi">
       {{ $t('PATRA.AI_CARD.ASK_PATRA') }}
     </button>
@@ -227,6 +311,11 @@ const askPatraAi = () => {
 }
 .ai-hc-ask-btn:hover {
   background: rgba(110, 86, 207, 0.08);
+}
+
+.ai-hc-analyze-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .ai-hc-section {

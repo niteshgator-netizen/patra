@@ -3,15 +3,17 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import PatraAiTrainingAPI from 'dashboard/api/patraAiTraining';
+import PatraAiAPI from 'dashboard/api/patraAi';
 
-// Phase H.10 item 10: unified AI Training page with three tabs —
-// Upload Training Data, Review Queue, Secret Phrases.
+// Phase H.10 item 10: unified AI Training page — Upload Training Data,
+// Review Queue, Secret Phrases, plus the HB-2 persona Playground tab.
 
 const { t } = useI18n();
 
 const TABS = [
   { key: 'upload', label: t('PATRA.AI_TRAINING.TAB_UPLOAD') },
   { key: 'review', label: t('PATRA.AI_TRAINING.TAB_REVIEW') },
+  { key: 'playground', label: t('PATRA.AI_TRAINING.TAB_PLAYGROUND') },
   { key: 'phrases', label: t('PATRA.AI_TRAINING.TAB_PHRASES') },
 ];
 
@@ -200,6 +202,54 @@ const formatScore = score => `${Math.round(Number(score || 0) * 100)}%`;
 const candidateConfidenceLabel = score =>
   `${formatScore(score)}${confidenceSuffix}`;
 
+// ── Playground tab (HB-2) ──────────────────────────────────────────
+// Chat against POST /patra_playground/messages. Stateless on the server:
+// nothing persisted, nothing sent. Corrections are NOT writable from here —
+// the takeover review queue only exposes index/update (no create), so the
+// corrections flow hands off to the Review Queue tab.
+
+const playgroundMessages = ref([]);
+const playgroundInput = ref('');
+const playgroundContext = ref('');
+const playgroundSending = ref(false);
+const playgroundPrompt = ref('');
+const playgroundPromptVisible = ref(false);
+const playgroundListRef = ref(null);
+
+const playgroundScrollToEnd = () => {
+  requestAnimationFrame(() => {
+    const el = playgroundListRef.value;
+    if (el) el.scrollTop = el.scrollHeight;
+  });
+};
+
+const sendPlaygroundMessage = async () => {
+  const message = playgroundInput.value.trim();
+  if (!message || playgroundSending.value) return;
+  playgroundSending.value = true;
+  playgroundMessages.value.push({ role: 'player', text: message });
+  playgroundInput.value = '';
+  playgroundScrollToEnd();
+  try {
+    const { data } = await PatraAiAPI.playgroundMessage(
+      message,
+      playgroundContext.value.trim() || undefined
+    );
+    playgroundMessages.value.push({ role: 'bella', text: data.reply });
+    playgroundPrompt.value = data.prompt || '';
+  } catch (e) {
+    const serverError = e?.response?.data?.error;
+    useAlert(serverError || t('PATRA.AI_TRAINING.PLAYGROUND_FAILED'));
+  } finally {
+    playgroundSending.value = false;
+    playgroundScrollToEnd();
+  }
+};
+
+const togglePlaygroundPrompt = () => {
+  playgroundPromptVisible.value = !playgroundPromptVisible.value;
+};
+
 // ── Secret phrases tab ─────────────────────────────────────────────
 
 const phrases = ref([]);
@@ -319,6 +369,10 @@ const switchTab = key => {
   if (key === 'upload') fetchUploads();
   if (key === 'review') fetchCandidates();
   if (key === 'phrases') fetchPhrases();
+};
+
+const goToReviewTab = () => {
+  switchTab('review');
 };
 
 const awaitingReviewCount = computed(
@@ -481,6 +535,18 @@ onUnmounted(() => {
             >
               <path
                 d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+              />
+            </svg>
+            <svg
+              v-else-if="tab.key === 'playground'"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path
+                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"
               />
             </svg>
             <svg
@@ -703,6 +769,109 @@ onUnmounted(() => {
                 </div>
               </article>
             </template>
+          </div>
+        </section>
+
+        <!-- Playground tab (HB-2) -->
+        <section v-show="activeTab === 'playground'" class="pat-at-pane">
+          <div class="pat-at-card">
+            <div class="pat-at-card-t">
+              <span class="pat-at-card-dot" />
+              {{ $t('PATRA.AI_TRAINING.PLAYGROUND_TITLE') }}
+            </div>
+            <p class="pat-at-pane-desc">
+              {{ $t('PATRA.AI_TRAINING.PLAYGROUND_DESC') }}
+            </p>
+
+            <div class="pat-at-pg-field">
+              <label for="pat-at-pg-context">
+                {{ $t('PATRA.AI_TRAINING.PLAYGROUND_CONTEXT_LABEL') }}
+              </label>
+              <input
+                id="pat-at-pg-context"
+                v-model="playgroundContext"
+                type="text"
+                maxlength="200"
+                :placeholder="
+                  $t('PATRA.AI_TRAINING.PLAYGROUND_CONTEXT_PLACEHOLDER')
+                "
+              />
+            </div>
+
+            <div ref="playgroundListRef" class="pat-at-pg-chat">
+              <div v-if="playgroundMessages.length === 0" class="pat-at-empty">
+                {{ $t('PATRA.AI_TRAINING.PLAYGROUND_EMPTY') }}
+              </div>
+              <div
+                v-for="(msg, idx) in playgroundMessages"
+                :key="idx"
+                class="pat-at-pg-msg"
+                :class="
+                  msg.role === 'player'
+                    ? 'pat-at-rq-msg pat-at-rq-msg--cust'
+                    : 'pat-at-rq-msg pat-at-rq-msg--agent'
+                "
+              >
+                <span class="pat-at-rq-ml">
+                  {{ msg.role === 'player' ? 'Player' : 'Bella' }}
+                </span>
+                {{ msg.text }}
+              </div>
+            </div>
+
+            <form
+              class="pat-at-pg-inputrow"
+              @submit.prevent="sendPlaygroundMessage"
+            >
+              <input
+                v-model="playgroundInput"
+                type="text"
+                maxlength="500"
+                class="pat-at-pg-input"
+                :placeholder="
+                  $t('PATRA.AI_TRAINING.PLAYGROUND_INPUT_PLACEHOLDER')
+                "
+              />
+              <button
+                type="submit"
+                class="pat-at-btn pat-at-btn--primary"
+                :disabled="playgroundSending || !playgroundInput.trim()"
+              >
+                {{
+                  playgroundSending
+                    ? $t('PATRA.AI_TRAINING.PLAYGROUND_SENDING')
+                    : $t('PATRA.AI_TRAINING.PLAYGROUND_SEND')
+                }}
+              </button>
+            </form>
+
+            <div v-if="playgroundPrompt" class="pat-at-pg-promptbar">
+              <button
+                type="button"
+                class="pat-at-sp-edit-link"
+                @click="togglePlaygroundPrompt"
+              >
+                {{
+                  playgroundPromptVisible
+                    ? $t('PATRA.AI_TRAINING.PLAYGROUND_HIDE_PROMPT')
+                    : $t('PATRA.AI_TRAINING.PLAYGROUND_SHOW_PROMPT')
+                }}
+              </button>
+              <pre
+                v-if="playgroundPromptVisible"
+                class="pat-at-pg-prompt mono"
+                >{{ playgroundPrompt }}</pre
+              >
+            </div>
+          </div>
+
+          <div class="pat-at-card">
+            <p class="pat-at-pane-desc pat-at-pg-corrections">
+              {{ $t('PATRA.AI_TRAINING.PLAYGROUND_CORRECTIONS_HINT') }}
+            </p>
+            <button type="button" class="pat-at-btn" @click="goToReviewTab">
+              {{ $t('PATRA.AI_TRAINING.PLAYGROUND_GO_REVIEW') }}
+            </button>
           </div>
         </section>
 
@@ -1922,6 +2091,87 @@ onUnmounted(() => {
   .pat-at-pane {
     animation: none !important;
   }
+}
+
+/* ── HB-2 playground ── */
+.pat-at-pg-field {
+  margin-bottom: 14px;
+}
+
+.pat-at-pg-field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.pat-at-pg-field input,
+.pat-at-pg-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 13px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: all 0.25s;
+}
+
+.pat-at-pg-field input:focus,
+.pat-at-pg-input:focus {
+  border-color: var(--patra);
+  box-shadow: 0 0 0 3px rgba(110, 86, 207, 0.11);
+}
+
+.pat-at-pg-chat {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 14px;
+  min-height: 180px;
+  max-height: 380px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.pat-at-pg-msg {
+  max-width: 85%;
+}
+
+.pat-at-pg-msg.pat-at-rq-msg--agent {
+  margin-left: auto;
+}
+
+.pat-at-pg-inputrow {
+  display: flex;
+  gap: 10px;
+}
+
+.pat-at-pg-inputrow .pat-at-pg-input {
+  flex: 1;
+}
+
+.pat-at-pg-promptbar {
+  margin-top: 12px;
+}
+
+.pat-at-pg-prompt {
+  margin-top: 8px;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.pat-at-pg-corrections {
+  margin: 0 0 12px;
 }
 
 /* ── v6 AI training ── */

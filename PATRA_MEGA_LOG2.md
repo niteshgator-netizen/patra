@@ -27,4 +27,16 @@
 | 22 | ai_fleet :153 PlayerMemoryWriter | summary "" expected 'just a plain sentence' | prose with NO braces → `extract_json` nil → `parsed = {}` — prose fallback only fired on JSON::ParserError, never on no-JSON-at-all, contradicting the code's own comment | CODE (player_memory_writer, not forbidden): return prose-summary when extract_json is nil. DeepSeek content-first order untouched |
 
 ### Phase 1 verdict
-All 22 addressed: 16 spec-side fixes, 5 app-code fixes in non-forbidden files (belongs_to/_show.html.erb, base_client.rb ×2, player_memory_writer.rb), 1 pending marker (shortfall refuse mode — unimplemented in hot file). `ruby -c` clean on every .rb touched. NOT runnable locally (no bundle/rspec on this machine) — verification is CI on next push.
+All 22 addressed: 16 spec-side fixes, 5 app-code fixes in non-forbidden files (belongs_to/_show.html.erb, base_client.rb ×2, player_memory_writer.rb), 1 pending marker (shortfall refuse mode — unimplemented in hot file). `ruby -c` clean on every .rb touched. NOT runnable locally (no bundle/rspec on this machine) — verification is CI on next push. Committed: `18411484f` "patra-mega2: CI final layer".
+
+## PHASE 2 — H1/H2 FRONTEND WIRING
+
+**Contracts read from controllers before building:**
+- HB-1 `POST /api/v1/accounts/:id/conversations/:display_id/patra_ai_analysis` (patra_ai_analysis_controller.rb). No body params. 200 → `{ analysis: { intent, sentiment, entities[], safety_check{status,note}, suggested_reply, confidence(int 0-100), analyzed_at } }`. 422 `{error}` no-messages or unparseable model output; 503 `{error}` model down. Also persists to `conversation.custom_attributes['patra_ai_analysis']`.
+- HB-2 `POST /api/v1/accounts/:id/patra_playground/messages` (patra_playground_controller.rb). Body `{ message, context? }`. 200 → `{ reply (2-line capped), prompt }`. 422 blank message; 503 model down. Persists nothing.
+
+**2a — PatraAiHandoffCard.vue:** "Analyze conversation" button → `PatraAiAPI.analyzeConversation(displayId)` (new method in api/patraAi.js; frontend conversation.id IS display_id). Loading state, renders intent/confidence/sentiment/entities/safety/suggested-reply; falls back to the persisted custom_attributes analysis when no fresh one. 422/503 → useAlert with server error text. DECISION: C1 ("card fully hidden without handoff data") superseded — card now renders for any loaded conversation so Analyze is reachable; data sections stay conditional. JS spec updated to the new contract.
+
+**2b — Playground:** new "Playground" tab on the existing PatraAiTraining.vue page (sits beside the Review Queue it hands off to). Chat UI (player/Bella bubbles, optional context field, show-prompt toggle) → `PatraAiAPI.playgroundMessage`. **GAP (logged, not built):** the AI-training review queue (`bella_takeover_candidates`) exposes only index/update — there is NO create endpoint, and adding one touches the RAG surface owned by the Rules Engine chat (forbidden). Corrections flow therefore = hand-off card linking to the Review Queue tab. If a playground-corrections→queue write is wanted, the Rules Engine owner must add `bella_takeover_candidates#create`.
+
+Files: patraAi.js (+2 methods), PatraAiHandoffCard.vue, PatraAiHandoffCard.spec.js, PatraAiTraining.vue (+tab), patra.json (+i18n keys). ESLint: 0 errors on my files (3 warnings: proper names + a prettier/vue rule conflict; pre-existing lint debt on untouched card lines left alone). Vite build deferred to end of run (single build covers phases 2/3/5).
