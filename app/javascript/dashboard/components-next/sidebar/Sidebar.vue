@@ -920,9 +920,23 @@ const menuItems = computed(() => {
       inset 0 1px 0 rgba(255, 255, 255, 0.25);
     margin-bottom: 14px;
     cursor: pointer;
-    animation: logoPulse 4s ease-in-out infinite;
+    /* V5 P3: pulse moved to an opacity-animated ::before — animating
+       box-shadow repainted the tile every frame, forever. */
     transition: transform 0.2s;
     position: relative;
+  }
+
+  .pat-rail-logo::before,
+  .patra-nav-rail .pat-rail-logo::before,
+  .patra-nav-rail .sidebar-logo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 38px var(--patra-glow, rgba(110, 86, 207, 0.55));
+    opacity: 0;
+    pointer-events: none;
+    animation: logoPulseGlow 4s ease-in-out infinite;
   }
 
   /* A6: the CSS used to draw its own 'P' (content:'P') on top of the real
@@ -959,17 +973,15 @@ const menuItems = computed(() => {
     display: none !important;
   }
 
-  @keyframes logoPulse {
+  /* V5 P3: opacity-only pulse (compositor) — the base 22px glow stays static
+     on the tile; this fades the wider 38px glow in and out on the ::before. */
+  @keyframes logoPulseGlow {
     0%,
     100% {
-      box-shadow:
-        0 0 22px var(--patra-glow, rgba(110, 86, 207, 0.55)),
-        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      opacity: 0;
     }
     50% {
-      box-shadow:
-        0 0 38px var(--patra-glow, rgba(110, 86, 207, 0.55)),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      opacity: 1;
     }
   }
 

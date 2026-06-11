@@ -857,7 +857,6 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 
 /* --- ALL ANIMATIONS --- */
 @keyframes patraSpinGlow { to { transform: rotate(360deg); } }
-@keyframes logoPulse { 0%,100% { box-shadow: 0 0 22px var(--patra-glow); } 50% { box-shadow: 0 0 38px var(--patra-glow); } }
 @keyframes convoPop { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @keyframes msgIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
 @keyframes mIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
@@ -875,9 +874,12 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 /* --- SPOTLIGHT --- */
 .dark #patra-spotlight {
   position: fixed; width: 460px; height: 460px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(110,86,207,.16), rgba(110,86,207,.04) 42%, transparent 66%);
+  /* V5 P2: blur(12px) removed — a 460px blurred layer re-composited on every
+     cursor move was THE dashboard lag source. Softness is baked into extra
+     gradient stops instead, which costs nothing after the first paint. */
+  background: radial-gradient(circle, rgba(110,86,207,.14), rgba(110,86,207,.08) 28%, rgba(110,86,207,.035) 48%, rgba(110,86,207,.012) 62%, transparent 78%);
   pointer-events: none; z-index: 1; left: 0; top: 0; will-change: transform;
-  opacity: 0; transition: opacity .5s; mix-blend-mode: screen; filter: blur(12px);
+  opacity: 0; transition: opacity .5s; mix-blend-mode: screen;
 }
 
 /* --- DIMMER --- */

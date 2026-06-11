@@ -93,35 +93,47 @@ export default {
     this.setLocale(
       this.uiSettings?.locale || window.chatwootConfig.selectedLocale
     );
-    this.patraSpotlightMoveHandler = e => {
-      const spot = document.getElementById('patra-spotlight');
-      if (spot) {
-        // Compositor-only transform — avoids per-move layout/repaint of the
-        // 460px blurred layer that left/top triggered. The translate(-50%,-50%)
-        // re-centers the glow on the cursor (was a static CSS transform).
-        spot.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
-        spot.style.opacity = '1';
-      }
+    // V5 P1: ONE rAF-coalesced document mousemove for both the spotlight and
+    // the .lrow cursor glow (W7). Mousemove can fire >60×/s; the old pair of
+    // listeners did style writes + getBoundingClientRect on every event. Now
+    // the latest event is stashed and all DOM work runs at most once per frame.
+    this._patraPointerEvent = null;
+    this._patraPointerRaf = null;
+    this._patraPointerHandler = e => {
+      this._patraPointerEvent = e;
+      if (this._patraPointerRaf) return;
+      this._patraPointerRaf = requestAnimationFrame(() => {
+        this._patraPointerRaf = null;
+        const ev = this._patraPointerEvent;
+        if (!ev) return;
+        const spot = document.getElementById('patra-spotlight');
+        if (spot) {
+          // Compositor-only transform — avoids per-move layout/repaint of the
+          // 460px layer that left/top triggered. The translate(-50%,-50%)
+          // re-centers the glow on the cursor (was a static CSS transform).
+          spot.style.transform = `translate3d(${ev.clientX}px, ${ev.clientY}px, 0) translate(-50%, -50%)`;
+          spot.style.opacity = '1';
+        }
+        const lrow =
+          ev.target && ev.target.closest && ev.target.closest('.lrow');
+        if (lrow) {
+          const r = lrow.getBoundingClientRect();
+          lrow.style.setProperty('--mx', `${ev.clientX - r.left}px`);
+          lrow.style.setProperty('--my', `${ev.clientY - r.top}px`);
+        }
+      });
     };
-    document.addEventListener('mousemove', this.patraSpotlightMoveHandler);
-    // Global .lrow cursor-glow tracker (W7 — covers all settings pages)
-    this._lrowGlowHandler = e => {
-      const lrow = e.target && e.target.closest && e.target.closest('.lrow');
-      if (!lrow) return;
-      const r = lrow.getBoundingClientRect();
-      lrow.style.setProperty('--mx', `${e.clientX - r.left}px`);
-      lrow.style.setProperty('--my', `${e.clientY - r.top}px`);
-    };
-    document.addEventListener('mousemove', this._lrowGlowHandler, {
+    document.addEventListener('mousemove', this._patraPointerHandler, {
       passive: true,
     });
   },
   unmounted() {
-    if (this.patraSpotlightMoveHandler) {
-      document.removeEventListener('mousemove', this.patraSpotlightMoveHandler);
+    if (this._patraPointerHandler) {
+      document.removeEventListener('mousemove', this._patraPointerHandler);
     }
-    if (this._lrowGlowHandler) {
-      document.removeEventListener('mousemove', this._lrowGlowHandler);
+    if (this._patraPointerRaf) {
+      cancelAnimationFrame(this._patraPointerRaf);
+      this._patraPointerRaf = null;
     }
     if (this.reconnectService) {
       this.reconnectService.disconnect();
@@ -242,9 +254,7 @@ export default {
         role="button"
         tabindex="0"
         @click="applyBrightness(brightness > 0 ? 0 : 30)"
-        @keydown.enter.space.prevent="
-          applyBrightness(brightness > 0 ? 0 : 30)
-        "
+        @keydown.enter.space.prevent="applyBrightness(brightness > 0 ? 0 : 30)"
       >
         🔅
       </span>
