@@ -4,9 +4,11 @@
 # (use_deepseek: true) so the orchestrator and background services can reuse the
 # SAME endpoint / model / API key without standing up a full ReplyService.
 #
-# DeepSeek reasoning models return their output in `reasoning_content`; on those
-# models `content` is sometimes empty. So every parse tries reasoning_content
-# FIRST, then content, then fails safe (returns nil). Callers MUST handle nil.
+# Parse order (R-I invariant — June 11 audit): `content` FIRST, then
+# `reasoning_content` ONLY as a fallback when content is empty. deepseek-v4-flash
+# puts the answer in content and the chain-of-thought in reasoning_content;
+# preferring reasoning leaks CoT to customers. Fails safe (returns nil) —
+# callers MUST handle nil.
 module Ai
   class DeepseekClient
     ENDPOINT = 'https://api.deepseek.com/v1/chat/completions'
@@ -24,7 +26,7 @@ module Ai
       @temperature = temperature
     end
 
-    # Returns model text (reasoning_content preferred, then content) or nil on any failure.
+    # Returns model text (content first, reasoning_content fallback) or nil on any failure.
     def chat
       api_key = ENV['DEEPSEEK_API_KEY'].to_s
       return nil if api_key.blank?
