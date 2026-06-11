@@ -1,0 +1,98 @@
+<% content_for(:title) { 'Feature Gating' } %>
+
+<div class="patra-panel-kit" style="padding: 24px;">
+  <h1 style="margin: 0 0 4px; font-size: 22px;">Feature Gating</h1>
+  <div class="muted" style="font-size: 13px; margin-bottom: 8px;">Which features each plan includes, and where to override a single account.</div>
+  <div class="patra-help">
+    Ticking a box saves it to the plan definition right away — but plans are not enforced yet,
+    so no account loses access today. To turn a feature on or off for <strong>one specific account</strong>,
+    use the override section at the bottom: it goes through the audited Account Control Panel.
+  </div>
+
+  <% if @plans.empty? %>
+    <div class="patra-panel" style="margin-bottom: 16px;">
+      <div class="muted">No plans defined yet — <%= link_to 'create a plan', new_super_admin_patra_plan_path %> first, then come back to pick its features.</div>
+    </div>
+  <% else %>
+    <div class="patra-panel" style="margin-bottom: 16px; overflow-x: auto;">
+      <h2>Feature × plan matrix</h2>
+      <table class="patra-table">
+        <thead>
+          <tr>
+            <th style="min-width: 280px;">Feature</th>
+            <% @plans.each do |plan| %>
+              <th style="text-align: center;"><%= plan.name %></th>
+            <% end %>
+          </tr>
+        </thead>
+        <tbody>
+          <% @flags.each do |flag| %>
+            <% locked = flag['name'] == 'patra_operator_console' %>
+            <tr style="<%= 'opacity: 0.45;' if locked %>">
+              <td title="<%= locked ? 'Pending fix — this switch is locked until the operator console bug is resolved.' : '' %>">
+                <strong><%= flag['display_name'] || flag['name'].humanize %></strong>
+                <% if locked %><span class="warn" style="font-size:11px;"> (pending fix)</span><% end %>
+                <div class="muted" style="font-size: 12px;"><%= patra_flag_description(flag) %></div>
+              </td>
+              <% @plans.each do |plan| %>
+                <td style="text-align: center;">
+                  <% if locked %>
+                    <input type="checkbox" disabled title="Pending fix — locked.">
+                  <% else %>
+                    <%= form_with url: set_plan_feature_super_admin_patra_feature_gating_path, method: :post, local: true, html: { style: 'display:inline' } do %>
+                      <input type="hidden" name="plan_id" value="<%= plan.id %>">
+                      <input type="hidden" name="feature" value="<%= flag['name'] %>">
+                      <input type="hidden" name="enabled" value="<%= plan.feature_enabled?(flag['name']) ? 'false' : 'true' %>">
+                      <input type="checkbox" <%= 'checked' if plan.feature_enabled?(flag['name']) %> onchange="this.form.submit()">
+                    <% end %>
+                  <% end %>
+                </td>
+              <% end %>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <div class="patra-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+    <div class="patra-panel">
+      <h2>Assign an account to a plan</h2>
+      <div class="muted" style="font-size: 12px; margin-bottom: 10px;">Records which plan the account is on. No features change until enforcement ships.</div>
+      <%= form_with url: assign_plan_super_admin_patra_feature_gating_path, method: :post, local: true,
+                    html: { onsubmit: "return confirm('Change this account\\'s plan?')" } do %>
+        <select name="account_id" required style="width:100%; padding:8px; margin-bottom:8px;">
+          <option value="">Pick an account…</option>
+          <% @accounts.each do |account| %>
+            <option value="<%= account.id %>"><%= account.name %> (#<%= account.id %><%= account.patra_plan_id ? ", on plan ##{account.patra_plan_id}" : '' %>)</option>
+          <% end %>
+        </select>
+        <select name="patra_plan_id" style="width:100%; padding:8px; margin-bottom:8px;">
+          <option value="">No plan</option>
+          <% @plans.select(&:active?).each do |plan| %>
+            <option value="<%= plan.id %>"><%= plan.name %></option>
+          <% end %>
+        </select>
+        <input type="text" name="reason" placeholder="Why? (optional, goes to the audit trail)" style="width:100%; padding:8px; margin-bottom:8px;">
+        <button type="submit" class="button">Assign plan</button>
+      <% end %>
+    </div>
+
+    <div class="patra-panel">
+      <h2>Per-account feature override</h2>
+      <div class="muted" style="font-size: 12px; margin-bottom: 10px;">
+        Flip one feature for one account — for a trial, a VIP, or debugging.
+        Overrides happen on the account's control panel, which asks for a reason and writes an audit row.
+      </div>
+      <%= form_with url: '', method: :get, local: true, html: { onsubmit: "var id=this.account_id.value; if(!id) return false; window.location='/super_admin/patra_accounts/'+id; return false;" } do %>
+        <select name="account_id" required style="width:100%; padding:8px; margin-bottom:8px;">
+          <option value="">Pick an account…</option>
+          <% @accounts.each do |account| %>
+            <option value="<%= account.id %>"><%= account.name %> (#<%= account.id %>)</option>
+          <% end %>
+        </select>
+        <button type="submit" class="button">Open control panel</button>
+      <% end %>
+    </div>
+  </div>
+</div>

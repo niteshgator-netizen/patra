@@ -1,0 +1,8 @@
+<% content_for(:title) { 'New Plan' } %>
+<div class="patra-panel-kit" style="padding: 24px;">
+  <h1 style="margin: 0 0 4px; font-size: 22px;">New plan</h1>
+  <div class="muted" style="font-size: 13px; margin-bottom: 16px;">You set every number — nothing is pre-filled or guessed.</div>
+  <div class="patra-panel" style="max-width: 820px;">
+    <%= render 'form', plan: @plan, url: super_admin_patra_plans_path, method: :post %>
+  </div>
+</div>

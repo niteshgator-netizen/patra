@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>SuperAdmin | Patra</title>
+    <title>Owner Console | Patra</title>
     <%= vite_client_tag %>
     <%= vite_javascript_tag 'superadmin' %>
+    <%= render 'super_admin/application/patra_admin_styles' %>
   </head>
   <body>
     <div class="h-full w-full antialiased">
@@ -11,9 +12,10 @@
         <section class="max-w-5xl mx-auto">
           <img src="/brand-assets/logo.svg" alt="Patra" class="mx-auto h-8 w-auto block dark:hidden">
           <img src="/brand-assets/logo_dark.svg" alt="Patra" class="mx-auto h-8 w-auto hidden dark:block">
-          <h2 class="mt-6 text-center text-3xl font-medium text-slate-900 dark:text-woot-50">
-            Howdy, admin 👋
+          <h2 class="mt-6 text-center text-3xl font-medium text-slate-900 dark:text-woot-50" style="font-family: var(--patra-font-display);">
+            Patra Owner Console
           </h2>
+          <p class="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">Sign in to manage accounts, plans, and platform health.</p>
         </section>
         <section class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-slate-800 p-11 sm:shadow-lg sm:rounded-lg mb-8 mt-15">
           <div>

@@ -87,3 +87,28 @@ Gap table:
 | Patra tokens | patra-themes.css (40+ tokens, data-theme mechanism) | yes | use everywhere |
 | Theme toggles | App.vue `patra-theme-fab` + useAppearanceHotKeys + profile settings | MULTIPLE strays | consolidate (3b) |
 
+## PHASE 1 — SUPER ADMIN OWNER CONSOLE
+
+### Changes
+- **1a Restyle**: New shared token sheet `app/views/super_admin/application/_patra_admin_styles.html.erb` (--patra #6E56CF family, Space Grotesk/Inter/JetBrains Mono via Google Fonts — same pattern as patra-themes.css:1; dark mode via prefers-color-scheme). Loaded in Administrate layout + login page. Sidebar regrouped into PATRA / PLATFORM / UTILITIES sections; P-logo now token-colored; login page copy → "Patra Owner Console". Command Center + Account Control inline purple #534AB7 → var(--patra). Hidden-from-nav (stock exclusion list, unchanged, logged): account_users, access_tokens, installation_configs, app_configs, instance_statuses (still in Utilities), settings, push_diagnostics (Utilities), agent_bots, platform_apps, feature_flags JSON.
+- **1b Plans & Pricing**: `PatraPlan` model + `patra_plans` table (name, nullable price decimal(12,2) — NO invented defaults, currency select USD/EUR/GBP/CAD/AUD, period monthly/yearly, nullable limits: agents/inboxes/AI replies per month, features jsonb, active, position) + `accounts.patra_plan_id` (nullable bigint + index, no FK). Custom CRUD at /super_admin/patra_plans (TAB C house style, helper text says enforcement comes later). Delete blocked while accounts are on the plan; delete behind PATRA_ADMIN_CONSOLE_ACTIONS.
+- **1c Feature Gating**: /super_admin/patra_feature_gating — matrix of 48 tenant-relevant flags (deprecated + chatwoot_internal excluded) × plans; plain-English description per flag (SuperAdmin::PatraFeatureGatingHelper). patra_operator_console shown greyed + tooltip "pending fix", server-side locked too. Plan cells write patra_plans.features jsonb (audited 'plan.feature_set'). Per-account override = link to existing audited Account Control Panel toggle_feature path (no new account-flag write path). Plan assignment (accounts.patra_plan_id) audited + behind kill-switch.
+- **1d Quick Actions**: Command Center panel — suspend/reactivate (account picker + reason + confirm, posts to existing gated PatraAccountsController), impersonate (user ID + reason + confirm, posts to existing PatraImpersonationsController), links to gating/plans/banner. All ≤2 clicks, all behind PATRA_ADMIN_CONSOLE_ACTIONS (buttons disabled + banner when off). "control panel" links added to Top Accounts rows.
+
+### Files (new 10 / edited 7)
+New: patra_plan.rb, patra_plans_controller.rb, patra_feature_gating_controller.rb, patra_feature_gating_helper.rb, 2 migrations, 4 plans views + 1 gating view + style partial.
+Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30% — regroup), sessions/new (+4), patra_dashboard_controller (+3), patra_dashboard/show (+~60 quick actions), patra_accounts/show (color token only).
+
+### Verify
+- ruby -c: all 8 .rb files Syntax OK (verified now).
+- ActionView Erubi compile: all 11 touched/new templates OK (verified now).
+- Code-reviewer agent: SHIP, no blockers; should-fixes applied (kill-switch on destroy/assign_plan; dropped line-ending churn on game_health view).
+- No vite build needed this phase (server-rendered ERB only).
+
+### ⚠️ MIGRATIONS ADDED (run `rails db:migrate` on Render after deploy)
+- 20260611100000_create_patra_plans.rb
+- 20260611100100_add_patra_plan_to_accounts.rb
+
+### Known/accepted
+- Quick-action suspend form posts to '#' rewritten by JS onsubmit; with JS disabled it 404s (super-admin-only surface, logged).
+- Google Fonts CDN on super admin pages (matches existing dashboard pattern).

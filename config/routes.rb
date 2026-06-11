@@ -899,6 +899,11 @@ Rails.application.routes.draw do
     end
     resource :patra_game_health, only: [:show], controller: 'patra_game_health'
     resource :patra_impersonation, only: [:show, :create, :destroy], controller: 'patra_impersonations'
+    resources :patra_plans, except: [:show]
+    resource :patra_feature_gating, only: [:show], controller: 'patra_feature_gating' do
+      post :set_plan_feature
+      post :assign_plan
+    end
   end
   # == END PATRA TAB-C ROUTES ==
 end
