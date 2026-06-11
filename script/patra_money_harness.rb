@@ -1612,6 +1612,29 @@ begin
   ok!('BP-I1 "i requested a cashout" -> cashout (not payment_sent)',
       Games::IntentDetector.detect('i requested a cashout')&.dig(:intent) == :cashout)
 
+  puts "\n[BP-I2 corpus iteration-2 detector routings]"
+  {
+    'Billion balls'      => [:load, 'billion_balls'],
+    'For juwa please'    => [:load, 'juwa'],
+    'On gv'              => [:load, 'game_vault'],
+    'Orions'             => [:load, 'orion_stars'],
+    'Cash out please'    => [:cashout, nil],
+    'Sent 15 2.0 please' => [:payment_sent_confirmation, nil],
+    'Same chime'         => [:payment_method_chosen, nil],
+    "What's your PayPal" => [:payment_method_chosen, nil],
+    'Same tag?'          => [:payment_handle_again, nil],
+    'Juwa Dyar760'       => [:username_provided, 'juwa']
+  }.each do |text, (want, slug)|
+    r = Games::IntentDetector.detect(text)
+    ok!("BP-I2 #{text.inspect} -> #{want}#{slug ? "/#{slug}" : ''}",
+        r.is_a?(Hash) && r[:intent] == want && (slug.nil? || r[:game_slug].to_s == slug))
+  end
+  ok!('BP-I2 "same cashapp failed" vetoed (failover owns it)',
+      Games::IntentDetector.detect('same cashapp failed').nil?)
+  bp_i2_again = orch(account, contact, [{ 'role' => 'user', 'content' => 'Same tag?' }]).handle
+  ok!('BP-I2 :payment_handle_again routes through the orchestrator (menu/tag/escalation reply, never nil)',
+      bp_i2_again.is_a?(Hash) && bp_i2_again[:reply].to_s.strip.length.positive?)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
