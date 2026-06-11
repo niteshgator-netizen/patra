@@ -649,11 +649,21 @@ module Games
         return { reply: 'you already got your freeplay today! try again tomorrow', labels: ['freeplay-limit'] }
       end
 
-      # MEGA2 P5 - freeplay-farm guard: any freeplay grant needs >= N confirmed
-      # real deposits ever (N = account custom_attributes['freeplay_min_deposits'],
-      # default 1; 0 disables). Applies to the contact override AND the
-      # GameRule auto flow; the operator-approval escalation path (ApprovalRequest
-      # -> AutoResume) is an explicit human decision and stays available.
+      if fp_override == 'approve'
+        return execute_freeplay_load(game_slug, fp_amount, rules, source: 'contact_override')
+      end
+
+      unless rules&.freeplay_enabled
+        # G1b DEFAULT (unconfigured): full case + pending approval, no money yet.
+        return escalate_freeplay_ask(game_slug, fp_amount)
+      end
+
+      # MEGA2 P5 (reordered HOTFIX 2) - freeplay-farm guard: an AUTO grant
+      # needs >= N confirmed real deposits ever (N = account
+      # custom_attributes['freeplay_min_deposits'], default 1; 0 disables).
+      # Gates ONLY the GameRule auto flow below: the operator override above
+      # wins in both directions, and the unconfigured escalate path grants
+      # nothing and ends in an explicit human approval anyway.
       min_deps = freeplay_min_deposits_setting
       if min_deps.positive?
         real_deps = confirmed_real_deposit_count
@@ -674,15 +684,6 @@ module Games
           end
           return { reply: 'freeplay unlocks after your first deposit - load up and i got you', labels: %w[freeplay-denied freeplay-farm-guard] }
         end
-      end
-
-      if fp_override == 'approve'
-        return execute_freeplay_load(game_slug, fp_amount, rules, source: 'contact_override')
-      end
-
-      unless rules&.freeplay_enabled
-        # G1b DEFAULT (unconfigured): full case + pending approval, no money yet.
-        return escalate_freeplay_ask(game_slug, fp_amount)
       end
 
       # ---- operator-configured GameRule auto flow (pre-G1 behavior) ----
