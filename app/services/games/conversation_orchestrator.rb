@@ -428,6 +428,16 @@ module Games
       # Try to load. If username doesn't exist on Game Vault, auto-create it.
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
 
+      # G2 (June 10) - a configured bonus auto-attaches to the qualifying
+      # deposit: ONE load of amount + bonus, bonus flagged in metadata (TABA-1
+      # single record). The deterministic order_id is unchanged - F12 still
+      # collapses duplicates of the same payment.
+      auto_bonus = compute_auto_bonus(requested_amount, ag.game.slug)
+      load_total = requested_amount + auto_bonus
+      bonus_note = auto_bonus.positive? ? " + $#{fmt_amt(auto_bonus)} bonus" : ''
+      bonus_meta = auto_bonus.positive? ? { deposit_bonus: true, deposit_amount: requested_amount, bonus_amount: auto_bonus, bonus_source: 'auto_percent' } : {}
+      log_generosity_decision(kind: 'bonus', decision: 'given', amount: auto_bonus, source: 'auto_percent') if auto_bonus.positive?
+
       # F12: deterministic order_id - concurrent duplicates of the SAME payment
       # collapse on the unique index instead of double-loading.
       load_order_id = deterministic_payment_order_id(payment[:id])
@@ -436,9 +446,9 @@ module Games
       result = begin
         executor.load_player(
           game_username: username,
-          amount: requested_amount,
+          amount: load_total,
           payment_method: payment[:method],
-          metadata: { source: 'bella_auto', payment_id: payment[:id], message: recent_customer_text.to_s[0..200] },
+          metadata: { source: 'bella_auto', payment_id: payment[:id], message: recent_customer_text.to_s[0..200] }.merge(bonus_meta),
           order_id: load_order_id
         )
       rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
@@ -485,9 +495,9 @@ module Games
         result = begin
           executor.load_player(
             game_username: username,
-            amount: requested_amount,
+            amount: load_total,
             payment_method: payment[:method],
-            metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] },
+            metadata: { source: 'bella_auto_after_create', payment_id: payment[:id] }.merge(bonus_meta),
             order_id: retry_order_id
           )
         rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
@@ -553,7 +563,7 @@ module Games
           Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
         end
         apply_receipt_preference({
-          reply: "loaded $#{requested_amount} to #{username} on #{ag.game.name} 🎰 good luck!",
+          reply: "loaded $#{requested_amount}#{bonus_note} to #{username} on #{ag.game.name} 🎰 good luck!",
           labels: ['auto-load']
         })
       else
@@ -881,6 +891,84 @@ module Games
       { reply: 'let me check what i can do for you - gimme a few minutes', labels: %w[freeplay-pending needs-human] }
     end
 
+    # G2 - the % bonus that should attach to this deposit. 0.0 when not
+    # configured / not qualified. Contact override wins ('none' blocks,
+    # a number replaces the account percent).
+    def compute_auto_bonus(amount, _slug)
+      amt = amount.to_f
+      return 0.0 if amt <= 0
+
+      override = (contact.custom_attributes || {})['bonus_percent_override'].to_s.strip
+      return 0.0 if override.downcase == 'none'
+      return (amt * override.to_f / 100.0).round(2) if override.match?(/\A\d+(\.\d+)?\z/)
+
+      pct = generosity_setting('bonus_percent')
+      first_pct = generosity_setting('first_deposit_bonus_percent')
+      pct = first_pct if first_pct.present? && first_real_deposit?
+      return 0.0 if pct.blank?
+
+      min_dep = generosity_setting('bonus_min_deposit').to_f
+      return 0.0 if min_dep.positive? && amt < min_dep
+
+      (amt * pct.to_f / 100.0).round(2)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] compute_auto_bonus failed: #{e.message}")
+      0.0
+    end
+
+    def first_real_deposit?
+      !GameAction.where(account_id: account.id, contact_id: contact.id,
+                        action_type: 'load', status: 'success')
+                 .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+                 .exists?
+    rescue StandardError
+      false
+    end
+
+    def bonus_configured_for_contact?
+      override = (contact.custom_attributes || {})['bonus_percent_override'].to_s.strip
+      return true if override.match?(/\A\d+(\.\d+)?\z/)
+
+      generosity_setting('bonus_percent').present? || generosity_setting('first_deposit_bonus_percent').present?
+    rescue StandardError
+      false
+    end
+
+    # G2c - explicit bonus ask while UNCONFIGURED: full case + pending approval.
+    def escalate_bonus_ask(game_slug)
+      if recent_generosity_rejection?('bella_bonus')
+        log_generosity_decision(kind: 'bonus', decision: 'denied', amount: 0, source: 'operator_reject')
+        return { reply: "no bonus on this one - load up and i'll look out for you next time", labels: ['bonus-denied'] }
+      end
+
+      payment = find_unloaded_confirmed_payment
+      data = generosity_case_data(game_slug)
+      give, dont = generosity_reasons(data)
+      username = find_game_username_for_slug(contact, game_slug)
+      dep_txt = payment ? "verified $#{fmt_amt(payment[:amount])} deposit waiting" : 'no verified deposit at hand yet'
+      approval = create_pending_generosity_approval(
+        source: 'bella_bonus', amount: payment ? payment[:amount].to_f : 0,
+        game_slug: game_slug, username: username,
+        extra: { 'deposit_bonus' => 'true', 'payment_id' => payment ? payment[:id].to_s : '' }
+      )
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "a bonus on their deposit (#{dep_txt})",
+            done: "case: lifetime deposits $#{fmt_amt(data[:total_deposits])} (#{data[:deposit_count]}), last 7d $#{fmt_amt(data[:recent_deposits])} (#{data[:recent_count]} loads), inactive #{data[:days_inactive] || 'n/a'}d. WHY GIVE: #{give.presence&.join('; ') || 'nothing strong'}. WHY NOT: #{dont.presence&.join('; ') || 'nothing strong'}",
+            left: 'nothing loaded as bonus - bonus settings are unconfigured',
+            suggest: 'approve the deposit (add any bonus manually) or set bonus_percent to automate this',
+            need: "approve / decline the bonus ask#{approval == :already ? ' (request already pending)' : ''}"
+          ),
+          conversation: conversation
+        )
+      end
+      log_generosity_decision(kind: 'bonus', decision: 'escalated', amount: 0, source: 'default_unconfigured')
+      { reply: 'let me check what bonus i can do for you - gimme a few minutes', labels: %w[bonus-pending needs-human] }
+    end
+
     def handle_load_bonus(intent = nil)
       game_slug = chosen_game_slug(intent || { intent: :load })
 
@@ -899,8 +987,15 @@ module Games
       end
 
       unless rules&.deposit_bonus_enabled
-        Rails.logger.info("[Orchestrator] No bonus rules for #{game_slug}, falling back to regular load")
-        return handle_load_intent(intent || { intent: :load, game_slug: game_slug })
+        # G2 (June 10) - no per-game bonus rule. When the new percent settings
+        # or the contact override are configured, the normal load path applies
+        # the % itself (compute_auto_bonus inside handle_load_intent). An
+        # explicit bonus ask while UNCONFIGURED escalates with the full case.
+        if bonus_configured_for_contact?
+          Rails.logger.info("[Orchestrator] G2 bonus ask: percent settings configured - normal load path applies the bonus")
+          return handle_load_intent(intent || { intent: :load, game_slug: game_slug })
+        end
+        return escalate_bonus_ask(game_slug)
       end
 
       if rules.deposit_bonus_first_deposit_only

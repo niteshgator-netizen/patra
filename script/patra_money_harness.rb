@@ -1149,6 +1149,100 @@ begin
   ok!('G1c freeplay-funded balance => R3 sees a freeplay-typed last deposit (assert, not rebuilt)',
       g1_type && g1_type[:type] == 'freeplay' && g1_type[:amount] == 5.0)
 
+  puts "\n[G2 bonus generosity pattern]  (unconfigured escalates; configured % auto-applies)"
+  g2_rule = GameRule.find_or_initialize_by(account_id: account.id, game_id: ag.game.id)
+  g2_was_new = g2_rule.new_record?
+  g2_snap = g2_was_new ? nil : g2_rule.attributes.dup
+  g2_rule.assign_attributes(deposit_bonus_enabled: false)
+  g2_rule.save!
+  g2_keys = %w[bonus_percent first_deposit_bonus_percent bonus_min_deposit]
+  g2_set = lambda do |h|
+    base = (account.custom_attributes || {}).reject { |k, _| g2_keys.include?(k.to_s) }
+    account.update!(custom_attributes: base.merge(h))
+  end
+  g2_pay = lambda do |amt, id|
+    contact.update!(custom_attributes: contact.custom_attributes.merge(
+      'patra_finance_logs' => [{ 'id' => id, 'status' => 'confirmed', 'amount' => amt,
+                                 'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+    ))
+  end
+  begin
+    # UNCONFIGURED explicit ask -> full case + pending approval, NO load
+    g2_set.call({})
+    reset_run; prime_contact!(contact, [src_slug])
+    g2_pay.call(30, 'HARNESS_G2_PAY0')
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'any bonus if i load 30?' }])
+          .send(:handle_load_bonus, { intent: :load_bonus, game_slug: src_slug })
+    ok!('G2 unconfigured bonus ask => escalates, NO load', !$FAKE.called?(:recharge) && Array(r[:labels]).include?('needs-human'))
+    ok!('G2 unconfigured ask => case carries WHY GIVE/WHY NOT + deposit at hand',
+        tg?('WHY GIVE') && tg?('verified $30 deposit waiting'))
+    g2_appr = ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
+                             .where("metadata->>'source' = 'bella_bonus'")
+    ok!('G2 unconfigured ask => pending ApprovalRequest (source bella_bonus)', g2_appr.exists?)
+    g2_appr.delete_all
+
+    # CONFIGURED 20% -> 20 + 20% = 24 in ONE load, bonus flagged in metadata
+    g2_set.call('bonus_percent' => 20)
+    reset_run; prime_contact!(contact, [src_slug])
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                       action_type: 'load', order_id: 'HARNESS_G2_PRIOR', game_username: 'harnessuser1',
+                       amount: 10, status: 'success', metadata: {}, executed_at: 2.hours.ago, created_at: 2.hours.ago)
+    g2_pay.call(20, 'HARNESS_G2_PAY1')
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 20' }])
+          .send(:handle_load_intent, { intent: :load, amount: 20, game_slug: src_slug, game_username: 'harnessuser1' })
+    g2_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+    ok!('G2 configured 20% => ONE load of exactly $24', g2_rc && g2_rc[1].to_f == 24.0)
+    g2_ga = GameAction.where(contact_id: contact.id, action_type: 'load', status: 'success', amount: 24).first
+    ok!('G2 configured => bonus flagged in metadata (deposit 20 + bonus 4)',
+        g2_ga && g2_ga.metadata['deposit_bonus'].to_s == 'true' && g2_ga.metadata['bonus_amount'].to_f == 4.0)
+    ok!('G2 reply mentions the bonus', r[:reply].to_s.include?('bonus'))
+
+    # min-deposit gate: $20 below the $50 floor -> plain $20 load
+    g2_set.call('bonus_percent' => 20, 'bonus_min_deposit' => 50)
+    reset_run; prime_contact!(contact, [src_slug])
+    g2_pay.call(20, 'HARNESS_G2_PAY2')
+    orch(account, contact, [{ 'role' => 'user', 'content' => 'load 20' }])
+      .send(:handle_load_intent, { intent: :load, amount: 20, game_slug: src_slug, game_username: 'harnessuser1' })
+    g2_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+    ok!('G2 below bonus_min_deposit => plain $20, no bonus', g2_rc && g2_rc[1].to_f == 20.0)
+
+    # first deposit ever -> first_deposit_bonus_percent (50%) wins over bonus_percent (20%)
+    g2_set.call('bonus_percent' => 20, 'first_deposit_bonus_percent' => 50)
+    reset_run; prime_contact!(contact, [src_slug])
+    g2_pay.call(20, 'HARNESS_G2_PAY3')
+    orch(account, contact, [{ 'role' => 'user', 'content' => 'load 20' }])
+      .send(:handle_load_intent, { intent: :load, amount: 20, game_slug: src_slug, game_username: 'harnessuser1' })
+    g2_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+    ok!('G2 first deposit ever => 50% first-deposit bonus wins ($30 load)', g2_rc && g2_rc[1].to_f == 30.0)
+
+    # contact override 'none' blocks the configured percent
+    g2_set.call('bonus_percent' => 20)
+    reset_run; prime_contact!(contact, [src_slug])
+    contact.update!(custom_attributes: contact.custom_attributes.merge('bonus_percent_override' => 'none'))
+    g2_pay.call(20, 'HARNESS_G2_PAY4')
+    orch(account, contact, [{ 'role' => 'user', 'content' => 'load 20' }])
+      .send(:handle_load_intent, { intent: :load, amount: 20, game_slug: src_slug, game_username: 'harnessuser1' })
+    g2_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+    ok!("G2 contact override 'none' => plain $20, percent blocked", g2_rc && g2_rc[1].to_f == 20.0)
+
+    # G2e - bonus-typed last deposit falls back to default multipliers (R3 lock)
+    g2_type = orch(account, contact, []).send(:last_deposit_for_cashout, src_slug)
+    ok!('G2e bonus-typed deposit recognized by R3 typing (assert, not rebuilt)',
+        %w[deposit bonus].include?(g2_type && g2_type[:type]))
+  ensure
+    begin
+      g2_set.call({})
+      if g2_was_new
+        g2_rule.destroy
+      else
+        g2_rule.update!(g2_snap.except('id', 'created_at', 'updated_at'))
+      end
+      puts '[cleanup] restored G2 fixtures (account keys, game_rule)'
+    rescue StandardError => e
+      puts "[cleanup] G2 restore failed: #{e.class}: #{e.message}"
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
