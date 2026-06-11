@@ -601,6 +601,20 @@ begin
     puts '  SKIPPED - need 2 self-resolving active agent_games'
   end
 
+  puts "\n[R2 replay-from-balance never alters a load]  ($2 in game + load $10 => loads exactly $10)"
+  reset_run(balance: 2.0); prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{
+      'id' => 'HARNESS_PAY_R2', 'status' => 'confirmed', 'amount' => 10,
+      'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp'
+    }]
+  ))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 10' }])
+        .send(:handle_load_intent, { intent: :load, amount: 10, game_slug: src_slug, game_username: 'harnessuser1' })
+  r2_rc = $FAKE.calls.find { |c| c[0] == :recharge }
+  ok!('R2 leftover balance never subtracts/caps => recharge is EXACTLY $10', r2_rc && r2_rc[1].to_f == 10.0)
+  ok!('R2 load succeeded with auto-load label', Array(r && r[:labels]).include?('auto-load'))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
