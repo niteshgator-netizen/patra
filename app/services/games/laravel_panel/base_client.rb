@@ -63,7 +63,12 @@ module Games
       def agent_balance
         resp = http_request(:post, "#{self.class::BASE_URL}/api/agent/getMoney",
                             body: '', headers: xhr_headers(referer: "#{self.class::BASE_URL}/admin/console"))
-        json = JSON.parse(resp.body)
+        json = begin
+          JSON.parse(resp.body)
+        rescue JSON::ParserError => e
+          # Read endpoint - nothing was written; a parse failure is a plain failure.
+          raise Games::ClientError.new("agent_balance returned unparseable JSON: #{e.message}", code: -1)
+        end
         if json['status_code'].to_i == 200
           { 'data' => { 'agent_balance' => json['data'] }, 'code' => 0, 'msg' => 'Success' }
         else
@@ -100,7 +105,13 @@ module Games
                               referer: "#{self.class::BASE_URL}/admin/player/insert",
                               extra: { 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
                                        'Origin' => self.class::BASE_URL }))
-        json = JSON.parse(resp.body)
+        json = begin
+          JSON.parse(resp.body)
+        rescue JSON::ParserError => e
+          # MEGA2 P6 - the create was already POSTed; the panel MAY have made
+          # the account. Ambiguous - never plain-failed, never auto-retried.
+          raise Games::AmbiguousPanelStateError.new("playerInsert answered unparseable JSON after the write: #{e.message}", code: 'ambiguous', payload: { snippet: resp.body.to_s[0, 300] })
+        end
         if json['message'].to_s.match?(/successful/i)
           # Search-verify so we return the new id
           sleep_jitter(1.0)
@@ -150,7 +161,13 @@ module Games
                               referer: "#{self.class::BASE_URL}/admin/player/resetpw",
                               extra: { 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
                                        'Origin' => self.class::BASE_URL }))
-        json = JSON.parse(resp.body)
+        json = begin
+          JSON.parse(resp.body)
+        rescue JSON::ParserError => e
+          # MEGA2 P6 - the reset was already POSTed; the panel MAY have applied
+          # it. Ambiguous - never plain-failed, never auto-retried.
+          raise Games::AmbiguousPanelStateError.new("reset answered unparseable JSON after the write: #{e.message}", code: 'ambiguous', payload: { snippet: resp.body.to_s[0, 300] })
+        end
         if json['message'].to_s.match?(/successful/i)
           { 'data' => json['data'], 'code' => 0, 'msg' => json['message'] }
         else
@@ -171,7 +188,13 @@ module Games
                               referer: "#{self.class::BASE_URL}/admin/player/#{endpoint == 'agentRecharge' ? 'recharge' : 'withdraw'}",
                               extra: { 'Content-Type' => 'application/x-www-form-urlencoded; charset=UTF-8',
                                        'Origin' => self.class::BASE_URL }))
-        json = JSON.parse(resp.body)
+        json = begin
+          JSON.parse(resp.body)
+        rescue JSON::ParserError => e
+          # MEGA2 P6 - the MONEY write was already POSTed; the panel MAY have
+          # credited. Ambiguous - never plain-failed, never auto-retried.
+          raise Games::AmbiguousPanelStateError.new("#{action_label} answered unparseable JSON after the money write: #{e.message}", code: 'ambiguous', payload: { snippet: resp.body.to_s[0, 300], order_id: order_id })
+        end
         if json['message'].to_s.match?(/successful/i)
           { 'data' => (json['data'] || {}).merge('order_id' => order_id), 'code' => 0, 'msg' => json['message'] }
         else

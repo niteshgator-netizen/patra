@@ -341,6 +341,35 @@ module Games
       agent_game.reset_failures! if agent_game.failure_count > 0
       log_money(action, ok: true)
       { ok: true, action: action, response: result }
+    rescue Games::AmbiguousPanelStateError => e
+      # MEGA2 P6 - the panel answered garbage AFTER a write: it MAY have
+      # executed. Status 'ambiguous' (not failed - a failed status invites a
+      # redo), metadata flag set, NEVER auto-retried, human verifies the
+      # balance before any redo. The F12 deterministic order_id path treats
+      # 'ambiguous' like success/pending and blocks automatic re-execution.
+      action.update!(
+        status: 'ambiguous',
+        api_response_code: 'ambiguous',
+        api_response_message: e.message,
+        api_response_body: sanitize_for_db(e.payload || {}),
+        metadata: (action.metadata || {}).merge('ambiguous' => true),
+        executed_at: Time.current
+      )
+      agent_game.record_failure!
+      log_money(action, ok: false, code: 'ambiguous')
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: agent_game.account,
+          contact: contact,
+          reason: "PLAYER WANTS: #{action.action_type} $#{action.amount} on #{agent_game.game&.name} | " \
+                  "ALREADY DONE: panel answered garbage AFTER the write (#{e.message.to_s[0, 120]}) - panel MAY have credited | " \
+                  'STILL LEFT: verify player balance before any redo | ' \
+                  'BELLA SUGGESTS: check the panel transaction log - do NOT re-run blindly | ' \
+                  "NEEDS FROM HUMAN: confirm whether order #{action.order_id} landed, then finish or refund",
+          conversation: conversation
+        )
+      end
+      { ok: false, action: action, error: e.message, code: 'ambiguous' }
     rescue Games::GameVault::Client::GameVaultError, Games::Juwa::Client::JuwaError,
            Games::FastApi::Client::FastApiError, Games::ClientError => e
       action.update!(

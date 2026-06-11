@@ -10,4 +10,10 @@ module Games
       @payload = payload
     end
   end
+
+  # MEGA2 P6 - raised when a panel response AFTER a write cannot be parsed:
+  # the write MAY have landed. ActionExecutor marks the action 'ambiguous'
+  # (never 'failed'), never auto-retries, and escalates for a human balance
+  # check before any redo.
+  class AmbiguousPanelStateError < ClientError; end
 end
