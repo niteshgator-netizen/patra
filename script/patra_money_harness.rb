@@ -138,6 +138,20 @@ contact = Contact.create!(account: account, name: 'HARNESS_TEST_CONTACT')
 pref_row = ReplyPreference.for_account(account.id)
 r1_saved_mode = pref_row.transfer_mode
 
+# MEGA-AUDIT confirm-gate pin (June 11, assertions unchanged): with real
+# conversations the confirm_before_load (:346) / confirm_before_cashout (:1288)
+# gates become reachable — under conversation:nil they were silently skipped
+# (the nil deref raised inside the gate's own rescue). Account 2 ships
+# confirm_before_cashout=true (migration default), which would turn the asserted
+# "processing" cashout replies (R3 pass case) into "confirm cashout? (yes/no)"
+# asks. Pin BOTH false for the whole run — same global snapshot+restore pattern
+# as the R7 auto_load_threshold pin below; restored in ensure.
+cg_saved = {}
+%i[confirm_before_load confirm_before_cashout].each do |k|
+  cg_saved[k] = pref_row.public_send(k) if pref_row.respond_to?(k)
+end
+pref_row.update!(cg_saved.transform_values { false }) if cg_saved.any?
+
 # MONEYFLOWS R7 fixture pin (assertions unchanged - see log D6): the legacy F13
 # scenario loads $999 with the per-agent cap unset; pin the new dollar threshold
 # high so F13 keeps testing the per-agent cap. R7 scenarios set their own values.
@@ -158,7 +172,30 @@ def prime_contact!(contact, slugs)
 end
 
 def exec(ag, contact); Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: nil); end
-def orch(account, contact, msgs); Games::ConversationOrchestrator.new(account: account, contact: contact, conversation: nil, messages: msgs); end
+
+# MEGA-AUDIT (June 11): every orchestrator now gets a FRESH REAL conversation.
+# handle_cashout_intent (:1158) and handle_load_bonus (:1003) deref
+# conversation.contact unguarded — the old conversation:nil crashed the June 10
+# Render run at the first R3 cashout case. Fresh per call so additional_attributes
+# (pending_cashout, load_confirmed, payment_match_misses...) never leak between
+# cases; pass convo: to deliberately SHARE one conversation across calls that
+# model a single ongoing thread (S3 miss counter). Every conversation created
+# here is tracked and destroyed in the ensure block BEFORE the contact.
+def harness_inbox(account)
+  $HARNESS_INBOX ||= account.inboxes.detect { |i| i.channel_type == 'Channel::Api' } ||
+                     account.inboxes.order(:id).first
+end
+def new_harness_conversation(account, contact)
+  inbox = harness_inbox(account)
+  abort '[harness] account has no inbox — cannot build real conversations' unless inbox
+  ci = ContactInbox.find_by(contact_id: contact.id, inbox_id: inbox.id) ||
+       ContactInbox.create!(contact: contact, inbox: inbox, source_id: SecureRandom.uuid)
+  Conversation.create!(account: account, inbox: inbox, contact: contact, contact_inbox: ci)
+end
+def orch(account, contact, msgs, convo: nil)
+  convo ||= new_harness_conversation(account, contact)
+  Games::ConversationOrchestrator.new(account: account, contact: contact, conversation: convo, messages: msgs)
+end
 def double(account, game, creds = {}); AgentGame.new(account: account, game: game, status: 'active', credentials: creds); end
 
 begin
@@ -1024,22 +1061,30 @@ begin
       !r[:reply].to_s.match?(/what name/i) && $FAKE.calls.any? { |c| c[0] == :recharge && c[1].to_f == 40.0 })
 
   # no name anywhere -> asks for name + screenshot, NOT a miss, never loads
+  # MEGA-AUDIT: with a real conversation the miss counter lives on
+  # conversation.additional_attributes (orchestrator:2629, contact only as the
+  # nil-conversation fallback) — assert BOTH locations stay zero.
   reset_run; prime_contact!(contact, [src_slug])
-  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'i sent it' }])
+  s3_nn_convo = new_harness_conversation(account, contact)
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'i sent it' }], convo: s3_nn_convo)
         .send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
   ok!('S3 no name known => asks for name + screenshot, no load',
       r[:reply].to_s.match?(/what name/i) && !$FAKE.called?(:recharge))
   ok!('S3 asking for the name is NOT a miss',
-      contact.reload.custom_attributes['payment_match_misses'].to_i.zero?)
+      contact.reload.custom_attributes['payment_match_misses'].to_i.zero? &&
+      (s3_nn_convo.reload.additional_attributes || {})['payment_match_misses'].to_i.zero?)
 
   # (d) no matching email: miss 1, miss 2, then 3rd insist -> escalate. NEVER loads.
+  # MEGA-AUDIT: ONE shared conversation across the 3 calls — the miss counter is
+  # per-conversation now; fresh-per-call conversations would reset it each turn.
   reset_run; prime_contact!(contact, [src_slug])
   s3_miss_msgs = [{ 'role' => 'user', 'content' => 'i sent 25 from John Doe' }]
-  r1m = orch(account, contact, s3_miss_msgs).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
-  r2m = orch(account, contact, s3_miss_msgs).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  s3_miss_convo = new_harness_conversation(account, contact)
+  r1m = orch(account, contact, s3_miss_msgs, convo: s3_miss_convo).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  r2m = orch(account, contact, s3_miss_msgs, convo: s3_miss_convo).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
   ok!('S3 misses 1+2 => honest not-landed replies, no telegram yet',
       r1m[:reply].to_s.match?(/don't see it/i) && r2m[:reply].to_s.match?(/don't see it/i) && $TG.empty?)
-  r3m = orch(account, contact, s3_miss_msgs).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
+  r3m = orch(account, contact, s3_miss_msgs, convo: s3_miss_convo).send(:handle_payment_sent_confirmation, { intent: :payment_sent_confirmation, game_slug: src_slug })
   ok!('S3 3rd insist => escalates with R8 context + needs-human',
       Array(r3m[:labels]).include?('needs-human') && tg?('NEEDS FROM HUMAN'))
   ok!('S3 unverified => NEVER loaded anything across all attempts', !$FAKE.called?(:recharge))
@@ -1357,6 +1402,16 @@ ensure
   rescue StandardError => e
     puts "[cleanup] agent_game restore failed: #{e.class}: #{e.message}"
   end
+  # MEGA-AUDIT: destroy ALL harness conversations BEFORE the contact (FK order;
+  # also removes the contact_inbox rows via the contact destroy that follows).
+  begin
+    convos = Conversation.where(contact_id: contact.id)
+    convo_count = convos.count
+    convos.destroy_all
+    puts "[cleanup] destroyed #{convo_count} harness conversation(s) for throwaway contact #{contact.id}"
+  rescue StandardError => e
+    puts "[cleanup] conversation cleanup failed: #{e.class}: #{e.message}"
+  end
   begin
     contact.destroy
     puts '[cleanup] deleted throwaway contact'
@@ -1376,6 +1431,14 @@ ensure
     end
   rescue StandardError => e
     puts "[cleanup] transfer_mode restore failed: #{e.class}: #{e.message}"
+  end
+  begin
+    if defined?(cg_saved) && cg_saved.is_a?(Hash) && cg_saved.any? && defined?(pref_row) && pref_row
+      pref_row.update!(cg_saved)
+      puts '[cleanup] restored confirm_before_load/confirm_before_cashout prefs'
+    end
+  rescue StandardError => e
+    puts "[cleanup] confirm-gate pref restore failed: #{e.class}: #{e.message}"
   end
   begin
     if defined?(Payments::EmailConfirmationService) && Payments::EmailConfirmationService.method_defined?(:orig_check_all_harness)
