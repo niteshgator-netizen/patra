@@ -1044,6 +1044,111 @@ begin
       Array(r3m[:labels]).include?('needs-human') && tg?('NEEDS FROM HUMAN'))
   ok!('S3 unverified => NEVER loaded anything across all attempts', !$FAKE.called?(:recharge))
 
+  # ==================== MONEYFLOWS RUN 3 (G1-G4, 2026-06-10) ==================
+  puts "\n[G1 freeplay generosity pattern]  (override first, default escalates with the case)"
+  g1_rule = GameRule.find_or_initialize_by(account_id: account.id, game_id: ag.game.id)
+  g1_was_new = g1_rule.new_record?
+  g1_snap = g1_was_new ? nil : g1_rule.attributes.dup
+  g1_rule.assign_attributes(freeplay_enabled: false)
+  g1_rule.save!
+  g1_flag_saved = ENV['PATRA_APPROVAL_AUTORESUME']
+  g1_approvals = ApprovalRequest.where(account_id: account.id, action_type: 'load')
+                                .where("metadata->>'source' = 'bella_freeplay'")
+  begin
+    # override approve -> loads the configured amount now, freeplay flag set
+    reset_run; prime_contact!(contact, [src_slug])
+    contact.update!(custom_attributes: contact.custom_attributes.merge('freeplay_auto' => 'approve'))
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'can i get freeplay?' }])
+          .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+    g1_fp = GameAction.where(contact_id: contact.id, action_type: 'load', status: 'success')
+                      .where("metadata->>'freeplay' = 'true'").order(created_at: :desc).first
+    ok!('G1 override approve => loads $5 freeplay now (flag set, single record)',
+        $FAKE.called?(:recharge) && g1_fp && g1_fp.amount.to_f == 5.0)
+    ok!('G1 decision logged for analysis (given)',
+        Array(contact.reload.custom_attributes['patra_generosity_log']).any? { |e| e.is_a?(Hash) && e['decision'] == 'given' })
+
+    # daily limit respected on EVERY path (even override approve)
+    reset_run   # keep the freeplay GameAction just created
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'more freeplay?' }])
+          .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+    ok!('G1 daily limit => second freeplay today declined, no load',
+        !$FAKE.called?(:recharge) && r[:reply].to_s.match?(/already got your freeplay today/i))
+
+    # override deny -> polite decline
+    reset_run; prime_contact!(contact, [src_slug])
+    contact.update!(custom_attributes: contact.custom_attributes.merge('freeplay_auto' => 'deny'))
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'freeplay?' }])
+          .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+    ok!('G1 override deny => polite decline, no load',
+        !$FAKE.called?(:recharge) && r[:reply].to_s.match?(/maxed out on freeplay/i))
+
+    # DEFAULT (no override, GameRule freeplay off) -> full case + pending approval
+    reset_run; prime_contact!(contact, [src_slug])
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                       action_type: 'load', order_id: 'HARNESS_G1_DEP', game_username: 'harnessuser1',
+                       amount: 50, status: 'success', metadata: {}, executed_at: Time.current)
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'any freeplay for me?' }])
+          .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+    ok!('G1 default => no money moved, needs-human pending reply',
+        !$FAKE.called?(:recharge) && Array(r[:labels]).include?('needs-human'))
+    ok!('G1 default => case carries WHY GIVE / WHY NOT / counts',
+        tg?('WHY GIVE') && tg?('WHY NOT') && tg?('lifetime deposits $50'))
+    g1_appr = g1_approvals.where(status: 'pending').order(:id).last
+    ok!('G1 default => pending ApprovalRequest (source bella_freeplay)',
+        g1_appr.present? && g1_appr.amount.to_f == 5.0)
+
+    # operator approve -> loads exactly once via the normal path (AutoResume)
+    ENV['PATRA_APPROVAL_AUTORESUME'] = 'true'
+    reset_run
+    g1_appr.update_columns(status: 'approved')
+    res = Approvals::AutoResume.execute!(g1_appr)
+    g1_loaded = GameAction.find_by(account_id: account.id, order_id: "appr_#{g1_appr.id}")
+    ok!('G1 operator approve => freeplay loads once via the normal path',
+        res[:ok] == true && $FAKE.calls.count { |c| c[0] == :recharge } == 1)
+    ok!('G1 approved load carries the freeplay flag (R3 typing holds)',
+        g1_loaded && g1_loaded.metadata['freeplay'].to_s == 'true' && g1_loaded.amount.to_f == 5.0)
+    ENV.delete('PATRA_APPROVAL_AUTORESUME')
+
+    # operator reject -> the next ask declines politely, no re-escalation
+    reset_run
+    GameAction.where(contact_id: contact.id).delete_all
+    orch(account, contact, [{ 'role' => 'user', 'content' => 'freeplay pls' }])
+      .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+    g1_appr2 = g1_approvals.where(status: 'pending').order(:id).last
+    g1_appr2&.update_columns(status: 'rejected', updated_at: Time.current)
+    reset_run
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'freeplay pls' }])
+          .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+    ok!('G1 operator reject => polite decline, no re-escalation, no load',
+        !$FAKE.called?(:recharge) && $TG.empty? && r[:reply].to_s.match?(/can't do freeplay/i))
+  ensure
+    begin
+      if g1_flag_saved.nil?
+        ENV.delete('PATRA_APPROVAL_AUTORESUME')
+      else
+        ENV['PATRA_APPROVAL_AUTORESUME'] = g1_flag_saved
+      end
+      g1_approvals.delete_all
+      if g1_was_new
+        g1_rule.destroy
+      else
+        g1_rule.update!(g1_snap.except('id', 'created_at', 'updated_at'))
+      end
+      puts '[cleanup] restored G1 fixtures (flag, approvals, game_rule)'
+    rescue StandardError => e
+      puts "[cleanup] G1 restore failed: #{e.class}: #{e.message}"
+    end
+  end
+
+  # R3-lock (G1c): freeplay-typed cashout rules still drive from the freeplay flag
+  reset_run; prime_contact!(contact, [src_slug])
+  GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                     action_type: 'load', order_id: 'HARNESS_G1_FPTYPE', game_username: 'harnessuser1',
+                     amount: 5, status: 'success', metadata: { freeplay: true }, executed_at: Time.current)
+  g1_type = orch(account, contact, []).send(:last_deposit_for_cashout, src_slug)
+  ok!('G1c freeplay-funded balance => R3 sees a freeplay-typed last deposit (assert, not rebuilt)',
+      g1_type && g1_type[:type] == 'freeplay' && g1_type[:amount] == 5.0)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

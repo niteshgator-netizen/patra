@@ -16,8 +16,12 @@ module Approvals
 
     def self.execute!(approval)
       return { ok: false, skipped: :disabled } unless enabled?
-      return { ok: false, skipped: :not_cashout } unless approval.action_type == 'cashout'
       return { ok: false, skipped: :not_approved } unless approval.status == 'approved'
+      # MONEYFLOWS3 G1-G3: approved generosity/over-threshold LOADS execute through
+      # the same exactly-once machinery (appr_<id> order_id). Anything without an
+      # AgentGame target + username + positive amount stays manual (notified).
+      return execute_load!(approval) if approval.action_type == 'load'
+      return { ok: false, skipped: :not_cashout } unless approval.action_type == 'cashout'
 
       agent_game = approval.target_type == 'AgentGame' ? AgentGame.find_by(id: approval.target_id) : nil
       meta = (approval.metadata || {}).stringify_keys
@@ -57,6 +61,59 @@ module Approvals
         notify(approval,
                "❌ Approved cashout ##{approval.id} FAILED: #{result[:error]} (code #{result[:code]}) — " \
                "action status=#{action_status}, $#{amount} for #{username} NEEDS HUMAN — verify on the panel before paying")
+      end
+      result
+    end
+
+    # MONEYFLOWS3 - approved LOAD (freeplay/bonus/referral/over-threshold) executes
+    # once through the normal ActionExecutor path. Metadata flags from the approval
+    # ride into the GameAction so R3 deposit-typing and TABA-1 single-record hold.
+    def self.execute_load!(approval)
+      agent_game = approval.target_type == 'AgentGame' ? AgentGame.find_by(id: approval.target_id) : nil
+      meta = (approval.metadata || {}).stringify_keys
+      username = meta['game_username'].to_s.strip
+      amount = approval.amount.to_f
+
+      if agent_game.nil? || username.blank? || amount <= 0
+        Rails.logger.error("[AutoResume] load approval ##{approval.id} not executable (ag=#{agent_game&.id} user=#{username.inspect} amount=#{amount})")
+        notify(approval, "Approved load ##{approval.id} could NOT auto-execute (missing game/username/amount) - handle manually")
+        return { ok: false, skipped: :invalid }
+      end
+
+      order_id = "appr_#{approval.id}"
+      if (existing = GameAction.find_by(account_id: approval.account_id, order_id: order_id))
+        Rails.logger.info("[AutoResume] load approval ##{approval.id} already executed (status=#{existing.status}) - no-op")
+        return { ok: true, already: true, status: existing.status }
+      end
+
+      contact = Contact.find_by(id: meta['contact_id'], account_id: approval.account_id)
+      flags = {}
+      flags['freeplay'] = true if meta['source'] == 'bella_freeplay' || meta['freeplay'].to_s == 'true'
+      flags['deposit_bonus'] = true if meta['source'] == 'bella_bonus' || meta['deposit_bonus'].to_s == 'true'
+      flags['referral'] = true if meta['source'] == 'bella_referral' || meta['referral'].to_s == 'true'
+
+      executor = Games::ActionExecutor.new(agent_game: agent_game, contact: contact, conversation: nil)
+      result = begin
+        executor.load_player(
+          game_username: username,
+          amount: amount,
+          metadata: meta.slice('source', 'contact_id', 'payment_id', 'deposit_amount', 'bonus_amount', 'referral_id')
+                        .merge(flags)
+                        .merge('approval_request_id' => approval.id),
+          order_id: order_id
+        )
+      rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+        Rails.logger.info("[AutoResume] load approval ##{approval.id} raced - already executed elsewhere")
+        return { ok: true, already: true }
+      end
+
+      if result[:ok]
+        notify(approval, "Approved load EXECUTED: $#{amount} for #{username} on #{agent_game.game&.name} (#{meta['source']}, approval ##{approval.id})")
+      else
+        action_status = GameAction.find_by(account_id: approval.account_id, order_id: order_id)&.status || 'not created'
+        notify(approval,
+               "Approved load ##{approval.id} FAILED: #{result[:error]} (code #{result[:code]}) - " \
+               "action status=#{action_status}, $#{amount} for #{username} NEEDS HUMAN")
       end
       result
     end

@@ -573,6 +573,12 @@ module Games
       end
     end
 
+    # G1 (June 10) - freeplay on the shared generosity pattern: per-contact
+    # override FIRST ('approve' loads now, 'deny' declines politely), the daily
+    # per-player limit gates every path, the operator-configured GameRule auto
+    # flow stays intact, and the UNCONFIGURED default escalates to Telegram
+    # with the full case + a pending ApprovalRequest (approve -> loads through
+    # the normal path via Approvals::AutoResume). Every decision is logged.
     def handle_load_freeplay(intent = nil)
       game_slug = chosen_game_slug(intent || { intent: :load })
 
@@ -580,50 +586,50 @@ module Games
         return { reply: 'which game for freeplay?', labels: [] }
       end
 
-      contact = conversation.contact
       if contact.player_tier&.blocked?
         return { reply: "sorry, can't process that right now", labels: [] }
       end
 
-      begin
-        game = Game.find_by(slug: game_slug)
-        rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
-      rescue StandardError => e
-        Rails.logger.error("[Orchestrator] GameRule lookup failed: #{e.message}")
-        rules = nil
+      rules = game_rules_for(game_slug)
+
+      fp_override = (contact.custom_attributes || {})['freeplay_auto'].to_s.strip.downcase
+      if fp_override == 'deny'
+        log_generosity_decision(kind: 'freeplay', decision: 'denied', amount: 0, source: 'contact_override')
+        return { reply: "you're maxed out on freeplay right now - load up and keep playing instead", labels: ['freeplay-denied'] }
+      end
+
+      fp_amount = freeplay_amount_setting(rules)
+      daily_limit = freeplay_daily_limit_setting(rules)
+      fp_today = freeplay_given_today
+
+      if fp_today[:count] >= daily_limit
+        log_generosity_decision(kind: 'freeplay', decision: 'denied', amount: 0, source: 'daily_limit')
+        return { reply: 'you already got your freeplay today! try again tomorrow', labels: ['freeplay-limit'] }
+      end
+
+      if fp_override == 'approve'
+        return execute_freeplay_load(game_slug, fp_amount, rules, source: 'contact_override')
       end
 
       unless rules&.freeplay_enabled
-        safe_telegram do
-          Games::TelegramNotifier.human_escalation(
-            account: account, contact: contact,
-            reason: "Freeplay requested on #{game_slug} but not enabled. Contact: #{contact.name}",
-            conversation: conversation
-          )
-        end
-        return {
-          reply: "freeplay isn't available on #{game_slug} right now",
-          labels: ['cashier-action-needed']
-        }
+        # G1b DEFAULT (unconfigured): full case + pending approval, no money yet.
+        return escalate_freeplay_ask(game_slug, fp_amount)
       end
 
+      # ---- operator-configured GameRule auto flow (pre-G1 behavior) ----
       unless rules.freeplay_eligible?(contact)
         return { reply: "freeplay isn't available for your account tier right now", labels: [] }
       end
 
       begin
-        fp_scope = game_actions_for_slug(contact.id, game_slug)
-          .where(action_type: 'load', status: 'success')
-          .where("metadata->>'freeplay' = 'true'")
-
-        today_count = fp_scope.where('game_actions.created_at >= ?', Time.current.beginning_of_day).count
-        week_count = fp_scope.where('game_actions.created_at >= ?', Time.current.beginning_of_week).count
-
-        if today_count >= (rules.freeplay_max_per_day || 1)
-          return { reply: 'you already got your freeplay today! try again tomorrow', labels: [] }
-        end
+        week_count = game_actions_for_slug(contact.id, game_slug)
+                     .where(action_type: 'load', status: 'success')
+                     .where("metadata->>'freeplay' = 'true'")
+                     .where('game_actions.created_at >= ?', Time.current.beginning_of_week)
+                     .count
 
         if week_count >= (rules.freeplay_max_per_week || 3)
+          log_generosity_decision(kind: 'freeplay', decision: 'denied', amount: 0, source: 'weekly_limit')
           return { reply: 'you hit the weekly freeplay limit, resets next week', labels: [] }
         end
       rescue StandardError => e
@@ -645,70 +651,234 @@ module Games
         end
       end
 
-      fp_amount = contact.player_tier&.override_for('freeplay_amount') || rules.freeplay_amount || 5.0
+      execute_freeplay_load(game_slug, fp_amount, rules, source: 'game_rule_auto')
+    end
 
-      begin
-        username = find_game_username_for_slug(contact, game_slug)
-        unless username
-          return {
-            reply: "I don't have your #{game_slug} account yet — want me to create one?",
-            labels: []
-          }
+    # ---- G1-G3 (June 10) shared generosity helpers ----
+
+    # Run-1 settings pattern: pref column when it exists -> account
+    # custom_attributes -> nil (caller supplies the default).
+    def generosity_setting(key)
+      pref = reply_pref_cached
+      if pref.respond_to?(key)
+        v = pref.public_send(key)
+        return v if v.present?
+      end
+      (account.custom_attributes || {})[key.to_s].presence
+    rescue StandardError
+      nil
+    end
+
+    def freeplay_amount_setting(rules)
+      tier = begin
+        contact.player_tier&.override_for('freeplay_amount')
+      rescue StandardError
+        nil
+      end
+      (tier.presence || generosity_setting('freeplay_amount').presence || rules&.freeplay_amount.presence || 5.0).to_f
+    end
+
+    def freeplay_daily_limit_setting(rules)
+      v = generosity_setting('freeplay_daily_limit_per_player')
+      return v.to_i if v.present? && v.to_i.positive?
+
+      (rules&.freeplay_max_per_day || 1).to_i
+    end
+
+    # Per-player, account-wide freeplay given today (count + amount).
+    def freeplay_given_today
+      scope = GameAction.where(account_id: account.id, contact_id: contact.id,
+                               action_type: 'load', status: 'success')
+                        .where("metadata->>'freeplay' = 'true'")
+                        .where('created_at >= ?', Time.current.beginning_of_day)
+      { count: scope.count, amount: scope.sum(:amount).to_f }
+    rescue StandardError
+      { count: 0, amount: 0.0 }
+    end
+
+    # The full case the operator sees: deposits, recency, freeplay today.
+    def generosity_case_data(slug = nil)
+      base = GameAction.where(account_id: account.id, contact_id: contact.id,
+                              action_type: 'load', status: 'success')
+      deposits = base.where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+      recent = deposits.where('created_at >= ?', 7.days.ago)
+      fp_today = freeplay_given_today
+      last_seen = GameAction.where(account_id: account.id, contact_id: contact.id)
+                            .order(created_at: :desc).first&.created_at
+      {
+        total_deposits: deposits.sum(:amount).to_f,
+        deposit_count: deposits.count,
+        recent_deposits: recent.sum(:amount).to_f,
+        recent_count: recent.count,
+        fp_today_count: fp_today[:count],
+        fp_today_amount: fp_today[:amount],
+        days_inactive: last_seen ? ((Time.current - last_seen) / 86_400).floor : nil
+      }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] generosity_case_data failed: #{e.message}")
+      { total_deposits: 0.0, deposit_count: 0, recent_deposits: 0.0, recent_count: 0,
+        fp_today_count: 0, fp_today_amount: 0.0, days_inactive: nil }
+    end
+
+    # WHY-GIVE / WHY-NOT reasons derived from the case data.
+    def generosity_reasons(data)
+      give = []
+      dont = []
+      if data[:total_deposits].positive?
+        give << "real depositor ($#{fmt_amt(data[:total_deposits])} lifetime, #{data[:deposit_count]} deposits)"
+      else
+        dont << 'no real deposits ever'
+      end
+      give << "active this week ($#{fmt_amt(data[:recent_deposits])} across #{data[:recent_count]} loads)" if data[:recent_count].to_i.positive?
+      give << "dormant #{data[:days_inactive]}d - a freebie could win them back" if data[:days_inactive].to_i >= 3
+      dont << "already got #{data[:fp_today_count]} freeplay today ($#{fmt_amt(data[:fp_today_amount])})" if data[:fp_today_count].to_i.positive?
+      dont << 'no activity history at all' if data[:days_inactive].nil?
+      [give, dont]
+    end
+
+    # D7 - every generosity decision lands on the contact for later analysis.
+    def log_generosity_decision(kind:, decision:, amount:, source:)
+      attrs = (contact.custom_attributes || {})
+      log = Array(attrs['patra_generosity_log'])
+      log << { 'kind' => kind, 'decision' => decision, 'amount' => amount.to_f,
+               'source' => source, 'at' => Time.current.iso8601 }
+      contact.update(custom_attributes: attrs.merge('patra_generosity_log' => log.last(50)))
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] log_generosity_decision failed: #{e.message}")
+    end
+
+    # Pending ApprovalRequest (F15 record type) for a generosity payout.
+    # Dedupe: one pending request per source+contact. Returns the request,
+    # :already, or nil on failure (telegram still carries the case).
+    def create_pending_generosity_approval(source:, amount:, game_slug:, username: nil, extra: {})
+      already = ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
+                               .where("metadata->>'source' = ?", source)
+                               .where("metadata->>'contact_id' = ?", contact.id.to_s)
+                               .exists?
+      return :already if already
+
+      ApprovalRequest.create!(
+        account: account,
+        requesting_user: account.account_users.first&.user,
+        action_type: 'load',
+        target_type: 'AgentGame',
+        target_id: pick_agent_game(game_slug)&.id,
+        amount: amount,
+        status: 'pending',
+        metadata: { 'source' => source, 'contact_id' => contact.id.to_s,
+                    'game_slug' => game_slug.to_s, 'game_username' => username.to_s }.merge(extra)
+      )
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] create_pending_generosity_approval failed: #{e.message}")
+      nil
+    end
+
+    # D4 - a rejection in the last 24h makes the next ask a polite decline.
+    def recent_generosity_rejection?(source)
+      ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'rejected')
+                     .where("metadata->>'source' = ?", source)
+                     .where("metadata->>'contact_id' = ?", contact.id.to_s)
+                     .where('updated_at >= ?', 24.hours.ago)
+                     .exists?
+    rescue StandardError
+      false
+    end
+
+    # G1 - the actual freeplay load (TABA-1 single record, freeplay flag set).
+    def execute_freeplay_load(game_slug, fp_amount, rules, source:)
+      username = find_game_username_for_slug(contact, game_slug)
+      unless username
+        return { reply: "I don't have your #{game_slug} account yet - want me to create one?", labels: [] }
+      end
+
+      result = execute_game_api(
+        game_slug: game_slug,
+        action: 'recharge',
+        username: username,
+        amount: fp_amount.to_i,
+        metadata: { freeplay: true, source: 'bella_freeplay', freeplay_decision_source: source, conversation_id: conversation&.id }
+      )
+
+      if result[:success]
+        log_generosity_decision(kind: 'freeplay', decision: 'given', amount: fp_amount, source: source)
+        reply_text = if rules
+                       rules.format_message(rules.freeplay_message.presence || 'fp loaded - good luck!', {
+                         amount: fp_amount.to_s,
+                         game: game_slug
+                       })
+                     else
+                       "loaded $#{fmt_amt(fp_amount)} freeplay - good luck!"
+                     end
+        begin
+          Games::TierAutoPromoteService.check(contact: contact)
+        rescue StandardError => e
+          Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
         end
-
-        result = execute_game_api(
-          game_slug: game_slug,
-          action: 'recharge',
-          username: username,
-          amount: fp_amount.to_i,
-          metadata: { freeplay: true, source: 'bella_freeplay', conversation_id: conversation&.id }
-        )
-
-        if result[:success]
-          # TAB A fix: the executor already audits this load as a GameAction
-          # with the metadata above. The old manual GameAction.create! here
-          # recorded every freeplay TWICE and left the executor copy
-          # unflagged, so freeplay money counted as a REAL deposit in
-          # cashout-multiplier and deposit-only-transfer math.
-
-          reply_text = rules.format_message(rules.freeplay_message || 'fp loaded ✅', {
-            amount: fp_amount.to_s,
-            game: game_slug
-          })
-          # Check if this deposit qualifies contact for VIP auto-promote
-          begin
-            Games::TierAutoPromoteService.check(contact: contact)
-          rescue StandardError => e
-            Rails.logger.error("[Orchestrator] Auto-promote check failed: #{e.message}")
-          end
-          apply_receipt_preference({ reply: reply_text, labels: [] })
-        else
-          safe_telegram do
-            Games::TelegramNotifier.human_escalation(
-              account: account, contact: contact,
-              reason: "Freeplay load FAILED on #{game_slug}. Contact: #{contact.name}. Error: #{result[:error]}",
-              conversation: conversation
-            )
-          end
-          {
-            reply: "couldn't load freeplay right now — let me get someone to help",
-            labels: ['cashier-action-needed']
-          }
-        end
-      rescue StandardError => e
-        Rails.logger.error("[Orchestrator] Freeplay execution failed: #{e.message}")
+        apply_receipt_preference({ reply: reply_text, labels: ['freeplay-loaded'] })
+      else
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Freeplay error on #{game_slug}: #{e.message}. Contact: #{contact.name}",
+            reason: escalation_context(
+              wants: "$#{fmt_amt(fp_amount)} freeplay on #{game_slug}",
+              done: "freeplay approved (#{source}) but the panel load FAILED (#{result[:error]})",
+              left: 'freeplay not delivered',
+              suggest: 'load it manually once the panel cooperates',
+              need: "load $#{fmt_amt(fp_amount)} freeplay for #{username} on #{game_slug}"
+            ),
             conversation: conversation
           )
         end
-        {
-          reply: 'having trouble loading that — one sec',
-          labels: ['cashier-action-needed']
-        }
+        { reply: "couldn't load freeplay right now - getting someone on it", labels: ['cashier-action-needed'] }
       end
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] Freeplay execution failed: #{e.message}")
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "$#{fmt_amt(fp_amount)} freeplay on #{game_slug}",
+            done: "freeplay path crashed (#{e.class}: #{e.message})",
+            left: 'freeplay not delivered',
+            suggest: 'check the panel and load manually',
+            need: "load $#{fmt_amt(fp_amount)} freeplay for #{contact&.name} on #{game_slug}"
+          ),
+          conversation: conversation
+        )
+      end
+      { reply: 'having trouble loading that - one sec', labels: ['cashier-action-needed'] }
+    end
+
+    # G1b - the unconfigured default: full case to Telegram + pending approval.
+    def escalate_freeplay_ask(game_slug, fp_amount)
+      if recent_generosity_rejection?('bella_freeplay')
+        log_generosity_decision(kind: 'freeplay', decision: 'denied', amount: 0, source: 'operator_reject')
+        return { reply: "can't do freeplay for you right now - load up and i'll take care of you on the next one", labels: ['freeplay-denied'] }
+      end
+
+      data = generosity_case_data(game_slug)
+      give, dont = generosity_reasons(data)
+      username = find_game_username_for_slug(contact, game_slug)
+      approval = create_pending_generosity_approval(
+        source: 'bella_freeplay', amount: fp_amount, game_slug: game_slug,
+        username: username, extra: { 'freeplay' => 'true' }
+      )
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "$#{fmt_amt(fp_amount)} freeplay on #{game_slug}",
+            done: "case: lifetime deposits $#{fmt_amt(data[:total_deposits])} (#{data[:deposit_count]}), last 7d $#{fmt_amt(data[:recent_deposits])} (#{data[:recent_count]} loads), freeplay today #{data[:fp_today_count]} ($#{fmt_amt(data[:fp_today_amount])}), inactive #{data[:days_inactive] || 'n/a'}d. WHY GIVE: #{give.presence&.join('; ') || 'nothing strong'}. WHY NOT: #{dont.presence&.join('; ') || 'nothing strong'}",
+            left: 'no freeplay loaded - waiting on a decision',
+            suggest: give.size >= dont.size ? 'lean give' : 'lean decline',
+            need: "approve $#{fmt_amt(fp_amount)} freeplay or decline#{approval == :already ? ' (request already pending)' : ''}"
+          ),
+          conversation: conversation
+        )
+      end
+      log_generosity_decision(kind: 'freeplay', decision: 'escalated', amount: fp_amount, source: 'default_unconfigured')
+      { reply: 'let me check what i can do for you - gimme a few minutes', labels: %w[freeplay-pending needs-human] }
     end
 
     def handle_load_bonus(intent = nil)
