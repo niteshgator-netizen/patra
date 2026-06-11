@@ -36,6 +36,12 @@ module Patra
       end
     rescue Net::ReadTimeout, Net::OpenTimeout
       raise Error, 'Meta API timeout. Try again.'
+    rescue Error
+      raise
+    rescue StandardError => e
+      # SocketError / ECONNREFUSED / SSL errors previously escaped as raw
+      # exceptions; the controller only rescues MetaAppValidator::Error -> 500.
+      raise Error, "Meta API error: #{e.class}: #{e.message}"
     end
   end
 end
