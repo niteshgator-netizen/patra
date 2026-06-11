@@ -50,3 +50,10 @@ Files: patraAi.js (+2 methods), PatraAiHandoffCard.vue, PatraAiHandoffCard.spec.
 - **G1 SKIPPED** (date picker styling): no patra-themes rules target the date picker; UI-run log B15 claims DatePicker/Calendar verified themed via n-* tokens. Without the lost description or a screenshot, nothing concrete to fix.
 - **G2 SKIPPED** (New Conversation modal styling): same — B15/A7 treated modals via the .patra-pop system; no concrete defect identifiable without repro.
 - **G3 NOT ATTEMPTED** (Custom Roles presets) — explicitly lowest priority, time went to phases 4-6.
+
+## PHASE 4 — TERMS/PRIVACY PAGES
+
+**Doc 8/PAGES already shipped — verified, not rebuilt:** `GET /terms` + `GET /privacy` exist (routes.rb:15-16 → LegalController, standalone `layouts/legal`, views with real SaaS clauses — 98/119 lines, zero lorem/TODO, "last updated May 9, 2026"). Landing footer already links /privacy and /terms (patra-landing.html:895). No pricing copy exists or was invented.
+
+**One real gap found and fixed:** the SIGNUP page's terms/privacy links come from installation config `TERMS_URL`/`PRIVACY_URL` (Signup Form.vue:56-59 ← globalConfig), whose YAML defaults still pointed at chatwoot.com. Changed config/installation_config.yml defaults to `https://patrahq.com/terms` / `https://patrahq.com/privacy`.
+**PROD CAVEAT (action for Genius):** ConfigLoader runs with `reconcile_only_new: true` (lib/config_loader.rb:4), so the existing DB rows on prod KEEP the chatwoot.com values — the YAML change only covers fresh installs. To fix prod: Super Admin → Installation Configs → edit "Terms URL" and "Privacy URL" to the patrahq values (one-time, UI, no console needed).
