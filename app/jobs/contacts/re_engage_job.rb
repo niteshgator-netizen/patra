@@ -44,8 +44,11 @@ module Contacts
       return unless conv
 
       Messages::MessageBuilder.new(nil, conv, { content: template, private: false }).perform
-      Audit::Logger.log!(account: account, action: 're_engage_sent', target: contact, metadata: { contact_id: contact.id })
+      # Stamp the cooldown IMMEDIATELY after the send: if Audit::Logger.log!
+      # raises, the per-contact rescue eats it and (pre-fix) NEITHER guard got
+      # recorded -> same contact re-messaged on the next daily run.
       Reengagement::ContactCooldown.stamp!(contact)
+      Audit::Logger.log!(account: account, action: 're_engage_sent', target: contact, metadata: { contact_id: contact.id })
     end
 
     def has_game_account?(contact)
