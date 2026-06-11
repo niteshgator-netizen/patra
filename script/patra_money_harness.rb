@@ -1635,6 +1635,31 @@ begin
   ok!('BP-I2 :payment_handle_again routes through the orchestrator (menu/tag/escalation reply, never nil)',
       bp_i2_again.is_a?(Hash) && bp_i2_again[:reply].to_s.strip.length.positive?)
 
+  puts "\n[BP-I3 corpus iteration-3 detector routings]"
+  {
+    'Juwa 5'             => [:load, 5.0, 'juwa'],
+    '10 juwa'            => [:load, 10.0, 'juwa'],
+    '25 on os'           => [:load, 25.0, 'orion_stars'],
+    'juwa 2'             => [:load, nil, 'juwa_2'],
+    'Is my game loaded'  => [:status_check, nil, nil],
+    'I won 100.00'       => [:cashout, nil, nil],
+    'Cashing out 50$ do I request it?' => [:cashout, 50.0, nil],
+    'Can I add'          => [:load, nil, nil],
+    'Chime tag Juwa'     => [:payment_method_chosen, nil, nil],
+    'For juwa account Lindsay0987jw' => [:username_provided, nil, 'juwa'],
+    'Tonya729fk Please and thank you dear' => [:username_provided, nil, nil]
+  }.each do |text, (want, amt, slug)|
+    r = Games::IntentDetector.detect(text)
+    ok!("BP-I3 #{text.inspect} -> #{want}#{amt ? "/$#{amt}" : ''}#{slug ? "/#{slug}" : ''}",
+        r.is_a?(Hash) && r[:intent] == want &&
+        (amt.nil? ? r[:amount].nil? : r[:amount].to_f == amt) &&
+        (slug.nil? || r[:game_slug].to_s == slug))
+  end
+  ok!('BP-I3 "i won\'t be able to pay" is NOT a cashout',
+      Games::IntentDetector.detect("i won't be able to pay today")&.dig(:intent) != :cashout)
+  ok!('BP-I3 "15 juwa 5 2.0" (multi-amount) stays unrouted (ambiguous split)',
+      Games::IntentDetector.detect('15 juwa 5 2.0').nil?)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
