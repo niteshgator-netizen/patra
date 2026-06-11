@@ -198,3 +198,9 @@ rotate_player_memory_job:
   cron: '30 3 * * *'
   class: 'RotatePlayerMemoryJob'
   queue: low
+
+# Every 15 minutes — alert-only sweep for stuck pending approvals/game actions (MEGA2 P10; max one grouped alert/hour)
+patra_stuck_pending_sweeper_job:
+  cron: '*/15 * * * *'
+  class: 'Patra::StuckPendingSweeperJob'
+  queue: low
