@@ -649,6 +649,33 @@ module Games
         return { reply: 'you already got your freeplay today! try again tomorrow', labels: ['freeplay-limit'] }
       end
 
+      # MEGA2 P5 - freeplay-farm guard: any freeplay grant needs >= N confirmed
+      # real deposits ever (N = account custom_attributes['freeplay_min_deposits'],
+      # default 1; 0 disables). Applies to the contact override AND the
+      # GameRule auto flow; the operator-approval escalation path (ApprovalRequest
+      # -> AutoResume) is an explicit human decision and stays available.
+      min_deps = freeplay_min_deposits_setting
+      if min_deps.positive?
+        real_deps = confirmed_real_deposit_count
+        if real_deps < min_deps
+          log_generosity_decision(kind: 'freeplay', decision: 'denied', amount: 0, source: 'farm_guard')
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: escalation_context(
+                wants: "$#{fmt_amt(fp_amount)} freeplay on #{game_slug}",
+                done: "FARM GUARD: only #{real_deps} confirmed real deposit(s) ever (need #{min_deps}) - NO freeplay granted",
+                left: 'no freeplay loaded',
+                suggest: 'grant manually only if you know this player',
+                need: "approve freeplay for #{contact.name} by hand, or ignore"
+              ),
+              conversation: conversation
+            )
+          end
+          return { reply: 'freeplay unlocks after your first deposit - load up and i got you', labels: %w[freeplay-denied freeplay-farm-guard] }
+        end
+      end
+
       if fp_override == 'approve'
         return execute_freeplay_load(game_slug, fp_amount, rules, source: 'contact_override')
       end
@@ -718,6 +745,30 @@ module Games
         nil
       end
       (tier.presence || generosity_setting('freeplay_amount').presence || rules&.freeplay_amount.presence || 5.0).to_f
+    end
+
+    # MEGA2 P5 - minimum confirmed real deposits before any freeplay grant.
+    # Default 1; explicit 0 disables the guard; garbage values fall back to 1.
+    def freeplay_min_deposits_setting
+      v = generosity_setting('freeplay_min_deposits')
+      return 1 if v.nil? || v.to_s.strip.empty?
+
+      Integer(v.to_s.strip, exception: false) || 1
+    rescue StandardError
+      1
+    end
+
+    # MEGA2 P5 - lifetime confirmed real (non-freeplay) deposits for this
+    # contact, account-wide. Fails CLOSED (0) - a DB error must never hand out
+    # free money.
+    def confirmed_real_deposit_count
+      GameAction.where(account_id: account.id, contact_id: contact.id,
+                       action_type: 'load', status: 'success')
+                .where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+                .count
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] confirmed_real_deposit_count failed: #{e.message}")
+      0
     end
 
     def freeplay_daily_limit_setting(rules)
