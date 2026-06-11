@@ -128,6 +128,7 @@ module Games
       # os/fk already exist as aliases further down)
       'orion star' => 'orion_stars',
       '2.0' => 'juwa_2',
+      'juwa2.0' => 'juwa_2',
 
       # Juwa 2 — longest aliases first at runtime via sort_by(-length)
       'juwa 2.0' => 'juwa_2',
@@ -392,6 +393,8 @@ module Games
     PAYMENT_TAG_REQUEST_PATTERNS = [
       /(?<!my\s)\b(chime|cashapp|cash\s*app|cash|venmo|paypal|zelle)\s*(?:tag|handle|info|address)\b/i,
       /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i,
+      # bp iter4: "PayPal available?" — availability ask = tag request.
+      /\b(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s+available\b/i,
       /\bdo\s+(?:you|u|yall|y'?all)\s+(?:have|take|accept|do)\s+(apple\s*pay|cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
     ].freeze
 
@@ -465,7 +468,11 @@ module Games
       # bp iter1: bare "loaded?" / "loaded??" (113x cluster)
       /\A\s*loaded\s*[?!.]*\s*\z/i,
       # bp iter3: "is my game loaded" (33x cluster)
-      /\bis\s+(?:my|the)\b[^.!?]{0,20}\bloaded\b/i
+      /\bis\s+(?:my|the)\b[^.!?]{0,20}\bloaded\b/i,
+      # bp iter4: "Not loaded" / "it's not on there" — the-load-didn't-show
+      # reports; the status handler re-verifies and finishes undone work.
+      /\A\s*not\s+loaded\s*[?!.]*\s*\z/i,
+      /\bnot\s+(?:on|in)\s+there\b/i
     ].freeze
 
     COMPLAINT_ANGRY_PATTERNS = [
@@ -549,8 +556,9 @@ module Games
       sent_phrases = ['i sent', 'i paid', 'just sent', 'just paid', 'sent you', 'sent it',
                       'sent the money', 'sent the payment', 'money sent', 'payment sent',
                       'paid you', 'paid u', 'sent u',
-                      # bp iter1: cashapp request-flow reports (355x clusters)
-                      'request sent', 'requested', 'request submitted']
+                      # bp iter1/4: cashapp request-flow reports
+                      'request sent', 'requested', 'request submitted',
+                      'sent request', 'sent the request']
       # bp iter1/2: "sent 10" / "sent $25" / "sent 15 2.0 please" — leading
       # sent+amount is a payment report whatever trails it (cashout-direction
       # guard above already vetoed redeem/withdraw mentions).
@@ -565,7 +573,9 @@ module Games
       def detect(message_text)
         return nil if message_text.blank?
 
-        text = message_text.to_s
+        # bp iter4: mobile keyboards send curly quotes — "What’s hitting"
+        # missed every '?-based pattern. Normalize before matching.
+        text = message_text.to_s.tr('’‘“”', "''\"\"")
         Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
 
         # Greeting only when nothing intent-shaped follows: "hey can i load 20"
@@ -696,12 +706,26 @@ module Games
                   elsif match_any(text, LIST_PLATFORMS_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched list_platforms')
                     { intent: :list_platforms, game_slug: detect_game(text) }
+                  elsif (pg = platform_plus_game(text))
+                    Rails.logger.info("[IntentDetector] matched platform+game combo #{pg[:platform]}")
+                    pg
                   elsif (combo = game_plus_username(text))
                     Rails.logger.info('[IntentDetector] matched game+username combo')
                     combo
                   elsif (ga = bare_game_amount_load(text))
                     Rails.logger.info("[IntentDetector] matched bare game+amount load #{ga[:game_slug]} $#{ga[:amount]}")
                     ga
+                  elsif (lg = text.match(/\A\s*loaded\s+(.{2,30}?)\s*(\?+)?\s*\z/i)) &&
+                        (lg_slug = bare_game_name_load(lg[1]))
+                    # bp iter4: "Loaded juwa" = garbled load ask (label-driven);
+                    # "Loaded juwa?" = status ask about that game.
+                    if lg[2]
+                      Rails.logger.info('[IntentDetector] matched loaded-game status ask')
+                      { intent: :status_check, game_slug: lg_slug }
+                    else
+                      Rails.logger.info('[IntentDetector] matched loaded-game load ask')
+                      { intent: :load, amount: nil, game_slug: lg_slug }
+                    end
                   elsif (bare_game = bare_game_name_load(text))
                     Rails.logger.info("[IntentDetector] matched bare game name -> amount-less load slug=#{bare_game}")
                     { intent: :load, amount: nil, game_slug: bare_game }
@@ -857,7 +881,7 @@ module Games
         # Relaxed question-guard: a BARE platform question ("PayPal?", "Chime?") is an
         # ask for our handle, so it's allowed through; longer questions ("you only have
         # cashapp?") still bail via the unchanged guard.
-        bare_platform_q = text.match?(/\A\s*(?:cashapp|cash\s*app|chime|venmo|paypal|zelle|cash\s*tag|cashtag)\s*\?+\s*\z/i)
+        bare_platform_q = text.match?(/\A\s*(?:the\s+)?(?:cashapp|cash\s*app|chime|venmo|paypal|zelle|cash\s*tag|cashtag)\s*(?:available)?\s*\?+\s*\z/i)
         # E3: an ASSERTIVE re-statement with a trailing "?" ("I said cash app
         # right?", "i asked for chime?") is a pick, not a question. Needs BOTH
         # a platform word and an i-said/asked/picked/chose lead-in.
@@ -917,6 +941,8 @@ module Games
         candidates += candidates.map { |c| c.sub(/s\z/, '') }.reject(&:empty?)
         # duplicated-name tolerance ("Juwa Juwa")
         candidates += candidates.map { |c| c.split(' ').uniq.join(' ') }
+        # glued/space-mangled tolerance ("JuwA2. 0" -> "juwa2.0")
+        candidates += candidates.map { |c| c.gsub(' ', '') }.reject(&:empty?)
         candidates.uniq!
         return nil if candidates.empty?
 
@@ -949,6 +975,25 @@ module Games
         return nil unless rest_clean.empty? || slug
 
         { intent: :username_provided, game_username: user, game_slug: slug }
+      end
+
+      # bp iter4: "Chime Gv please" / "Chime? Gv please" — exactly one
+      # platform word, the rest must be a game name (+fillers): the player is
+      # asking for that platform's tag to load that game. Negation/failure
+      # vetoed like every pick.
+      def platform_plus_game(text)
+        norm = text.to_s.downcase.gsub(/[^a-z0-9.\s]/, ' ').gsub(/\s+/, ' ').strip
+        return nil if norm.empty? || norm.length > 40
+        return nil if text.match?(PAYMENT_METHOD_NEGATION_GUARD) || text.match?(PAYMENT_METHOD_FAILED_PLATFORM_SCAN)
+
+        plats = norm.scan(/\b(cashapp|cash\s+app|chime|venmo|paypal|zelle)\b/).flatten
+        return nil unless plats.size == 1
+
+        rest = norm.sub(/\b(?:cashapp|cash\s+app|chime|venmo|paypal|zelle)\b/, ' ').gsub(/\s+/, ' ').strip
+        return nil if rest.empty?
+        return nil unless bare_game_name_load(rest)
+
+        { intent: :payment_method_chosen, platform: normalize_platform_token(plats.first) }
       end
 
       # bp iter3: "Juwa 5" / "10 juwa" / "25 on os" / "5.00 Orion star 🌟" —
