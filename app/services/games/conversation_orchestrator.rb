@@ -1587,9 +1587,10 @@ module Games
         store_game_username(ag.game.slug, auto_username)
         store_game_password(ag.game.slug, generated_password)
 
+        menu_part = payment_menu_or_stored_reply
         result = {
-          reply: "all set! your username: #{auto_username}, password: #{generated_password} (save this!) — #{payment_methods_question}",
-          labels: ['account-created', 'awaiting-payment']
+          reply: "all set! your username: #{auto_username}, password: #{generated_password} (save this!) — #{menu_part[:reply]}",
+          labels: (['account-created', 'awaiting-payment'] + Array(menu_part[:labels])).uniq
         }
         # Assign new_player tier to first-time contacts
         begin
@@ -2509,6 +2510,74 @@ module Games
       "we got #{list} 🙌 which one you wanna use?"
     end
 
+    # E3: read back what store_expected_payment_handle! saved on this
+    # conversation. nil when nothing stored yet.
+    def stored_expected_platform
+      conversation&.additional_attributes&.dig('expected_platform').presence
+    rescue StandardError
+      nil
+    end
+
+    def payment_menu_sent?
+      conversation&.additional_attributes&.dig('payment_menu_sent_at').present?
+    rescue StandardError
+      false
+    end
+
+    def mark_payment_menu_sent!
+      return if conversation.blank?
+
+      attrs = (conversation.additional_attributes || {}).stringify_keys
+      attrs['payment_menu_sent_at'] = Time.current.iso8601
+      conversation.additional_attributes = attrs
+      conversation.save!
+    rescue StandardError => e
+      Rails.logger.warn("[Orchestrator] mark_payment_menu_sent! failed: #{e.message}")
+    end
+
+    # E3: the pick menu must never loop. Order: (1) a platform this
+    # conversation ALREADY picked (stored by store_expected_payment_handle!)
+    # is reused with a FRESH top-handle lookup (covers rotation; a stale
+    # stored tag is never resent); (2) first time ever -> the menu, stamped;
+    # (3) menu would repeat -> hold the line + needs-human + 5-part
+    # escalation. Returns { reply:, labels: }.
+    def payment_menu_or_stored_reply
+      plat = stored_expected_platform
+      if plat
+        tag = top_handle_for_platform(plat)
+        if tag
+          store_expected_payment_handle!(platform: plat, handle: tag)
+          return {
+            reply: "easy! send to #{tag} on #{plat} and drop the screenshot here 📸",
+            labels: ['payment-method-chosen', "payment-#{plat}"]
+          }
+        end
+      end
+
+      unless payment_menu_sent?
+        mark_payment_menu_sent!
+        return { reply: payment_methods_question, labels: [] }
+      end
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: 'to pay, but the payment-method menu would repeat (loop risk)',
+            done: "menu already sent once in this conversation#{plat.present? ? "; stored platform #{plat} has no active handle" : ''}",
+            left: 'player still has no usable tag',
+            suggest: 'read the thread and send them the right tag by hand',
+            need: 'the correct payment tag for this player'
+          ),
+          conversation: conversation
+        )
+      end
+      {
+        reply: 'one sec — let me grab a teammate to sort your payment real quick 🙏',
+        labels: %w[needs-human payment-menu-loop]
+      }
+    end
+
     # Handler for when the customer picks a payment method ("paypal", "i'll use cashapp", etc.)
     # Looks up the top-priority active handle for that platform and replies with it.
     def handle_payment_method_chosen(intent)
@@ -2517,9 +2586,10 @@ module Games
 
       unless handle_text
         Rails.logger.warn("[Orchestrator] payment_method_chosen no active handle for platform=#{platform}")
+        fallback = payment_menu_or_stored_reply
         return {
-          reply: payment_methods_question,
-          labels: ['payment-method-unavailable']
+          reply: fallback[:reply],
+          labels: (['payment-method-unavailable'] + Array(fallback[:labels])).uniq
         }
       end
 
