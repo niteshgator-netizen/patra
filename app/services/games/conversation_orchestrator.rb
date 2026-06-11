@@ -130,6 +130,14 @@ module Games
         return choice_response if choice_response
       end
 
+      # MEGA2 P3 - a pending over-max "keep it or drop it?" answer (ask_first
+      # mode) takes priority. No usable answer -> falls through, nothing moves.
+      pending_overmax = conversation&.additional_attributes&.dig('pending_overmax_choice')
+      if pending_overmax.present?
+        overmax_response = resolve_pending_overmax_choice(latest_text, pending_overmax)
+        return overmax_response if overmax_response
+      end
+
       # Process pending load/cashout confirmations
       pending_load = conversation.additional_attributes&.dig('pending_load_intent')
       pending_cashout = conversation.additional_attributes&.dig('pending_cashout')
@@ -3688,53 +3696,256 @@ module Games
       nil
     end
 
-    # R4 (June 10) - over-max cashout behavior. 'cash_whole' (default): cash out
-    # the whole balance, the game erases the excess over max - Bella says so.
-    # 'pay_max_recharge': pay the max, recharge the leftover back to the game.
-    # This handler moves no money itself (payout is cashier-manual, see the
-    # Phase 6.5 note at the top of the file) - it sets expectations with the
-    # player and hands the cashier the full picture via the R8 context.
+    # R4 + MEGA2 P3 - over-max cashout behavior is an operator SETTING
+    # (cashout_overmax_mode). 'cash_whole' (DEFAULT, today's behavior): the
+    # payout stays cashier-manual, Bella moves no money and states the math
+    # plainly - the over-max remainder does not carry, never silently.
+    # 'pay_max_recharge': Bella runs the IN-GAME legs herself (redeem the
+    # requested amount, recharge the over-max remainder back to the SAME
+    # game/user); the external payout of the max stays cashier-manual. A
+    # failed recharge leg escalates with the REAL state and is NEVER
+    # auto-retried. 'ask_first': move NO money - ask the player which they
+    # want, hold the choice on the conversation, escalate; no reply ->
+    # nothing moves (flag stales out after 30 min).
     def handle_over_max_cashout(game_slug, requested_amount, max_cashout, last_dep)
-      mode = cashout_overmax_mode_pref
+      case cashout_overmax_mode_pref
+      when 'pay_max_recharge'
+        overmax_pay_max_recharge(game_slug, requested_amount, max_cashout, last_dep)
+      when 'ask_first'
+        overmax_ask_first(game_slug, requested_amount, max_cashout, last_dep)
+      else
+        overmax_cash_whole(game_slug, requested_amount, max_cashout, last_dep)
+      end
+    end
+
+    # Today's default: no panel calls, cashier-manual payout, plain math.
+    def overmax_cash_whole(game_slug, requested_amount, max_cashout, last_dep)
       leftover = requested_amount - max_cashout
       dep_txt = last_dep ? "your last $#{fmt_amt(last_dep[:amount])} #{last_dep[:type]}" : 'your deposits'
-
-      if mode == 'pay_max_recharge'
-        reply = "max cashout on #{dep_txt} is $#{fmt_amt(max_cashout)} - you'll get $#{fmt_amt(max_cashout)} and i'll load the extra $#{fmt_amt(leftover)} back on #{game_slug} for you."
-        suggest = "pay the $#{fmt_amt(max_cashout)} max and recharge $#{fmt_amt(leftover)} back to the game"
-      else
-        reply = "max cashout on #{dep_txt} is $#{fmt_amt(max_cashout)} - i'll cash out your full balance and the game drops anything over the max, so you'll get $#{fmt_amt(max_cashout)}."
-        suggest = "cash out the whole balance, pay $#{fmt_amt(max_cashout)} - the game erases the over-limit"
-      end
-
       safe_telegram do
         Games::TelegramNotifier.human_escalation(
           account: account, contact: contact,
           reason: escalation_context(
-            wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over the $#{fmt_amt(max_cashout)} max, mode #{mode})",
-            done: 'nothing executed yet - player informed of the max',
+            wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over the $#{fmt_amt(max_cashout)} max, mode cash_whole)",
+            done: "nothing executed yet - player told plainly: $#{fmt_amt(max_cashout)} paid, the $#{fmt_amt(leftover)} over max does not carry",
             left: 'the payout itself',
-            suggest: suggest,
-            need: 'process the payout per the mode and confirm in chat'
+            suggest: "cash out the whole balance, pay $#{fmt_amt(max_cashout)} - the over-limit does not carry",
+            need: "send $#{fmt_amt(max_cashout)} to #{contact.name} and confirm in chat"
           ),
           conversation: conversation
         )
       end
-
-      { reply: reply, labels: %w[cashout-over-max cashier-action-needed] }
+      {
+        reply: "max cashout on #{dep_txt} is $#{fmt_amt(max_cashout)} - you'll get $#{fmt_amt(max_cashout)}, the $#{fmt_amt(leftover)} over the max doesn't carry.",
+        labels: %w[cashout-over-max cashier-action-needed]
+      }
     end
 
-    # R4 - 'cash_whole' | 'pay_max_recharge'. Read order: reply_preferences
-    # column (when it exists) -> account.custom_attributes['cashout_overmax_mode']
-    # -> 'cash_whole' (operator-confirmed default). No migration required.
+    # pay_max_recharge: redeem leg + recharge leg in-game; payout cashier-manual.
+    # Money rules: every leg [:ok]-checked, recharge idempotent (deterministic
+    # order_id on the redeem action), failures escalate with the real state.
+    def overmax_pay_max_recharge(game_slug, requested_amount, max_cashout, last_dep)
+      leftover = (requested_amount - max_cashout).round(2)
+      ag = pick_agent_game(game_slug)
+      username = ag ? find_game_username_for_slug(contact, game_slug) : nil
+
+      if ag.nil? || username.blank?
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over max $#{fmt_amt(max_cashout)}, mode pay_max_recharge)",
+              done: "NOTHING moved - #{ag.nil? ? 'game unavailable' : 'no stored username'}, the redeem/recharge legs cannot run",
+              left: "redeem $#{fmt_amt(requested_amount)}, recharge $#{fmt_amt(leftover)} back, pay $#{fmt_amt(max_cashout)}",
+              suggest: 'run all legs manually on the panel',
+              need: "the full over-max flow for #{contact.name}, then confirm in chat"
+            ),
+            conversation: conversation
+          )
+        end
+        return { reply: "your cashout needs a quick teammate touch - they'll send your $#{fmt_amt(max_cashout)} shortly.", labels: %w[cashout-over-max needs-human] }
+      end
+
+      if recent_cashout_duplicate?(agent_game: ag, amount: requested_amount)
+        Rails.logger.info("[Orchestrator] overmax DEDUP: $#{fmt_amt(requested_amount)} on #{ag.game.name} within #{CASHOUT_DEDUP_WINDOW_SECONDS}s - skipping duplicate")
+        return { reply: "already processing your $#{fmt_amt(requested_amount)} cashout - hang tight!", labels: %w[cashout-over-max duplicate-skipped] }
+      end
+
+      executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
+      redeem = executor.cashout_player(
+        game_username: username,
+        amount: requested_amount,
+        metadata: { source: 'bella_overmax_redeem', overmax_mode: 'pay_max_recharge', conversation_id: conversation&.id }
+      )
+      record_api_result(ag, redeem)
+
+      unless redeem[:ok]
+        safe_telegram { Games::TelegramNotifier.load_failed(redeem[:action]) if redeem[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over max $#{fmt_amt(max_cashout)}, mode pay_max_recharge)",
+              done: "redeem leg FAILED (#{redeem[:error]}, code #{redeem[:code]}) - NO money moved",
+              left: 'the whole over-max flow',
+              suggest: 'run it manually once the panel cooperates',
+              need: "redeem $#{fmt_amt(requested_amount)}, recharge $#{fmt_amt(leftover)} back, pay $#{fmt_amt(max_cashout)} to #{contact.name}"
+            ),
+            conversation: conversation
+          )
+        end
+        reply = redeem[:code].to_s == 'approval_required' ? "your cashout needs a quick review - a teammate's on it." : 'hit a snag on your cashout - flagged a teammate, they will sort it in a couple minutes.'
+        return { reply: reply, labels: %w[cashout-over-max cashout-failed needs-human] }
+      end
+
+      redeem_action_id = redeem[:action]&.id
+      recharge = begin
+        executor.load_player(
+          game_username: username,
+          amount: leftover,
+          metadata: { source: 'bella_overmax_recharge', overmax_mode: 'pay_max_recharge',
+                      cashout_action_id: redeem_action_id, conversation_id: conversation&.id },
+          order_id: "ovmx_#{redeem_action_id || SecureRandom.hex(6)}"
+        )
+      rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+        { ok: true, already: true }
+      end
+      record_api_result(ag, recharge) unless recharge[:already]
+
+      if recharge[:ok]
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over max $#{fmt_amt(max_cashout)}, mode pay_max_recharge)",
+              done: "redeemed $#{fmt_amt(requested_amount)} and recharged $#{fmt_amt(leftover)} back to #{username} - in-game legs DONE",
+              left: "the external payout of $#{fmt_amt(max_cashout)}",
+              suggest: 'send the max to the player now',
+              need: "send $#{fmt_amt(max_cashout)} to #{contact.name} and confirm in chat"
+            ),
+            conversation: conversation
+          )
+        end
+        { reply: "you'll get $#{fmt_amt(max_cashout)} - i put the $#{fmt_amt(leftover)} over the max back on #{slug_label(game_slug)} for you.", labels: %w[cashout-over-max cashier-action-needed] }
+      else
+        safe_telegram { Games::TelegramNotifier.load_failed(recharge[:action]) if recharge[:action] }
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over max $#{fmt_amt(max_cashout)}, mode pay_max_recharge)",
+              done: "redeemed $#{fmt_amt(requested_amount)} OK; recharge of $#{fmt_amt(leftover)} back to #{username} FAILED (#{recharge[:error]}, code #{recharge[:code]}) - NOT auto-retried",
+              left: "$#{fmt_amt(leftover)} is out of the game and NOT recharged; player is owed the $#{fmt_amt(max_cashout)} payout",
+              suggest: 'recharge the remainder manually on the panel, then pay the max',
+              need: "recharge $#{fmt_amt(leftover)} to #{username} and send $#{fmt_amt(max_cashout)} to #{contact.name}"
+            ),
+            conversation: conversation
+          )
+        end
+        { reply: "you'll get $#{fmt_amt(max_cashout)} - a teammate is finishing up the part that stays in your game.", labels: %w[cashout-over-max needs-human] }
+      end
+    end
+
+    # ask_first: move NO money; hold the choice on the conversation. Re-asking
+    # while a choice is already pending never re-escalates (idempotent).
+    def overmax_ask_first(game_slug, requested_amount, max_cashout, last_dep)
+      leftover = requested_amount - max_cashout
+      if conversation.blank?
+        Rails.logger.warn('[Orchestrator] overmax ask_first: no conversation to hold the choice - falling back to cash_whole')
+        return overmax_cash_whole(game_slug, requested_amount, max_cashout, last_dep)
+      end
+
+      already_pending = conversation.additional_attributes&.dig('pending_overmax_choice').present?
+      unless already_pending
+        attrs = (conversation.additional_attributes || {}).merge(
+          'pending_overmax_choice' => { 'game_slug' => game_slug, 'requested' => requested_amount.to_f,
+                                        'max' => max_cashout.to_f, 'set_at' => Time.current.iso8601 }
+        )
+        conversation.update_columns(additional_attributes: attrs)
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over the $#{fmt_amt(max_cashout)} max, mode ask_first)",
+              done: "NO money moved - asked the player: keep the $#{fmt_amt(leftover)} in the game, or take $#{fmt_amt(max_cashout)} and drop it",
+              left: 'waiting on the player choice; their answer routes the flow',
+              suggest: 'nothing yet - hold until they answer',
+              need: 'the payout itself once the player picks (Bella will re-escalate)'
+            ),
+            conversation: conversation
+          )
+        end
+      end
+      {
+        reply: "max i can send on this one is $#{fmt_amt(max_cashout)}. want the extra $#{fmt_amt(leftover)} left in your game, or just take the $#{fmt_amt(max_cashout)} and drop it?",
+        labels: %w[cashout-over-max overmax-choice-pending]
+      }
+    end
+
+    def clear_pending_overmax_choice
+      return if conversation.blank?
+
+      attrs = (conversation.additional_attributes || {}).dup
+      attrs.delete('pending_overmax_choice')
+      conversation.update_columns(additional_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] clear_pending_overmax_choice failed: #{e.message}")
+    end
+
+    # Returns a response hash when the player's answer resolves the over-max
+    # choice, nil to fall through (no answer -> nothing moves). Stale (>30 min)
+    # or malformed flags are cleared. Ambiguous answers (both options matched)
+    # fall through and the player gets re-asked by the normal path.
+    def resolve_pending_overmax_choice(answer_text, pending)
+      pending = pending.is_a?(Hash) ? pending.stringify_keys : {}
+      slug = pending['game_slug']
+      requested = pending['requested'].to_f
+      max_c = pending['max'].to_f
+      set_at = pending['set_at']
+      fresh = set_at.blank? || begin
+        Time.parse(set_at) > 30.minutes.ago
+      rescue StandardError
+        true
+      end
+      unless fresh && slug.present? && requested.positive? && max_c.positive? && requested > max_c
+        clear_pending_overmax_choice
+        return nil
+      end
+
+      answer = answer_text.to_s.downcase
+      wants_recharge = answer.match?(/\b(keep|leave|recharge|stay)\b/) || answer.match?(/back (in|on)\b/)
+      wants_drop = answer.match?(/\b(drop|take|forget|skip)\b/) || answer.match?(/just (send|the|take)\b/)
+      return nil unless wants_recharge ^ wants_drop
+
+      clear_pending_overmax_choice
+      last_dep = last_deposit_for_cashout(slug)
+      if wants_recharge
+        overmax_pay_max_recharge(slug, requested, max_c, last_dep)
+      else
+        overmax_cash_whole(slug, requested, max_c, last_dep)
+      end
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] resolve_pending_overmax_choice failed: #{e.message}")
+      nil
+    end
+
+    # R4 + MEGA2 P3 - 'cash_whole' | 'pay_max_recharge' | 'ask_first'. Read
+    # order: reply_preferences column (when it exists) ->
+    # account.custom_attributes['cashout_overmax_mode'] -> 'cash_whole'
+    # (operator-confirmed default). Unknown non-blank values warn-log and fall
+    # back to cash_whole. No migration required.
+    OVERMAX_MODES = %w[cash_whole pay_max_recharge ask_first].freeze
+
     def cashout_overmax_mode_pref
       pref = reply_pref_cached
       if pref.respond_to?(:cashout_overmax_mode)
         v = pref.cashout_overmax_mode.to_s.strip.downcase
-        return v if %w[cash_whole pay_max_recharge].include?(v)
+        return v if OVERMAX_MODES.include?(v)
+        Rails.logger.warn("[Orchestrator] unknown cashout_overmax_mode #{v.inspect} on reply_preferences - treating as cash_whole") if v.present?
       end
       ca = (account.custom_attributes || {})['cashout_overmax_mode'].to_s.strip.downcase
-      return ca if %w[cash_whole pay_max_recharge].include?(ca)
+      return ca if OVERMAX_MODES.include?(ca)
+      Rails.logger.warn("[Orchestrator] unknown cashout_overmax_mode #{ca.inspect} on account custom_attributes - treating as cash_whole") if ca.present?
       'cash_whole'
     rescue StandardError
       'cash_whole'
