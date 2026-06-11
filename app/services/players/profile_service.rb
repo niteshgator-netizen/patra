@@ -99,7 +99,17 @@ module Players
         apply_message!(changes, msg)
       end
 
-      changes[CURSOR_KEY] = max_id if max_id.positive?
+      if max_id.positive?
+        changes[CURSOR_KEY] = max_id
+        # MEGA2 P14 - the Vault UI reads these two keys (PlayerProfileCard.vue
+        # reads vault_cursor_msg_id, ContactDetails.vue reads vault_cursor_id);
+        # neither was ever written, so the vault cursor showed empty for every
+        # contact. CURSOR_KEY stays the idempotency source of truth - renaming
+        # it would re-backfill already-scanned contacts and double-count
+        # deposit totals.
+        changes['vault_cursor_msg_id'] = max_id
+        changes['vault_cursor_id'] = max_id
+      end
       changes['loyalty_tier'] = Players::LoyaltyCalculator.tier(
         deposit_count: changes['deposit_count'].to_i,
         max_single_deposit: changes['max_single_deposit'].to_f
