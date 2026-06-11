@@ -1592,6 +1592,26 @@ begin
     ok!('BP-F4 second ask -> 5-part escalation telegram captured', tg?('NEEDS FROM HUMAN'))
   end
 
+  puts "\n[BP-I1 corpus iteration-1 detector routings]"
+  {
+    'Juwa please'  => [:load, 'juwa'],
+    'Game vault'   => [:load, 'game_vault'],
+    'Alexis726_jw' => [:username_provided, nil],
+    'Request sent' => [:payment_sent_confirmation, nil],
+    'Sent 10'      => [:payment_sent_confirmation, nil],
+    'Loaded?'      => [:status_check, nil],
+    'Cashtag?'     => [:payment_method_chosen, nil],
+    'Cash out'     => [:cashout, nil]
+  }.each do |text, (want, slug)|
+    r = Games::IntentDetector.detect(text)
+    ok!("BP-I1 #{text.inspect} -> #{want}#{slug ? "/#{slug}" : ''}",
+        r.is_a?(Hash) && r[:intent] == want && (slug.nil? || r[:game_slug].to_s == slug))
+  end
+  ok!('BP-I1 "Thanks" stays unrouted (no false username/game)',
+      Games::IntentDetector.detect('Thanks').nil?)
+  ok!('BP-I1 "i requested a cashout" -> cashout (not payment_sent)',
+      Games::IntentDetector.detect('i requested a cashout')&.dig(:intent) == :cashout)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
