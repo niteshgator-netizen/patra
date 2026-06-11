@@ -247,7 +247,13 @@ module Games
           Games::TelegramNotifier.human_escalation(
             account: account,
             contact: contact,
-            reason: "Customer requested #{intent_key} — requires owner/cashier approval",
+            reason: escalation_context(
+              wants: "#{intent_key} - an owner-only action",
+              done: 'nothing executed - this intent is never auto-fulfilled',
+              left: 'the requested action itself',
+              suggest: 'handle it manually if legit',
+              need: "decide on the #{intent_key} request and reply to the player"
+            ),
             conversation: conversation
           )
         rescue StandardError
@@ -418,7 +424,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "DUPLICATE PAYMENT: #{contact&.name} $#{fmt_amt(requested_amount)} twice within 10min — verify before loading again",
+            reason: escalation_context(
+              wants: "to load $#{fmt_amt(requested_amount)} (looks like a DUPLICATE PAYMENT)",
+              done: 'same amount loaded successfully within the last 10 min - this one was HELD, nothing loaded',
+              left: "the held $#{fmt_amt(requested_amount)} load",
+              suggest: 'check the ledger for two real payments vs a double-send',
+              need: 'confirm whether this is a second real payment, then load or decline'
+            ),
             conversation: conversation
           )
         end
@@ -473,7 +485,13 @@ module Games
             Games::TelegramNotifier.human_escalation(
               account: account,
               contact: contact,
-              reason: "Failed to create user #{username} on #{ag.game.name}: #{add_result[:error]}",
+              reason: escalation_context(
+                wants: "$#{fmt_amt(requested_amount)} loaded on #{ag.game.name} (new account needed)",
+                done: "payment verified; account creation for '#{username}' FAILED (#{add_result[:error]})",
+                left: 'no account, payment not loaded',
+                suggest: 'create the account on the panel by hand, then load',
+                need: "create #{username} and load $#{fmt_amt(requested_amount)}, then confirm in chat"
+              ),
               conversation: conversation
             )
           end
@@ -572,7 +590,13 @@ module Games
           Games::TelegramNotifier.human_escalation(
             account: account,
             contact: contact,
-            reason: "Load failed: #{result[:error]} (code #{result[:code]}) for #{username} $#{requested_amount}",
+            reason: escalation_context(
+              wants: "$#{fmt_amt(requested_amount)} loaded on #{ag.game.name}",
+              done: "payment verified for #{username}; panel load FAILED (#{result[:error]}, code #{result[:code]})",
+              left: 'payment received but not loaded',
+              suggest: 'retry on the panel once it cooperates',
+              need: "load $#{fmt_amt(requested_amount)} for #{username} manually, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -1093,7 +1117,13 @@ module Games
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
               account: account, contact: contact,
-              reason: "Bonus load FAILED on #{game_slug}. Amount: #{total_load}. Contact: #{contact.name}",
+              reason: escalation_context(
+                wants: "deposit + bonus loaded on #{game_slug} ($#{fmt_amt(total_load)} total)",
+                done: 'bonus qualified but the panel load FAILED',
+                left: 'deposit and bonus both unloaded',
+                suggest: 'load the total manually on the panel',
+                need: "load $#{fmt_amt(total_load)} for #{contact.name} and confirm in chat"
+              ),
               conversation: conversation
             )
           end
@@ -1107,7 +1137,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Bonus load error: #{e.message}. Contact: #{contact.name}",
+            reason: escalation_context(
+              wants: 'a bonus-load on their deposit',
+              done: "bonus path crashed (#{e.message})",
+              left: 'deposit not loaded',
+              suggest: 'check the ledger and load manually',
+              need: "sort the bonus load for #{contact.name} and confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -1133,7 +1169,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "VELOCITY FLAG: #{contact&.name} #{cashout_vel[:count]} cashouts/#{cashout_vel[:hours]}h — review",
+            reason: escalation_context(
+              wants: 'another cashout',
+              done: "VELOCITY FLAG: #{cashout_vel[:count]} successful cashouts in the last #{cashout_vel[:hours]}h (threshold #{cashout_vel[:threshold]}) - this one was HELD",
+              left: 'the held cashout request',
+              suggest: 'eyeball the pattern for fraud before releasing',
+              need: 'clear or decline this cashout'
+            ),
             conversation: conversation
           )
         end
@@ -1263,7 +1305,13 @@ module Games
         Games::TelegramNotifier.human_escalation(
           account: account,
           contact: contact,
-          reason: "cashout_redeem — Cashout request: #{amount_text} on #{game_slug}. Contact: #{contact.name}",
+          reason: escalation_context(
+            wants: "cashout #{amount_text} on #{game_slug}",
+            done: 'all checks passed (rules, velocity, dedup) - payout is cashier-manual',
+            left: 'the payout itself',
+            suggest: 'verify the balance on the panel, then pay',
+            need: "send #{amount_text} to #{contact.name} and confirm in chat"
+          ),
           conversation: conversation
         )
       rescue StandardError => e
@@ -1333,7 +1381,13 @@ module Games
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
               account: account, contact: contact,
-              reason: "Failed to create user #{username}: #{add_result[:error]}",
+              reason: escalation_context(
+                wants: "their $#{fmt_amt(recent_payment[:amount])} payment loaded (new username #{username})",
+                done: "account creation FAILED (#{add_result[:error]})",
+                left: 'no account, payment not loaded',
+                suggest: 'create the account manually, then load',
+                need: "create #{username} and load $#{fmt_amt(recent_payment[:amount])}, then confirm in chat"
+              ),
               conversation: conversation
             )
           end
@@ -1384,7 +1438,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Load failed for #{username} $#{recent_payment[:amount]}: #{result[:error]}",
+            reason: escalation_context(
+              wants: "their $#{fmt_amt(recent_payment[:amount])} payment loaded on #{ag.game.name}",
+              done: "username confirmed (#{username}); panel load FAILED (#{result[:error]})",
+              left: 'payment received but not loaded',
+              suggest: 'retry the load on the panel',
+              need: "load $#{fmt_amt(recent_payment[:amount])} for #{username} manually, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -1447,7 +1507,13 @@ module Games
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
               account: account, contact: contact,
-              reason: "Failed to auto-create username on #{ag.game.name}: #{add_result[:error]}",
+              reason: escalation_context(
+                wants: "a #{ag.game.name} account",
+                done: "auto-create FAILED after retries (#{add_result[:error]}) - no payment at stake yet",
+                left: 'player has no account',
+                suggest: 'create one manually and send the creds',
+                need: "a working #{ag.game.name} account for #{contact.name}"
+              ),
               conversation: conversation
             )
           end
@@ -1501,7 +1567,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Failed to auto-create username on #{ag.game.name}: #{add_result[:error]}",
+            reason: escalation_context(
+              wants: "a #{ag.game.name} account + their $#{fmt_amt(recent_payment[:amount])} loaded",
+              done: "payment verified; auto-create FAILED after retries (#{add_result[:error]})",
+              left: 'no account, payment not loaded',
+              suggest: 'create the account manually, then load the payment',
+              need: "account + $#{fmt_amt(recent_payment[:amount])} load for #{contact.name}, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -1581,7 +1653,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Created account #{auto_username} but load failed: #{result[:error]}",
+            reason: escalation_context(
+              wants: "their $#{fmt_amt(recent_payment[:amount])} loaded on the fresh account",
+              done: "account #{auto_username} CREATED, creds sent; load FAILED (#{result[:error]})",
+              left: 'payment not loaded',
+              suggest: 'load it on the panel - account already exists',
+              need: "load $#{fmt_amt(recent_payment[:amount])} to #{auto_username}, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -2095,7 +2173,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Silent fail creating account on #{ag.game.name}: #{add_result[:error]}",
+            reason: escalation_context(
+              wants: "a #{ag.game.name} account",
+              done: "panel said OK but verification shows NO account (silent fail: #{add_result[:error]}) - credentials NOT stored",
+              left: 'player has no working account',
+              suggest: 'check the panel by hand - this panel lies about creates',
+              need: "a verified working account for #{contact.name}"
+            ),
             conversation: conversation
           )
         end
@@ -2108,7 +2192,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Account creation timed out on #{ag.game.name}",
+            reason: escalation_context(
+              wants: "a #{ag.game.name} account",
+              done: 'account creation timed out after 45s - unknown panel state',
+              left: 'account may or may not exist on the panel',
+              suggest: 'check the panel before retrying (avoid a duplicate)',
+              need: "confirm/create the account for #{contact.name} and send creds"
+            ),
             conversation: conversation
           )
         end
@@ -2929,7 +3019,13 @@ module Games
         Games::TelegramNotifier.human_escalation(
           account: account,
           contact: contact,
-          reason: "complaint_angry — Customer upset: #{(latest_customer_text || '').truncate(100)}",
+          reason: escalation_context(
+            wants: "to vent / get a problem fixed: #{(latest_customer_text || '').truncate(100)}",
+            done: 'Bella sent a calming reply - the player does NOT know a human was pinged',
+            left: 'the underlying problem is unresolved',
+            suggest: 'read the last few messages and take over quietly',
+            need: 'a human eye on this conversation now'
+          ),
           conversation: conversation
         )
       rescue StandardError => e
@@ -3003,7 +3099,13 @@ module Games
           Games::TelegramNotifier.human_escalation(
             account: account,
             contact: contact,
-            reason: "tech_issue — Tech issue: #{(latest_customer_text || '').truncate(100)}. Game: #{game_slug || 'unknown'}",
+            reason: escalation_context(
+              wants: "help with a tech issue: #{(latest_customer_text || '').truncate(100)}",
+              done: "no stored credentials/links could auto-resolve it (game: #{game_slug || 'unknown'})",
+              left: 'player still stuck',
+              suggest: 'check their login/game on the panel',
+              need: 'fix or work around the issue and reply in chat'
+            ),
             conversation: conversation
           )
         rescue StandardError => e
@@ -3164,7 +3266,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "VELOCITY FLAG: #{contact&.name} #{vel[:count]} cashouts/#{vel[:hours]}h (transfer) — review",
+            reason: escalation_context(
+              wants: 'a game-to-game transfer (cashout leg)',
+              done: "VELOCITY FLAG: #{vel[:count]} successful cashouts in #{vel[:hours]}h (threshold #{vel[:threshold]}) - transfer HELD, nothing moved",
+              left: 'the held transfer',
+              suggest: 'eyeball the pattern before releasing',
+              need: 'clear or decline this transfer'
+            ),
             conversation: conversation
           )
         end
@@ -3185,7 +3293,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Transfer: couldn't read #{source_username}'s balance on #{source_ag.game.name}",
+            reason: escalation_context(
+              wants: 'a game-to-game transfer',
+              done: "balance read FAILED for #{source_username} on #{source_ag.game.name} - NOTHING moved",
+              left: 'the whole transfer',
+              suggest: 'check the panel and run the transfer manually if the balance is there',
+              need: "the real #{source_ag.game.name} balance, then move the money or decline"
+            ),
             conversation: conversation
           )
         end
@@ -3256,7 +3370,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "TRANSFER cashout FAILED — $#{fmt_amt(source_amount)} from #{source_ag.game.name} (#{source_username}): #{cashout_result[:error]} (code #{cashout_result[:code]}). No money moved.",
+            reason: escalation_context(
+              wants: "transfer $#{fmt_amt(source_amount)} off #{source_ag.game.name}",
+              done: "cashout leg FAILED (#{cashout_result[:error]}, code #{cashout_result[:code]}) - NO money moved",
+              left: 'the whole transfer',
+              suggest: 'run it manually once the panel cooperates',
+              need: "move $#{fmt_amt(source_amount)} for #{source_username} or tell the player it is off"
+            ),
             conversation: conversation
           )
         end
@@ -3375,7 +3495,13 @@ module Games
       safe_telegram do
         Games::TelegramNotifier.human_escalation(
           account: account, contact: contact,
-          reason: "Transfer request unclear (couldn't parse source/amount): #{(latest_customer_text || recent_customer_text).to_s.truncate(160)}",
+          reason: escalation_context(
+            wants: "a transfer Bella couldn't parse: #{(latest_customer_text || recent_customer_text).to_s.truncate(160)}",
+            done: 'asked the player to clarify source/amount/targets - nothing moved',
+            left: 'the transfer, if it was one',
+            suggest: 'read the conversation and take it manually if urgent',
+            need: 'nothing yet unless the player stays stuck'
+          ),
           conversation: conversation
         )
       end
@@ -3773,7 +3899,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Transfer-create failed on #{ag.game.name}: #{add_result[:error]}",
+            reason: escalation_context(
+              wants: "a #{ag.game.name} account to receive their transferred money",
+              done: "cashed-out funds are waiting; account creation FAILED (#{add_result[:error]})",
+              left: 'money cashed out but not delivered',
+              suggest: 'create the account manually, then load the waiting amount',
+              need: "account + load for #{contact.name}, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -3807,7 +3939,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Transfer-create: created #{username} on #{ag.game.name} but load $#{fmt_amt(amount)} FAILED: #{load_result[:error]}",
+            reason: escalation_context(
+              wants: "their transferred $#{fmt_amt(amount)} on the new #{ag.game.name} account",
+              done: "account #{username} CREATED, creds sent; load FAILED (#{load_result[:error]})",
+              left: "$#{fmt_amt(amount)} cashed out but not loaded",
+              suggest: 'load it on the panel - account already exists',
+              need: "load $#{fmt_amt(amount)} to #{username}, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -3859,7 +3997,7 @@ module Games
       return { reply: "no web version for #{name} — you can download and play! #{download}", labels: ['game-link'] } if download.present?
 
       safe_telegram do
-        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: "Game link requested for #{name} but no web/download URL configured", conversation: conversation)
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: escalation_context(wants: "a link to play #{name}", done: 'no web/download URL configured for this game', left: 'player cannot open the game', suggest: 'send the link by hand and add it in game settings', need: "the #{name} link"), conversation: conversation)
       end
       { reply: 'let me grab that link for you, one sec!', labels: %w[needs-human cashier-action-needed] }
     end
@@ -3874,7 +4012,7 @@ module Games
       return { reply: "here's the #{name} download: #{dl}", labels: ['download-link'] } if dl.present?
 
       safe_telegram do
-        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: "Download link requested for #{name} but none configured", conversation: conversation)
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: escalation_context(wants: "the #{name} download link", done: 'no download URL configured for this game', left: 'player cannot install the game', suggest: 'send it by hand and add it in game settings', need: "the #{name} download link"), conversation: conversation)
       end
       { reply: 'let me grab that download link for you, one sec!', labels: %w[needs-human cashier-action-needed] }
     end
@@ -3906,7 +4044,7 @@ module Games
       end
 
       safe_telegram do
-        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: "Cashout rules asked for #{name} but none configured", conversation: conversation)
+        Games::TelegramNotifier.human_escalation(account: account, contact: contact, reason: escalation_context(wants: "the cashout rules for #{name}", done: 'no cashout rules configured for this game', left: 'player waiting on an answer', suggest: 'reply with the house rules and save them in game settings', need: "cashout rules for #{name}"), conversation: conversation)
       end
       { reply: 'let me get you the exact cashout rules, one sec!', labels: %w[needs-human cashier-action-needed] }
     end
@@ -4130,7 +4268,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Partial cashout FAILED for #{username} $#{fmt_amt(amount)} on #{ag.game.name}: #{result[:error]} (code #{result[:code]})",
+            reason: escalation_context(
+              wants: "cash out $#{fmt_amt(amount)} and keep playing with the rest on #{ag.game.name}",
+              done: "partial cashout FAILED (#{result[:error]}, code #{result[:code]}) - nothing moved",
+              left: 'the partial cashout',
+              suggest: 'run it on the panel once it cooperates',
+              need: "cash out $#{fmt_amt(amount)} for #{username}, then confirm in chat"
+            ),
             conversation: conversation
           )
         end
@@ -4228,7 +4372,13 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Replay-from-balance: couldn't read #{username}'s balance on #{ag.game.name}",
+            reason: escalation_context(
+              wants: "to keep playing their existing #{ag.game.name} balance",
+              done: "balance read FAILED for #{username} - no number given to the player",
+              left: 'player does not know their balance',
+              suggest: 'check the panel and tell them the real figure',
+              need: "the real #{ag.game.name} balance for #{username}"
+            ),
             conversation: conversation
           )
         end

@@ -1314,6 +1314,28 @@ begin
     end
   end
 
+  puts "\n[G4 escalation_context rollout]  (migrated one-liner sites now carry the full case)"
+  # migrated site 1: partial-cashout failure
+  reset_run(fail_withdraw: true); prime_contact!(contact, [src_slug])
+  orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 20 keep the rest' }])
+    .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  ok!('G4 partial-cashout fail => full R8 context (PLAYER WANTS + NEEDS FROM HUMAN)',
+      tg?('PLAYER WANTS') && tg?('NEEDS FROM HUMAN'))
+
+  # migrated site 2: duplicate-payment hold
+  reset_run; prime_contact!(contact, [src_slug])
+  GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                     action_type: 'load', order_id: 'HARNESS_G4_DUP', game_username: 'harnessuser1',
+                     amount: 25, status: 'success', metadata: {}, executed_at: Time.current)
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{ 'id' => 'HARNESS_G4_PAY', 'status' => 'confirmed', 'amount' => 25,
+                               'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+  ))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 25' }])
+        .send(:handle_load_intent, { intent: :load, amount: 25, game_slug: src_slug, game_username: 'harnessuser1' })
+  ok!('G4 duplicate-payment hold => held with full context (DUPLICATE PAYMENT + NEEDS FROM HUMAN)',
+      !$FAKE.called?(:recharge) && tg?('DUPLICATE PAYMENT') && tg?('NEEDS FROM HUMAN'))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
