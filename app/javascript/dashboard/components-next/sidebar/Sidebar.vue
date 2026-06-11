@@ -471,6 +471,15 @@ const menuItems = computed(() => {
           activeOn: ['patra_knowledge'],
         },
         {
+          // 6a: the public Help Center (portals + article editor) had no rail
+          // entry — it was URL-only. Patra KB above is the internal one.
+          name: 'Help Center',
+          label: 'Help Center',
+          icon: 'i-lucide-library',
+          to: accountScopedRoute('portals_index'),
+          activeOn: ['portals_index'],
+        },
+        {
           name: 'Cashier Queue',
           label: 'Cashier Queue',
           icon: 'i-lucide-coins',

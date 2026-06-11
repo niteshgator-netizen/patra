@@ -200,3 +200,15 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 ### Verify
 - ruby -c ×3 ✓, patra.json parses ✓, vite build ✓ green; reviewer: SHIP (money-safety pass, injection pass, enum/assoc/i18n all verified). LOW items fixed (admin gate on sidebar entry, falsy-zero render). Genius: test the CSV download link once on staging (plain-link auth assumed from the existing export_url pattern).
 - Pre-existing INFO (not a regression, logged): /patra/leaderboard route allows agents but its API is admin-only → agents see an empty board.
+## PHASE 6 — MOCKUP GAPS
+
+### 6a. Knowledge Base — VERIFIED, one fix
+- TWO KB surfaces exist and work: (1) Patra internal KB at /patra/knowledge (KnowledgeBase.vue, 316 lines, Patra-styled) with WIRED search — KnowledgeArticlesAPI.search → GET knowledge_articles/search → knowledge_articles_controller#search (routes.rb:510, controller :30). Search endpoint exists, so per spec the search is wired (keyword search; no new RAG work — Rules Engine lane). (2) Chatwoot Help Center portals (article editor, categories, locales, settings pages all present under helpcenter/, behind help_center flag, Patra tokens in components per Phase 0 recon).
+- FIX: the Help Center portal had NO sidebar entry (URL-only) — added "Help Center" to the More group (portals_index). Patra KB entry kept separate ("Knowledge Base").
+
+### 6b. Connect Facebook — VERIFIED, nothing to build
+- Guided connect screen ALREADY exists and is Patra-branded: inbox creation → Facebook channel (channels/Facebook.vue) shows pat-connect-card (f tile, title, description, "Continue with Facebook" CTA, security note, help text) before login starts; credentials flow = existing backend (facebook_connect controller + meta_app endpoints under patra namespace). No edits made.
+
+### 6c. Remaining Phase 0b gap-table sweep
+- Canned responses → DONE 4a. CSAT → DONE 5a. Help Center → DONE 6a. Auto-assignment → DONE 4d. Reports → DONE 5b-5d. SLA → DONE 4c (audit corrected: existed all along). Typing/presence → DONE 4b. Theme toggles → DONE 3b.
+- PROPOSED (carried, with estimates): (1) Agent capacity policies backend — model+migration+CRUD+assignment check, ~1-2 days. (2) By-intent routing — needs intent at conversation-create or post-assignment reassignment; Rules Engine lane, est. unknown until that lane lands. (3) Billing/patra_billing_subscriptions — Command Center panel auto-activates when the table ships (Phase 1 noted).
