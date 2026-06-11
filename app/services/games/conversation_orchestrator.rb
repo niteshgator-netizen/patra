@@ -914,7 +914,7 @@ module Games
             done: "case: lifetime deposits $#{fmt_amt(data[:total_deposits])} (#{data[:deposit_count]}), last 7d $#{fmt_amt(data[:recent_deposits])} (#{data[:recent_count]} loads), freeplay today #{data[:fp_today_count]} ($#{fmt_amt(data[:fp_today_amount])}), inactive #{data[:days_inactive] || 'n/a'}d. WHY GIVE: #{give.presence&.join('; ') || 'nothing strong'}. WHY NOT: #{dont.presence&.join('; ') || 'nothing strong'}",
             left: 'no freeplay loaded - waiting on a decision',
             suggest: give.size >= dont.size ? 'lean give' : 'lean decline',
-            need: "approve $#{fmt_amt(fp_amount)} freeplay or decline#{approval == :already ? ' (request already pending)' : ''}"
+            need: "approve $#{fmt_amt(fp_amount)} freeplay or decline#{approval_ref_text(approval)}"
           ),
           conversation: conversation
         )
@@ -992,7 +992,7 @@ module Games
             done: "case: lifetime deposits $#{fmt_amt(data[:total_deposits])} (#{data[:deposit_count]}), last 7d $#{fmt_amt(data[:recent_deposits])} (#{data[:recent_count]} loads), inactive #{data[:days_inactive] || 'n/a'}d. WHY GIVE: #{give.presence&.join('; ') || 'nothing strong'}. WHY NOT: #{dont.presence&.join('; ') || 'nothing strong'}",
             left: 'nothing loaded as bonus - bonus settings are unconfigured',
             suggest: 'approve the deposit (add any bonus manually) or set bonus_percent to automate this',
-            need: "approve / decline the bonus ask#{approval == :already ? ' (request already pending)' : ''}"
+            need: "approve / decline the bonus ask#{approval_ref_text(approval)}"
           ),
           conversation: conversation
         )
@@ -3979,23 +3979,22 @@ module Games
       threshold = auto_load_threshold_pref
       return nil unless amt > threshold
 
+      hold_approval = nil
       begin
-        already = ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
-                                 .where("metadata->>'payment_id' = ?", payment[:id].to_s)
-                                 .exists?
-        unless already
-          ApprovalRequest.create!(
-            account: account,
-            requesting_user: account.account_users.first&.user,
-            action_type: 'load',
-            target_type: 'Contact',
-            target_id: contact&.id,
-            amount: amt,
-            status: 'pending',
-            metadata: { 'payment_id' => payment[:id].to_s, 'game_name' => game_name.to_s,
-                        'source' => 'bella_over_threshold' }
-          )
-        end
+        hold_approval = ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
+                                       .where("metadata->>'payment_id' = ?", payment[:id].to_s)
+                                       .first
+        hold_approval ||= ApprovalRequest.create!(
+          account: account,
+          requesting_user: account.account_users.first&.user,
+          action_type: 'load',
+          target_type: 'Contact',
+          target_id: contact&.id,
+          amount: amt,
+          status: 'pending',
+          metadata: { 'payment_id' => payment[:id].to_s, 'game_name' => game_name.to_s,
+                      'source' => 'bella_over_threshold' }
+        )
       rescue StandardError => e
         Rails.logger.error("[Orchestrator] over-threshold approval create failed: #{e.message}")
       end
@@ -4008,7 +4007,7 @@ module Games
             done: "payment verified (id #{payment[:id]}) - NOT loaded, over the $#{fmt_amt(threshold)} auto-load threshold",
             left: 'the load itself',
             suggest: 'approve and load it manually if the payment looks right',
-            need: "approve the $#{fmt_amt(amt)} load (pending approval request created)"
+            need: "approve the $#{fmt_amt(amt)} load#{hold_approval ? approval_ref_text(hold_approval) : ' (pending approval request created)'}"
           ),
           conversation: conversation
         )
@@ -4415,7 +4414,7 @@ module Games
             done: "case: referrer lifetime deposits $#{fmt_amt(data[:total_deposits])} (#{data[:deposit_count]}); referred: #{referred_txt}; reward if approved: #{reward_txt}",
             left: 'no reward paid - referrals are operator-approved right now (referral_enabled off)',
             suggest: reward.positive? ? "approve the $#{fmt_amt(reward)} reward" : 'wait for the referred player to deposit, or set referral_fixed_amount',
-            need: "approve or decline the referral reward for #{contact.name}"
+            need: "approve or decline the referral reward for #{contact.name}#{approval_ref_text(approval)}"
           ),
           conversation: conversation
         )
@@ -4664,6 +4663,15 @@ module Games
       parts << "BELLA SUGGESTS: #{suggest}" if suggest.to_s.strip.length.positive?
       parts << "NEEDS FROM HUMAN: #{need}" if need.to_s.strip.length.positive?
       parts.join(' | ')
+    end
+
+    # MEGA2 P4 - approval reference for Telegram texts so the ops group can
+    # act with 'approve <id>' / 'deny <id>' (TelegramOps::CommandHandler).
+    def approval_ref_text(approval)
+      return ' (request already pending)' if approval == :already
+      return '' unless approval.respond_to?(:id) && approval.id
+
+      " - approval ##{approval.id}: reply 'approve #{approval.id}' or 'deny #{approval.id}'"
     end
 
     def apply_receipt_preference(result)
