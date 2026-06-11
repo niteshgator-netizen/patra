@@ -103,6 +103,11 @@ def persona_violations(reply, content_len, raw_field)
   v << 'bullets-or-markdown' if bullets_or_markdown?(reply)
   v << 'banned-phrase' if banned_phrases?(reply)
   v << 'ai-admission' if admits_ai?(reply)
+  # ReplyGuard parity (June 11): reuse the EXACT production constants so the
+  # smoke can never be weaker than the live guard (which would hide leaks).
+  v << "over-#{Ai::ReplyService::REPLY_GUARD_MAX_CHARS}-chars" if reply.to_s.strip.length > Ai::ReplyService::REPLY_GUARD_MAX_CHARS
+  cot_hits = Ai::ReplyService::COT_MARKERS.select { |re| reply.to_s.match?(re) }
+  v << "cot-marker(#{cot_hits.size})" if cot_hits.any?
   leaked = PROMPT_LEAK_MARKERS.select { |mk| reply.include?(mk) }
   v << "prompt-leak(#{leaked.join(',')})" if leaked.any?
   if content_len.positive? && !(raw_field == 'content' && reply.strip.length <= content_len + 8)
