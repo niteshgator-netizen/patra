@@ -391,6 +391,10 @@ module Games
         }
       end
 
+      # R7 - verified deposits above the auto-load threshold need a human first.
+      hold = over_threshold_load_hold(payment, ag.game.name)
+      return hold if hold
+
       # Payment confirmed — now check username
       username = intent[:game_username] || verified_stored_game_username(ag)
 
@@ -758,6 +762,10 @@ module Games
 
       deposit_amount = payment[:amount].to_f
 
+      # R7 - over-threshold verified deposits are never auto-loaded, bonus or not.
+      bonus_hold = over_threshold_load_hold(payment, game_slug)
+      return bonus_hold if bonus_hold
+
       if deposit_amount < (rules.deposit_bonus_min_amount || 0)
         Rails.logger.info("[Orchestrator] Deposit #{deposit_amount} below bonus min #{rules.deposit_bonus_min_amount} — regular load")
         return handle_load_intent(intent || { intent: :load, game_slug: game_slug, amount: deposit_amount })
@@ -1021,6 +1029,10 @@ module Games
       recent_payment = find_unloaded_confirmed_payment
       return nil unless recent_payment # No pending action — let normal Bella handle
 
+      # R7 - verified deposits above the auto-load threshold need a human first.
+      up_hold = over_threshold_load_hold(recent_payment, ag.game.name)
+      return up_hold if up_hold
+
       executor = Games::ActionExecutor.new(agent_game: ag, contact: contact, conversation: conversation)
 
       # First try to load — if user doesn't exist, auto-create
@@ -1237,6 +1249,16 @@ module Games
       generated_password = add_result[:password]
       store_game_username(ag.game.slug, auto_username)
       store_game_password(ag.game.slug, generated_password)
+
+      # R7 - account IS created (no deposit gate, R6a), but a verified deposit
+      # above the threshold is NOT auto-loaded; the hold path takes over.
+      ac_hold = over_threshold_load_hold(recent_payment, ag.game.name)
+      if ac_hold
+        ac_hold = ac_hold.dup
+        ac_hold[:reply] = "all set! username: #{auto_username}, password: #{generated_password} (save this!) - #{ac_hold[:reply]}"
+        ac_hold[:labels] = (Array(ac_hold[:labels]) + ['account-created']).uniq
+        return ac_hold
+      end
 
       # Load the payment.
       # TAB A fix: this was the 5th automated payment-load site and the only
@@ -2921,6 +2943,75 @@ module Games
       'cash_whole'
     rescue StandardError
       'cash_whole'
+    end
+
+    # R7 (June 10) - dollar gate on the automated payment->load path.
+    # Read order: reply_preferences.auto_load_threshold (when the column exists)
+    # -> account.custom_attributes['auto_load_threshold'] -> 200. NOTE: distinct
+    # from the email-confidence 'auto_load_threshold' inside payment_scoring_config
+    # (a 0-100 score) - this one is dollars.
+    def auto_load_threshold_pref
+      pref = reply_pref_cached
+      if pref.respond_to?(:auto_load_threshold)
+        v = pref.auto_load_threshold
+        return v.to_f if v.present? && v.to_f > 0
+      end
+      ca = (account.custom_attributes || {})['auto_load_threshold']
+      return ca.to_f if ca.present? && ca.to_f > 0
+      200.0
+    rescue StandardError
+      200.0
+    end
+
+    # R7 - verified deposit above the threshold: do NOT load. Creates a pending
+    # ApprovalRequest (action_type 'load' - the F15 record type; loads stay
+    # manual-execute on approval, AutoResume only auto-executes cashouts),
+    # Telegrams the full R8 context, returns the hold response.
+    # Returns nil when the amount is within the threshold.
+    def over_threshold_load_hold(payment, game_name)
+      amt = payment.is_a?(Hash) ? payment[:amount].to_f : 0.0
+      threshold = auto_load_threshold_pref
+      return nil unless amt > threshold
+
+      begin
+        already = ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
+                                 .where("metadata->>'payment_id' = ?", payment[:id].to_s)
+                                 .exists?
+        unless already
+          ApprovalRequest.create!(
+            account: account,
+            requesting_user: account.account_users.first&.user,
+            action_type: 'load',
+            target_type: 'Contact',
+            target_id: contact&.id,
+            amount: amt,
+            status: 'pending',
+            metadata: { 'payment_id' => payment[:id].to_s, 'game_name' => game_name.to_s,
+                        'source' => 'bella_over_threshold' }
+          )
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] over-threshold approval create failed: #{e.message}")
+      end
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "load a verified $#{fmt_amt(amt)} deposit on #{game_name}",
+            done: "payment verified (id #{payment[:id]}) - NOT loaded, over the $#{fmt_amt(threshold)} auto-load threshold",
+            left: 'the load itself',
+            suggest: 'approve and load it manually if the payment looks right',
+            need: "approve the $#{fmt_amt(amt)} load (pending approval request created)"
+          ),
+          conversation: conversation
+        )
+      end
+
+      {
+        reply: "got your $#{fmt_amt(amt)} - that size needs a quick teammate sign-off before i load it. won't take long!",
+        labels: %w[over-threshold-hold needs-human]
+      }
     end
 
     def record_api_result(agent_game, result)

@@ -126,6 +126,12 @@ contact = Contact.create!(account: account, name: 'HARNESS_TEST_CONTACT')
 pref_row = ReplyPreference.for_account(account.id)
 r1_saved_mode = pref_row.transfer_mode
 
+# MONEYFLOWS R7 fixture pin (assertions unchanged - see log D6): the legacy F13
+# scenario loads $999 with the per-agent cap unset; pin the new dollar threshold
+# high so F13 keeps testing the per-agent cap. R7 scenarios set their own values.
+r7_acct_saved = (account.custom_attributes || {}).dup
+account.update!(custom_attributes: r7_acct_saved.merge('auto_load_threshold' => 1_000_000))
+
 # Re-establish per-scenario state. MUST run before EACH handler scenario because:
 #   (1) handle_new_account_reissue clears stored credentials, so later handlers would
 #       otherwise bail with "no username on file";
@@ -794,6 +800,65 @@ begin
   ok!('R6c reissue create-fail => ladder-exhausted + R8 telegram',
       Array(r[:labels]).include?('ladder-exhausted') && tg?('NEEDS FROM HUMAN'))
 
+  puts "\n[R7 auto-load dollar threshold]  (default 200; over -> hold + approval, NO load)"
+  # over threshold: $250 verified deposit, default threshold 200 -> NO recharge
+  account.update!(custom_attributes: (account.custom_attributes || {}).reject { |k, _| k.to_s == 'auto_load_threshold' })
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{ 'id' => 'HARNESS_PAY_R7A', 'status' => 'confirmed', 'amount' => 250,
+                               'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+  ))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 250' }])
+        .send(:handle_load_intent, { intent: :load, amount: 250, game_slug: src_slug, game_username: 'harnessuser1' })
+  ok!('R7 over-threshold (default $200) => NO load executed', !$FAKE.called?(:recharge))
+  ok!('R7 over-threshold => needs-human + hold labels',
+      Array(r[:labels]).include?('needs-human') && Array(r[:labels]).include?('over-threshold-hold'))
+  ok!('R7 over-threshold => R8 telegram escalation', tg?('NEEDS FROM HUMAN'))
+  r7_appr = ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
+                           .where("metadata->>'source' = 'bella_over_threshold'")
+  ok!('R7 over-threshold => pending load ApprovalRequest created (F15 record type)', r7_appr.exists?)
+  r7_appr.delete_all
+
+  # at threshold: $200 exactly -> auto-loads as before
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{ 'id' => 'HARNESS_PAY_R7B', 'status' => 'confirmed', 'amount' => 200,
+                               'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+  ))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 200' }])
+        .send(:handle_load_intent, { intent: :load, amount: 200, game_slug: src_slug, game_username: 'harnessuser1' })
+  ok!('R7 at threshold ($200 = limit) => auto-loads as before',
+      $FAKE.called?(:recharge) && Array(r && r[:labels]).include?('auto-load'))
+
+  # custom threshold via account custom_attributes: $50 -> a $60 deposit is held
+  account.update!(custom_attributes: (account.custom_attributes || {}).merge('auto_load_threshold' => 50))
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{ 'id' => 'HARNESS_PAY_R7C', 'status' => 'confirmed', 'amount' => 60,
+                               'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+  ))
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'load 60' }])
+        .send(:handle_load_intent, { intent: :load, amount: 60, game_slug: src_slug, game_username: 'harnessuser1' })
+  ok!('R7 custom threshold ($50) => $60 held', !$FAKE.called?(:recharge) && Array(r[:labels]).include?('over-threshold-hold'))
+  ApprovalRequest.where(account_id: account.id, action_type: 'load', status: 'pending')
+                 .where("metadata->>'source' = 'bella_over_threshold'").delete_all
+  account.update!(custom_attributes: (account.custom_attributes || {})
+    .reject { |k, _| k.to_s == 'auto_load_threshold' }.merge('auto_load_threshold' => 1_000_000))
+
+  # F12 coverage at the username_provided site: a race loser must NOT double-load
+  reset_run; prime_contact!(contact, [src_slug])
+  contact.update!(custom_attributes: contact.custom_attributes.merge(
+    'patra_finance_logs' => [{ 'id' => 'HARNESS_PAY_R7D', 'status' => 'confirmed', 'amount' => 45,
+                               'recorded_at' => Time.current.iso8601, 'platform' => 'cashapp' }]
+  ))
+  r7_base = orch(account, contact, []).send(:deterministic_payment_order_id, 'HARNESS_PAY_R7D')
+  GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                     action_type: 'load', order_id: r7_base, game_username: 'harnessuser1',
+                     amount: 46, status: 'success', metadata: {}, executed_at: Time.current)
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'harnessuser1' }])
+        .send(:handle_username_provided, { intent: :username_provided, game_slug: src_slug, game_username: 'harnessuser1' })
+  ok!('R7/F12 username_provided race loser => NO recharge (deterministic id holds)', !$FAKE.called?(:recharge))
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
@@ -820,6 +885,12 @@ ensure
     puts '[cleanup] deleted throwaway contact'
   rescue StandardError => e
     puts "[cleanup] contact delete failed: #{e.class}: #{e.message}"
+  end
+  begin
+    account.update!(custom_attributes: r7_acct_saved) if defined?(r7_acct_saved) && r7_acct_saved
+    puts '[cleanup] restored account custom_attributes'
+  rescue StandardError => e
+    puts "[cleanup] account custom_attributes restore failed: #{e.class}: #{e.message}"
   end
   begin
     if defined?(pref_row) && pref_row && pref_row.transfer_mode != r1_saved_mode
