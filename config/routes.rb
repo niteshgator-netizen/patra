@@ -351,6 +351,7 @@ Rails.application.routes.draw do
           namespace :patra do
             get 'dashboard', to: 'dashboard#show'
             get 'reports', to: 'reports#show'
+            get 'reports/sweeps', to: 'reports#sweeps'
             get 'conversations/export', to: 'conversations_export#show'
             get 'game_health', to: 'game_health#index'
             resources :holidays, only: [:index, :create, :destroy]

@@ -175,3 +175,28 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 ### Verify
 - ruby -c all 5 changed .rb ✓; vite build ✓ green ×3; reviewer (full phase diff): SHIP, 0 blockers, 2 should-fixes applied (SLA color reactivity, pack seeding per-item failure), comment nit fixed.
 - Runtime verify for Genius: open same conversation in two browsers → amber "is viewing" chip in header + eye pip in list within ~1s; close one tab → chip clears (≤2.5 min worst case via stale timer).
+## PHASE 5 — OWNER ANALYTICS PACK
+
+### 5a. CSAT (verified existing + extended)
+- VERIFIED existing & branded: inbox settings CSAT page (Patra-styled, emoji/star display types, survey rules), PUBLIC survey page already Patra purple (survey/views/Response.vue:214-251 — #6e56cf gradient), CSAT reports page at /reports/csat with agent/inbox/team/rating filters + CSV download.
+- ADDED per-agent CSAT score: Analytics::AgentPerformanceService now returns csat_score (avg 1-5 rating grouped by CsatSurveyResponse.assigned_agent_id, one query) — surfaces on Leaderboard + Patra overview agent table.
+- Enable: per-inbox toggle in inbox settings (already shipped). No code needed.
+
+### 5b. Analytics dashboard (extended existing /patra/reports page — NOT rebuilt)
+- VERIFIED existing: PatraReports.vue page + rich endpoint (today/this_week KPIs incl. ai_handle_rate = AI-vs-human marker [resolved conversations with no human outgoing message; human = sender_type 'User'], payment volume 7d from GameAction read-only, revenue by game 30d, conversation volume, busiest-hours heatmap). Charts are CSS-bar/heatmap based (no chart lib needed; Chart.js available but unused here — existing pattern kept).
+- FIXED: agent table read `agent.messages` — field NEVER sent by the service (always blank). Now shows Handled / First response / CSAT with correct service field names.
+- FIXED: page was dark-locked (same unscoped CSS-var bug) — theme-split applied.
+- No "needs tracking" cards required — every spec metric had a real data source.
+
+### 5c. Agent leaderboard (extended existing Leaderboard.vue)
+- BUG FIX: rankings read `agent.resolved || agent.messages_today` — neither field exists in AgentPerformanceService output → every agent showed 0 forever. Fields aligned (conversations_handled, avg_first_response_minutes).
+- ADDED: time-range picker (Today / 7 days / 30 days → ?agent_period= on the existing endpoint), CSAT column (5a), Loads column (GameAction read-only, attributed via conversation assignee — GameAction has no executed-by column; caveat shown), Loads KPI. Podium styling kept (mockup-matched, both themes via tokens).
+
+### 5d. Sweepstakes report (new page on existing machinery, read-only)
+- Backend: reports#sweeps (same admin-only ReportPolicy) — totals (loads/cashouts/net + freeplay vs paid via the canonical metadata->>'freeplay' marker used by 8+ existing services), by_game (agent_game→game join), by_agent (conversation-assignee attribution, labeled), by_day. JSON + CSV (CSVSafe template, same pattern as api/v2 reports). Route: GET patra/reports/sweeps(.csv)?period=day|week.
+- MONEY-SAFETY: reviewer-verified every query is count/sum/average/pluck — zero write paths.
+- Frontend: SweepsReport.vue at /patra/sweeps (admin-only route + role-gated sidebar entry "Sweeps Report"), day/week toggle, KPI cards, 3 tables, Export CSV button.
+
+### Verify
+- ruby -c ×3 ✓, patra.json parses ✓, vite build ✓ green; reviewer: SHIP (money-safety pass, injection pass, enum/assoc/i18n all verified). LOW items fixed (admin gate on sidebar entry, falsy-zero render). Genius: test the CSV download link once on staging (plain-link auth assumed from the existing export_url pattern).
+- Pre-existing INFO (not a regression, logged): /patra/leaderboard route allows agents but its API is admin-only → agents see an empty board.

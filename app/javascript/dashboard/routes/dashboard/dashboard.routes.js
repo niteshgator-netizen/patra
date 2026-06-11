@@ -22,6 +22,7 @@ import PatraBackupPages from './patra/PatraBackupPages.vue';
 import PatraCashierQueue from './patra/PatraCashierQueue.vue';
 import broadcastsRoutes from './broadcasts/broadcasts.routes';
 import Leaderboard from './reports/Leaderboard.vue';
+import SweepsReport from './reports/SweepsReport.vue';
 import KnowledgeBase from './settings/knowledge/KnowledgeBase.vue';
 import CustomAttributesBuilder from './settings/attributes/CustomAttributesBuilder.vue';
 import NotFound from './notFound/Index.vue';
@@ -109,6 +110,14 @@ export default {
           component: Leaderboard,
           meta: {
             permissions: ['administrator', 'agent'],
+          },
+        },
+        {
+          path: 'patra/sweeps',
+          name: 'patra_sweeps_report',
+          component: SweepsReport,
+          meta: {
+            permissions: ['administrator'],
           },
         },
         {

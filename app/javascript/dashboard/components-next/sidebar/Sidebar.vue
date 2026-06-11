@@ -484,6 +484,17 @@ const menuItems = computed(() => {
           to: accountScopedRoute('patra_leaderboard'),
           activeOn: ['patra_leaderboard'],
         },
+        ...(currentRole.value === 'administrator'
+          ? [
+              {
+                name: 'Sweeps Report',
+                label: 'Sweeps Report',
+                icon: 'i-lucide-banknote',
+                to: accountScopedRoute('patra_sweeps_report'),
+                activeOn: ['patra_sweeps_report'],
+              },
+            ]
+          : []),
         {
           name: 'Backup Pages',
           label: 'Backup Pages',
