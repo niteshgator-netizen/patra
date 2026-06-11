@@ -1660,6 +1660,25 @@ begin
   ok!('BP-I3 "15 juwa 5 2.0" (multi-amount) stays unrouted (ambiguous split)',
       Games::IntentDetector.detect('15 juwa 5 2.0').nil?)
 
+  puts "\n[BP-I4 corpus iteration-4 detector routings]"
+  {
+    "What’s hitting"    => [:whats_hitting, nil],
+    'Not loaded'        => [:status_check, nil],
+    "It's not on there" => [:status_check, nil],
+    'Sent request'      => [:payment_sent_confirmation, nil],
+    'PayPal available?' => [:payment_method_chosen, nil],
+    'Chime Gv please'   => [:payment_method_chosen, nil],
+    'juwa2.0'           => [:load, 'juwa_2'],
+    'Loaded juwa'       => [:load, 'juwa'],
+    'Loaded juwa?'      => [:status_check, 'juwa']
+  }.each do |text, (want, slug)|
+    r = Games::IntentDetector.detect(text)
+    ok!("BP-I4 #{text.inspect} -> #{want}#{slug ? "/#{slug}" : ''}",
+        r.is_a?(Hash) && r[:intent] == want && (slug.nil? || r[:game_slug].to_s == slug))
+  end
+  ok!('BP-I4 "chime failed gv please" vetoed (failover owns it)',
+      Games::IntentDetector.detect('chime failed gv please').nil?)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
