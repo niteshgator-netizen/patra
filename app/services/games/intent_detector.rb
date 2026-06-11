@@ -338,14 +338,14 @@ module Games
     #   - New regex #3 catches "send me your X tag / X handle / X info" —
     #     a request FOR the handle, which is a clear pick.
     PAYMENT_METHOD_PICK_PATTERNS = [
-      /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*[!.]*\s*\z/i,
-      /(?:i'?ll\s+|i\s+wanna\s+|i\s+want\s+to\s+|let'?s\s+(?:do\s+)?|try\s+|gimme\s+|with\s+|do\s+|i\s+got\s+)(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
+      /\A\s*(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*(?:pls+|plz+|please+)?\s*[!.]*\s*\z/i,
+      /(?:i'?ll\s+|i\s+wan+a+\s+|i\s+want\s+(?:to\s+)?|i\s+said\s+|i\s+asked\s+(?:for\s+)?|i\s+told\s+(?:you|u)\s+|let'?s\s+(?:do\s+)?|try\s+|gimme\s+|with\s+|do\s+|i\s+got\s+)(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
       /(?:send\s+(?:me\s+)?(?:your\s+|the\s+|a\s+|me\s+)?|gimme\s+(?:your\s+)?|pay\s+(?:via\s+|using\s+|on\s+|with\s+))(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*(?:tag|handle|info|link|address|id)?/i,
       # "i'll use paypal" / "i wanna use cashapp" / "let's go with venmo" — lead-in + an
       # OPTIONAL verb + platform (PICK idx1 above needs the platform immediately, so a
       # verb broke it). Reached only AFTER the negation/question guards, so it never
       # overrides "i don't want to use cashapp" or a real question.
-      /(?:i'?ll|i\s+wanna|i\s+want\s+to|let'?s|gonna|imma)\s+(?:use\s+|do\s+|go\s+with\s+|pay\s+(?:with|via)\s+)?(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
+      /(?:i'?ll|i\s+wan+a+|i\s+want\s+to|let'?s|gon+a+|imma|i\s+said|i\s+asked(?:\s+for)?|i\s+told\s+(?:you|u))\s+(?:use\s+|do\s+|go\s+with\s+|pay\s+(?:with|via)\s+)?(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
     ].freeze
 
     # Tag/handle requests + bare-platform questions ("chime tag", "cash tag", "PayPal?",
@@ -381,6 +381,28 @@ module Games
       \b(?:don'?t|dont|do\s*not|won'?t|wont|will\s*not|never|no\s+thanks|nope|nah|not)\b
       [^.!?]*?
       (?:cashapp|cash\s*app|chime|venmo|paypal|zelle)
+    /ix
+
+    # E3: same shape as NEGATION_GUARD but with the platform CAPTURED, so the
+    # pick matcher can veto ONLY the platform actually negated — "i never said
+    # cashapp i want venmo" is a real venmo pick, not a dead message.
+    PAYMENT_METHOD_NEGATED_PLATFORM_SCAN = /
+      \b(?:don'?t|dont|do\s*not|won'?t|wont|will\s*not|never|no\s+thanks|nope|nah|not)\b
+      [^.!?]*?
+      (cashapp|cash\s*app|chime|venmo|paypal|zelle)
+    /ix
+
+    # E3: a failure REPORT about a platform is not a pick of that platform —
+    # "i told you cashapp failed" must fall through to reply_service's
+    # text-failover (backup tag + ops alert), not re-send the dead tag.
+    # Scoped like the negation scan: "cashapp failed, lets do venmo" still
+    # picks venmo.
+    PAYMENT_METHOD_FAILED_PLATFORM_SCAN = /
+      (cashapp|cash\s*app|chime|venmo|paypal|zelle)\b
+      [^.!?]*?
+      \b(?:failed|failing|fails|declined|rejected|bounced|blocked|cancell?ed|
+         didn'?t\s+(?:work|go)|doesn'?t\s+work|dont\s+work|don'?t\s+work|
+         not\s+work(?:ing)?|won'?t\s+(?:work|go)|is\s+down|not\s+going\s+through)
     /ix
 
     STATUS_CHECK_PATTERNS = [
@@ -752,14 +774,39 @@ module Games
         # ask for our handle, so it's allowed through; longer questions ("you only have
         # cashapp?") still bail via the unchanged guard.
         bare_platform_q = text.match?(/\A\s*(?:cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i)
-        return nil if !bare_platform_q && text =~ PAYMENT_METHOD_QUESTION_GUARD
-        return nil if text =~ PAYMENT_METHOD_NEGATION_GUARD
+        # E3: an ASSERTIVE re-statement with a trailing "?" ("I said cash app
+        # right?", "i asked for chime?") is a pick, not a question. Needs BOTH
+        # a platform word and an i-said/asked/picked/chose lead-in.
+        assertive_q = text.match?(/\b(?:cashapp|cash\s*app|chime|venmo|paypal|zelle)\b/i) &&
+                      text.match?(/\bi\s+(?:said|asked|picked|chose)\b/i)
+        return nil if !bare_platform_q && !assertive_q && text =~ PAYMENT_METHOD_QUESTION_GUARD
         # Game name in message (e.g. Cash Machine) — not a payment-platform pick
         return nil if resolve_game_slug(text).present?
         # Request-direction / own-handle / load-question — not a pick.
         return nil if payment_pick_standdown?(text)
 
-        match_any(text, PAYMENT_METHOD_PICK_PATTERNS + PAYMENT_TAG_REQUEST_PATTERNS)
+        m = match_any(text, PAYMENT_METHOD_PICK_PATTERNS + PAYMENT_TAG_REQUEST_PATTERNS)
+        return nil unless m
+
+        # E3: negation still WINS, but only for the platform actually negated —
+        # "i don't want cashapp" stays dead; "i never said cashapp i want
+        # venmo" picks venmo. Unattributable picks under any negation stay dead
+        # (conservative: same outcome as the old whole-message guard).
+        # A failure report about the picked platform is vetoed the same way so
+        # text-failover (backup tag + ops alert) handles it instead.
+        vetoed = (text.scan(PAYMENT_METHOD_NEGATED_PLATFORM_SCAN) +
+                  text.scan(PAYMENT_METHOD_FAILED_PLATFORM_SCAN)).flatten.compact
+                                                                 .map { |p| normalize_platform_token(p) }
+        if vetoed.any?
+          picked = normalize_platform_token(m[1])
+          return nil if picked.empty? || vetoed.include?(picked)
+        end
+        m
+      end
+
+      def normalize_platform_token(raw)
+        tok = raw.to_s.downcase.gsub(/\s+/, '')
+        %w[cash cashapp].include?(tok) ? 'cashapp' : tok
       end
 
       def payment_pick_standdown?(text)
