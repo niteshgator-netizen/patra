@@ -19,7 +19,10 @@ module Games
       # "put 5 on gv" — imperative load via "put" (game token like "gv" is only 2 chars,
       # so the bare-number fallback's {3,20} can't catch it). Captures the amount; the
       # game is resolved separately by detect_game.
-      /put\s+(?:me\s+)?\$?(\d+(?:\.\d{1,2})?)/i
+      /put\s+(?:me\s+)?\$?(\d+(?:\.\d{1,2})?)/i,
+      # bp iter3: "Can I add" (33x cluster) — amount-less load ask. Amounted
+      # forms ("add 30") are caught by the earlier add-pattern.
+      /\bcan\s+(?:i|we|u|you)\s+add\b/i
     ].freeze
 
     FREEPLAY_PATTERNS = [
@@ -104,7 +107,13 @@ module Games
       # message is an amount-less cashout ask — the handler asks the amount.
       /\A\s*(?:cash\s*out|cashout|redeem|withdraw|check\s*out)\s*(?:pls+|plz+|please+)?\s*[?!.]*\s*\z/i,
       # bp iter1: "i requested a cashout" — request-verb cashout phrasing.
-      /\brequest(?:ed|ing)?\s+(?:a\s+|the\s+|my\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i
+      /\brequest(?:ed|ing)?\s+(?:a\s+|the\s+|my\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i,
+      # bp iter3: "Cashing out 50$ do i request it" — gerund form (amount captured).
+      /\bcashing\s+out\b(?:\s+\$?(\d+(?:\.\d{1,2})?))?/i,
+      # bp iter3: "I won 100" — winnings announcement = cashout ask. Amount
+      # deliberately NOT captured: the handler asks how much to cash out.
+      # (?!['’]t) — "i won't" is not a win report.
+      /\bi\s+won\b(?!['’]t\b)/i
     ].freeze
 
     USERNAME_PATTERNS = [
@@ -115,6 +124,11 @@ module Games
     ].freeze
 
     GAME_NAME_ALIASES = {
+      # bp iter3: corpus short forms (word-boundary matched, NOT substring;
+      # os/fk already exist as aliases further down)
+      'orion star' => 'orion_stars',
+      '2.0' => 'juwa_2',
+
       # Juwa 2 — longest aliases first at runtime via sort_by(-length)
       'juwa 2.0' => 'juwa_2',
       'juuwa 2' => 'juwa_2',
@@ -449,7 +463,9 @@ module Games
       /still\s+waiting/i,
       /how\s+long\s+(?:does|will|do)/i,
       # bp iter1: bare "loaded?" / "loaded??" (113x cluster)
-      /\A\s*loaded\s*[?!.]*\s*\z/i
+      /\A\s*loaded\s*[?!.]*\s*\z/i,
+      # bp iter3: "is my game loaded" (33x cluster)
+      /\bis\s+(?:my|the)\b[^.!?]{0,20}\bloaded\b/i
     ].freeze
 
     COMPLAINT_ANGRY_PATTERNS = [
@@ -683,6 +699,9 @@ module Games
                   elsif (combo = game_plus_username(text))
                     Rails.logger.info('[IntentDetector] matched game+username combo')
                     combo
+                  elsif (ga = bare_game_amount_load(text))
+                    Rails.logger.info("[IntentDetector] matched bare game+amount load #{ga[:game_slug]} $#{ga[:amount]}")
+                    ga
                   elsif (bare_game = bare_game_name_load(text))
                     Rails.logger.info("[IntentDetector] matched bare game name -> amount-less load slug=#{bare_game}")
                     { intent: :load, amount: nil, game_slug: bare_game }
@@ -845,8 +864,12 @@ module Games
         assertive_q = text.match?(/\b(?:cashapp|cash\s*app|chime|venmo|paypal|zelle)\b/i) &&
                       text.match?(/\bi\s+(?:said|asked|picked|chose)\b/i)
         return nil if !bare_platform_q && !assertive_q && text =~ PAYMENT_METHOD_QUESTION_GUARD
-        # Game name in message (e.g. Cash Machine) — not a payment-platform pick
-        return nil if resolve_game_slug(text).present?
+        # Game name in message (e.g. Cash Machine) — not a payment-platform
+        # pick... UNLESS an explicit "<platform> tag" request is also present
+        # ("Chime tag Juwa" / "Chime tag for deposit Milkyway", bp iter3).
+        if resolve_game_slug(text).present? && !text.match?(PAYMENT_TAG_REQUEST_PATTERNS[0])
+          return nil
+        end
         # Request-direction / own-handle / load-question — not a pick.
         return nil if payment_pick_standdown?(text)
 
@@ -892,6 +915,8 @@ module Games
         candidates = [norm, stripped].map { |c| c.sub(/[.\s]+\z/, '') }.reject(&:empty?).uniq
         # plural-s tolerance ("Orions" -> orion)
         candidates += candidates.map { |c| c.sub(/s\z/, '') }.reject(&:empty?)
+        # duplicated-name tolerance ("Juwa Juwa")
+        candidates += candidates.map { |c| c.split(' ').uniq.join(' ') }
         candidates.uniq!
         return nil if candidates.empty?
 
@@ -904,20 +929,49 @@ module Games
         nil
       end
 
-      # bp iter2: "Juwa Dyar760" — game name + pasted username in one message
-      # (45x cluster). Both halves must independently pass their own strict
-      # checks; routes to the gated username_provided handler.
+      # bp iter2/3: "Juwa Dyar760" / "For juwa account Lindsay0987jw" /
+      # "Tonya729fk Please and thank you dear" — exactly ONE username-shaped
+      # token; every other word must be a game name and/or filler. Routes to
+      # the gated username_provided handler.
+      USERNAME_COMBO_FILLERS = /\b(?:account|username|user|acct|please|pls+|plz+|and|thank|thanks|you|u|ty|dear|my|is|it|for|the|on|in|to|me)\b/i
+
       def game_plus_username(text)
         tokens = text.to_s.strip.split(/\s+/)
-        return nil unless tokens.size.between?(2, 3)
+        return nil unless tokens.size.between?(2, 6)
 
-        user = bare_username_token(tokens.last)
-        return nil unless user
+        user_toks = tokens.select { |t| bare_username_token(t) }
+        return nil unless user_toks.size == 1
 
-        slug = bare_game_name_load(tokens[0..-2].join(' '))
-        return nil unless slug
+        user = bare_username_token(user_toks.first)
+        rest = (tokens - user_toks).join(' ')
+        rest_clean = rest.gsub(USERNAME_COMBO_FILLERS, ' ').gsub(/[^a-z0-9.\s]/i, ' ').gsub(/\s+/, ' ').strip
+        slug = rest_clean.empty? ? nil : bare_game_name_load(rest_clean)
+        return nil unless rest_clean.empty? || slug
 
         { intent: :username_provided, game_username: user, game_slug: slug }
+      end
+
+      # bp iter3: "Juwa 5" / "10 juwa" / "25 on os" / "5.00 Orion star 🌟" —
+      # exactly ONE number and the remaining words must BE a game name. The
+      # load handler's payment gate + thresholds do the money safety.
+      def bare_game_amount_load(text)
+        norm = text.to_s.downcase.gsub(/[^a-z0-9.\s$]/, ' ').gsub(/\s+/, ' ').strip
+        return nil if norm.empty? || norm.length > 40
+        # F1: the whole message IS a game name ("juwa 2", "juwa 2.0") —
+        # bare_game_name_load owns it; never strip its digits into an amount.
+        return nil if bare_game_name_load(norm)
+
+        nums = norm.scan(/(?<![a-z0-9._])\$?(\d+(?:\.\d{1,2})?)(?![a-z0-9_])/).flatten
+        return nil unless nums.size == 1
+
+        amount = nums.first.to_f
+        return nil unless amount.positive?
+
+        rest = norm.gsub(/(?<![a-z0-9._])\$?\d+(?:\.\d{1,2})?(?![a-z0-9_])/, ' ').gsub(/\s+/, ' ').strip
+        slug = rest.empty? ? nil : bare_game_name_load(rest)
+        return nil unless slug
+
+        { intent: :load, amount: amount, game_slug: slug }
       end
 
       # bp iter1: a one-token message carrying a digit or underscore that is
