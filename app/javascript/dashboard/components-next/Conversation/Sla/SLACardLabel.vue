@@ -30,6 +30,22 @@ const appliedSLA = computed(() => props.chat?.applied_sla);
 const hasSlaThreshold = computed(() => slaStatus.value?.threshold);
 const isSlaMissed = computed(() => slaStatus.value?.isSlaMissed);
 
+/* 4c: green → amber → red countdown. Green (teal) while more than half the
+   first-response window remains, amber once past halfway or when we can't
+   quantify (NRT/RT due states), ruby when missed. */
+const slaColor = computed(() => {
+  if (isSlaMissed.value) return 'ruby';
+  const frtSeconds = Number(
+    appliedSLA.value?.sla_first_response_time_threshold
+  );
+  const createdAt = Number(props.chat?.created_at);
+  if (frtSeconds > 0 && createdAt > 0 && !props.chat?.first_reply_created_at) {
+    const elapsed = Date.now() / 1000 - createdAt;
+    return elapsed < frtSeconds / 2 ? 'teal' : 'amber';
+  }
+  return 'amber';
+});
+
 const updateSlaStatus = () => {
   slaStatus.value = evaluateSLAStatus({
     appliedSla: appliedSLA.value || {},
@@ -68,11 +84,7 @@ defineExpose({
     v-bind="$attrs"
     class="relative flex items-center cursor-pointer min-w-fit group"
   >
-    <Label
-      :label="slaStatus.threshold"
-      :color="isSlaMissed ? 'ruby' : 'amber'"
-      compact
-    >
+    <Label :label="slaStatus.threshold" :color="slaColor" compact>
       <template #icon>
         <Icon icon="i-lucide-flame" class="flex-shrink-0 size-3.5" />
       </template>
