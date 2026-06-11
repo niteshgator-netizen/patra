@@ -49,6 +49,9 @@ module Contacts
       # recorded -> same contact re-messaged on the next daily run.
       Reengagement::ContactCooldown.stamp!(contact)
       Audit::Logger.log!(account: account, action: 're_engage_sent', target: contact, metadata: { contact_id: contact.id })
+      # MEGA2 P9 - stagger: spread the sweep so dormant players aren't all
+      # pinged in the same second (FB ban risk).
+      sleep(0.5 + rand * 2.0)
     end
 
     def has_game_account?(contact)

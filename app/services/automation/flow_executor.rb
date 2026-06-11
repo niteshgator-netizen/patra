@@ -13,6 +13,12 @@ module Automation
       @step_count = 0
     end
 
+    # MEGA2 P9 - lets batch callers (drip) know a real outbound message went
+    # out, so they can stamp the shared contact cooldown + stagger.
+    def sent_any_message?
+      @sent_any_message == true
+    end
+
     def perform(start_step_id: nil, existing_run: nil)
       return if blocked_contact?
 
@@ -107,6 +113,7 @@ module Automation
       return unless user && @conversation
 
       Messages::MessageBuilder.new(user, @conversation, { content: content, private: false }).perform
+      @sent_any_message = true
       UsageRecord.increment!(account: @account, metric: 'messages_sent')
     end
 
