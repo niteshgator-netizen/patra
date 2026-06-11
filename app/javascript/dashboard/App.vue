@@ -13,7 +13,6 @@ import { useStore } from 'dashboard/composables/store';
 import WootSnackbarBox from './components/SnackbarContainer.vue';
 import { setColorTheme } from './helper/themeHelper';
 import { LocalStorage } from 'shared/helpers/localStorage';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { isOnOnboardingView } from 'v3/helpers/RouteHelper';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useFontSize } from 'dashboard/composables/useFontSize';
@@ -90,6 +89,12 @@ export default {
     if (savedBrightness != null && savedBrightness !== '') {
       this.brightness = Number(savedBrightness) || 0;
     }
+    // 3b: the dimmer slider lives in Profile settings → Appearance now; the
+    // overlay stays here so it covers the whole app.
+    this._patraBrightnessListener = event => {
+      this.brightness = Number(event.detail) || 0;
+    };
+    window.addEventListener('patra:brightness', this._patraBrightnessListener);
     this.listenToThemeChanges();
     // If user locale is set, use it; otherwise use account locale
     this.setLocale(
@@ -130,6 +135,12 @@ export default {
     });
   },
   unmounted() {
+    if (this._patraBrightnessListener) {
+      window.removeEventListener(
+        'patra:brightness',
+        this._patraBrightnessListener
+      );
+    }
     if (this._patraPointerHandler) {
       document.removeEventListener('mousemove', this._patraPointerHandler);
     }
@@ -152,16 +163,6 @@ export default {
         'data-theme',
         this.isDarkMode ? 'dark' : 'light'
       );
-    },
-    toggleTheme() {
-      const next = this.isDarkMode ? 'light' : 'dark';
-      LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, next);
-      setColorTheme(next === 'dark');
-      this.syncDarkModeState();
-    },
-    applyBrightness(value) {
-      this.brightness = Number(value) || 0;
-      LocalStorage.set('patra_brightness', this.brightness);
     },
     listenToThemeChanges() {
       const mql = window.matchMedia('(prefers-color-scheme: dark)');
@@ -230,38 +231,9 @@ export default {
     </router-view>
     <WootSnackbarBox />
     <NetworkNotification />
-
-    <!-- Theme FAB -->
-    <button
-      id="patra-theme-fab"
-      class="patra-theme-fab"
-      type="button"
-      aria-label="Toggle theme"
-      @click="toggleTheme"
-    >
-      {{ isDarkMode ? '☀️' : '🌙' }}
-    </button>
-
-    <!-- Brightness control -->
-    <div id="patra-bright-ctl" class="patra-bright-ctl">
-      <input
-        type="range"
-        min="0"
-        max="80"
-        :value="brightness"
-        class="patra-bright-slider"
-        @input="applyBrightness($event.target.value)"
-      />
-      <span
-        class="patra-bright-toggle"
-        role="button"
-        tabindex="0"
-        @click="applyBrightness(brightness > 0 ? 0 : 30)"
-        @keydown.enter.space.prevent="applyBrightness(brightness > 0 ? 0 : 30)"
-      >
-        🔅
-      </span>
-    </div>
+    <!-- 3b: theme FAB + floating brightness pill removed — the one canonical
+         appearance control lives in Profile settings → Appearance. The dimmer
+         overlay below stays; it reacts to the patra:brightness event. -->
 
     <!-- Dimmer overlay -->
     <div id="patra-dimmer" :style="{ opacity: brightness / 100 }" />

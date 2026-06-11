@@ -134,3 +134,21 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 
 ### Files: Icon.vue (rewrite, 29 lines), SidebarAccountSwitcher.vue (5 small edits), Sidebar.vue (style block, 2 edits), patra-themes.css (1 rule), PatraAiHandoffCard.vue (handler + button), en/patra.json (+3 keys). public/vite/ rebuilt (pnpm exec vite build ✓ green, 36.5s, verified now).
 ### Reviewer: 2 blockers found (residual Sidebar.vue transform; Icon.vue functional-component update bailout) — both fixed before commit.
+## PHASE 3 — INBOX EMPTY STATE + THEME TOGGLE CLEANUP
+
+### 3a. Empty state
+- EmptyStateMessage.vue rewritten: stock no-chat SVG illustrations → Patra P-mark tile (Space Grotesk, --patra gradient, 18px radius) over a STATIC radial glow (no animation, per spec). Keyboard hints (FeaturePlaceholder ⌘K / ⌘/) kept. Light + dark verified via token-scoped CSS (.dark variant for glow intensity); reviewer confirmed scoped-CSS selectors compile to correct [data-v] form.
+
+### 3b. ONE canonical theme toggle
+- NEW: Profile settings → Interface → Appearance (AppearanceSettings.vue): Light / Dark / Match-device picker + screen-dimmer slider. Canonical write path = setAppearance() in themeHelper.js (persists color_scheme, flips body.dark, syncs html[data-theme]).
+- Strays handled (each logged):
+  1. App.vue floating theme FAB (`#patra-theme-fab`, ☀️/🌙 emoji button) — REMOVED (markup, toggleTheme method, CSS ~88 lines, rail padding-bottom:64px reservation).
+  2. App.vue floating brightness pill (`.patra-bright-ctl`, hover-revealed) — REMOVED; dimmer slider moved into Appearance section. #patra-dimmer overlay stays in App.vue, reacts to `patra:brightness` CustomEvent.
+  3. Command bar (Cmd/Ctrl+K → Change appearance) — KEPT, now calls the SAME setAppearance (moved out of useAppearanceHotKeys into themeHelper; duplicate logic deleted). Not a separate toggle anymore, just a second access path.
+  4. Sidebar profile menu → "Appearance" item — KEPT (opens the command bar entry above; same single mechanism).
+  5. v3/components/Auth/AuthThemeToggle.vue (pre-login screens) — KEPT intentionally: no profile settings exist before login. Logged as accepted.
+- BONUS FIX (found while wiring): profile settings page (.pat-page-wrap) had dark CSS var values hard-coded UNSCOPED in Index.vue scoped styles → page was dark-locked even in light theme. Vars now split .dark / body:not(.dark) with light values taken from the existing global light tokens (#F6F5F9/#FFFFFF/#1A1A24 family — no invented colors).
+- i18n: PROFILE_SETTINGS.FORM.INTERFACE_SECTION.APPEARANCE.* keys added (en).
+
+### Verify
+- vite build ✓ green 39.8s (verified now); reviewer: SHIP, 2 low notes (stale picker highlight if theme changed via ⌘K while page open — accepted; LF/CRLF churn — cosmetic).

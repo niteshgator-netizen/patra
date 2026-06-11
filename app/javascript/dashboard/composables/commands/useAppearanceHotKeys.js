@@ -6,9 +6,7 @@ import {
   ICON_DARK_MODE,
   ICON_SYSTEM_MODE,
 } from 'dashboard/helper/commandbar/icons';
-import { LocalStorage } from 'shared/helpers/localStorage';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
-import { setColorTheme } from 'dashboard/helper/themeHelper.js';
+import { setAppearance } from 'dashboard/helper/themeHelper.js';
 
 const getThemeOptions = t => [
   {
@@ -27,21 +25,6 @@ const getThemeOptions = t => [
     icon: ICON_SYSTEM_MODE,
   },
 ];
-
-const setAppearance = theme => {
-  LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, theme);
-  const isOSOnDarkMode = window.matchMedia(
-    '(prefers-color-scheme: dark)'
-  ).matches;
-  setColorTheme(isOSOnDarkMode);
-  // Keep html[data-theme] in sync with body's `dark` class. setColorTheme only
-  // toggles body.dark; without this, switching theme via the command bar leaves
-  // data-theme stale, so body:not(.dark) / [data-theme="light"] rules misfire.
-  document.documentElement.setAttribute(
-    'data-theme',
-    document.body.classList.contains('dark') ? 'dark' : 'light'
-  );
-};
 
 export function useAppearanceHotKeys() {
   const { t } = useI18n();

@@ -892,90 +892,8 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   opacity: 0; pointer-events: none; z-index: 65; transition: opacity .25s;
 }
 
-/* --- Theme FAB + brightness (bottom-left chrome row, mockup-matched pills) --- */
-.patra-theme-fab {
-  position: fixed;
-  bottom: 16px;
-  left: 76px;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--surface-3, #1b1925);
-  border: 1px solid var(--border-hi, #2e2940);
-  color: var(--text-2, #a8a6b6);
-  font-size: 16px;
-  cursor: pointer;
-  z-index: 70;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  transition: all .25s cubic-bezier(.34, 1.56, .64, 1);
-}
-
-.patra-theme-fab:hover {
-  color: var(--patra-3, #a78bfa);
-  transform: translateY(-3px) rotate(-12deg);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-}
-
-.patra-bright-ctl {
-  position: fixed;
-  bottom: 16px;
-  left: 124px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 40px;
-  padding: 0 12px;
-  background: var(--surface-3, #1b1925);
-  border: 1px solid var(--border-hi, #2e2940);
-  border-radius: 11px;
-  z-index: 70;
-  /* Auto-hide: revealed only while hovering the theme FAB or the control. */
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-6px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-#patra-theme-fab:hover ~ .patra-bright-ctl,
-.patra-bright-ctl:hover {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-
-.patra-bright-slider {
-  width: 90px;
-  -webkit-appearance: none;
-  height: 4px;
-  background: linear-gradient(90deg, var(--patra, #6e56cf), var(--patra-2, #8b5cf6));
-  border-radius: 3px;
-  outline: none;
-}
-
-.patra-bright-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid var(--patra, #6e56cf);
-  box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
-  cursor: pointer;
-}
-
-.patra-bright-toggle {
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--text-2, #a8a6b6);
-  transition: color .2s;
-}
-
-.patra-bright-toggle:hover {
-  color: var(--patra-3, #a78bfa);
-}
+/* 3b: theme FAB + floating brightness pill removed — appearance + dimmer now
+   live in Profile settings → Appearance (one canonical toggle). */
 
 /* --- AI MESSAGE STYLING --- */
 .dark .patra-conv-msg-meta[data-sender-type='ai'],
@@ -1976,13 +1894,8 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   background-size: 100% 100% !important;
 }
 
-/* The theme FAB + brightness pills are position:fixed at bottom-left (z-70).
-   Reserve space at the bottom of the nav rail so its profile footer clears
-   them and isn't overlapped. `aside.` keeps specificity above the rail's
-   `padding: 14px 0` rule in Sidebar.vue. */
-aside.pat-rail.patra-nav-rail {
-  padding-bottom: 64px;
-}
+/* 3b: bottom padding reservation removed with the theme FAB — nothing
+   floats over the rail footer anymore. */
 
 /* ─────────────────────────────────────────
    W1 FIX 2 — CONV CARD CURSOR-FOLLOW GLOW on .convo-card-v6

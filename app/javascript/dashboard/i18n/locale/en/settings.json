@@ -58,6 +58,19 @@
           "UPDATE_SUCCESS": "Your Language settings have been updated successfully",
           "UPDATE_ERROR": "There is an error while updating the language settings, please try again",
           "USE_ACCOUNT_DEFAULT": "Use account default"
+        },
+        "APPEARANCE": {
+          "TITLE": "Appearance",
+          "NOTE": "Pick light, dark, or follow your device. This is the one place to switch themes — the command bar (Cmd/Ctrl + K) uses the same setting.",
+          "OPTIONS": {
+            "LIGHT": "Light",
+            "DARK": "Dark",
+            "AUTO": "Match device"
+          },
+          "DIMMER": {
+            "TITLE": "Screen dimmer",
+            "NOTE": "Softens the whole screen for late shifts. 0 turns it off."
+          }
         }
       },
       "MESSAGE_SIGNATURE_SECTION": {
