@@ -16,7 +16,12 @@ By default, the relationship is rendered as a link to the associated object.
 %>
 
 <% if field.data %>
-  <% if existing_action?(field.associated_class, :show) %>
+  <% if field.data.is_a? User %>
+    <%= link_to(
+      field.display_associated_resource,
+      super_admin_user_path(field.data),
+    ) %>
+  <% elsif existing_action?(field.associated_class, :show) %>
     <%= link_to(
       field.display_associated_resource,
       [namespace, field.data],

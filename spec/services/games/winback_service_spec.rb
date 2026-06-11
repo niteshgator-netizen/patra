@@ -43,7 +43,9 @@ RSpec.describe Games::WinbackService do
 
       expect(service.winback_contact(account, contact, pref)).to be true
 
-      msg = conversation.messages.where(private: false).order(created_at: :desc).first
+      # reorder, not order: Message carries a default created_at ASC scope, so
+      # .order(desc) appends (ASC wins) and .first would return the OLDEST message.
+      msg = conversation.messages.where(private: false).reorder(created_at: :desc).first
       expect(msg.content).to include('miss you at the tables')
       expect(msg.additional_attributes['winback']).to be true
       expect(Games::TelegramNotifier).not_to have_received(:winback_manual_alert)

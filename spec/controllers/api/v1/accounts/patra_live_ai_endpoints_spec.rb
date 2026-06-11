@@ -15,7 +15,11 @@ RSpec.describe 'Patra live-AI endpoints', type: :request do
   end
 
   describe 'POST /api/v1/accounts/:id/conversations/:conversation_id/patra_ai_analysis' do
-    let(:url) { "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/patra_ai_analysis" }
+    # .reload is required: the inbox has a member, so auto-assignment updates the
+    # conversation inside the after-create-commit chain, which prevents the
+    # load_attributes_created_by_db_triggers callback from running — leaving the
+    # in-memory display_id nil (URL would interpolate empty and 404 at routing).
+    let(:url) { "/api/v1/accounts/#{account.id}/conversations/#{conversation.reload.display_id}/patra_ai_analysis" }
     let(:clean_json) do
       '{"intent":"load_request","sentiment":"positive","entities":["juwa","$20"],' \
         '"safety_check":{"status":"ok","note":""},"suggested_reply":"on it! loading your juwa now",' \
@@ -87,10 +91,14 @@ RSpec.describe 'Patra live-AI endpoints', type: :request do
     it 'cannot analyze another account\'s conversation' do
       other = create(:account)
       other_inbox = create(:inbox, account: other)
-      other_conv = create(:conversation, account: other, inbox: other_inbox,
-                          contact: create(:contact, account: other))
+      other_contact = create(:contact, account: other)
+      # display_id is per-account, so the other account's first conversation would
+      # collide with this account's conversation (both display_id 1) and resolve to
+      # our own record. Create two so other_conv's display_id exists ONLY over there.
+      create(:conversation, account: other, inbox: other_inbox, contact: other_contact)
+      other_conv = create(:conversation, account: other, inbox: other_inbox, contact: other_contact)
 
-      post "/api/v1/accounts/#{account.id}/conversations/#{other_conv.display_id}/patra_ai_analysis",
+      post "/api/v1/accounts/#{account.id}/conversations/#{other_conv.reload.display_id}/patra_ai_analysis",
            headers: agent.create_new_auth_token, as: :json
 
       expect(response).to have_http_status(:not_found)

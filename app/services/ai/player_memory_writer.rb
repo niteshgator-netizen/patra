@@ -140,7 +140,11 @@ module Ai
 
     def parse_model_output(text)
       json = extract_json(text)
-      parsed = json ? JSON.parse(json) : {}
+      # No JSON block at all (pure prose, no braces) -> same prose fallback as a
+      # failed parse; previously this path silently dropped the model output.
+      return { 'summary' => text.to_s.strip } if json.nil?
+
+      parsed = JSON.parse(json)
       parsed.is_a?(Hash) ? parsed : {}
     rescue JSON::ParserError
       # Model returned prose, not JSON -> treat the whole thing as the summary.

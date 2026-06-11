@@ -250,6 +250,9 @@ module Games
 
       def run_amount_action(user_id:, tourl:, amount:, order_id:, action_label:)
         uid, gid = split_uid_gid(user_id)
+        # Validate the amount BEFORE any panel traffic — it depends on nothing
+        # fetched, and a decimal ask should never burn the auth gate + page dance.
+        amt_int = sanitize_whole_amount(amount, action_label)
         sleep_jitter(0.7)
         hit_auth_gate
         sleep_jitter(0.5)
@@ -260,7 +263,6 @@ module Games
         vs, vsg = scrape_viewstate(page_body)
         ev = scrape_event_validation(page_body)
         sleep_jitter(1.2)
-        amt_int = sanitize_whole_amount(amount, action_label)
         body = "__EVENTTARGET=Button1&__EVENTARGUMENT=&__VIEWSTATE=#{CGI.escape(vs)}&__VIEWSTATEGENERATOR=#{CGI.escape(vsg)}&__EVENTVALIDATION=#{CGI.escape(ev)}&txtAddGold=#{amt_int}&txtReason=#{CGI.escape("order:#{order_id}")}"
         resp = http_request(:post, action_url, body: body,
           headers: nav_headers(referer: action_url).merge(
@@ -482,7 +484,9 @@ module Games
       end
 
       def response_body_utf8(response)
-        response.body.to_s.force_encoding('UTF-8').encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
+        # .dup before force_encoding: force_encoding mutates the receiver, and the
+        # response body is not ours to mutate (frozen bodies crash with FrozenError).
+        response.body.to_s.dup.force_encoding('UTF-8').encode('UTF-8', invalid: :replace, undef: :replace, replace: '?')
       end
 
       # Ship 3 (May 21 2026): concurrency-safe session refresh.

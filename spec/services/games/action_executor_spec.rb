@@ -11,10 +11,15 @@ RSpec.describe Games::ActionExecutor do
   let(:contact) { create(:contact, account: account) }
 
   let(:client) do
+    # agent_balance: check_low_balance_alert falls back to client.agent_balance
+    # when the action response carries no balance (action_executor.rb:299). An
+    # unstubbed strict double raises MockExpectationError, which is NOT a
+    # StandardError, so the executor's rescue can't swallow it. High value = no alert.
     double('GameClient',
            get_user_id: { 'data' => { 'user_id' => '777' } },
            recharge: { 'code' => 0, 'msg' => 'Success', 'data' => {} },
-           withdraw: { 'code' => 0, 'msg' => 'Success', 'data' => {} })
+           withdraw: { 'code' => 0, 'msg' => 'Success', 'data' => {} },
+           agent_balance: { 'data' => { 'agent_balance' => '999999' } })
   end
 
   let(:executor) { described_class.new(agent_game: agent_game, contact: contact) }
