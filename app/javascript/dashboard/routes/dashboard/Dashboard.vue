@@ -73,15 +73,35 @@ export default {
       syncTabTitle();
       const spotlight = document.getElementById('patra-global-spotlight');
       if (spotlight) {
+        /* Perf pass 2: rAF-coalesced + compositor-only transform. The old
+           handler wrote left/top per mousemove (uncapped, layout-triggering
+           position changes on a 460px blurred fixed layer) — the same bug
+           P1 fixed for App.vue's spotlight, duplicated here. */
+        let spotRaf = null;
+        let spotEvent = null;
         spotlightMouseMoveHandler = e => {
-          spotlight.style.left = `${e.clientX}px`;
-          spotlight.style.top = `${e.clientY}px`;
-          spotlight.style.opacity = '1';
+          spotEvent = e;
+          if (spotRaf) return;
+          spotRaf = requestAnimationFrame(() => {
+            spotRaf = null;
+            const ev = spotEvent;
+            if (!ev) return;
+            spotlight.style.transform = `translate3d(${ev.clientX}px, ${ev.clientY}px, 0) translate(-50%, -50%)`;
+            spotlight.style.opacity = '1';
+          });
         };
         spotlightMouseLeaveHandler = () => {
+          // Cancel any pending frame so it can't re-light after leave.
+          if (spotRaf) {
+            cancelAnimationFrame(spotRaf);
+            spotRaf = null;
+          }
+          spotEvent = null;
           spotlight.style.opacity = '0';
         };
-        document.addEventListener('mousemove', spotlightMouseMoveHandler);
+        document.addEventListener('mousemove', spotlightMouseMoveHandler, {
+          passive: true,
+        });
         document.addEventListener('mouseleave', spotlightMouseLeaveHandler);
       }
 

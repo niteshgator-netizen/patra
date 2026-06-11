@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import PatraDashboardAPI from 'dashboard/api/patraDashboard';
 import GameHealthDashboard from 'dashboard/components/widgets/GameHealthDashboard.vue';
@@ -166,47 +166,54 @@ async function loadStats(showSpinner = false, range = 'today') {
   }
 }
 
+/* Perf pass 2: ONE rAF-coalesced frame for spotlight + card/kpi glow — the
+   old handler did left/top writes plus up to two layout reads per mousemove
+   event, uncapped. Spotlight moves via compositor-only transform now. */
+let fxRaf = null;
+let fxEvent = null;
+
 function onMouseMove(event) {
-  const spot = spotlightRef.value;
-  if (spot) {
-    spot.style.left = `${event.clientX}px`;
-    spot.style.top = `${event.clientY}px`;
-    spot.style.opacity = '1';
-  }
+  fxEvent = event;
+  if (fxRaf) return;
+  fxRaf = requestAnimationFrame(() => {
+    fxRaf = null;
+    const ev = fxEvent;
+    if (!ev) return;
+    const spot = spotlightRef.value;
+    if (spot) {
+      spot.style.transform = `translate3d(${ev.clientX}px, ${ev.clientY}px, 0) translate(-50%, -50%)`;
+      spot.style.opacity = '1';
+    }
 
-  const card = event.target.closest?.('.patra-card, .patra-kpi');
-  if (card) {
-    const rect = card.getBoundingClientRect();
-    card.style.setProperty('--gx', `${event.clientX - rect.left}px`);
-    card.style.setProperty('--gy', `${event.clientY - rect.top}px`);
-  }
-
-  const kpi = event.target.closest?.('.patra-kpi');
-  if (kpi) {
-    const rect = kpi.getBoundingClientRect();
-    kpi.style.setProperty('--mx', `${event.clientX - rect.left}px`);
-    kpi.style.setProperty('--my', `${event.clientY - rect.top}px`);
-  }
+    const card = ev.target.closest?.(
+      '.patra-card, .patra-kpi, .pat-stat-card'
+    );
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--gx', `${ev.clientX - rect.left}px`);
+      card.style.setProperty('--gy', `${ev.clientY - rect.top}px`);
+      card.style.setProperty('--mx', `${ev.clientX - rect.left}px`);
+      card.style.setProperty('--my', `${ev.clientY - rect.top}px`);
+    }
+  });
 }
 
 function onMouseLeave() {
+  // Cancel any pending frame so it can't re-light the spotlight after leave.
+  if (fxRaf) {
+    cancelAnimationFrame(fxRaf);
+    fxRaf = null;
+  }
+  fxEvent = null;
   if (spotlightRef.value) spotlightRef.value.style.opacity = '0';
 }
 
 onMounted(async () => {
   await loadStats(true);
-  rootRef.value?.addEventListener('mousemove', onMouseMove);
+  rootRef.value?.addEventListener('mousemove', onMouseMove, { passive: true });
   document.addEventListener('mouseleave', onMouseLeave);
-
-  nextTick(() => {
-    document.querySelectorAll('.pat-stat-card').forEach(card => {
-      card.addEventListener('mousemove', e => {
-        const rect = card.getBoundingClientRect();
-        card.style.setProperty('--gx', `${e.clientX - rect.left}px`);
-        card.style.setProperty('--gy', `${e.clientY - rect.top}px`);
-      });
-    });
-  });
+  // Perf pass 2: the old per-.pat-stat-card listeners are folded into the
+  // single coalesced onMouseMove above (closest() covers them).
 });
 
 onUnmounted(() => {
@@ -927,6 +934,10 @@ onUnmounted(() => {
 
 .patra-spotlight {
   position: fixed;
+  /* Anchor at viewport origin — the JS positions it with transform only. */
+  left: 0;
+  top: 0;
+  will-change: transform;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -1539,7 +1550,7 @@ onUnmounted(() => {
 }
 
 .patra-donut-lbl {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -1605,7 +1616,7 @@ onUnmounted(() => {
 }
 
 .patra-ms-l {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   margin-top: 3px;
   line-height: 1.3;
@@ -1674,7 +1685,7 @@ onUnmounted(() => {
 }
 
 .patra-hm-row-lbl {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-3);
   display: flex;
   align-items: center;
@@ -1682,7 +1693,7 @@ onUnmounted(() => {
 }
 
 .patra-hm-col-lbl {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-4);
   text-align: center;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -1772,7 +1783,7 @@ onUnmounted(() => {
 }
 
 .patra-role-pill {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 20px;

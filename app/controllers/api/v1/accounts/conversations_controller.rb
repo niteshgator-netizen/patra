@@ -112,6 +112,12 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     head :ok
   end
 
+  def toggle_viewing_status
+    viewing_status_manager = ::Conversations::ViewingStatusManager.new(@conversation, Current.user, params)
+    viewing_status_manager.toggle_viewing_status
+    head :ok
+  end
+
   def update_last_seen
     # High-traffic accounts generate excessive DB writes when agents frequently switch between conversations.
     # Throttle last_seen updates to once per hour when there are no unread messages to reduce DB load.

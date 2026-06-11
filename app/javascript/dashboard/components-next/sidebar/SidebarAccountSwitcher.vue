@@ -31,7 +31,7 @@ const globalConfig = useMapGetter('globalConfig/get');
 const userAccounts = useMapGetter('getUserAccounts');
 
 const showAccountSwitcher = computed(
-  () => userAccounts.value.length > 1 && currentAccount.value.name
+  () => userAccounts.value.length > 1 && currentAccount.value?.name
 );
 
 const sortedCurrentUserAccounts = computed(() => {
@@ -58,7 +58,7 @@ const emitNewAccount = () => {
         v-if="isCollapsed"
         class="grid flex-shrink-0 place-content-center p-2 rounded-lg cursor-pointer hover:bg-n-alpha-1"
         :class="{ 'bg-n-alpha-1': isOpen }"
-        :title="currentAccount.name"
+        :title="currentAccount?.name"
         @click="toggle"
       >
         <Logo class="size-7" />
@@ -83,7 +83,7 @@ const emitNewAccount = () => {
           class="text-sm font-medium leading-5 text-n-slate-12 truncate"
           aria-live="polite"
         >
-          {{ currentAccount.name }}
+          {{ currentAccount?.name }}
         </span>
 
         <span
@@ -108,7 +108,7 @@ const emitNewAccount = () => {
           <template #label>
             <div
               :for="account.name"
-              class="text-left rtl:text-right flex gap-2 items-center"
+              class="text-left rtl:text-right flex gap-2 items-center flex-1 min-w-0"
             >
               <span
                 class="text-n-slate-12 max-w-36 truncate min-w-0"
@@ -123,7 +123,7 @@ const emitNewAccount = () => {
               >
                 {{
                   account.custom_role_id
-                    ? account.custom_role.name
+                    ? account.custom_role?.name || account.role
                     : account.role
                 }}
               </span>
@@ -131,7 +131,7 @@ const emitNewAccount = () => {
             <Icon
               v-show="account.id === accountId"
               icon="i-lucide-check"
-              class="text-n-teal-11 size-5"
+              class="text-n-teal-11 size-5 shrink-0 ltr:ml-auto rtl:mr-auto"
             />
           </template>
         </DropdownItem>

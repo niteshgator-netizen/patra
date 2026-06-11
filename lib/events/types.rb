@@ -30,6 +30,8 @@ module Events::Types
   TEAM_CHANGED = 'team.changed'
   CONVERSATION_TYPING_ON = 'conversation.typing_on'
   CONVERSATION_TYPING_OFF = 'conversation.typing_off'
+  CONVERSATION_VIEWING_ON = 'conversation.viewing_on'
+  CONVERSATION_VIEWING_OFF = 'conversation.viewing_off'
   CONVERSATION_MENTIONED = 'conversation.mentioned'
 
   # message events

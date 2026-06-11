@@ -181,6 +181,7 @@ Rails.application.routes.draw do
               post :toggle_status
               post :toggle_priority
               post :toggle_typing_status
+              post :toggle_viewing_status
               post :update_last_seen
               post :unread
               post :custom_attributes
@@ -350,6 +351,7 @@ Rails.application.routes.draw do
           namespace :patra do
             get 'dashboard', to: 'dashboard#show'
             get 'reports', to: 'reports#show'
+            get 'reports/sweeps', to: 'reports#sweeps'
             get 'conversations/export', to: 'conversations_export#show'
             get 'game_health', to: 'game_health#index'
             resources :holidays, only: [:index, :create, :destroy]
@@ -901,6 +903,11 @@ Rails.application.routes.draw do
     end
     resource :patra_game_health, only: [:show], controller: 'patra_game_health'
     resource :patra_impersonation, only: [:show, :create, :destroy], controller: 'patra_impersonations'
+    resources :patra_plans, except: [:show]
+    resource :patra_feature_gating, only: [:show], controller: 'patra_feature_gating' do
+      post :set_plan_feature
+      post :assign_plan
+    end
   end
   # == END PATRA TAB-C ROUTES ==
 end

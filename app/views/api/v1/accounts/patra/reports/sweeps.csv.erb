@@ -1,0 +1,24 @@
+<%= CSVSafe.generate_line ['Sweepstakes money report', "#{@sweeps[:from]} to #{@sweeps[:to]}", "(#{@sweeps[:period] == 'day' ? 'daily' : 'weekly'})"] -%>
+<%= CSVSafe.generate_line [] -%>
+<%= CSVSafe.generate_line ['TOTALS'] -%>
+<%= CSVSafe.generate_line ['Loads count', 'Loads $', 'Cashouts count', 'Cashouts $', 'Net $', 'Freeplay loads', 'Freeplay $', 'Paid loads', 'Paid $'] -%>
+<% totals = @sweeps[:totals] -%>
+<%= CSVSafe.generate_line [totals[:loads_count], totals[:loads_total], totals[:cashouts_count], totals[:cashouts_total], totals[:net], totals[:freeplay_loads_count], totals[:freeplay_loads_total], totals[:paid_loads_count], totals[:paid_loads_total]] -%>
+<%= CSVSafe.generate_line [] -%>
+<%= CSVSafe.generate_line ['BY GAME'] -%>
+<%= CSVSafe.generate_line ['Game', 'Loads count', 'Loads $', 'Cashouts count', 'Cashouts $', 'Net $'] -%>
+<% @sweeps[:by_game].each do |row| -%>
+<%= CSVSafe.generate_line [row[:game], row[:loads_count], row[:loads_total], row[:cashouts_count], row[:cashouts_total], row[:net]] -%>
+<% end -%>
+<%= CSVSafe.generate_line [] -%>
+<%= CSVSafe.generate_line ['BY AGENT (conversation assignee)'] -%>
+<%= CSVSafe.generate_line ['Agent', 'Loads count', 'Loads $', 'Cashouts count', 'Cashouts $', 'Net $'] -%>
+<% @sweeps[:by_agent].each do |row| -%>
+<%= CSVSafe.generate_line [row[:agent], row[:loads_count], row[:loads_total], row[:cashouts_count], row[:cashouts_total], row[:net]] -%>
+<% end -%>
+<%= CSVSafe.generate_line [] -%>
+<%= CSVSafe.generate_line ['BY DAY'] -%>
+<%= CSVSafe.generate_line ['Date', 'Loads count', 'Loads $', 'Cashouts count', 'Cashouts $', 'Net $'] -%>
+<% @sweeps[:by_day].each do |row| -%>
+<%= CSVSafe.generate_line [row[:date], row[:loads_count], row[:loads_total], row[:cashouts_count], row[:cashouts_total], row[:net]] -%>
+<% end -%>

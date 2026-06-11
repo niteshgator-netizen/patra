@@ -7,10 +7,13 @@
   .patra-cc .patra-sub { color: #64748b; font-size: 13px; margin-bottom: 16px; }
   .patra-cc .patra-range { margin-bottom: 20px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .patra-cc .patra-range a { padding: 4px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; text-decoration: none; color: #334155; }
-  .patra-cc .patra-range a.active { background: #534AB7; color: #fff; border-color: #534AB7; }
+  .patra-cc .patra-range a.active { background: var(--patra, #6E56CF); color: #fff; border-color: var(--patra, #6E56CF); }
   .patra-cc .patra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
   .patra-cc .patra-panel { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #fff; }
-  .patra-cc .patra-panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #534AB7; margin: 0 0 12px; }
+  .patra-cc .patra-panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--patra, #6E56CF); margin: 0 0 12px; }
+  .patra-cc .patra-qa-form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .patra-cc .patra-qa-form select, .patra-cc .patra-qa-form input[type="text"], .patra-cc .patra-qa-form input[type="number"] { padding: 6px 8px; font-size: 13px; }
+  .patra-cc .patra-qa-form button { align-self: flex-start; }
   .patra-cc .patra-stat { display: inline-block; margin: 0 18px 10px 0; vertical-align: top; }
   .patra-cc .patra-stat .v { font-size: 20px; font-weight: 700; }
   .patra-cc .patra-stat .l { font-size: 12px; color: #64748b; }
@@ -43,6 +46,48 @@
   </div>
 
   <div class="patra-grid">
+    <div class="patra-panel">
+      <h2>Quick Actions</h2>
+      <% unless @actions_enabled %>
+        <div class="warn" style="font-size: 12px; margin-bottom: 10px;">
+          Actions are switched off (safety kill-switch). Set <code>PATRA_ADMIN_CONSOLE_ACTIONS=true</code> on Render to enable them. Links below still work.
+        </div>
+      <% end %>
+
+      <%= form_with url: '#', method: :post, local: true,
+                    html: { class: 'patra-qa-form',
+                            onsubmit: "if(!this.account_id.value) return false; this.action='/super_admin/patra_accounts/'+this.account_id.value+'/'+this.qa_action.value; return confirm('Really '+this.qa_action.value+' this account? Agents on it are blocked/unblocked on their next request.')" } do %>
+        <strong style="font-size:12px;">Suspend / reactivate an account</strong>
+        <select name="account_id" required>
+          <option value="">Pick an account…</option>
+          <% @accounts_for_actions.each do |account| %>
+            <option value="<%= account.id %>"><%= account.name %> (#<%= account.id %>, <%= account.status %>)</option>
+          <% end %>
+        </select>
+        <select name="qa_action">
+          <option value="suspend">Suspend</option>
+          <option value="reactivate">Reactivate</option>
+        </select>
+        <input type="text" name="reason" placeholder="Reason (required, goes to audit trail)" required>
+        <button class="button" type="submit" <%= 'disabled' unless @actions_enabled %>>Apply</button>
+      <% end %>
+
+      <%= form_with url: super_admin_patra_impersonation_path, method: :post, local: true,
+                    html: { class: 'patra-qa-form',
+                            onsubmit: "return confirm('Log in as this user for 30 minutes? Everything is audited.')" } do %>
+        <strong style="font-size:12px;">Impersonate a user (30-min, audited)</strong>
+        <input type="number" name="user_id" placeholder="User ID (see Users page)" required min="1">
+        <input type="text" name="reason" placeholder="Reason (required, goes to audit trail)" required>
+        <button class="button" type="submit" <%= 'disabled' unless @actions_enabled %>>Start impersonation</button>
+      <% end %>
+
+      <div style="font-size: 13px; display: flex; flex-direction: column; gap: 4px;">
+        <%= link_to '→ Toggle a feature for an account', super_admin_patra_feature_gating_path %>
+        <%= link_to '→ Manage plans & pricing', super_admin_patra_plans_path %>
+        <%= link_to '→ Post a platform banner', super_admin_platform_banners_path %>
+      </div>
+    </div>
+
     <div class="patra-panel">
       <h2>Accounts</h2>
       <span class="patra-stat"><span class="v"><%= @accounts_panel[:total] %></span><br/><span class="l">total</span></span>
@@ -128,7 +173,10 @@
           <tbody>
             <% @money[:top_accounts].each do |row| %>
               <tr>
-                <td><%= link_to (row[:name].presence || "##{row[:account_id]}"), super_admin_account_path(row[:account_id]) %></td>
+                <td>
+                  <%= link_to (row[:name].presence || "##{row[:account_id]}"), super_admin_account_path(row[:account_id]) %>
+                  <%= link_to 'control panel', super_admin_patra_account_path(row[:account_id]), style: 'font-size:11px;' %>
+                </td>
                 <td>$<%= row[:deposits] %></td>
                 <td>$<%= row[:cashouts] %></td>
                 <td class="<%= row[:net].negative? ? 'neg' : 'pos' %>">$<%= row[:net] %></td>

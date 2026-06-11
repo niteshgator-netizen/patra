@@ -1,0 +1,140 @@
+<%# Patra owner-console theme. One token sheet for the whole super_admin
+    surface (Administrate CRUD + TAB-C pages + login). Light and dark are both
+    driven by the same custom properties; dark flips automatically with the
+    OS preference. Loaded after Administrate's engine CSS so overrides win
+    without !important wars. %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --patra: #6E56CF;
+    --patra-strong: #5B46B8;
+    --patra-soft: #EDE9FB;
+    --patra-canvas: #F8F8FC;
+    --patra-surface: #FFFFFF;
+    --patra-border: #E4E2EE;
+    --patra-text: #1C1B22;
+    --patra-text-muted: #6F6D7A;
+    --patra-green: #16A34A;
+    --patra-amber: #D97706;
+    --patra-red: #DC2626;
+    --patra-font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --patra-font-body: 'Inter', system-ui, sans-serif;
+    --patra-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --patra: #8E7AE0;
+      --patra-strong: #A697E8;
+      --patra-soft: #2A2440;
+      --patra-canvas: #131118;
+      --patra-surface: #1C1923;
+      --patra-border: #2E2B3A;
+      --patra-text: #ECEAF4;
+      --patra-text-muted: #9B98A8;
+    }
+  }
+
+  body {
+    font-family: var(--patra-font-body);
+    background: var(--patra-canvas);
+    color: var(--patra-text);
+  }
+  h1, h2, h3, h4, .main-content__page-title {
+    font-family: var(--patra-font-display);
+    color: var(--patra-text);
+  }
+  code, pre { font-family: var(--patra-font-mono); }
+  a { color: var(--patra); }
+
+  /* ---- Administrate chrome ---- */
+  main[role="main"] { background: var(--patra-canvas); }
+  .main-content__header {
+    background: var(--patra-surface);
+    border-bottom: 1px solid var(--patra-border);
+  }
+  .main-content__body { background: var(--patra-canvas); }
+  .button, button[type="submit"], input[type="submit"], a.button {
+    background: var(--patra);
+    border-radius: 8px;
+    color: #fff;
+    font-family: var(--patra-font-body);
+    font-weight: 600;
+  }
+  .button:hover, button[type="submit"]:hover, input[type="submit"]:hover, a.button:hover {
+    background: var(--patra-strong);
+  }
+  .button--alt { background: transparent; color: var(--patra); border: 1px solid var(--patra); }
+  .button--danger, .button.delete { background: var(--patra-red); }
+
+  table.collection-data { background: var(--patra-surface); border: 1px solid var(--patra-border); border-radius: 10px; }
+  table.collection-data th {
+    font-family: var(--patra-font-display);
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--patra-text-muted);
+  }
+  table.collection-data td { color: var(--patra-text); border-color: var(--patra-border); }
+  table.collection-data tr:hover { background: var(--patra-soft); }
+
+  .attribute-label { color: var(--patra-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .attribute-data { color: var(--patra-text); }
+  .field-unit__label label { color: var(--patra-text-muted); font-weight: 500; }
+  .field-unit input[type="text"], .field-unit input[type="email"], .field-unit input[type="number"],
+  .field-unit input[type="password"], .field-unit select, .field-unit textarea,
+  input[type="date"], input[type="search"] {
+    background: var(--patra-surface);
+    border: 1px solid var(--patra-border);
+    border-radius: 8px;
+    color: var(--patra-text);
+  }
+  .field-unit input:focus, .field-unit select:focus, .field-unit textarea:focus {
+    border-color: var(--patra);
+    outline: 2px solid var(--patra-soft);
+  }
+  .search { background: var(--patra-surface); border: 1px solid var(--patra-border); border-radius: 8px; }
+  .pagination .current { background: var(--patra); border-radius: 6px; }
+  .flash { border-radius: 8px; font-family: var(--patra-font-body); }
+  .flash-notice, .flash-success { background: var(--patra-soft); color: var(--patra-strong); }
+  .flash-alert, .flash-error { background: #FBEAEA; color: var(--patra-red); }
+
+  /* ---- Sidebar (Tailwind-built nav partial) ---- */
+  [role="navigation"] {
+    background: var(--patra-surface);
+    border-color: var(--patra-border) !important;
+  }
+  [role="navigation"] .text-slate-800, [role="navigation"] .text-slate-700 { color: var(--patra-text-muted); }
+  [role="navigation"] a:hover { color: var(--patra) !important; background: var(--patra-soft) !important; }
+  [role="navigation"] .text-woot-500 { color: var(--patra) !important; }
+  [role="navigation"] .bg-slate-25 { background: var(--patra-soft) !important; }
+  .patra-nav-section {
+    padding: 14px 18px 4px;
+    font-family: var(--patra-font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--patra-text-muted);
+  }
+
+  /* ---- Shared panel kit for Patra pages (Command Center et al.) ---- */
+  .patra-panel-kit .patra-panel { border: 1px solid var(--patra-border); border-radius: 10px; padding: 16px; background: var(--patra-surface); }
+  .patra-panel-kit .patra-panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--patra); margin: 0 0 12px; font-family: var(--patra-font-display); }
+  .patra-panel-kit table.patra-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .patra-panel-kit table.patra-table th { text-align: left; color: var(--patra-text-muted); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--patra-border); }
+  .patra-panel-kit table.patra-table td { padding: 4px 8px; border-bottom: 1px solid var(--patra-border); }
+  .patra-panel-kit .neg { color: var(--patra-red); }
+  .patra-panel-kit .pos { color: var(--patra-green); }
+  .patra-panel-kit .warn { color: var(--patra-amber); }
+  .patra-panel-kit .muted { color: var(--patra-text-muted); }
+  .patra-help {
+    font-size: 12px;
+    color: var(--patra-text-muted);
+    background: var(--patra-soft);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 8px 0 16px;
+  }
+</style>

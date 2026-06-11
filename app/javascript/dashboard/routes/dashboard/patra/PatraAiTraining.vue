@@ -381,30 +381,48 @@ const awaitingReviewCount = computed(
 
 function noopPlaceholder() {}
 
+/* Perf pass 2: ONE rAF-coalesced frame for spotlight + card glows — the old
+   handler did left/top writes plus up to two layout reads per mousemove
+   event, uncapped. Spotlight moves via compositor-only transform now. */
+let fxRaf = null;
+let fxEvent = null;
+
 function onMouseMove(event) {
-  const spot = spotlightRef.value;
-  if (spot) {
-    spot.style.left = `${event.clientX}px`;
-    spot.style.top = `${event.clientY}px`;
-    spot.style.opacity = '1';
-  }
+  fxEvent = event;
+  if (fxRaf) return;
+  fxRaf = requestAnimationFrame(() => {
+    fxRaf = null;
+    const ev = fxEvent;
+    if (!ev) return;
+    const spot = spotlightRef.value;
+    if (spot) {
+      spot.style.transform = `translate3d(${ev.clientX}px, ${ev.clientY}px, 0) translate(-50%, -50%)`;
+      spot.style.opacity = '1';
+    }
 
-  const card = event.target.closest?.('.pat-at-card');
-  if (card) {
-    const rect = card.getBoundingClientRect();
-    card.style.setProperty('--gx', `${event.clientX - rect.left}px`);
-    card.style.setProperty('--gy', `${event.clientY - rect.top}px`);
-  }
+    const card = ev.target.closest?.('.pat-at-card');
+    if (card) {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--gx', `${ev.clientX - rect.left}px`);
+      card.style.setProperty('--gy', `${ev.clientY - rect.top}px`);
+    }
 
-  const rag = event.target.closest?.('.pat-at-rag');
-  if (rag) {
-    const rect = rag.getBoundingClientRect();
-    rag.style.setProperty('--mx', `${event.clientX - rect.left}px`);
-    rag.style.setProperty('--my', `${event.clientY - rect.top}px`);
-  }
+    const glow = ev.target.closest?.('.pat-at-rag, .pat-train-stat');
+    if (glow) {
+      const rect = glow.getBoundingClientRect();
+      glow.style.setProperty('--mx', `${ev.clientX - rect.left}px`);
+      glow.style.setProperty('--my', `${ev.clientY - rect.top}px`);
+    }
+  });
 }
 
 function onMouseLeave() {
+  // Cancel any pending frame so it can't re-light the spotlight after leave.
+  if (fxRaf) {
+    cancelAnimationFrame(fxRaf);
+    fxRaf = null;
+  }
+  fxEvent = null;
   if (spotlightRef.value) spotlightRef.value.style.opacity = '0';
 }
 
@@ -420,13 +438,8 @@ onMounted(async () => {
     // stats are non-critical, silently fail
   }
 
-  document.querySelectorAll('.pat-train-stat, .pat-at-rag').forEach(el => {
-    el.addEventListener('mousemove', e => {
-      const r = el.getBoundingClientRect();
-      el.style.setProperty('--mx', `${e.clientX - r.left}px`);
-      el.style.setProperty('--my', `${e.clientY - r.top}px`);
-    });
-  });
+  // Perf pass 2: the old per-element listeners are folded into the single
+  // coalesced onMouseMove above (closest() covers .pat-train-stat/.pat-at-rag).
 });
 
 onUnmounted(() => {
@@ -1116,6 +1129,10 @@ onUnmounted(() => {
 
 .pat-at-spotlight {
   position: fixed;
+  /* Anchor at viewport origin — the JS positions it with transform only. */
+  left: 0;
+  top: 0;
+  will-change: transform;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -1326,7 +1343,7 @@ onUnmounted(() => {
 }
 
 .pat-at-tab-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   background: var(--patra);
   color: #fff;
@@ -1584,7 +1601,7 @@ onUnmounted(() => {
 }
 
 .pat-at-uh-tag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 20px;
@@ -1694,7 +1711,7 @@ onUnmounted(() => {
 }
 
 .pat-at-rq-ml {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1931,7 +1948,7 @@ onUnmounted(() => {
 }
 
 .pat-at-sp-triggers {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-4);
 }
 
@@ -2266,7 +2283,7 @@ onUnmounted(() => {
   color: var(--text, #ededf2);
 }
 .pat-train-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2277,7 +2294,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;

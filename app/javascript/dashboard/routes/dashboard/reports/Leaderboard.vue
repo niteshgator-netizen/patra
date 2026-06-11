@@ -1,46 +1,76 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 import PatraReportsAPI from 'dashboard/api/patraReports';
 
-const { t } = useI18n();
 const agents = ref([]);
-const period = ref('weekly');
+const period = ref('week');
 const loading = ref(true);
 
+const PERIODS = ['today', 'week', 'month'];
+
+/* Field names match Analytics::AgentPerformanceService exactly — the old
+   template read `resolved`/`messages_today`, which the service never sent,
+   so every agent showed 0. */
+const handledFor = agent => agent.conversations_handled || 0;
+
 const sortedAgents = computed(() =>
-  [...agents.value].sort((a, b) => (b.resolved || 0) - (a.resolved || 0))
+  [...agents.value].sort((a, b) => handledFor(b) - handledFor(a))
 );
 
-const resolvedFor = agent => agent.resolved || agent.messages_today || 0;
+const totalHandled = computed(() =>
+  sortedAgents.value.reduce((sum, agent) => sum + handledFor(agent), 0)
+);
 
-const totalResolved = computed(() =>
-  sortedAgents.value.reduce((sum, agent) => sum + resolvedFor(agent), 0)
+const totalLoads = computed(() =>
+  sortedAgents.value.reduce((sum, agent) => sum + (agent.loads_count || 0), 0)
 );
 
 const initialFor = agent => (agent.name || '?').charAt(0).toUpperCase();
 
-onMounted(async () => {
+const fetchAgents = async () => {
+  loading.value = true;
   try {
-    const { data } = await PatraReportsAPI.get();
+    const { data } = await PatraReportsAPI.get(period.value);
     agents.value = data.agent_performance || [];
   } catch (error) {
     agents.value = [];
   } finally {
     loading.value = false;
   }
-});
+};
+
+const setPeriod = key => {
+  if (period.value === key) return;
+  period.value = key;
+  fetchAgents();
+};
+
+onMounted(fetchAgents);
 </script>
 
 <template>
   <div class="flex flex-col gap-4 p-6 lb-page">
-    <header>
-      <h1 class="text-2xl font-semibold text-n-slate-12 lb-display">
-        {{ $t('PATRA.LEADERBOARD.TITLE') }}
-      </h1>
-      <p class="text-sm text-n-slate-11">
-        {{ $t('PATRA.LEADERBOARD.SUBTITLE') }}
-      </p>
+    <header class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h1 class="text-2xl font-semibold text-n-slate-12 lb-display">
+          {{ $t('PATRA.LEADERBOARD.TITLE') }}
+        </h1>
+        <p class="text-sm text-n-slate-11">
+          {{ $t('PATRA.LEADERBOARD.SUBTITLE') }}
+        </p>
+      </div>
+      <div class="lb-period">
+        <button
+          v-for="key in PERIODS"
+          :key="key"
+          type="button"
+          class="lb-period-btn"
+          :class="{ active: period === key }"
+          @click="setPeriod(key)"
+        >
+          {{ $t(`PATRA.LEADERBOARD.PERIOD.${key.toUpperCase()}`) }}
+        </button>
+      </div>
     </header>
 
     <section v-if="sortedAgents.length" class="lb-kpis">
@@ -49,8 +79,12 @@ onMounted(async () => {
         <div class="lb-kpi-l">{{ $t('PATRA.LEADERBOARD.ACTIVE_AGENTS') }}</div>
       </div>
       <div class="lb-kpi">
-        <div class="lb-kpi-n">{{ totalResolved }}</div>
+        <div class="lb-kpi-n">{{ totalHandled }}</div>
         <div class="lb-kpi-l">{{ $t('PATRA.LEADERBOARD.TOTAL_RESOLVED') }}</div>
+      </div>
+      <div class="lb-kpi">
+        <div class="lb-kpi-n">{{ totalLoads }}</div>
+        <div class="lb-kpi-l">{{ $t('PATRA.LEADERBOARD.TOTAL_LOADS') }}</div>
       </div>
     </section>
 
@@ -78,13 +112,23 @@ onMounted(async () => {
           <div class="lb-ava">{{ initialFor(agent) }}</div>
           <div class="lb-info">
             <div class="lb-name">{{ agent.name }}</div>
-            <div v-if="agent.avg_response_time" class="lb-sub">
+            <div v-if="agent.avg_first_response_minutes != null" class="lb-sub">
               {{ $t('PATRA.LEADERBOARD.RESPONSE_TIME') }} ·
-              {{ agent.avg_response_time }}
+              {{ agent.avg_first_response_minutes }}m
             </div>
           </div>
-          <div class="lb-right">
-            <div class="lb-count">{{ resolvedFor(agent) }}</div>
+          <div class="lb-right lb-metric">
+            <div class="lb-count">
+              {{ agent.csat_score != null ? agent.csat_score : '—' }}
+            </div>
+            <div class="lb-sub">{{ $t('PATRA.LEADERBOARD.CSAT') }}</div>
+          </div>
+          <div class="lb-right lb-metric">
+            <div class="lb-count">{{ agent.loads_count || 0 }}</div>
+            <div class="lb-sub">{{ $t('PATRA.LEADERBOARD.LOADS') }}</div>
+          </div>
+          <div class="lb-right lb-metric">
+            <div class="lb-count">{{ handledFor(agent) }}</div>
             <div class="lb-sub">{{ $t('PATRA.LEADERBOARD.RESOLVED') }}</div>
           </div>
         </div>
@@ -245,6 +289,35 @@ onMounted(async () => {
 
 .lb-right {
   text-align: right;
+}
+
+.lb-metric {
+  min-width: 58px;
+}
+
+.lb-period {
+  display: flex;
+  gap: 6px;
+}
+
+.lb-period-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e5e3eb);
+  background: var(--surface, #fff);
+  color: var(--text-3, #75727f);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.lb-period-btn.active {
+  background: var(--patra, #6e56cf);
+  border-color: var(--patra, #6e56cf);
+  color: #fff;
 }
 
 .lb-count {

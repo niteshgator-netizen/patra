@@ -1,0 +1,61 @@
+<% content_for(:title) { 'Plans & Pricing' } %>
+
+<div class="patra-panel-kit" style="padding: 24px;">
+  <h1 style="margin: 0 0 4px; font-size: 22px;">Plans &amp; Pricing</h1>
+  <div class="muted" style="font-size: 13px; margin-bottom: 8px;">Define what each subscription tier includes.</div>
+  <div class="patra-help">
+    Plans are definitions only for now — saving a limit here does <strong>not</strong> cut anyone off yet.
+    Enforcement (blocking accounts that go over their limits) ships in a later release.
+  </div>
+
+  <p style="margin: 0 0 16px;">
+    <%= link_to '+ New plan', new_super_admin_patra_plan_path, class: 'button' %>
+  </p>
+
+  <% if @plans.any? %>
+    <div class="patra-panel" style="overflow-x: auto;">
+      <table class="patra-table">
+        <thead>
+          <tr>
+            <th>Plan</th>
+            <th>Price</th>
+            <th>Agents</th>
+            <th>Inboxes</th>
+            <th>AI replies / month</th>
+            <th>Accounts on it</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @plans.each do |plan| %>
+            <tr>
+              <td><strong><%= plan.name %></strong></td>
+              <td><%= plan.price.blank? ? raw('<span class="muted">Not set</span>') : plan.display_price %></td>
+              <td><%= plan.agents_limit || raw('<span class="muted">Unlimited</span>') %></td>
+              <td><%= plan.inboxes_limit || raw('<span class="muted">Unlimited</span>') %></td>
+              <td><%= plan.ai_replies_monthly_limit || raw('<span class="muted">Unlimited</span>') %></td>
+              <td><%= plan.accounts.count %></td>
+              <td><%= plan.active? ? raw('<span class="pos">Active</span>') : raw('<span class="muted">Hidden</span>') %></td>
+              <td style="white-space: nowrap;">
+                <%= link_to 'Edit', edit_super_admin_patra_plan_path(plan) %>
+                &nbsp;
+                <%= form_with url: super_admin_patra_plan_path(plan), method: :delete, local: true,
+                              html: { style: 'display:inline', onsubmit: "return confirm(#{"Delete plan '#{plan.name}'? This can't be undone.".to_json})" } do %>
+                  <button type="submit" class="button button--danger" style="padding:2px 10px;font-size:12px;">Delete</button>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="patra-panel">
+      <div class="muted">
+        No plans yet. Create your first one — for example a starter tier and a pro tier.
+        You choose every price and limit; nothing is pre-filled.
+      </div>
+    </div>
+  <% end %>
+</div>

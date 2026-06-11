@@ -81,6 +81,9 @@
       "AGENT_PERFORMANCE": "Agent performance today",
       "AGENT": "Agent",
       "MESSAGES_TODAY": "Messages today",
+      "HANDLED": "Handled",
+      "FIRST_RESPONSE": "First response",
+      "CSAT": "CSAT",
       "NO_DATA": "No data yet",
       "EXPORT": "Export conversations",
       "REVENUE_BY_GAME": "Revenue by game (30 days)",
@@ -160,6 +163,8 @@
       "CUSTOMER_TYPING": "Customer is typing",
       "ALSO_VIEWING": "are also viewing",
       "TYPING_SUFFIX": "· typing",
+      "VIEWING_ONE": "{name} is viewing",
+      "VIEWING_MANY": "{name} +{count} are viewing",
       "PINNED_LABEL": "Pinned:"
     },
     "REPLY": {
@@ -295,14 +300,45 @@
     },
     "LEADERBOARD": {
       "TITLE": "Agent Leaderboard",
-      "SUBTITLE": "Weekly performance rankings",
+      "SUBTITLE": "Performance rankings — conversations, speed, loads, and CSAT",
       "RANK": "Rank",
-      "RESOLVED": "Resolved",
-      "RESPONSE_TIME": "Avg response time",
+      "RESOLVED": "Handled",
+      "RESPONSE_TIME": "Avg first response",
       "EMPTY": "No agent activity yet for this period.",
       "ACTIVE_AGENTS": "Active agents",
-      "TOTAL_RESOLVED": "Total resolved",
-      "RANKINGS": "Agent rankings"
+      "TOTAL_RESOLVED": "Conversations handled",
+      "TOTAL_LOADS": "Loads processed",
+      "CSAT": "CSAT",
+      "LOADS": "Loads",
+      "RANKINGS": "Agent rankings",
+      "PERIOD": {
+        "TODAY": "Today",
+        "WEEK": "7 days",
+        "MONTH": "30 days"
+      }
+    },
+    "SWEEPS": {
+      "TITLE": "Sweepstakes Report",
+      "SUBTITLE": "Money in and out — loads, cashouts, and net, per game and per agent. Read-only.",
+      "DAILY": "Today",
+      "WEEKLY": "Last 7 days",
+      "EXPORT_CSV": "Export CSV",
+      "TOTALS": "Totals",
+      "LOADS": "Loads",
+      "CASHOUTS": "Cashouts",
+      "NET": "Net",
+      "FREEPLAY": "Freeplay loads",
+      "PAID": "Paid loads",
+      "BY_GAME": "By game",
+      "BY_AGENT": "By agent",
+      "BY_DAY": "By day",
+      "AGENT_NOTE": "Agent credit follows who the conversation was assigned to when the load ran.",
+      "GAME": "Game",
+      "AGENT": "Agent",
+      "DATE": "Date",
+      "COUNT_SHORT": "#",
+      "EMPTY": "No successful loads or cashouts in this period.",
+      "ERROR": "Couldn't load the report — try again."
     },
     "KNOWLEDGE": {
       "TITLE": "Knowledge Base",
@@ -414,7 +450,10 @@
       "ANALYZE": "Analyze conversation",
       "ANALYZING": "Analyzing…",
       "ANALYZE_FAILED": "Analysis failed — try again in a moment.",
-      "ANALYSIS_TITLE": "AI analysis"
+      "ANALYSIS_TITLE": "AI analysis",
+      "ASKING": "Asking Patra…",
+      "ASK_EMPTY": "Patra has no suggestion for this one — reply manually.",
+      "ASK_FAILED": "Couldn't reach Patra AI — try again in a moment."
     },
     "IMPERSONATION": {
       "BANNER": "Support login active — you are impersonating {account} (user #{userId})",

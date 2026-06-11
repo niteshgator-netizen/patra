@@ -471,6 +471,15 @@ const menuItems = computed(() => {
           activeOn: ['patra_knowledge'],
         },
         {
+          // 6a: the public Help Center (portals + article editor) had no rail
+          // entry — it was URL-only. Patra KB above is the internal one.
+          name: 'Help Center',
+          label: 'Help Center',
+          icon: 'i-lucide-library',
+          to: accountScopedRoute('portals_index'),
+          activeOn: ['portals_index'],
+        },
+        {
           name: 'Cashier Queue',
           label: 'Cashier Queue',
           icon: 'i-lucide-coins',
@@ -484,6 +493,17 @@ const menuItems = computed(() => {
           to: accountScopedRoute('patra_leaderboard'),
           activeOn: ['patra_leaderboard'],
         },
+        ...(currentRole.value === 'administrator'
+          ? [
+              {
+                name: 'Sweeps Report',
+                label: 'Sweeps Report',
+                icon: 'i-lucide-banknote',
+                to: accountScopedRoute('patra_sweeps_report'),
+                activeOn: ['patra_sweeps_report'],
+              },
+            ]
+          : []),
         {
           name: 'Backup Pages',
           label: 'Backup Pages',
@@ -922,7 +942,10 @@ const menuItems = computed(() => {
     cursor: pointer;
     /* V5 P3: pulse moved to an opacity-animated ::before — animating
        box-shadow repainted the tile every frame, forever. */
-    transition: transform 0.2s;
+    /* 2b: NO transform/transition on this wrapper — the account-switcher
+       dropdown renders inside it, and a transform makes the wrapper the
+       containing block + stacking context that clips/traps the panel.
+       The hover effect lives on the trigger button below instead. */
     position: relative;
   }
 
@@ -948,11 +971,12 @@ const menuItems = computed(() => {
     border-radius: inherit;
   }
 
-  .pat-rail-logo:hover {
+  .pat-rail-logo button:hover {
     transform: scale(1.06) rotate(-3deg);
   }
 
   .pat-rail-logo button {
+    transition: transform 0.2s;
     width: 100% !important;
     height: 100% !important;
     min-width: 0 !important;

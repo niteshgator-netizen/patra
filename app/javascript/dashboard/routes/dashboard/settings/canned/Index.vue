@@ -130,25 +130,136 @@ const confirmDeletion = () => {
 
 const isLongBody = content => getPlainText(content).length > 180;
 
+// 4a: sweepstakes starter pack — short, human cashier texts in Bella's voice.
+// Business-specific facts stay [bracketed] so the owner fills them in; we
+// never invent payment handles, timings, or percentages.
+const SWEEPSTAKES_PACK = [
+  {
+    short_code: 'welcome',
+    content:
+      "Hey! You're in the right place — tell me which game you're on and what you need (load, cashout, or a fresh account).",
+  },
+  {
+    short_code: 'load-received',
+    content:
+      "Got your payment, you're all set — credits are going onto your game now. Good luck!",
+  },
+  {
+    short_code: 'cashout-queue',
+    content:
+      "Cashout's in the queue — they go out in the order they came in. I'll message you the second yours is sent.",
+  },
+  {
+    short_code: 'cashout-details',
+    content:
+      "Send me the exact amount and your [payment handle] and I'll get your cashout started.",
+  },
+  {
+    short_code: 'payment-methods',
+    content:
+      'We take [payment methods]. Send to [handle] and drop the screenshot here so I can match it fast.',
+  },
+  {
+    short_code: 'freeplay-rules',
+    content:
+      'Freeplay works like this: [your freeplay rules]. Just say the word when you want it added.',
+  },
+  {
+    short_code: 'screenshot-please',
+    content:
+      'Can you send the payment screenshot here? Once I see it I can get you credited right away.',
+  },
+  {
+    short_code: 'balance-check',
+    content:
+      "Give me a sec, checking your balance now — I'll send it over as soon as it loads.",
+  },
+];
+
+const seedingPack = ref(false);
+
+const existingShortCodes = computed(
+  () => new Set(records.value.map(record => record.short_code))
+);
+
+const packFullySeeded = computed(() =>
+  SWEEPSTAKES_PACK.every(item => existingShortCodes.value.has(item.short_code))
+);
+
+const seedSweepstakesPack = async () => {
+  if (seedingPack.value) return;
+  seedingPack.value = true;
+  let created = 0;
+  let failed = 0;
+  // Sequential on purpose — each save fires the Bella RAG embed hook
+  // server-side; hammering them in parallel buys nothing. Failures (e.g. a
+  // duplicate short_code created by another agent) skip that item only.
+  for (const item of SWEEPSTAKES_PACK) {
+    if (existingShortCodes.value.has(item.short_code)) continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await store.dispatch('createCannedResponse', item);
+      created += 1;
+    } catch (error) {
+      failed += 1;
+    }
+  }
+  seedingPack.value = false;
+  if (failed > 0 && created === 0) {
+    useAlert(t('CANNED_MGMT.STARTER_PACK.ERROR'));
+  } else {
+    useAlert(
+      created > 0
+        ? t('CANNED_MGMT.STARTER_PACK.SUCCESS', { n: created })
+        : t('CANNED_MGMT.STARTER_PACK.NONE_ADDED')
+    );
+  }
+};
+
+/* Perf pass 2: ONE rAF-coalesced handler frame for spotlight + card glow —
+   the old pair did uncapped per-event style writes plus a layout read
+   (getBoundingClientRect) on every mousemove. Spotlight now moves via
+   compositor-only transform instead of left/top. */
+let fxRaf = null;
+let fxEvent = null;
+let fxCard = null;
+
 const onSpotlightMove = e => {
-  const el = spotlight.value;
-  if (!el) return;
-  el.style.left = `${e.clientX}px`;
-  el.style.top = `${e.clientY}px`;
-  el.style.opacity = '1';
+  fxEvent = e;
+  if (fxRaf) return;
+  fxRaf = requestAnimationFrame(() => {
+    fxRaf = null;
+    const ev = fxEvent;
+    const el = spotlight.value;
+    if (ev && el) {
+      el.style.transform = `translate3d(${ev.clientX}px, ${ev.clientY}px, 0) translate(-50%, -50%)`;
+      el.style.opacity = '1';
+    }
+    if (fxCard && ev) {
+      const rect = fxCard.getBoundingClientRect();
+      fxCard.style.setProperty('--gx', `${ev.clientX - rect.left}px`);
+      fxCard.style.setProperty('--gy', `${ev.clientY - rect.top}px`);
+      fxCard = null;
+    }
+  });
 };
 
 const onSpotlightLeave = () => {
+  // Cancel any pending frame so it can't re-light the spotlight after leave.
+  if (fxRaf) {
+    cancelAnimationFrame(fxRaf);
+    fxRaf = null;
+  }
+  fxEvent = null;
+  fxCard = null;
   const el = spotlight.value;
   if (el) el.style.opacity = '0';
 };
 
 const onCardGlow = e => {
-  const card = e.target.closest('.card');
-  if (!card) return;
-  const rect = card.getBoundingClientRect();
-  card.style.setProperty('--gx', `${e.clientX - rect.left}px`);
-  card.style.setProperty('--gy', `${e.clientY - rect.top}px`);
+  // Capture the card synchronously; the shared rAF in onSpotlightMove
+  // (same mousemove event bubbling) applies the style writes.
+  fxCard = e.target.closest('.card');
 };
 </script>
 
@@ -194,6 +305,18 @@ const onCardGlow = e => {
           >
             {{ $t('CANNED_MGMT.HEADER_BTN_TXT') }}
           </button>
+          <button
+            type="button"
+            class="btn sm empty-action"
+            :disabled="seedingPack"
+            @click="seedSweepstakesPack"
+          >
+            {{
+              seedingPack
+                ? $t('CANNED_MGMT.STARTER_PACK.SEEDING')
+                : $t('CANNED_MGMT.STARTER_PACK.BUTTON')
+            }}
+          </button>
         </div>
       </div>
 
@@ -223,6 +346,19 @@ const onCardGlow = e => {
           <span v-if="records.length" class="count-label">
             {{ $t('CANNED_MGMT.COUNT', { n: records.length }) }}
           </span>
+          <button
+            v-if="!packFullySeeded"
+            type="button"
+            class="btn sm"
+            :disabled="seedingPack"
+            @click="seedSweepstakesPack"
+          >
+            {{
+              seedingPack
+                ? $t('CANNED_MGMT.STARTER_PACK.SEEDING')
+                : $t('CANNED_MGMT.STARTER_PACK.BUTTON')
+            }}
+          </button>
           <button type="button" class="btn primary sm" @click="openAddPopup">
             {{ $t('CANNED_MGMT.HEADER_BTN_TXT') }}
           </button>
@@ -326,6 +462,10 @@ const onCardGlow = e => {
 
 #spotlight {
   position: fixed;
+  /* Anchor at viewport origin — the JS positions it with transform only. */
+  left: 0;
+  top: 0;
+  will-change: transform;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -357,7 +497,8 @@ const onCardGlow = e => {
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  /* Perf pass 2: 100px → 64px blur (radius × area cost cut, same soft look) */
+  filter: blur(64px);
 }
 
 .mesh::before {

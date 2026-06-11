@@ -17,6 +17,10 @@ class SuperAdmin::PatraDashboardController < SuperAdmin::ApplicationController
         @money = Patra::FinanceAnalytics.platform_scan(range: @range)
         @integrations = integrations_panel
         @billing = billing_panel
+        # Read-only list feeding the quick-action selects; the actions
+        # themselves POST to PatraAccounts/PatraImpersonations controllers.
+        @accounts_for_actions = Account.order(:name).limit(200)
+        @actions_enabled = Patra::AdminConsole.actions_enabled?
         render :show
       end
       format.json { render json: legacy_summary } # pre-ADM1 JSON contract kept

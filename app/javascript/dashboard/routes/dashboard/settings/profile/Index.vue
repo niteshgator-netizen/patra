@@ -12,6 +12,7 @@ import UserProfilePicture from './UserProfilePicture.vue';
 import UserBasicDetails from './UserBasicDetails.vue';
 import MessageSignature from './MessageSignature.vue';
 import FontSize from './FontSize.vue';
+import AppearanceSettings from './AppearanceSettings.vue';
 import UserLanguageSelect from './UserLanguageSelect.vue';
 import HotKeyCard from './HotKeyCard.vue';
 import ChangePassword from './ChangePassword.vue';
@@ -32,6 +33,7 @@ export default {
     MessageSignature,
     SectionLayout,
     FontSize,
+    AppearanceSettings,
     UserLanguageSelect,
     UserProfilePicture,
     Policy,
@@ -239,6 +241,7 @@ export default {
           "
         >
           <div class="flex flex-col gap-6 items-start">
+            <AppearanceSettings />
             <FontSize
               :value="currentFontSize"
               :label="
@@ -360,7 +363,9 @@ export default {
 </template>
 
 <style scoped>
-.pat-page-wrap {
+/* 3b: theme-scoped vars — these used to be defined unconditionally on
+   .pat-page-wrap, locking the page to dark values even in light mode. */
+.dark .pat-page-wrap {
   --canvas: #050409;
   --surface: #0c0b12;
   --surface-2: #131119;
@@ -368,12 +373,29 @@ export default {
   --surface-4: #252233;
   --border: #171520;
   --border-hi: #2e2940;
-  --patra: #6e56cf;
-  --patra-3: #a78bfa;
   --text: #ededf2;
   --text-2: #a8a6b6;
   --text-3: #75727f;
   --text-4: #54515e;
+}
+
+body:not(.dark) .pat-page-wrap {
+  --canvas: #f6f5f9;
+  --surface: #ffffff;
+  --surface-2: #f2f0f7;
+  --surface-3: #ece9f2;
+  --surface-4: #e5e3eb;
+  --border: #e5e3eb;
+  --border-hi: #d6d3de;
+  --text: #1a1a24;
+  --text-2: #4a4756;
+  --text-3: #75727f;
+  --text-4: #a0a0ab;
+}
+
+.pat-page-wrap {
+  --patra: #6e56cf;
+  --patra-3: #a78bfa;
   --green: #3fb950;
   --red: #f85149;
 

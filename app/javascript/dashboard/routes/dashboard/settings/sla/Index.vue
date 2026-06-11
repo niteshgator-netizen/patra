@@ -167,6 +167,12 @@ export default {
               />
             </template>
           </BaseSettingsHeader>
+          <p
+            v-if="!isBehindAPaywall"
+            class="mt-2 text-sm text-n-slate-11 max-w-2xl"
+          >
+            {{ $t('SLA.PER_INBOX_HINT') }}
+          </p>
         </template>
         <template #body>
           <SLAPaywallEnterprise

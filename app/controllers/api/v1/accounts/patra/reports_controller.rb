@@ -28,7 +28,7 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
       top_players: top_players(limit: 10),
       game_usage: game_usage_stats,
       payment_volume: payment_volume_by_day(days: 7),
-      agent_performance: Analytics::AgentPerformanceService.new(Current.account, period: today_range).call,
+      agent_performance: Analytics::AgentPerformanceService.new(Current.account, period: agent_performance_range).call,
       revenue_by_game: revenue_by_game,
       conversation_volume_by_day: conversation_volume_by_day(days: 30),
       busiest_hours: busiest_hours,
@@ -36,10 +36,133 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
     }
   end
 
+  # 5d: daily/weekly sweepstakes money report. READ-ONLY aggregation over
+  # GameAction — no code path here can move money. CSV via the existing
+  # CSVSafe template pattern (see api/v2 reports).
+  def sweeps
+    range = sweeps_range
+    @sweeps = sweeps_data(range)
+    respond_to do |format|
+      format.json { render json: @sweeps }
+      format.csv do
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = "attachment; filename=sweepstakes_report_#{Date.current}.csv"
+        render layout: false, template: 'api/v1/accounts/patra/reports/sweeps', formats: [:csv]
+      end
+    end
+  end
+
   private
 
   def check_authorization
     authorize :report, :view?
+  end
+
+  def agent_performance_range
+    case params[:agent_period].to_s
+    when 'week' then 7.days.ago.beginning_of_day..Time.current
+    when 'month' then 30.days.ago.beginning_of_day..Time.current
+    else Time.current.beginning_of_day..Time.current
+    end
+  end
+
+  def sweeps_range
+    if params[:period].to_s == 'day'
+      Time.current.beginning_of_day..Time.current
+    else
+      7.days.ago.beginning_of_day..Time.current
+    end
+  end
+
+  def sweeps_data(range)
+    scope = Current.account.game_actions.where(action_type: %w[load cashout], status: 'success', created_at: range)
+    loads = scope.where(action_type: 'load')
+    cashouts = scope.where(action_type: 'cashout')
+    freeplay_loads = loads.where("COALESCE(metadata->>'freeplay', 'false') = 'true'")
+    paid_loads = loads.where("COALESCE(metadata->>'freeplay', 'false') != 'true'")
+    loads_total = loads.sum(:amount).to_f
+    cashouts_total = cashouts.sum(:amount).to_f
+
+    {
+      period: params[:period].to_s == 'day' ? 'day' : 'week',
+      from: range.begin.to_date.to_s,
+      to: range.end.to_date.to_s,
+      totals: {
+        loads_count: loads.count,
+        loads_total: loads_total.round(2),
+        cashouts_count: cashouts.count,
+        cashouts_total: cashouts_total.round(2),
+        net: (loads_total - cashouts_total).round(2),
+        freeplay_loads_count: freeplay_loads.count,
+        freeplay_loads_total: freeplay_loads.sum(:amount).to_f.round(2),
+        paid_loads_count: paid_loads.count,
+        paid_loads_total: paid_loads.sum(:amount).to_f.round(2)
+      },
+      by_game: sweeps_by_game(scope),
+      by_agent: sweeps_by_agent(scope),
+      by_day: sweeps_by_day(loads, cashouts, range)
+    }
+  end
+
+  def sweeps_by_game(scope)
+    grouped = scope.joins(agent_game: :game).group('games.name', :action_type)
+    counts = grouped.count
+    sums = grouped.sum(:amount)
+    games = counts.keys.map(&:first).uniq
+    games.map do |game|
+      load_total = sums[[game, 'load']].to_f
+      cashout_total = sums[[game, 'cashout']].to_f
+      {
+        game: game,
+        loads_count: counts[[game, 'load']].to_i,
+        loads_total: load_total.round(2),
+        cashouts_count: counts[[game, 'cashout']].to_i,
+        cashouts_total: cashout_total.round(2),
+        net: (load_total - cashout_total).round(2)
+      }
+    end.sort_by { |row| -row[:net] }
+  end
+
+  # Attribution follows the conversation assignee (GameAction carries no
+  # executed-by column) — documented on the report page.
+  def sweeps_by_agent(scope)
+    grouped = scope.joins('INNER JOIN conversations ON conversations.id = game_actions.conversation_id')
+                   .where.not(conversations: { assignee_id: nil })
+                   .group('conversations.assignee_id', :action_type)
+    counts = grouped.count
+    sums = grouped.sum(:amount)
+    ids = counts.keys.map(&:first).uniq
+    names = User.where(id: ids).pluck(:id, :name).to_h
+    ids.map do |id|
+      load_total = sums[[id, 'load']].to_f
+      cashout_total = sums[[id, 'cashout']].to_f
+      {
+        agent_id: id,
+        agent: names[id] || "Agent ##{id}",
+        loads_count: counts[[id, 'load']].to_i,
+        loads_total: load_total.round(2),
+        cashouts_count: counts[[id, 'cashout']].to_i,
+        cashouts_total: cashout_total.round(2),
+        net: (load_total - cashout_total).round(2)
+      }
+    end.sort_by { |row| -row[:loads_total] }
+  end
+
+  def sweeps_by_day(loads, cashouts, range)
+    load_sums = loads.group(Arel.sql('DATE(created_at)')).sum(:amount)
+    load_counts = loads.group(Arel.sql('DATE(created_at)')).count
+    cashout_sums = cashouts.group(Arel.sql('DATE(created_at)')).sum(:amount)
+    cashout_counts = cashouts.group(Arel.sql('DATE(created_at)')).count
+    (range.begin.to_date..range.end.to_date).map do |date|
+      {
+        date: date.to_s,
+        loads_count: load_counts[date].to_i,
+        loads_total: load_sums[date].to_f.round(2),
+        cashouts_count: cashout_counts[date].to_i,
+        cashouts_total: cashout_sums[date].to_f.round(2),
+        net: (load_sums[date].to_f - cashout_sums[date].to_f).round(2)
+      }
+    end
   end
 
   def messages_scope

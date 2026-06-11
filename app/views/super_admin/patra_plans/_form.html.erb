@@ -1,0 +1,50 @@
+<%= form_with model: plan, url: url, method: method, local: true do |f| %>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; max-width: 760px;">
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Plan name</label>
+      <%= f.text_field :name, required: true, placeholder: 'e.g. Starter', style: 'width:100%; padding:8px;' %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Price (leave blank if undecided)</label>
+      <%= f.number_field :price, step: '0.01', min: 0, placeholder: 'No price set', style: 'width:100%; padding:8px;' %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Currency</label>
+      <%= f.select :currency, PatraPlan::CURRENCIES, {}, { style: 'width:100%; padding:8px;' } %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Billing period</label>
+      <%= f.select :period, [%w[Monthly monthly], %w[Yearly yearly]], {}, { style: 'width:100%; padding:8px;' } %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Agent seats (blank = unlimited)</label>
+      <%= f.number_field :agents_limit, min: 0, placeholder: 'Unlimited', style: 'width:100%; padding:8px;' %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Inboxes (blank = unlimited)</label>
+      <%= f.number_field :inboxes_limit, min: 0, placeholder: 'Unlimited', style: 'width:100%; padding:8px;' %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">AI replies per month (blank = unlimited)</label>
+      <%= f.number_field :ai_replies_monthly_limit, min: 0, placeholder: 'Unlimited', style: 'width:100%; padding:8px;' %>
+    </div>
+    <div>
+      <label style="display:block; font-size:12px; margin-bottom:4px;">Sort position (lower shows first)</label>
+      <%= f.number_field :position, min: 0, style: 'width:100%; padding:8px;' %>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; padding-top:18px;">
+      <%= f.check_box :active %>
+      <label style="font-size:13px;">Plan is active (shown when assigning accounts)</label>
+    </div>
+  </div>
+
+  <div class="patra-help" style="max-width: 760px;">
+    Which features this plan includes is set on the <%= link_to 'Feature Gating', super_admin_patra_feature_gating_path %> page —
+    one matrix for all plans, easier to compare side by side.
+  </div>
+
+  <div style="margin-top: 16px;">
+    <%= f.submit (plan.persisted? ? 'Save changes' : 'Create plan'), class: 'button' %>
+    <%= link_to 'Cancel', super_admin_patra_plans_path, style: 'margin-left: 12px;' %>
+  </div>
+<% end %>

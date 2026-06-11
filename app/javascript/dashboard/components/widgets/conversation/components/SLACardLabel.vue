@@ -34,9 +34,27 @@ const appliedSLA = computed(() => props.chat?.applied_sla);
 const slaEvents = computed(() => props.chat?.sla_events);
 const hasSlaThreshold = computed(() => slaStatus.value?.threshold);
 const isSlaMissed = computed(() => slaStatus.value?.isSlaMissed);
-const slaTextStyles = computed(() =>
-  isSlaMissed.value ? 'text-n-ruby-11' : 'text-n-amber-11'
-);
+/* 4c: green → amber → red. Green while more than half the first-response
+   window remains; amber past halfway or unquantifiable; ruby when missed. */
+const isSlaComfortable = computed(() => {
+  // Depend on the slaStatus OBJECT (replaced by the 60s refresh tick) so the
+  // teal→amber transition actually re-evaluates as time passes.
+  const status = slaStatus.value;
+  if (status?.isSlaMissed) return false;
+  const frtSeconds = Number(
+    appliedSLA.value?.sla_first_response_time_threshold
+  );
+  const createdAt = Number(props.chat?.created_at);
+  if (frtSeconds > 0 && createdAt > 0 && !props.chat?.first_reply_created_at) {
+    return Date.now() / 1000 - createdAt < frtSeconds / 2;
+  }
+  return false;
+});
+
+const slaTextStyles = computed(() => {
+  if (isSlaMissed.value) return 'text-n-ruby-11';
+  return isSlaComfortable.value ? 'text-n-teal-11' : 'text-n-amber-11';
+});
 
 const slaStatusText = computed(() => {
   const upperCaseType = slaStatus.value?.type?.toUpperCase(); // FRT, NRT, or RT

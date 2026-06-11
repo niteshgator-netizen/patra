@@ -184,7 +184,7 @@
    Class hooks come from ConversationCard.vue's template. Ungated by theme
    so the pills look right whether the dark vars resolved or not. */
 .status-pill {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 7px;
   border-radius: 10px;
   display: inline-flex;
@@ -207,7 +207,7 @@
   color: var(--patra-red);
 }
 .vip-badge {
-  font-size: 9px;
+  font-size: 11px;
   background: #7c3f00;
   color: #fbbf24;
   padding: 1px 5px;
@@ -240,7 +240,7 @@
 }
 
 .message-text--metadata {
-  font-size: 10px !important;
+  font-size: 11px !important;
   opacity: 0.6 !important;
 }
 
@@ -273,7 +273,9 @@
   content: '';
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  /* Perf pass 2: 100px → 64px. Blur cost scales with radius × area and these
+     are two ~700px always-animating layers; 64px keeps the soft mesh look. */
+  filter: blur(64px);
 }
 
 .patra-mesh-bg::before {
@@ -321,6 +323,10 @@
 /* ── Global cursor spotlight ── */
 .patra-spotlight {
   position: fixed;
+  /* Anchor at viewport origin — the JS positions it with transform only. */
+  left: 0;
+  top: 0;
+  will-change: transform;
   width: 460px;
   height: 460px;
   border-radius: 50%;
@@ -668,10 +674,14 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   background: linear-gradient(180deg, var(--patra-surface), var(--patra-canvas)) !important;
   border-right-color: var(--patra-border) !important;
 }
-.dark .pat-rail-logo {
-  transition: all .25s cubic-bezier(.34,1.56,.64,1);
+/* Scope the playful hover to the trigger button ONLY. A transform on
+   .pat-rail-logo itself made it the containing block + stacking context for
+   the account-switcher dropdown rendered inside it → panel clipped/trapped
+   under sidebar buttons. (Bug 2b) */
+.dark .pat-rail-logo > div > button {
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
 }
-.dark .pat-rail-logo:hover {
+.dark .pat-rail-logo > div > button:hover {
   transform: scale(1.06) rotate(-3deg);
 }
 .dark .pat-rail-item {
@@ -888,90 +898,8 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   opacity: 0; pointer-events: none; z-index: 65; transition: opacity .25s;
 }
 
-/* --- Theme FAB + brightness (bottom-left chrome row, mockup-matched pills) --- */
-.patra-theme-fab {
-  position: fixed;
-  bottom: 16px;
-  left: 76px;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--surface-3, #1b1925);
-  border: 1px solid var(--border-hi, #2e2940);
-  color: var(--text-2, #a8a6b6);
-  font-size: 16px;
-  cursor: pointer;
-  z-index: 70;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  transition: all .25s cubic-bezier(.34, 1.56, .64, 1);
-}
-
-.patra-theme-fab:hover {
-  color: var(--patra-3, #a78bfa);
-  transform: translateY(-3px) rotate(-12deg);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-}
-
-.patra-bright-ctl {
-  position: fixed;
-  bottom: 16px;
-  left: 124px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 40px;
-  padding: 0 12px;
-  background: var(--surface-3, #1b1925);
-  border: 1px solid var(--border-hi, #2e2940);
-  border-radius: 11px;
-  z-index: 70;
-  /* Auto-hide: revealed only while hovering the theme FAB or the control. */
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-6px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-#patra-theme-fab:hover ~ .patra-bright-ctl,
-.patra-bright-ctl:hover {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
-}
-
-.patra-bright-slider {
-  width: 90px;
-  -webkit-appearance: none;
-  height: 4px;
-  background: linear-gradient(90deg, var(--patra, #6e56cf), var(--patra-2, #8b5cf6));
-  border-radius: 3px;
-  outline: none;
-}
-
-.patra-bright-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid var(--patra, #6e56cf);
-  box-shadow: 0 0 8px var(--patra-glow, rgba(110, 86, 207, 0.55));
-  cursor: pointer;
-}
-
-.patra-bright-toggle {
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--text-2, #a8a6b6);
-  transition: color .2s;
-}
-
-.patra-bright-toggle:hover {
-  color: var(--patra-3, #a78bfa);
-}
+/* 3b: theme FAB + floating brightness pill removed — appearance + dimmer now
+   live in Profile settings → Appearance (one canonical toggle). */
 
 /* --- AI MESSAGE STYLING --- */
 .dark .patra-conv-msg-meta[data-sender-type='ai'],
@@ -990,7 +918,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   position: absolute;
   top: 6px;
   right: 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: #8b5cf6;
   opacity: 0.6;
 }
@@ -1630,7 +1558,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 }
 .dark .pat-charcount {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   color: var(--text-4, #54515E) !important;
 }
 
@@ -1876,7 +1804,7 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
 }
 .dark .patra-donut-lbl {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-3, #75727F) !important;
@@ -1972,13 +1900,8 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   background-size: 100% 100% !important;
 }
 
-/* The theme FAB + brightness pills are position:fixed at bottom-left (z-70).
-   Reserve space at the bottom of the nav rail so its profile footer clears
-   them and isn't overlapped. `aside.` keeps specificity above the rail's
-   `padding: 14px 0` rule in Sidebar.vue. */
-aside.pat-rail.patra-nav-rail {
-  padding-bottom: 64px;
-}
+/* 3b: bottom padding reservation removed with the theme FAB — nothing
+   floats over the rail footer anymore. */
 
 /* ─────────────────────────────────────────
    W1 FIX 2 — CONV CARD CURSOR-FOLLOW GLOW on .convo-card-v6
@@ -2123,7 +2046,7 @@ aside.pat-rail.patra-nav-rail {
   text-overflow: ellipsis;
 }
 .dark .contact .c-tag {
-  font-size: 9px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 2px 6px !important;
   border-radius: 5px !important;
@@ -2652,7 +2575,7 @@ aside.pat-rail.patra-nav-rail {
   margin: 14px 0 12px;
 }
 .dark .gbadge {
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 9px !important;
   border-radius: 6px !important;
@@ -3157,7 +3080,7 @@ aside.pat-rail.patra-nav-rail {
 .dark .pat-list-wrap .role-administrator,
 .dark .pat-list-wrap .role-agent {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3172,7 +3095,7 @@ aside.pat-rail.patra-nav-rail {
 }
 .dark .verified {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3755,7 +3678,7 @@ aside.pat-rail.patra-nav-rail {
 .dark .role.admin,
 .dark .role.administrator {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3767,7 +3690,7 @@ aside.pat-rail.patra-nav-rail {
 }
 .dark .role.agent {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   font-weight: 600 !important;
   padding: 3px 8px !important;
   border-radius: 6px !important;
@@ -3781,7 +3704,7 @@ aside.pat-rail.patra-nav-rail {
   background: rgba(167, 139, 250, 0.16) !important;
   color: var(--patra-2, #8B5CF6) !important;
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
   text-transform: uppercase !important;
   letter-spacing: 0.04em !important;
   padding: 3px 8px !important;

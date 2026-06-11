@@ -20,6 +20,7 @@ import PatraConversationsAPI from 'dashboard/api/patraConversations';
 import types from 'dashboard/store/mutation-types';
 import ConversationMessageSearch from './ConversationMessageSearch.vue';
 import ConversationInfoPanel from './ConversationInfoPanel.vue';
+import { ANNOUNCE_INTERVAL_MS } from 'dashboard/store/modules/conversationViewingStatus';
 
 const props = defineProps({
   chat: {
@@ -168,14 +169,48 @@ const startPresencePolling = () => {
   presencePollTimer = setInterval(fetchContactPresence, 30_000);
 };
 
+/* 4b collision detection: announce "I'm looking at this conversation" while
+   the header is mounted. Re-announces every ANNOUNCE_INTERVAL_MS so other
+   clients' stale timers keep the entry alive; off is sent on switch/unmount. */
+let viewingAnnounceTimer = null;
+
+const announceViewing = (status, conversationId) => {
+  const id = conversationId || props.chat?.id;
+  if (!id) return;
+  store.dispatch('conversationViewingStatus/toggleViewing', {
+    conversationId: id,
+    status,
+  });
+};
+
+const startViewingAnnouncer = () => {
+  if (viewingAnnounceTimer) clearInterval(viewingAnnounceTimer);
+  announceViewing('on');
+  viewingAnnounceTimer = setInterval(
+    () => announceViewing('on'),
+    ANNOUNCE_INTERVAL_MS
+  );
+};
+
 onMounted(() => {
   startPresencePolling();
   fetchConversationWatchers();
+  startViewingAnnouncer();
 });
 
 onBeforeUnmount(() => {
   if (presencePollTimer) clearInterval(presencePollTimer);
+  if (viewingAnnounceTimer) clearInterval(viewingAnnounceTimer);
+  announceViewing('off');
 });
+
+watch(
+  () => props.chat?.id,
+  (newId, oldId) => {
+    if (oldId && oldId !== newId) announceViewing('off', oldId);
+    if (newId) startViewingAnnouncer();
+  }
+);
 
 watch(
   () => [props.chat?.id, props.chat?.meta?.sender?.id],
@@ -262,6 +297,29 @@ const otherParticipants = computed(() => {
     metaParticipants.length > 0 ? metaParticipants : conversationWatchers.value;
   if (participants.length <= 1) return [];
   return participants.filter(a => a.id !== currentUser.value?.id);
+});
+
+/* 4b: live viewers — other AGENTS who currently have this conversation open
+   (action-cable fed conversationViewingStatus store). */
+const liveViewers = computed(() => {
+  if (!currentChat.value?.id) return [];
+  const userList =
+    store.getters['conversationViewingStatus/getUserList'](
+      currentChat.value.id
+    ) || [];
+  return userList.filter(
+    u => u.type !== 'contact' && u.id !== currentUser.value?.id
+  );
+});
+
+const liveViewersLabel = computed(() => {
+  if (!liveViewers.value.length) return '';
+  const first = liveViewers.value[0]?.name || '';
+  const extra = liveViewers.value.length - 1;
+  if (extra > 0) {
+    return t('PATRA.CONVERSATION.VIEWING_MANY', { name: first, count: extra });
+  }
+  return t('PATRA.CONVERSATION.VIEWING_ONE', { name: first });
 });
 
 /* C3: real typing events only — other AGENTS typing in this conversation
@@ -352,6 +410,19 @@ const fetchConversationWatchers = () => {
               </span>
               <span class="patra-participants-text">
                 {{ $t('PATRA.CONVERSATION.ALSO_VIEWING')
+                }}<template v-if="isOtherAgentTyping">
+                  {{ $t('PATRA.CONVERSATION.TYPING_SUFFIX') }}</template
+                >
+              </span>
+            </div>
+            <div
+              v-if="liveViewers.length"
+              class="patra-live-viewers"
+              :title="liveViewers.map(v => v.name).join(', ')"
+            >
+              <span class="patra-live-viewers-pip" aria-hidden="true" />
+              <span class="patra-live-viewers-text">
+                {{ liveViewersLabel
                 }}<template v-if="isOtherAgentTyping">
                   {{ $t('PATRA.CONVERSATION.TYPING_SUFFIX') }}</template
                 >
@@ -1163,7 +1234,7 @@ body:not(.dark) .patra-conv-head-icon-btn {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: #75727f;
   margin-left: 8px;
   flex-shrink: 0;
@@ -1175,7 +1246,7 @@ body:not(.dark) .patra-conv-head-icon-btn {
   border-radius: 50%;
   background: rgba(110, 86, 207, 0.2);
   color: #a78bfa;
-  font-size: 9px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1186,8 +1257,33 @@ body:not(.dark) .patra-conv-head-icon-btn {
   white-space: nowrap;
 }
 
+/* 4b: live "is viewing" collision chip */
+.patra-live-viewers {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.patra-live-viewers-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d97706;
+  flex-shrink: 0;
+}
+
 .patra-auto-reply-toggle {
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 8px;
   border-radius: 10px;
   border: 1px solid rgba(110, 86, 207, 0.2);
