@@ -807,10 +807,11 @@ begin
                        amount: 5, status: 'success', metadata: {}, executed_at: Time.current)
     r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 60' }])
           .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 60 })
-    ok!('R4 DEFAULT cash_whole => Bella says the game drops the over-limit',
-        r[:reply].to_s.match?(/game drops anything over the max/i))
+    # MEGA2 P3 ruling: cash_whole states the math plainly - no silent forfeit.
+    ok!('R4 DEFAULT cash_whole => Bella states the plain math ($50 paid, over-max does not carry)',
+        r[:reply].to_s.match?(/get \$50/i) && r[:reply].to_s.match?(/doesn't carry/i))
     ok!('R4 DEFAULT cash_whole => R8 telegram context fired', tg?('NEEDS FROM HUMAN'))
-    ok!('R4 over-max moves no money itself', !$FAKE.called?(:withdraw) && !$FAKE.called?(:recharge))
+    ok!('R4 cash_whole over-max moves no money itself', !$FAKE.called?(:withdraw) && !$FAKE.called?(:recharge))
 
     # pay_max_recharge: ask $60 over $50 max -> pay $50, recharge $10 back
     account.update!(custom_attributes: r4_acct_attrs.merge('cashout_overmax_mode' => 'pay_max_recharge'))
@@ -820,9 +821,19 @@ begin
                        amount: 5, status: 'success', metadata: {}, executed_at: Time.current)
     r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 60' }])
           .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 60 })
-    ok!('R4 pay_max_recharge => Bella promises max $50 + $10 loaded back',
-        r[:reply].to_s.match?(/get \$50/i) && r[:reply].to_s.match?(/extra \$10 back/i))
-    ok!('R4 pay_max_recharge => R8 telegram says recharge the leftover', tg?('recharge $10 back'))
+    # MEGA2 P3 ruling: pay_max_recharge EXECUTES the in-game legs (redeem the
+    # requested $60, recharge the $10 over-max back); the $50 external payout
+    # stays cashier-manual.
+    ok!('R4 pay_max_recharge => redeem+recharge legs ran ($60 out, $10 back) + player told $50 + leftover back',
+        $FAKE.calls.any? { |c| c[0] == :withdraw && c[1].to_f == 60.0 } &&
+        $FAKE.calls.any? { |c| c[0] == :recharge && c[1].to_f == 10.0 } &&
+        r[:reply].to_s.match?(/get \$50/i) && r[:reply].to_s.match?(/\$10 over the max back/i))
+    ok!('R4 pay_max_recharge => 5-part telegram reports legs DONE + $50 payout still needed',
+        tg?('recharged $10 back') && tg?('in-game legs DONE') && tg?('send $50'))
+    # drop the legs' GameActions so the success-cashout doesn't drift the
+    # velocity counts of later sections (same self-cleanup pattern as G1).
+    GameAction.where(contact_id: contact.id, action_type: 'cashout').delete_all
+    GameAction.where(account_id: account.id).where("order_id LIKE 'ovmx_%'").delete_all
   ensure
     begin
       account.update!(custom_attributes: r4_acct_attrs)
@@ -1230,6 +1241,28 @@ begin
           .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
     ok!('G1 operator reject => polite decline, no re-escalation, no load',
         !$FAKE.called?(:recharge) && $TG.empty? && r[:reply].to_s.match?(/can't do freeplay/i))
+
+    # MEGA2 P5 farm guard (HOTFIX2): zero-deposit contact, NO override,
+    # GameRule AUTO freeplay => guard blocks, 5-part escalation, labeled, no load.
+    reset_run; prime_contact!(contact, [src_slug])
+    g1_fg_attrs = contact.custom_attributes.dup
+    g1_fg_attrs.delete('freeplay_auto')
+    contact.update!(custom_attributes: g1_fg_attrs)
+    GameAction.where(contact_id: contact.id).delete_all
+    g1_rule.update!(freeplay_enabled: true, freeplay_amount: 5, freeplay_max_per_day: 5,
+                    freeplay_max_per_week: 5, freeplay_require_deposit_first: false)
+    g1_fg_acct = (account.custom_attributes || {}).dup
+    account.update!(custom_attributes: g1_fg_acct.merge('freeplay_min_deposits' => 1))
+    begin
+      r = orch(account, contact, [{ 'role' => 'user', 'content' => 'freeplay?' }])
+            .send(:handle_load_freeplay, { intent: :load_freeplay, game_slug: src_slug })
+      ok!('G1 farm guard => zero-deposit rule-auto freeplay blocked (5-part escalation, label, no load)',
+          !$FAKE.called?(:recharge) && Array(r[:labels]).include?('freeplay-farm-guard') &&
+          tg?('FARM GUARD') && tg?('NEEDS FROM HUMAN') &&
+          r[:reply].to_s.match?(/freeplay unlocks after your first deposit/i))
+    ensure
+      account.update!(custom_attributes: g1_fg_acct)
+    end
   ensure
     begin
       if g1_flag_saved.nil?
