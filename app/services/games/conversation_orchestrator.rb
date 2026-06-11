@@ -2366,6 +2366,57 @@ module Games
       ''
     end
 
+    # S2 - explicit game wins; otherwise disambiguate from the games the player
+    # actually has usernames on. Returns a slug, a question Hash (more than one
+    # candidate), or falls back to the normal slug resolution.
+    def chosen_game_slug_for_balance(intent)
+      explicit = intent.is_a?(Hash) ? intent[:game_slug] : nil
+      return explicit if explicit.present?
+
+      stored = (contact.custom_attributes || {}).keys
+                                                .select { |k| k.to_s.start_with?('game_username_') }
+                                                .map { |k| k.to_s.sub('game_username_', '') }
+      stored = stored.select { |s| pick_agent_game(s) }
+
+      return stored.first if stored.size == 1
+
+      if stored.size > 1
+        names = stored.map { |s| slug_label(s) }
+        return { reply: "which game - #{humanize_list(names)}?", labels: ['balance-check-requested'] }
+      end
+
+      chosen_game_slug(intent)
+    rescue StandardError
+      chosen_game_slug(intent)
+    end
+
+    # S2/R3 - state the player's REAL cashout window from the rule layer.
+    def cashout_limits_reply(intent)
+      slug = chosen_game_slug(intent)
+      rules = game_rules_for(slug)
+      last_dep = last_deposit_for_cashout(slug)
+
+      # No rule row or no history -> the generic configured-rules reply.
+      return handle_cashout_rules(intent) unless rules && last_dep
+
+      if last_dep[:type] == 'freeplay'
+        min_c = last_dep[:amount] * (rules.cashout_freeplay_multiplier || 5).to_f
+        max_c = (rules.cashout_freeplay_max || 50).to_f
+      else
+        min_c = last_dep[:amount] * (rules.cashout_min_multiplier || 4).to_f
+        max_c = [last_dep[:amount] * (rules.cashout_max_multiplier || 10).to_f, (rules.cashout_max_amount || 250).to_f].min
+      end
+      min_c = [min_c, (rules.cashout_min_amount || 10).to_f].max
+
+      {
+        reply: "on your last $#{fmt_amt(last_dep[:amount])} #{last_dep[:type]}: min cashout $#{fmt_amt(min_c)}, max $#{fmt_amt(max_c)} on #{slug_label(slug)}",
+        labels: ['cashout-rules']
+      }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] cashout_limits_reply failed: #{e.message}")
+      handle_cashout_rules(intent)
+    end
+
     def handle_complaint_angry(intent = nil)
       contact = conversation.contact
 
@@ -2486,9 +2537,26 @@ module Games
       }
     end
 
+    # S2 (June 10) - classify the ask first, then answer with REAL numbers only.
+    # Cashout-limit questions -> R3 rule math; load-status questions -> the S1
+    # path; otherwise live game balance via the existing client call. An API
+    # failure escalates with the full R8 context and NEVER invents a number.
+    # No account on the game -> offer signup (existing yes/no create path).
     def handle_balance_check(intent)
-      contact = conversation.contact
-      game_slug = chosen_game_slug(intent) || contact.custom_attributes&.dig('preferred_platform')
+      ask = (latest_customer_text || recent_customer_text).to_s.downcase
+
+      # (a) cashout-limit question -> answer from the R3 rule math.
+      if ask.match?(/(?:how much|what).{0,30}(?:cash\s*out|withdraw|redeem)|cash\s*out\s+(?:limit|max|min(?:imum)?)|(?:max|min(?:imum)?)(?:imum)?\s+cash\s*out/)
+        return cashout_limits_reply(intent)
+      end
+
+      # (a) load-status question wearing a balance hat -> S1 path.
+      if ask.match?(/went through|did my (?:load|deposit|payment)|status of/)
+        return handle_status_check(intent)
+      end
+
+      game_slug = chosen_game_slug_for_balance(intent)
+      return game_slug if game_slug.is_a?(Hash) # disambiguation question
 
       unless game_slug
         return { reply: 'which game do you want me to check?', labels: ['balance-check-requested'] }
@@ -2497,9 +2565,12 @@ module Games
       begin
         username = find_game_username_for_slug(contact, game_slug)
         unless username
+          # (c) no account on this game -> offer to create one; a "yes" lands in
+          # the existing pending_transfer_create path (amount 0 = create only).
+          store_pending_transfer_create(game_slug, 0)
           return {
-            reply: "I don't have your #{game_slug} account on file — which username?",
-            labels: ['balance-check-requested']
+            reply: "you don't have a #{slug_label(game_slug)} account with us yet - want me to set one up?",
+            labels: ['balance-check-requested', 'needs-account-offer']
           }
         end
 
@@ -2511,11 +2582,10 @@ module Games
 
         if result[:success] && result[:balance]
           balance = result[:balance]
-          reply = "your #{game_slug} balance is $#{balance}"
+          reply = "your #{slug_label(game_slug)} balance is $#{fmt_amt(balance)}"
 
           begin
-            game = Game.find_by(slug: game_slug)
-            rules = game ? GameRule.find_by(account_id: account.id, game_id: game.id) : nil
+            rules = game_rules_for(game_slug)
             if rules && rules.cashout_rules_text.present? && balance.to_f >= (rules.cashout_min_amount || 10)
               reply += "\ncashout rules: #{rules.cashout_rules_text}"
             end
@@ -2528,12 +2598,18 @@ module Games
           safe_telegram do
             Games::TelegramNotifier.human_escalation(
               account: account, contact: contact,
-              reason: "Balance check failed for #{contact.name} on #{game_slug}: #{result[:error]}",
+              reason: escalation_context(
+                wants: "their #{slug_label(game_slug)} balance",
+                done: "live balance call failed (#{result[:error]})",
+                left: 'player has no number yet - nothing was guessed',
+                suggest: 'check the panel by hand and tell them the exact figure',
+                need: "the real #{slug_label(game_slug)} balance for #{username}"
+              ),
               conversation: conversation
             )
           end
           {
-            reply: "couldn't pull your balance right now — let me check manually",
+            reply: "having trouble reaching #{slug_label(game_slug)} right now - a teammate is pulling your exact balance, won't be long.",
             labels: %w[cashier-action-needed balance-check-requested]
           }
         end
@@ -2542,12 +2618,18 @@ module Games
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "Balance check error for #{contact.name}: #{e.message}",
+            reason: escalation_context(
+              wants: "their #{slug_label(game_slug)} balance",
+              done: "balance lookup crashed (#{e.class}: #{e.message})",
+              left: 'player has no number yet - nothing was guessed',
+              suggest: 'check the panel by hand and tell them the exact figure',
+              need: "the real #{slug_label(game_slug)} balance"
+            ),
             conversation: conversation
           )
         end
         {
-          reply: 'let me pull that up — one sec',
+          reply: "having trouble pulling that up - a teammate is grabbing your exact balance now.",
           labels: %w[cashier-action-needed balance-check-requested]
         }
       end

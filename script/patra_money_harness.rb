@@ -905,6 +905,76 @@ begin
       r[:reply].to_s.match?(/hit a snag|didn't go through/i) && Array(r[:labels]).include?('cashier-action-needed'))
   ok!('S1 failed action => R8 telegram context', tg?('NEEDS FROM HUMAN'))
 
+  puts "\n[S2 balance_check]  (live balance, no invented numbers, signup offer, classification)"
+  # (b) live balance reply
+  reset_run(balance: 75.0); prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'how much i got?' }])
+        .send(:handle_balance_check, { intent: :balance_check, game_slug: src_slug })
+  ok!('S2 live balance => states the REAL number ($75)', r[:reply].to_s.include?('75'))
+  ok!('S2 live balance => no telegram needed', $TG.empty?)
+
+  # (b) API error => no invented number + R8 escalation
+  reset_run(balance: nil); prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'check my balance' }])
+        .send(:handle_balance_check, { intent: :balance_check, game_slug: src_slug })
+  ok!('S2 API error => NO number invented', !r[:reply].to_s.match?(/\$\d/))
+  ok!('S2 API error => R8 escalation fired + cashier label',
+      tg?('NEEDS FROM HUMAN') && Array(r[:labels]).include?('cashier-action-needed'))
+
+  # (c) no username => signup offer routed into the existing create path
+  reset_run; prime_contact!(contact, [])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'whats my balance on ' + src_slug }])
+        .send(:handle_balance_check, { intent: :balance_check, game_slug: src_slug })
+  ok!('S2 no account => offers signup, no balance call',
+      r[:reply].to_s.match?(/don't have a .* account .* want me to set one up/i) && !$FAKE.called?(:user_balance))
+  s2_pending = contact.reload.custom_attributes['pending_transfer_create']
+  ok!('S2 no account => pending create flag stored (existing yes/no path)', s2_pending.present?)
+  r = orch(account, contact, []).send(:complete_pending_transfer_create, s2_pending)
+  ok!('S2 saying yes => account actually created via the existing path',
+      $FAKE.called?(:add_user) && r[:reply].to_s.include?('username'))
+
+  # (a) ambiguity: two usernames, no explicit game => asks which game
+  if t_src && t_tgt && t_src != t_tgt
+    reset_run; prime_contact!(contact, [t_src, t_tgt])
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'how much i got?' }])
+          .send(:handle_balance_check, { intent: :balance_check })
+    ok!('S2 two accounts, no game named => asks which game', r[:reply].to_s.match?(/which game/i))
+  else
+    puts '  S2 ambiguity case SKIPPED - need 2 self-resolving active agent_games'
+  end
+
+  # (a) cashout-limit question => R3 math with real numbers
+  s2_rule = GameRule.find_or_initialize_by(account_id: account.id, game_id: ag.game.id)
+  s2_was_new = s2_rule.new_record?
+  s2_snap = s2_was_new ? nil : s2_rule.attributes.dup
+  s2_rule.assign_attributes(cashout_enabled: true, cashout_min_multiplier: 4, cashout_max_multiplier: 10,
+                            cashout_max_amount: 250, cashout_min_amount: 10,
+                            cashout_freeplay_multiplier: 5, cashout_freeplay_max: 50,
+                            cashout_require_screenshot: false)
+  s2_rule.save!
+  begin
+    reset_run; prime_contact!(contact, [src_slug])
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                       action_type: 'load', order_id: 'HARNESS_S2_DEP', game_username: 'harnessuser1',
+                       amount: 5, status: 'success', metadata: {}, executed_at: Time.current)
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'how much can i cash out?' }])
+          .send(:handle_balance_check, { intent: :balance_check, game_slug: src_slug })
+    ok!('S2 cashout-limit ask => classified + answers with R3 real numbers (min $20, max $50)',
+        r[:reply].to_s.match?(/min cashout \$20.*max \$50/i))
+    ok!('S2 cashout-limit ask => no live balance call needed', !$FAKE.called?(:user_balance))
+  ensure
+    begin
+      if s2_was_new
+        s2_rule.destroy
+      else
+        s2_rule.update!(s2_snap.except('id', 'created_at', 'updated_at'))
+      end
+      puts '[cleanup] restored game_rule for S2'
+    rescue StandardError => e
+      puts "[cleanup] S2 game_rule restore failed: #{e.class}: #{e.message}"
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
