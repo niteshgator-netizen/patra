@@ -160,6 +160,8 @@
       "CUSTOMER_TYPING": "Customer is typing",
       "ALSO_VIEWING": "are also viewing",
       "TYPING_SUFFIX": "· typing",
+      "VIEWING_ONE": "{name} is viewing",
+      "VIEWING_MANY": "{name} +{count} are viewing",
       "PINNED_LABEL": "Pinned:"
     },
     "REPLY": {

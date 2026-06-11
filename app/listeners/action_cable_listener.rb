@@ -122,6 +122,39 @@ class ActionCableListener < BaseListener
     )
   end
 
+  # 4b collision detection — same fan-out as typing (inbox members minus the
+  # acting user); agents only, so no contact tokens are needed beyond what
+  # typing_event_listener_tokens already scopes.
+  def conversation_viewing_on(event)
+    conversation = event.data[:conversation]
+    account = conversation.account
+    user = event.data[:user]
+    tokens = typing_event_listener_tokens(account, conversation, user)
+
+    broadcast(
+      account,
+      tokens,
+      CONVERSATION_VIEWING_ON,
+      conversation: conversation.push_event_data,
+      user: user.push_event_data
+    )
+  end
+
+  def conversation_viewing_off(event)
+    conversation = event.data[:conversation]
+    account = conversation.account
+    user = event.data[:user]
+    tokens = typing_event_listener_tokens(account, conversation, user)
+
+    broadcast(
+      account,
+      tokens,
+      CONVERSATION_VIEWING_OFF,
+      conversation: conversation.push_event_data,
+      user: user.push_event_data
+    )
+  end
+
   def assignee_changed(event)
     conversation, account = extract_conversation_and_account(event)
     tokens = user_tokens(account, conversation.inbox.members)

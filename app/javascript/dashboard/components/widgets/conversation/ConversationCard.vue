@@ -143,6 +143,22 @@ const slaDotColor = computed(() => {
   return null;
 });
 
+/* 4b: collision badge — other agents with this conversation open right now */
+const currentUserId = computed(() => store.getters.getCurrentUser?.id);
+
+const viewingAgents = computed(() => {
+  const userList =
+    store.getters['conversationViewingStatus/getUserList'](props.chat?.id) ||
+    [];
+  return userList.filter(
+    u => u.type !== 'contact' && u.id !== currentUserId.value
+  );
+});
+
+const viewingTitle = computed(() =>
+  viewingAgents.value.map(v => v.name).join(', ')
+);
+
 const priorityBorderClass = computed(() => {
   const priority = props.chat?.priority;
   if (priority === CONVERSATION_PRIORITY.URGENT) {
@@ -383,6 +399,13 @@ const onCardMouseMove = e => {
         v-if="isCustomerOnline"
         class="absolute bottom-0 ltr:right-0 rtl:left-0 w-[11px] h-[11px] bg-green-500 rounded-full border-2 border-white dark:border-[#16161d] z-[2]"
       />
+      <span
+        v-if="viewingAgents.length"
+        class="cv6-viewing-pip absolute -top-1 ltr:-right-1 rtl:-left-1 z-[3] flex items-center justify-center w-[14px] h-[14px] rounded-full bg-amber-500 text-white border-2 border-n-background"
+        :title="`${viewingTitle} — viewing`"
+      >
+        <span class="i-lucide-eye block w-[8px] h-[8px]" />
+      </span>
     </div>
     <div class="px-0 py-3 flex-1 min-w-0 border-line">
       <div

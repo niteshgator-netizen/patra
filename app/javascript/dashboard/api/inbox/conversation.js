@@ -88,6 +88,12 @@ class ConversationApi extends ApiClient {
     });
   }
 
+  toggleViewing({ conversationId, status }) {
+    return axios.post(`${this.url}/${conversationId}/toggle_viewing_status`, {
+      viewing_status: status,
+    });
+  }
+
   mute(conversationId) {
     return axios.post(`${this.url}/${conversationId}/mute`);
   }
