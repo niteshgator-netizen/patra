@@ -669,6 +669,55 @@ begin
     end
   end
 
+  puts "\n[R4 over-max cashout modes]  (cash_whole default / pay_max_recharge)"
+  r4_rule = GameRule.find_or_initialize_by(account_id: account.id, game_id: ag.game.id)
+  r4_was_new = r4_rule.new_record?
+  r4_snap = r4_was_new ? nil : r4_rule.attributes.dup
+  r4_rule.assign_attributes(cashout_enabled: true, cashout_min_multiplier: 4, cashout_max_multiplier: 10,
+                            cashout_max_amount: 250, cashout_min_amount: 10,
+                            cashout_freeplay_multiplier: 5, cashout_freeplay_max: 50,
+                            cashout_require_screenshot: false)
+  r4_rule.save!
+  r4_acct_attrs = (account.custom_attributes || {}).dup
+  begin
+    # DEFAULT cash_whole: last dep $5 -> max $50; ask $60 -> whole balance cashed, excess dropped
+    account.update!(custom_attributes: r4_acct_attrs.reject { |k, _| k.to_s == 'cashout_overmax_mode' })
+    reset_run; prime_contact!(contact, [src_slug])
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                       action_type: 'load', order_id: 'HARNESS_R4_DEP1', game_username: 'harnessuser1',
+                       amount: 5, status: 'success', metadata: {}, executed_at: Time.current)
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 60' }])
+          .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 60 })
+    ok!('R4 DEFAULT cash_whole => Bella says the game drops the over-limit',
+        r[:reply].to_s.match?(/game drops anything over the max/i))
+    ok!('R4 DEFAULT cash_whole => R8 telegram context fired', tg?('NEEDS FROM HUMAN'))
+    ok!('R4 over-max moves no money itself', !$FAKE.called?(:withdraw) && !$FAKE.called?(:recharge))
+
+    # pay_max_recharge: ask $60 over $50 max -> pay $50, recharge $10 back
+    account.update!(custom_attributes: r4_acct_attrs.merge('cashout_overmax_mode' => 'pay_max_recharge'))
+    reset_run; prime_contact!(contact, [src_slug])
+    GameAction.create!(account_id: account.id, agent_game_id: ag.id, contact_id: contact.id,
+                       action_type: 'load', order_id: 'HARNESS_R4_DEP2', game_username: 'harnessuser1',
+                       amount: 5, status: 'success', metadata: {}, executed_at: Time.current)
+    r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 60' }])
+          .send(:handle_cashout_intent, { intent: :cashout, game_slug: src_slug, amount: 60 })
+    ok!('R4 pay_max_recharge => Bella promises max $50 + $10 loaded back',
+        r[:reply].to_s.match?(/get \$50/i) && r[:reply].to_s.match?(/extra \$10 back/i))
+    ok!('R4 pay_max_recharge => R8 telegram says recharge the leftover', tg?('recharge $10 back'))
+  ensure
+    begin
+      account.update!(custom_attributes: r4_acct_attrs)
+      if r4_was_new
+        r4_rule.destroy
+      else
+        r4_rule.update!(r4_snap.except('id', 'created_at', 'updated_at'))
+      end
+      puts '[cleanup] restored account attrs + game_rule for R4'
+    rescue StandardError => e
+      puts "[cleanup] R4 restore failed: #{e.class}: #{e.message}"
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

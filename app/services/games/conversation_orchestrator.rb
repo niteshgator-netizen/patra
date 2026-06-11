@@ -932,11 +932,10 @@ module Games
               }
             end
 
+            # R4 - over the max is no longer a flat decline; the overmax mode
+            # decides what the player is told and what the cashier is asked to do.
             if requested_amount > max_cashout
-              return {
-                reply: "max cashout is $#{max_cashout.to_i} based on your deposits. #{rules.cashout_rules_text}".strip,
-                labels: []
-              }
+              return handle_over_max_cashout(game_slug, requested_amount, max_cashout, last_dep)
             end
           end
 
@@ -2726,6 +2725,58 @@ module Games
     rescue StandardError => e
       Rails.logger.error("[Orchestrator] last_deposit_for_cashout failed: #{e.message}")
       nil
+    end
+
+    # R4 (June 10) - over-max cashout behavior. 'cash_whole' (default): cash out
+    # the whole balance, the game erases the excess over max - Bella says so.
+    # 'pay_max_recharge': pay the max, recharge the leftover back to the game.
+    # This handler moves no money itself (payout is cashier-manual, see the
+    # Phase 6.5 note at the top of the file) - it sets expectations with the
+    # player and hands the cashier the full picture via the R8 context.
+    def handle_over_max_cashout(game_slug, requested_amount, max_cashout, last_dep)
+      mode = cashout_overmax_mode_pref
+      leftover = requested_amount - max_cashout
+      dep_txt = last_dep ? "your last $#{fmt_amt(last_dep[:amount])} #{last_dep[:type]}" : 'your deposits'
+
+      if mode == 'pay_max_recharge'
+        reply = "max cashout on #{dep_txt} is $#{fmt_amt(max_cashout)} - you'll get $#{fmt_amt(max_cashout)} and i'll load the extra $#{fmt_amt(leftover)} back on #{game_slug} for you."
+        suggest = "pay the $#{fmt_amt(max_cashout)} max and recharge $#{fmt_amt(leftover)} back to the game"
+      else
+        reply = "max cashout on #{dep_txt} is $#{fmt_amt(max_cashout)} - i'll cash out your full balance and the game drops anything over the max, so you'll get $#{fmt_amt(max_cashout)}."
+        suggest = "cash out the whole balance, pay $#{fmt_amt(max_cashout)} - the game erases the over-limit"
+      end
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "cash out $#{fmt_amt(requested_amount)} on #{game_slug} (over the $#{fmt_amt(max_cashout)} max, mode #{mode})",
+            done: 'nothing executed yet - player informed of the max',
+            left: 'the payout itself',
+            suggest: suggest,
+            need: 'process the payout per the mode and confirm in chat'
+          ),
+          conversation: conversation
+        )
+      end
+
+      { reply: reply, labels: %w[cashout-over-max cashier-action-needed] }
+    end
+
+    # R4 - 'cash_whole' | 'pay_max_recharge'. Read order: reply_preferences
+    # column (when it exists) -> account.custom_attributes['cashout_overmax_mode']
+    # -> 'cash_whole' (operator-confirmed default). No migration required.
+    def cashout_overmax_mode_pref
+      pref = reply_pref_cached
+      if pref.respond_to?(:cashout_overmax_mode)
+        v = pref.cashout_overmax_mode.to_s.strip.downcase
+        return v if %w[cash_whole pay_max_recharge].include?(v)
+      end
+      ca = (account.custom_attributes || {})['cashout_overmax_mode'].to_s.strip.downcase
+      return ca if %w[cash_whole pay_max_recharge].include?(ca)
+      'cash_whole'
+    rescue StandardError
+      'cash_whole'
     end
 
     def record_api_result(agent_game, result)
