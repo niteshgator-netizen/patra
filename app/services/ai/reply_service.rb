@@ -2048,7 +2048,7 @@ class Ai::ReplyService
         if acct
           cashapp_handle = Payments::HandleSelector.new(account: acct, platform: 'cashapp').pick_active
           if cashapp_handle
-            display = cashapp_handle.display_name.presence || cashapp_handle.handle
+            display = (cashapp_handle.respond_to?(:display_handle) ? cashapp_handle.display_handle : nil).presence || cashapp_handle.handle
             active_handle_hint = "ACTIVE PAYMENT HANDLE: When the customer asks where to send payment for cashapp, tell them to send to '#{display}'. Use this exact handle. Do not use any other handle from training data or canned responses."
           end
         end
@@ -2407,6 +2407,7 @@ class Ai::ReplyService
 
   def guard_against_false_load_claim(reply_text)
     reply_text = enforce_exact_payment_handles(reply_text)
+    reply_text = strip_handle_person_names(reply_text)
     return reply_text if reply_text.blank?
 
     load_claim_patterns = [
@@ -2642,6 +2643,34 @@ class Ai::ReplyService
     false
   end
 
+  # E1 hard guard: a customer-facing reply must never contain a configured
+  # payment handle's display_name (a PERSON name, e.g. the cashapp account
+  # owner) — swap any occurrence for that handle's $/@ tag. Names shorter
+  # than 5 chars are skipped (too generic to safely substring-match).
+  # Fails open: any error returns the reply unchanged.
+  def strip_handle_person_names(reply_text)
+    return reply_text if reply_text.to_s.strip.empty?
+
+    acct = Account.find_by(id: account_id)
+    return reply_text unless acct.respond_to?(:payment_handles)
+
+    out = reply_text
+    acct.payment_handles.to_a.each do |h|
+      name = h.try(:display_name).to_s.strip
+      next if name.length < 5
+
+      tag = h.respond_to?(:display_handle) ? h.display_handle.to_s : ''
+      next if tag.empty?
+
+      pattern = /(?<![\$@\w])#{Regexp.escape(name)}\b/i
+      out = out.gsub(pattern, tag) if out.match?(pattern)
+    end
+    out
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] strip_handle_person_names failed: #{e.class}: #{e.message}")
+    reply_text
+  end
+
   # Cash App text failover: offer backup handle or escalate. Returns reply
   # text or nil (nil → caller continues with normal Bella / LLM flow).
   def maybe_reply_for_text_payment_failure(messages)
@@ -2699,11 +2728,27 @@ class Ai::ReplyService
 
       add_conversation_labels!(%w[payment-failed-retry text-detected])
 
-      backup_display = backup.display_name.presence || backup.handle
+      # E1: customer-facing text carries the $/@ TAG, never the handle's person name.
+      backup_display = (backup.respond_to?(:display_handle) ? backup.display_handle : nil).presence || backup.handle
+      failed_tag = (failed_handle.respond_to?(:display_handle) ? failed_handle.display_handle : nil).presence || failed_handle.handle
+
+      # E2: a player-reported handle failure + rotation must never be silent.
+      # Alert failure must never block the customer reply.
+      if defined?(Games::TelegramNotifier)
+        begin
+          Games::TelegramNotifier.human_escalation(
+            account: acct,
+            contact: Contact.find_by(id: fetch_sender_contact_id, account_id: acct.id),
+            reason: "⚠️ PAYMENT HANDLE FAILED (player-reported): #{failed_tag} → rotated to #{backup_display}"
+          )
+        rescue StandardError => e
+          Rails.logger.warn("[ReplyService] handle-failed telegram alert crashed: #{e.class}: #{e.message}")
+        end
+      end
+
       reply = "ah no worries — try sending it to #{backup_display} instead, that one's working"
-      failed_label = failed_handle.display_name.presence || failed_handle.handle
-      Rails.logger.info("[ReplyService] Text failover: #{failed_label} → #{backup_display}")
-      reply
+      Rails.logger.info("[ReplyService] Text failover: #{failed_tag} → #{backup_display}")
+      strip_handle_person_names(reply)
     else
       add_conversation_labels!(%w[payment-system-down needs-human])
 
