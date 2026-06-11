@@ -718,6 +718,28 @@ begin
     end
   end
 
+  puts "\n[R5 partial keep-in recorded as new deposit]  (cash out 30, keep 20 -> 20 is the new last deposit)"
+  reset_run; prime_contact!(contact, [src_slug])
+  r = orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 30 and keep 20 in' }])
+        .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  r5_wd = $FAKE.calls.find { |c| c[0] == :withdraw }
+  ok!('R5 cashes out the verb-adjacent $30 (TABA-3 semantics stay green)', r5_wd && r5_wd[1].to_f == 30.0)
+  r5_keep = GameAction.where(contact_id: contact.id, action_type: 'load', status: 'success')
+                      .where("metadata->>'keep_in_from_cashout' = 'true'").order(created_at: :desc).first
+  ok!('R5 kept $20 recorded as a NEW deposit (load/success with keep-in flag)',
+      r5_keep && r5_keep.amount.to_f == 20.0)
+  ok!('R5 telegram labels it RELOAD/keep-in-from-cashout, not a fresh deposit',
+      tg?('RELOAD (keep-in-from-cashout)'))
+  r5_last = orch(account, contact, []).send(:last_deposit_for_cashout, src_slug)
+  ok!('R5 keep-in drives next rules => it is now the LAST deposit ($20, type deposit)',
+      r5_last && r5_last[:amount] == 20.0 && r5_last[:type] == 'deposit')
+
+  reset_run; prime_contact!(contact, [src_slug])
+  orch(account, contact, [{ 'role' => 'user', 'content' => 'cash out 20 and keep the rest' }])
+    .send(:handle_redeem_partial_replay, { intent: :redeem_partial_replay, game_slug: src_slug })
+  ok!('R5 "keep the rest" (no number) => nothing recorded',
+      !GameAction.where(contact_id: contact.id).where("metadata->>'keep_in_from_cashout' = 'true'").exists?)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

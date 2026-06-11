@@ -3104,6 +3104,10 @@ module Games
       # parsing cashed out the wrong amount on "keep 30 in and cash out 50".
       verb_m = msg.match(/(?:cash\s*out|cashout|redeem|withdraw|payout|take\s+out)\s+\$?(\d+(?:\.\d{1,2})?)/i)
       amount = verb_m ? verb_m[1].to_f : msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+      # R5 - the kept-in amount ("cash out 30, keep 20" -> 20). Recorded after a
+      # successful cashout as a NEW deposit so it drives the next rules.
+      keep_m = msg.match(/(?:keep|leave)\s+(?:the\s+)?\$?(\d+(?:\.\d{1,2})?)/i)
+      keep_amount = keep_m ? keep_m[1].to_f : nil
       if amount.nil? || amount <= 0
         return { reply: 'how much do you want to cash out? the rest stays in to play', labels: ['partial-needs-amount'] }
       end
@@ -3129,10 +3133,11 @@ module Games
       )
 
       if result[:ok]
+        keep_note = record_keep_in_deposit(ag, keep_amount, result)
         safe_telegram do
           Games::TelegramNotifier.human_escalation(
             account: account, contact: contact,
-            reason: "#{contact.name} partial cashout $#{fmt_amt(amount)} on #{ag.game.name}, rest left to play",
+            reason: "#{contact.name} partial cashout $#{fmt_amt(amount)} on #{ag.game.name}, rest left to play#{keep_note}",
             conversation: conversation
           )
         end
@@ -3154,6 +3159,35 @@ module Games
           labels: ['cashout-failed', 'needs-human']
         }
       end
+    end
+
+    # R5 - records the kept-in part of a partial cashout as a NEW deposit
+    # (GameAction load/success, NO panel call - that money never left the game).
+    # It becomes the most recent deposit for R3 min/max and R1 deposit_only math.
+    # Returns the Telegram note fragment, or '' if nothing was recorded.
+    def record_keep_in_deposit(ag, keep_amount, cashout_result)
+      amt = keep_amount.to_f
+      return '' if amt <= 0
+
+      cashout_action_id = cashout_result.is_a?(Hash) ? cashout_result[:action]&.id : nil
+      GameAction.create!(
+        account_id: account.id,
+        agent_game_id: ag.id,
+        contact_id: contact&.id,
+        conversation_id: conversation&.id,
+        action_type: 'load',
+        order_id: "keepin_#{cashout_action_id || SecureRandom.hex(6)}",
+        game_username: find_game_username_for_slug(contact, ag.game.slug),
+        amount: amt,
+        status: 'success',
+        metadata: { 'keep_in_from_cashout' => true, 'source' => 'bella_partial_keep_in',
+                    'cashout_action_id' => cashout_action_id },
+        executed_at: Time.current
+      )
+      ". RELOAD (keep-in-from-cashout): $#{fmt_amt(amt)} recorded as the new deposit - NOT a fresh deposit"
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] record_keep_in_deposit failed: #{e.message}")
+      ''
     end
 
     def handle_new_account_reissue(intent)
