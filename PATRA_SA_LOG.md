@@ -112,3 +112,25 @@ Edited: routes.rb (+7 lines TAB C block), layout (+1), _navigation.html.erb (~30
 ### Known/accepted
 - Quick-action suspend form posts to '#' rewritten by JS onsubmit; with JS disabled it 404s (super-admin-only surface, logged).
 - Google Fonts CDN on super admin pages (matches existing dashboard pattern).
+## PHASE 2 — BUG FIXES (root causes with evidence)
+
+### 2a. Popover icons = empty circles
+- ROOT CAUSE (best static evidence; needs visual confirm): `components-next/icon/Icon.vue` rendered icons through a child functional component (`<component :is="renderIcon" />`). Two failure modes: (1) vnode icons (the availability Online/Busy/Offline dots are `h('span', …)` vnodes from a computed — SidebarProfileMenuStatus.vue:43) were returned as SHARED vnodes without cloning → reused vnodes drop fallthrough attrs (size/color classes) → blank; (2) a propless child functional component bails out of attr-only updates, freezing classes after first render.
+- FIX: Icon.vue rewritten as options-API `render()` with `inheritAttrs:false` + explicit attr merge + `cloneVNode` for vnode icons + `h(comp, attrs)` for component icons. App-wide component — reviewer-flagged update-bailout regression (spinners/unread tints) addressed by rendering in Icon's own render cycle.
+
+### 2b. P-logo account switcher (clipped / floating pencil / instant close / errors)
+- CLIPPED + "floating pencil" ROOT CAUSE (verified in source): `.pat-rail-logo` (the 40px tile that CONTAINS the switcher dropdown in collapsed mode) had `:hover { transform: scale(1.06) rotate(-3deg) }` + `transition` in TWO places — patra-themes.css:671-676 (.dark) and Sidebar.vue:951-953 (+:925, theme-agnostic, min-width:768px block). CSS transform makes the wrapper the containing block AND a trapped stacking context for the absolutely-positioned panel → panel clipped to/positioned by the tiny tile, and the compose pen-line button paints on top ("floating pencil"). BOTH rules retargeted to the trigger button (sibling of the panel — safe).
+- INSTANT CLOSE + console errors ROOT CAUSE: render-time throws unmount the just-opened panel — `currentAccount.value.name` with currentAccount undefined (SidebarAccountSwitcher.vue:34,:61,:86) and `account.custom_role.name` when custom_role_id set but custom_role not serialized (:126). All guarded with optional chaining + role fallback.
+- Check-mark icon could detach from its row: label div now `flex-1 min-w-0`, check icon `shrink-0 ltr:ml-auto`.
+- F4 z-index family: audited — switcher/profile dropdowns z-50 inside rail z-40 is correct stacking; the REAL bug was the transform stacking-context trap above, fixed properly. No z-index inflation added.
+
+### 2c. "Ask Patra AI" does nothing
+- ROOT CAUSE (verified): PatraAiHandoffCard.vue:98-105 — handler only called `.focus()` on the composer. No API call existed behind the button.
+- FIX: wired end-to-end to the EXISTING conversation-scoped backend: `PatraAiAPI.copilotSuggestion(conversationId)` (routes.rb:396 → Patra ai#copilot_suggestion → Ai::CopilotService, returns `{suggestion}`) → inserts into composer via `BUS_EVENTS.INSERT_INTO_RICH_EDITOR` (same bus event the copilot + SuggestedReplyCard use; Editor.vue:856 listens) → focuses composer. Busy state ("Asking Patra…"), empty/failure alerts via useAlert. 3 new i18n keys in en/patra.json. No new backend needed.
+
+### 2d. Private notes
+- Static trace COMPLETE, NO BREAK FOUND: toggle visible (EditorModeToggle.vue) → ReplyBox payload `private: this.isPrivate` (ReplyBox.vue:1148) → message.js sends `private` → MessageBuilder `@private = params[:private]` → DB not-null column → Message.vue renders PRIVATE variant (line 157) → `Base::SendOnChannelService#invalid_message?` (line 49) blocks private from ALL external channels incl. Facebook (bridge service unmodified, read-only check ✓ — no leak path).
+- VERDICT: code path intact; most likely prior symptom = stale vite bundle. Bundle rebuilt this phase; needs runtime confirm by Genius.
+
+### Files: Icon.vue (rewrite, 29 lines), SidebarAccountSwitcher.vue (5 small edits), Sidebar.vue (style block, 2 edits), patra-themes.css (1 rule), PatraAiHandoffCard.vue (handler + button), en/patra.json (+3 keys). public/vite/ rebuilt (pnpm exec vite build ✓ green, 36.5s, verified now).
+### Reviewer: 2 blockers found (residual Sidebar.vue transform; Icon.vue functional-component update bailout) — both fixed before commit.

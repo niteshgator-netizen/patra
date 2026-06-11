@@ -922,7 +922,10 @@ const menuItems = computed(() => {
     cursor: pointer;
     /* V5 P3: pulse moved to an opacity-animated ::before — animating
        box-shadow repainted the tile every frame, forever. */
-    transition: transform 0.2s;
+    /* 2b: NO transform/transition on this wrapper — the account-switcher
+       dropdown renders inside it, and a transform makes the wrapper the
+       containing block + stacking context that clips/traps the panel.
+       The hover effect lives on the trigger button below instead. */
     position: relative;
   }
 
@@ -948,11 +951,12 @@ const menuItems = computed(() => {
     border-radius: inherit;
   }
 
-  .pat-rail-logo:hover {
+  .pat-rail-logo button:hover {
     transform: scale(1.06) rotate(-3deg);
   }
 
   .pat-rail-logo button {
+    transition: transform 0.2s;
     width: 100% !important;
     height: 100% !important;
     min-width: 0 !important;

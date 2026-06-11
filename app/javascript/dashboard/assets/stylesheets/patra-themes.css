@@ -668,10 +668,14 @@ body:not(.dark) .mono, body:not(.dark) code, body:not(.dark) .time-stamp, body:n
   background: linear-gradient(180deg, var(--patra-surface), var(--patra-canvas)) !important;
   border-right-color: var(--patra-border) !important;
 }
-.dark .pat-rail-logo {
-  transition: all .25s cubic-bezier(.34,1.56,.64,1);
+/* Scope the playful hover to the trigger button ONLY. A transform on
+   .pat-rail-logo itself made it the containing block + stacking context for
+   the account-switcher dropdown rendered inside it → panel clipped/trapped
+   under sidebar buttons. (Bug 2b) */
+.dark .pat-rail-logo > div > button {
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
 }
-.dark .pat-rail-logo:hover {
+.dark .pat-rail-logo > div > button:hover {
   transform: scale(1.06) rotate(-3deg);
 }
 .dark .pat-rail-item {

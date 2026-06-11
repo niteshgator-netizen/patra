@@ -414,7 +414,10 @@
       "ANALYZE": "Analyze conversation",
       "ANALYZING": "Analyzing…",
       "ANALYZE_FAILED": "Analysis failed — try again in a moment.",
-      "ANALYSIS_TITLE": "AI analysis"
+      "ANALYSIS_TITLE": "AI analysis",
+      "ASKING": "Asking Patra…",
+      "ASK_EMPTY": "Patra has no suggestion for this one — reply manually.",
+      "ASK_FAILED": "Couldn't reach Patra AI — try again in a moment."
     },
     "IMPERSONATION": {
       "BANNER": "Support login active — you are impersonating {account} (user #{userId})",
