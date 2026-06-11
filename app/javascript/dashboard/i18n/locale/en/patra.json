@@ -416,6 +416,12 @@
       "ANALYZE_FAILED": "Analysis failed — try again in a moment.",
       "ANALYSIS_TITLE": "AI analysis"
     },
+    "IMPERSONATION": {
+      "BANNER": "Support login active — you are impersonating {account} (user #{userId})",
+      "EXPIRES": "expires {time}",
+      "EXIT": "Exit",
+      "EXITING": "Exiting…"
+    },
     "A11Y": {
       "CONTENT_TEMPLATES": "Content templates",
       "COPILOT_MENU": "AI assist menu",

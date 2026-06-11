@@ -6,6 +6,7 @@ import UpdateBanner from './components/app/UpdateBanner.vue';
 import StatusBanner from './components/app/StatusBanner.vue';
 import PaymentPendingBanner from './components/app/PaymentPendingBanner.vue';
 import PendingEmailVerificationBanner from './components/app/PendingEmailVerificationBanner.vue';
+import PatraImpersonationBanner from './components/app/PatraImpersonationBanner.vue';
 import vueActionCable from './helper/actionCable';
 import { useRouter } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
@@ -34,6 +35,7 @@ export default {
     PaymentPendingBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
+    PatraImpersonationBanner,
   },
   setup() {
     const router = useRouter();
@@ -214,6 +216,7 @@ export default {
       style="position: fixed; pointer-events: none; z-index: 1"
     />
     <div class="patra-mesh-bg" aria-hidden="true" />
+    <PatraImpersonationBanner />
     <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
     <StatusBanner />
     <template v-if="currentAccountId">
