@@ -325,6 +325,10 @@ module Games
         handle_list_platforms(intent)
       when :payment_method_question
         handle_payment_method_question(intent)
+      when :payment_handle_again
+        # bp iter2: "same tag?" — resend the tag for the platform this
+        # conversation already picked (fresh lookup), menu-once guarded.
+        payment_menu_or_stored_reply
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
