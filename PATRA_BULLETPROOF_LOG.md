@@ -538,3 +538,16 @@ Precision UP, strictness NEVER down. Per-change justification:
   without touching format strictness).
 - Tier 1 byte-identical (reviewer-verified). VERIFIED BY ME NOW: 16/16 unit suite + TIER1_LIMIT=25
   smoke run (real checkpoint backed up/restored). Re-review: SHIP (independent 12/12 probe).
+### P7 — HARNESS LOCK-IN [BP5-*] (script/patra_money_harness.rb, NOT hot, 1 commit)
+- Added 5 sections (assertions ONLY EVER INCREASE: 203 → 236 ok! sites):
+  * BP5-G1 false-action-claim guard BOTH directions (transfer/switch/paying rewritten with no action;
+    truthful load/payout claims pass WITH real GameAction evidence; R3 phrasing untouched; bonus guard).
+  * BP5-R2 context answers (4 kinds + gratitude-unrouted + digit-veto; affirm-resolves-create,
+    STALE-25h→nil, cold-Thanks→nil, menu stamps pending_question) — all through orch().handle.
+  * BP5-R1 store/platform-word-only/echo-veto(real handle)/done-confirms-received telegram.
+  * BP5-R3 outbound request telegram capture + in-progress-only reply.
+  * BP5-R4 detector legs + 2 ambiguity vetoes + handler no-payment/blocked/happy(2 recharge calls).
+  * BP5-P5 9 quick-win routings + steal guard + R1 detector tag+amount.
+- LOCAL GATE (tmp/bp5_local_gate.rb, one Rails boot): 11/11 suites ALL PASS — P1, P2 det+orch,
+  P3 det+orch, P4 det+orch, P5 det, steal-check, iter4, BP-F/I section runner. FULL harness (incl.
+  these BP5-* sections) is Genius's Render step (encrypted-creds LOCAL BAN).

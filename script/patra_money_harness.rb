@@ -1679,6 +1679,162 @@ begin
   ok!('BP-I4 "chime failed gv please" vetoed (failover owns it)',
       Games::IntentDetector.detect('chime failed gv please').nil?)
 
+  # ───────── BP5 (iteration 5) — false-claim guard + R1/R2/R3/R4 + P5 ───────
+  puts "\n[BP5-G1 false-action-claim guard - both directions]"
+  GameAction.where(contact_id: contact.id).delete_all
+  bp5_svc = Ai::ReplyService.new(0, account_id: account.id)
+  bp5_svc.instance_variable_set(:@bp5_cid, contact.id)
+  def bp5_svc.fetch_sender_contact_id; @bp5_cid; end
+  def bp5_svc.add_conversation_labels!(_l); nil; end
+  bp5_guard = ->(t) { bp5_svc.send(:guard_against_false_load_claim, t) }
+  bp5_intent_line = 'on it — getting that going for you now, one sec 🙏'
+  ok!('BP5-G1 transfer claim with no action -> intent-form rewrite',
+      bp5_guard.call('Transferred to panda masters ✅') == bp5_intent_line)
+  ok!('BP5-G1 switching-now claim rewritten', bp5_guard.call('switching to fire kirin now 🔥') == bp5_intent_line)
+  ok!('BP5-G1 paying-now claim rewritten', bp5_guard.call('Got it, paying now') == bp5_intent_line)
+  ok!('BP5-G1 multi-load ✅ claim rewritten (load family, original line)',
+      bp5_guard.call('$10 on FK and $10 on Juwa loaded ✅') == 'verifying your payment with the bank, takes 1-5 min — hang tight 🙏')
+  ok!('BP5-G1 unconfigured 73% bonus promise rewritten',
+      bp5_guard.call('73% is still on for you') == 'lemme double check what bonus is running for you rn — one sec 🙏')
+  ok!('BP5-G1 R3 in-progress phrasing passes untouched',
+      bp5_guard.call('sending that request now hun, one sec') == 'sending that request now hun, one sec')
+  bp5_g_ag = account.agent_games.joins(:game).where(status: 'active').first
+  bp5_ga = GameAction.create!(account: account, agent_game: bp5_g_ag, contact: contact, action_type: 'load',
+                              status: 'success', amount: 20, order_id: GameAction.generate_order_id(prefix: 'bp5g'))
+  ok!('BP5-G1 truthful load claim passes WITH a real recent load action',
+      bp5_guard.call('loaded $20 to juwa ✅ good luck!') == 'loaded $20 to juwa ✅ good luck!')
+  bp5_gc = GameAction.create!(account: account, agent_game: bp5_g_ag, contact: contact, action_type: 'cashout',
+                              status: 'success', amount: 20, order_id: GameAction.generate_order_id(prefix: 'bp5g'))
+  ok!('BP5-G1 payout claim passes WITH a real recent cashout action',
+      bp5_guard.call('i sent your cashout 🙏') == 'i sent your cashout 🙏')
+  GameAction.where(id: [bp5_ga.id, bp5_gc.id]).delete_all
+
+  puts "\n[BP5-R2 pending-question context answers: resolve / stale / gratitude-negative]"
+  {
+    'Yes please' => :affirm, 'i did' => :did_it, 'same one' => :same_game, 'Ready' => :ready
+  }.each do |text, kind|
+    r = Games::IntentDetector.detect(text)
+    ok!("BP5-R2 #{text.inspect} -> context_answer/#{kind}",
+        r.is_a?(Hash) && r[:intent] == :context_answer && r[:answer_kind] == kind)
+  end
+  ok!('BP5-R2 gratitude stays unrouted (never money)', Games::IntentDetector.detect('ok thanks').nil?)
+  ok!('BP5-R2 digit veto: "yes 50" never flattens to affirm', Games::IntentDetector.detect('yes 50').nil?)
+  bp5_slug1 = bp5_g_ag.game.slug
+  bp5_c2 = new_harness_conversation(account, contact)
+  orch(account, contact, [], convo: bp5_c2).send(:store_pending_question!, 'create_account_offer', game_slug: bp5_slug1)
+  bp5_r2a = orch(account, contact, [{ 'role' => 'user', 'content' => 'yes please' }], convo: bp5_c2).handle
+  ok!('BP5-R2 affirm on create-offer resolves through the create path (reply present)',
+      bp5_r2a.is_a?(Hash) && bp5_r2a[:reply].to_s.strip.length.positive?)
+  bp5_c3 = new_harness_conversation(account, contact)
+  bp5_attrs = (bp5_c3.additional_attributes || {})
+  bp5_attrs['pending_question'] = { 'type' => 'create_account_offer', 'context' => { 'game_slug' => bp5_slug1 },
+                                    'at' => 25.hours.ago.iso8601 }
+  bp5_c3.update_columns(additional_attributes: bp5_attrs)
+  ok!('BP5-R2 STALE pending (25h) -> nil (DeepSeek owns the turn)',
+      orch(account, contact, [{ 'role' => 'user', 'content' => 'yes please' }], convo: bp5_c3).handle.nil?)
+  ok!('BP5-R2 cold "Thanks" -> nil',
+      orch(account, contact, [{ 'role' => 'user', 'content' => 'Thanks' }], convo: new_harness_conversation(account, contact)).handle.nil?)
+  bp5_c4 = new_harness_conversation(account, contact)
+  orch(account, contact, [], convo: bp5_c4).send(:payment_menu_or_stored_reply)
+  ok!('BP5-R2 payment menu stamps pending_question',
+      %w[payment_method screenshot].include?(bp5_c4.reload.additional_attributes&.dig('pending_question', 'type').to_s))
+
+  puts "\n[BP5-R1 customer cashout tag: store / platform-word-only / echo-veto]"
+  $TG.clear
+  bp5_c5 = new_harness_conversation(account, contact)
+  bp5_r1 = orch(account, contact, [{ 'role' => 'user', 'content' => '$Bp5HarnessTag77' }], convo: bp5_c5).handle
+  ok!('BP5-R1 reply is platform word only (never echoes their tag)',
+      bp5_r1.is_a?(Hash) && !bp5_r1[:reply].to_s.include?('Bp5HarnessTag77') && bp5_r1[:reply].to_s.include?('cashapp'))
+  ok!('BP5-R1 tag stored per platform on the contact',
+      contact.reload.custom_attributes['cashout_tag_cashapp'] == '$Bp5HarnessTag77')
+  ok!('BP5-R1 cashier telegram carries the exact tag', tg?('$Bp5HarnessTag77'))
+  bp5_our = account.payment_handles.where(status: 'active').first
+  if bp5_our
+    bp5_before = contact.reload.custom_attributes.select { |k, _| k.start_with?('cashout_tag_') }
+    bp5_echo = orch(account, contact, [{ 'role' => 'user', 'content' => bp5_our.display_handle.to_s }], convo: bp5_c5).handle
+    bp5_after = contact.reload.custom_attributes.select { |k, _| k.start_with?('cashout_tag_') }
+    ok!('BP5-R1 echo of OUR configured handle is NEVER stored (veto -> nil)',
+        bp5_echo.nil? && bp5_before == bp5_after)
+  end
+  $TG.clear
+  orch(account, contact, [{ 'role' => 'user', 'content' => 'ok done' }], convo: bp5_c5).handle
+  ok!('BP5-R1 "ok done" after tag -> player-confirms-received telegram', tg?('CONFIRMS RECEIVED'))
+
+  puts "\n[BP5-R3 outbound request: telegram capture, never sent-as-fact]"
+  $TG.clear
+  bp5_r3 = orch(account, contact, [{ 'role' => 'user', 'content' => 'Request $25' }],
+                convo: new_harness_conversation(account, contact)).handle
+  ok!('BP5-R3 cashier telegram: REQUEST + stored tag + amount',
+      tg?('REQUEST') && tg?('$Bp5HarnessTag77') && tg?('$25'))
+  ok!('BP5-R3 reply is in-progress phrasing only',
+      bp5_r3.is_a?(Hash) && bp5_r3[:reply].to_s.include?('sending that request now'))
+
+  puts "\n[BP5-R4 auto-split multi-load: happy / blocked / ambiguous]"
+  bp5_lm = Games::IntentDetector.detect('10 juwa 5 gamevault')
+  ok!('BP5-R4 "10 juwa 5 gamevault" -> 2 exact legs',
+      bp5_lm.is_a?(Hash) && bp5_lm[:intent] == :load_multi &&
+      bp5_lm[:legs] == [{ amount: 10.0, game_slug: 'juwa' }, { amount: 5.0, game_slug: 'game_vault' }])
+  bp5_amb1 = Games::IntentDetector.detect('20 yolo 20')
+  bp5_amb2 = Games::IntentDetector.detect('15 juwa 5 2.0')
+  ok!('BP5-R4 "20 yolo 20" ambiguous -> never a split',
+      !(bp5_amb1.is_a?(Hash) && bp5_amb1[:intent] == :load_multi))
+  ok!('BP5-R4 "15 juwa 5 2.0" ambiguous (2.0 is a game) -> never a split',
+      !(bp5_amb2.is_a?(Hash) && bp5_amb2[:intent] == :load_multi))
+  bp5_ags = account.agent_games.joins(:game).where(status: 'active').limit(2).to_a
+  if bp5_ags.size == 2
+    bp5_s1, bp5_s2 = bp5_ags.map { |a| a.game.slug }
+    bp5_legs = { intent: :load_multi, legs: [{ amount: 10.0, game_slug: bp5_s1 }, { amount: 5.0, game_slug: bp5_s2 }] }
+    bp5_keep = contact.reload.custom_attributes.dup
+    bp5_np = orch(account, contact, [], convo: new_harness_conversation(account, contact)).send(:handle_load_multi, bp5_legs)
+    ok!('BP5-R4 no payment -> awaiting-payment ask carries the TOTAL $15',
+        bp5_np.is_a?(Hash) && Array(bp5_np[:labels]).include?('awaiting-payment') && bp5_np[:reply].to_s.include?('$15'))
+    contact.update!(custom_attributes: bp5_keep.merge(
+      'patra_finance_logs' => [{ 'id' => 'BP5HPAY', 'status' => 'completed', 'amount' => 15,
+                                 'platform' => 'cashapp', 'recorded_at' => Time.current.iso8601 }]
+    ))
+    $TG.clear
+    bp5_blocked = orch(account, contact, [], convo: new_harness_conversation(account, contact)).send(:handle_load_multi, bp5_legs)
+    ok!('BP5-R4 gate-blocked leg (no username) -> ALL-OR-ESCALATE, per-leg telegram',
+        bp5_blocked.is_a?(Hash) && Array(bp5_blocked[:labels]).include?('needs-human') && tg?('NOTHING loaded'))
+    contact.update!(custom_attributes: contact.reload.custom_attributes.merge(
+      "game_username_#{bp5_s1}" => 'bp5h1', "game_username_#{bp5_s2}" => 'bp5h2'
+    ))
+    $FAKE.reset!
+    bp5_happy = orch(account, contact, [], convo: new_harness_conversation(account, contact)).send(:handle_load_multi, bp5_legs)
+    ok!('BP5-R4 happy split -> both legs loaded sequentially (honest reply)',
+        bp5_happy.is_a?(Hash) && bp5_happy[:reply].to_s.include?('loaded') &&
+        bp5_happy[:reply].to_s.include?('$10') && bp5_happy[:reply].to_s.include?('$5'))
+    ok!('BP5-R4 happy split -> 2 recharge calls hit the panel',
+        $FAKE.calls.count { |c| c[0] == :recharge } == 2)
+    contact.update!(custom_attributes: bp5_keep)
+    GameAction.where(contact_id: contact.id).delete_all
+  else
+    puts '  BP5-R4 handler half SKIPPED - need 2 active agent_games'
+  end
+
+  puts "\n[BP5-P5 corpus quick-win routings]"
+  {
+    'Cash me out'      => [:cashout, nil],
+    'Cash me out 50'   => [:cashout, nil],
+    'Loaded yet'       => [:status_check, nil],
+    'Lmk when loaded'  => [:status_check, nil],
+    "let me know when it's loaded plz love" => [:status_check, nil],
+    'Password?'        => [:reset_password, nil],
+    'on all in one'    => [:load, 'mr_all_in_one'],
+    'Any suggestions'  => [:whats_hitting, nil],
+    'moolah'           => [:load, 'moolah']
+  }.each do |text, (want, slug)|
+    r = Games::IntentDetector.detect(text)
+    ok!("BP5-P5 #{text.inspect} -> #{want}#{slug ? "/#{slug}" : ''}",
+        r.is_a?(Hash) && r[:intent] == want && (slug.nil? || r[:game_slug].to_s == slug))
+  end
+  bp5_p5n = Games::IntentDetector.detect('sent 20 lmk when loaded')
+  ok!('BP5-P5 "sent 20 lmk when loaded" keeps the payment_sent route (steal guard)',
+      bp5_p5n.is_a?(Hash) && bp5_p5n[:intent] == :payment_sent_confirmation)
+  ok!('BP5-P5 R1 detector: "$CasiqueJorge69 10$" -> customer tag + amount',
+      (bp5_ct = Games::IntentDetector.detect('$CasiqueJorge69 10$')).is_a?(Hash) &&
+      bp5_ct[:intent] == :customer_tag_provided && bp5_ct[:amount] == 10.0)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
