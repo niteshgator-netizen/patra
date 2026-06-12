@@ -32,6 +32,7 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
       revenue_by_game: revenue_by_game,
       conversation_volume_by_day: conversation_volume_by_day(days: 30),
       busiest_hours: busiest_hours,
+      ai_vs_human_weekly: ai_vs_human_weekly,
       export_url: "/api/v1/accounts/#{Current.account.id}/patra/conversations/export"
     }
   end
@@ -100,8 +101,39 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
       },
       by_game: sweeps_by_game(scope),
       by_agent: sweeps_by_agent(scope),
-      by_day: sweeps_by_day(loads, cashouts, range)
+      by_day: sweeps_by_day(loads, cashouts, range),
+      game_trend: sweeps_game_trend
     }
+  end
+
+  # patra-final 6c (G10): loads/cashouts per ISO week per game, fixed 8-week
+  # window (independent of the day/week toggle — a trend needs history).
+  # READ-ONLY over GameAction like everything else here.
+  GAME_TREND_WEEKS = 8
+
+  def sweeps_game_trend
+    start_at = (GAME_TREND_WEEKS - 1).weeks.ago.beginning_of_week
+    sums = Current.account.game_actions
+                  .joins(agent_game: :game)
+                  .where(action_type: %w[load cashout], status: 'success')
+                  .where('game_actions.created_at >= ?', start_at)
+                  .group('games.name', :action_type, Arel.sql("DATE_TRUNC('week', game_actions.created_at)::date"))
+                  .sum(:amount)
+
+    weeks = (0...GAME_TREND_WEEKS).map { |i| (start_at + i.weeks).to_date }
+    games = sums.keys.map(&:first).uniq.sort
+    games.map do |game|
+      {
+        game: game,
+        weeks: weeks.map do |week|
+          {
+            week: week.to_s,
+            loads: sums[[game, 'load', week]].to_f.round(2),
+            cashouts: sums[[game, 'cashout', week]].to_f.round(2)
+          }
+        end
+      }
+    end
   end
 
   def sweeps_by_game(scope)
@@ -193,6 +225,23 @@ class Api::V1::Accounts::Patra::ReportsController < Api::V1::Accounts::BaseContr
                      .count
 
     ((ai_only.to_f / total) * 100).round(1)
+  end
+
+  # patra-final 6c (G12): weekly AI-vs-human reply trend, last 8 ISO weeks.
+  # Marker mirrors calculate_ai_handle_rate's convention exactly: an outgoing
+  # public message with sender_type 'User' is a human agent reply; any other
+  # outgoing public message (AgentBot / nil sender) is the automated side.
+  def ai_vs_human_weekly
+    start_at = 7.weeks.ago.beginning_of_week
+    week_sql = Arel.sql("DATE_TRUNC('week', created_at)::date")
+    scope = messages_scope.outgoing.where('created_at >= ?', start_at)
+    human = scope.where(sender_type: 'User').group(week_sql).count
+    ai = scope.where("sender_type IS DISTINCT FROM 'User'").group(week_sql).count
+
+    (0..7).map do |i|
+      week = (start_at + i.weeks).to_date
+      { week: week.to_s, human: human[week].to_i, ai: ai[week].to_i }
+    end
   end
 
   def trend_delta(current, previous)

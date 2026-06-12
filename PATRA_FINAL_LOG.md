@@ -185,3 +185,20 @@ bundle exec rails runner "%w[INSTALLATION_NAME BRAND_NAME].each { |k| Installati
 - `lib/patra/finance_analytics.rb`: new READ-ONLY `malformed_report` (mirrors the scan's classification exactly: non-list log / non-hash entry / money row with unparseable amount or time; cap 200 rows).
 - New page `/super_admin/patra_malformed_finance` (controller + view + route): account link, contact link, reason, raw logged_at, raw entry snippet. NO mutation anywhere.
 - Both "N malformed finance entries skipped" warnings (Command Center + account control panel) are now links to that page.
+
+---
+
+## PHASE 6 — POLISH TAIL
+
+### 6a (G16) — KB editor upgrade (`/patra/knowledge`)
+- `KnowledgeBase.vue`: title input now has a label + placeholder; body uses the app's existing rich-text editor (`WootMessageEditor` — same component as canned responses/replies) instead of a bare textarea; Published checkbox with draft/published hint (model has `published` boolean + controller already permits it — verified); Draft/Published badge on each article row. New PATRA.KNOWLEDGE i18n keys. Well within the 40% leash — no rebuild.
+
+### 6b — empty states
+- G24 leaderboard: bare "…" loading replaced with "Crunching the numbers…", empty state now icon + guidance line ("Rankings appear as soon as an agent handles a conversation — try a longer period above."). New LOADING/EMPTY_HINT keys.
+- G22 automation: `automation.json` LIST.404 → plain-English guidance ("automations handle the busywork, like labeling new chats or routing cashouts…").
+- G23 macros: `macros.json` LIST.404 → guidance ("a macro runs a whole routine (label, assign, update) in one click…").
+- G17 campaigns: skipped — Campaigns nav is deliberately hidden.
+
+### 6c — trends
+- **G10 per-game money trend:** backend `sweeps_game_trend` in `patra/reports_controller.rb` (READ-ONLY GameAction aggregation — loads/cashouts per ISO week per game, fixed 8-week window) added to the sweeps payload as `game_trend`. Frontend: new shared `LineChart.vue` (chart.js 4.4 + vue-chartjs 5.3 — both already in package.json, same stack as the existing BarChart) + "Money trend by game" section on `/patra/sweeps`, one 2-line chart per game.
+- **G12 AI-vs-human trend:** the AI-reply marker DOES support it — `ai_handle_rate` already distinguishes human replies (outgoing `sender_type = 'User'`) from automated ones; the weekly trend mirrors exactly that convention. Backend `ai_vs_human_weekly` (8 ISO weeks, human vs ai outgoing public message counts) added to the reports payload; frontend section "AI vs human replies" with a LineChart on `/patra/reports`. No "needs tracking" card required.

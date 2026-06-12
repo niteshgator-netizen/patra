@@ -70,6 +70,8 @@
       "CONVERSATIONS_OPENED": "Conversations opened",
       "RESOLVED": "Resolved",
       "AI_HANDLE_RATE": "AI handle rate",
+      "AI_TREND_TITLE": "AI vs human replies",
+      "AI_TREND_NOTE": "Weekly outgoing replies over the last 8 weeks — Bella vs your agents.",
       "TOP_PLAYERS": "Top players",
       "PLAYER": "Player",
       "CONVERSATIONS": "Conversations",
@@ -305,6 +307,8 @@
       "RESOLVED": "Handled",
       "RESPONSE_TIME": "Avg first response",
       "EMPTY": "No agent activity yet for this period.",
+      "LOADING": "Crunching the numbers…",
+      "EMPTY_HINT": "Rankings appear as soon as an agent handles a conversation — try a longer period above.",
       "ACTIVE_AGENTS": "Active agents",
       "TOTAL_RESOLVED": "Conversations handled",
       "TOTAL_LOADS": "Loads processed",
@@ -338,7 +342,9 @@
       "DATE": "Date",
       "COUNT_SHORT": "#",
       "EMPTY": "No successful loads or cashouts in this period.",
-      "ERROR": "Couldn't load the report — try again."
+      "ERROR": "Couldn't load the report — try again.",
+      "TREND_TITLE": "Money trend by game",
+      "TREND_NOTE": "Weekly loads vs cashouts per game over the last 8 weeks — spot a game going cold or bleeding cashouts."
     },
     "KNOWLEDGE": {
       "TITLE": "Knowledge Base",
@@ -350,7 +356,16 @@
       "DRAFT_FROM_CONVERSATIONS": "Draft from conversations",
       "EMPTY": "No articles yet. Create one or draft from past conversations.",
       "SAVE_ERROR": "Could not save the article. Please try again.",
-      "DRAFT_ERROR": "Could not draft from conversations. Please try again."
+      "DRAFT_ERROR": "Could not draft from conversations. Please try again.",
+      "TITLE_LABEL": "Title",
+      "TITLE_PLACEHOLDER": "e.g. How cashouts work",
+      "BODY_LABEL": "Article body",
+      "BODY_PLACEHOLDER": "Write the article — formatting toolbar included…",
+      "PUBLISHED_TOGGLE": "Published",
+      "PUBLISHED_HINT": "Visible to Bella and agents.",
+      "DRAFT_HINT": "Draft — saved but not used until published.",
+      "BADGE_PUBLISHED": "Published",
+      "BADGE_DRAFT": "Draft"
     },
     "ATTRIBUTES": {
       "TITLE": "Custom Attributes",

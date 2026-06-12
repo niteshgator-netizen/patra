@@ -49,7 +49,7 @@
         "CREATED_ON": "Created on",
         "ACTIONS": "Actions"
       },
-      "404": "No automation rules found"
+      "404": "No automation rules yet — automations handle the busywork, like labeling new chats or routing cashouts to the right team. Add your first one below."
     },
     "DELETE": {
       "TITLE": "Delete Automation Rule",

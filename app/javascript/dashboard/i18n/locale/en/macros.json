@@ -35,7 +35,7 @@
         "VISIBILITY": "Visibility",
         "ACTIONS": "Actions"
       },
-      "404": "No macros found"
+      "404": "No macros yet — a macro runs a whole routine (label, assign, update) in one click. Build your first one for the thing you do most."
     },
     "DELETE": {
       "TOOLTIP": "Delete macro",

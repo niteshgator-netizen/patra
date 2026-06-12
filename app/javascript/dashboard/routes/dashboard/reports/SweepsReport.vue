@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import PatraReportsAPI from 'dashboard/api/patraReports';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import LineChart from 'shared/components/charts/LineChart.vue';
 
 const report = ref(null);
 const loading = ref(true);
@@ -36,6 +37,40 @@ const hasData = computed(
 );
 
 const money = value => `$${Number(value || 0).toFixed(2)}`;
+
+// patra-final 6c (G10): per-game weekly loads/cashouts line charts. Data is
+// the fixed 8-week game_trend block from the sweeps payload.
+const weekLabel = iso => {
+  const date = new Date(`${iso}T00:00:00`);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+};
+
+const gameTrends = computed(() =>
+  (report.value?.game_trend || []).map(game => ({
+    game: game.game,
+    collection: {
+      labels: game.weeks.map(week => weekLabel(week.week)),
+      datasets: [
+        {
+          label: 'Loads',
+          data: game.weeks.map(week => week.loads),
+          borderColor: '#3fb950',
+          backgroundColor: '#3fb950',
+          tension: 0.3,
+          pointRadius: 2,
+        },
+        {
+          label: 'Cashouts',
+          data: game.weeks.map(week => week.cashouts),
+          borderColor: '#f85149',
+          backgroundColor: '#f85149',
+          tension: 0.3,
+          pointRadius: 2,
+        },
+      ],
+    },
+  }))
+);
 
 onMounted(fetchReport);
 </script>
@@ -182,6 +217,23 @@ onMounted(fetchReport);
           </table>
         </section>
 
+        <section v-if="gameTrends.length" class="sw-card">
+          <h2 class="sw-card-t">{{ $t('PATRA.SWEEPS.TREND_TITLE') }}</h2>
+          <p class="sw-note">{{ $t('PATRA.SWEEPS.TREND_NOTE') }}</p>
+          <div class="sw-trends">
+            <div
+              v-for="trend in gameTrends"
+              :key="trend.game"
+              class="sw-trend"
+            >
+              <h3 class="sw-trend-t">{{ trend.game }}</h3>
+              <div class="sw-trend-chart">
+                <LineChart :collection="trend.collection" />
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="sw-card">
           <h2 class="sw-card-t">{{ $t('PATRA.SWEEPS.BY_DAY') }}</h2>
           <table class="sw-table">
@@ -322,6 +374,22 @@ onMounted(fetchReport);
 .sw-table td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border, #e5e3eb);
+}
+
+.sw-trends {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.sw-trend-t {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sw-trend-chart {
+  height: 180px;
 }
 
 .sw-pos {

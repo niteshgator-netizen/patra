@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import PatraReportsAPI from 'dashboard/api/patraReports';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import LineChart from 'shared/components/charts/LineChart.vue';
 
 const loading = ref(true);
 const stats = ref(null);
@@ -49,6 +50,39 @@ const heatmapCellClass = count => {
   if (ratio > 0.25) return 'bg-n-brand/40';
   return 'bg-n-brand/20';
 };
+
+// patra-final 6c (G12): weekly AI-vs-human reply trend. The marker is the
+// same one ai_handle_rate already uses server-side (outgoing sender_type
+// 'User' = human; other outgoing = automated).
+const aiTrendCollection = computed(() => {
+  const rows = stats.value?.ai_vs_human_weekly || [];
+  if (!rows.length) return null;
+  const weekLabel = iso => {
+    const date = new Date(`${iso}T00:00:00`);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  };
+  return {
+    labels: rows.map(row => weekLabel(row.week)),
+    datasets: [
+      {
+        label: 'AI replies',
+        data: rows.map(row => row.ai),
+        borderColor: '#8b5cf6',
+        backgroundColor: '#8b5cf6',
+        tension: 0.3,
+        pointRadius: 2,
+      },
+      {
+        label: 'Human replies',
+        data: rows.map(row => row.human),
+        borderColor: '#58a6ff',
+        backgroundColor: '#58a6ff',
+        tension: 0.3,
+        pointRadius: 2,
+      },
+    ],
+  };
+});
 
 onMounted(async () => {
   try {
@@ -163,6 +197,21 @@ onMounted(async () => {
                   {{ formatTrend(stats.week_trend.ai_handle_rate.change) }}
                 </p>
               </div>
+            </div>
+          </section>
+
+          <section
+            v-if="aiTrendCollection"
+            class="rounded-xl border border-n-weak bg-n-solid-1 p-4"
+          >
+            <h2 class="mb-1 text-sm font-semibold text-n-slate-12">
+              {{ $t('PATRA.REPORTS.AI_TREND_TITLE') }}
+            </h2>
+            <p class="mb-3 text-xs text-n-slate-11">
+              {{ $t('PATRA.REPORTS.AI_TREND_NOTE') }}
+            </p>
+            <div class="h-52">
+              <LineChart :collection="aiTrendCollection" />
             </div>
           </section>
 

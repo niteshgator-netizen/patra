@@ -3,6 +3,9 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import KnowledgeArticlesAPI from 'dashboard/api/knowledgeArticles';
+// patra-final 6a (G16): reuse the app's rich-text editor (same component the
+// canned-response and reply editors use) instead of a bare textarea.
+import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
 
 const { t } = useI18n();
 const articles = ref([]);
@@ -83,16 +86,42 @@ onMounted(load);
         </div>
 
         <div v-if="editing" class="p-4 border rounded-xl border-n-weak">
-          <input
-            v-model="editing.title"
-            class="w-full p-2 mb-2 border rounded-lg border-n-weak"
-          />
-          <textarea
-            v-model="editing.content"
-            class="w-full p-2 border rounded-lg border-n-weak"
-            rows="8"
-          />
-          <div class="flex gap-2 mt-2">
+          <label class="block mb-2">
+            <span class="text-xs text-n-slate-11">
+              {{ $t('PATRA.KNOWLEDGE.TITLE_LABEL') }}
+            </span>
+            <input
+              v-model="editing.title"
+              class="w-full p-2 mt-1 border rounded-lg border-n-weak"
+              :placeholder="$t('PATRA.KNOWLEDGE.TITLE_PLACEHOLDER')"
+            />
+          </label>
+          <label class="block mb-1">
+            <span class="text-xs text-n-slate-11">
+              {{ $t('PATRA.KNOWLEDGE.BODY_LABEL') }}
+            </span>
+          </label>
+          <div class="kb-editor border rounded-lg border-n-weak px-2">
+            <WootMessageEditor
+              v-model="editing.content"
+              class="message-editor"
+              channel-type="Context::Default"
+              :enable-canned-responses="false"
+              :placeholder="$t('PATRA.KNOWLEDGE.BODY_PLACEHOLDER')"
+            />
+          </div>
+          <label class="flex items-center gap-2 mt-3 text-sm cursor-pointer">
+            <input v-model="editing.published" type="checkbox" />
+            <span>{{ $t('PATRA.KNOWLEDGE.PUBLISHED_TOGGLE') }}</span>
+            <span class="text-xs text-n-slate-11">
+              {{
+                editing.published
+                  ? $t('PATRA.KNOWLEDGE.PUBLISHED_HINT')
+                  : $t('PATRA.KNOWLEDGE.DRAFT_HINT')
+              }}
+            </span>
+          </label>
+          <div class="flex gap-2 mt-3">
             <button
               class="px-3 py-1 text-sm text-white rounded-lg bg-n-brand"
               @click="save"
@@ -138,6 +167,20 @@ onMounted(load);
             </div>
           </div>
           <p class="mt-1 text-xs text-n-slate-11">
+            <span
+              class="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+              :class="
+                article.published
+                  ? 'bg-n-brand/10 text-n-brand'
+                  : 'bg-n-alpha-2 text-n-slate-10'
+              "
+            >
+              {{
+                article.published
+                  ? $t('PATRA.KNOWLEDGE.BADGE_PUBLISHED')
+                  : $t('PATRA.KNOWLEDGE.BADGE_DRAFT')
+              }}
+            </span>
             {{ article.category }} · 👍 {{ article.helpful_count }}
           </p>
         </div>

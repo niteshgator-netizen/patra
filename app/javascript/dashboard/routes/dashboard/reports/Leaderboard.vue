@@ -93,13 +93,20 @@ onMounted(fetchAgents);
         <span class="lb-card-dot" />
         <span class="lb-card-t">{{ $t('PATRA.LEADERBOARD.RANKINGS') }}</span>
       </div>
-      <p v-if="loading" class="py-6 text-center text-n-slate-11">…</p>
-      <p
-        v-else-if="!sortedAgents.length"
-        class="py-6 text-center text-n-slate-11"
-      >
-        {{ $t('PATRA.LEADERBOARD.EMPTY') }}
+      <!-- patra-final 6b (G24): real loading + guided empty state, no bare "…" -->
+      <p v-if="loading" class="py-6 text-center text-n-slate-11">
+        {{ $t('PATRA.LEADERBOARD.LOADING') }}
       </p>
+      <div
+        v-else-if="!sortedAgents.length"
+        class="py-10 text-center text-n-slate-11"
+      >
+        <div class="text-3xl mb-2 opacity-60">🏆</div>
+        <p class="text-sm m-0">{{ $t('PATRA.LEADERBOARD.EMPTY') }}</p>
+        <p class="text-xs text-n-slate-10 mt-1 m-0">
+          {{ $t('PATRA.LEADERBOARD.EMPTY_HINT') }}
+        </p>
+      </div>
       <div v-else class="lb-rows">
         <div
           v-for="(agent, idx) in sortedAgents"
