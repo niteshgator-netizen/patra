@@ -202,3 +202,48 @@ bundle exec rails runner "%w[INSTALLATION_NAME BRAND_NAME].each { |k| Installati
 ### 6c — trends
 - **G10 per-game money trend:** backend `sweeps_game_trend` in `patra/reports_controller.rb` (READ-ONLY GameAction aggregation — loads/cashouts per ISO week per game, fixed 8-week window) added to the sweeps payload as `game_trend`. Frontend: new shared `LineChart.vue` (chart.js 4.4 + vue-chartjs 5.3 — both already in package.json, same stack as the existing BarChart) + "Money trend by game" section on `/patra/sweeps`, one 2-line chart per game.
 - **G12 AI-vs-human trend:** the AI-reply marker DOES support it — `ai_handle_rate` already distinguishes human replies (outgoing `sender_type = 'User'`) from automated ones; the weekly trend mirrors exactly that convention. Backend `ai_vs_human_weekly` (8 ISO weeks, human vs ai outgoing public message counts) added to the reports payload; frontend section "AI vs human replies" with a LineChart on `/patra/reports`. No "needs tracking" card required.
+
+---
+
+## FINAL — BUILD, MIGRATIONS, RUNNERS, PROPOSED, ROLLBACK
+
+### Vite build
+`pnpm exec vite build` → **✓ built in 34.62s**, zero errors (chunk-size warnings only — pre-existing). Bundles committed in `fadceae9b`.
+
+### Migrations added this run (Genius: Render runs `db:migrate` on deploy)
+| Migration | What it does | Risk |
+|---|---|---|
+| `20260612090000_create_patra_agent_feedbacks.rb` | NEW table `patra_agent_feedbacks` + 3 indexes | additive only, touches nothing existing |
+
+### Prod runner commands for Genius (run on Render shell, in this order)
+```
+# 1. Inspect branding rows (Phase 1 — explains the banner)
+bundle exec rails runner "puts InstallationConfig.where(name: %w[INSTALLATION_NAME BRAND_NAME BRAND_URL WIDGET_BRAND_URL LOGO LOGO_DARK LOGO_THUMBNAIL TERMS_URL PRIVACY_URL DISPLAY_MANIFEST]).map { |c| \"#{c.name} = #{c.value.inspect}\" }"
+
+# 2. Clear the EE banner immediately (safe — only returns if rows still mismatch stock)
+bundle exec rails runner "Redis::Alfred.delete(Redis::Alfred::CHATWOOT_INSTALLATION_CONFIG_RESET_WARNING)"
+
+# 3. Report (NOT delete) conversations with NULL display_id (G59)
+bundle exec rails runner script/patra_cleanup_nil_display_ids.rb
+
+# 4. (OPTIONAL — read Phase 5d first; re-arms the EE banner) set DB brand rows to Patra
+bundle exec rails runner "%w[INSTALLATION_NAME BRAND_NAME].each { |k| InstallationConfig.find_by(name: k)&.update!(value: 'Patra') }; GlobalConfig.clear_cache"
+```
+Recommendation: run 1–3; skip 4 (the dashboard already shows Patra via the code-level fix).
+
+### PROPOSED (not built — needs a decision)
+1. **SLA**: buy Chatwoot EE license, or commission a Patra-own SLA build (multi-day; own tables + checker job). Phase 4 numbers are preserved above.
+2. **Email branding**: mailers still read BRAND_NAME from the DB row ('Chatwoot'). Code-level Patra default in `application_mailer.rb` would finish G40 for emails without touching the EE-watched rows.
+3. **CustomAttributesBuilder demo page** (`/patra/custom-attributes`): non-persisting mock — either wire it to the real custom-attribute API or delete it (needs explicit yes for deletion).
+
+### Rollback hashes (revert with `git reset --hard <hash>` — destructive, ask first)
+| Point | Hash |
+|---|---|
+| **Before this run** | `fa02e1bf5a65d1aad3c71acd769b037f30ddb375` |
+| After P1 (EE investigation) | `557a28d97` |
+| After P2 (nav reorg) | `d45e3147c` |
+| After P3 (agent feedback) | `bd6e29ff9` |
+| After P4 (SLA report) | `567d9877a` |
+| After P5 (bug closures) | `e30c7a4bf` |
+| After P6 (polish) | `86c008ec8` |
+| After vite bundles | `fadceae9b` |
