@@ -114,6 +114,70 @@ HANDLER = {
   payment_method_question: 'handle_payment_method_question'
 }.freeze
 
+# ── bp5 P6 grader calibration helpers (precision UP, strictness NEVER down) ──
+
+# unknown-tag: only letter-bearing $/@ tokens are tag candidates (a bare
+# "$10"/"$12" is an AMOUNT, not a tag — was a false positive). Allowed set =
+# exact configured display_handles PLUS sigil-prefixed echoes of handles that
+# are configured WITHOUT a sigil (PayPal usernames have no $/@ — the model
+# writing "$devpatel742" for configured "devpatel742" is still OUR handle).
+# Sigil-bearing configured handles still require an EXACT match (no loosening).
+def grade_unknown_tags(reply, customer_text, exact_tags, prefixless_tags)
+  reply.scan(/[\$@][a-z0-9][a-z0-9._\-]*/i).map(&:downcase)
+       .select { |tg| tg.match?(/[a-z]/) }
+       .reject { |tg| exact_tags.include?(tg) }
+       .reject { |tg| prefixless_tags.include?(tg.sub(/\A[\$@]/, '')) }
+       .reject { |tg| customer_text.to_s.downcase.include?(tg.sub(/\A[\$@]/, '')) }
+end
+
+# untraceable-amount: a $ amount is traceable when it appears verbatim in
+# input+prompt OR is single-step arithmetic with the RIGHT shape: a
+# %-adjacent percent applied to a $-adjacent amount (30% of $20 = 6, or the
+# 26 total), or a sum/difference of two $-adjacent amounts. Operands are NOT
+# free numbers (reviewer: unconstrained pairs whitelisted ~every value under
+# $100 at realistic prompt density — iron-rule violation, fixed).
+def derive_allowed_amounts(customer_text, sys)
+  src = "#{customer_text} #{sys}"
+  raw = src.scan(/\d+(?:\.\d+)?/)
+  percents = src.scan(/(\d+(?:\.\d+)?)\s*%/).flatten.map(&:to_f).uniq.first(20)
+  dollars = src.scan(/\$\s*(\d+(?:\.\d+)?)/).flatten.map(&:to_f).uniq.first(40)
+  derived = Set.new
+  dollars.each do |a|
+    percents.each do |p|
+      derived << (a * p / 100.0).round(2)
+      derived << (a * (1 + p / 100.0)).round(2)
+    end
+    dollars.each do |b|
+      derived << (a + b).round(2)
+      derived << (a - b).round(2) if a > b
+    end
+  end
+  [Set.new(raw), derived]
+end
+
+def amount_traceable?(num_str, raw_set, derived_set)
+  return true if raw_set.include?(num_str)
+
+  f = num_str.to_f
+  derived_set.any? { |d| (d - f).abs < 0.001 }
+end
+
+# money-dead-end: a money-labeled turn that is PURE gratitude/closing needs no
+# action language (labels are noisy — "thanks" rows carry load_deposit), and a
+# reply that DELIVERED a configured handle IS the action. Markdown-list
+# replies still fail via the separate bullets-or-markdown check (untouched).
+GRATITUDE_CLOSING = /\A(?:ok |okay )?(?:thanks|thank you|thx|ty|tysm|you'?re welcome|welcome|bye|good ?night|gn|np|no problem)(?: (?:so much|alot|a lot|love|hun|dear|bella))*\z/
+
+def gratitude_closing_turn?(customer_text)
+  # a digit or $ in the raw turn means a possible amount/ask — never exempt
+  return false if customer_text.to_s.match?(/[\d$]/)
+
+  core = customer_text.to_s.downcase.gsub(/['’]/, "'").gsub(/[^a-z\s']/, ' ').gsub(/\s+/, ' ').strip
+  return false if core.empty?
+
+  core.match?(GRATITUDE_CLOSING)
+end
+
 def normalize_cluster(text)
   t = text.to_s.downcase
   t = t.gsub(/[\$@][a-z0-9][a-z0-9._\-]*/, '$TAG')
@@ -275,6 +339,8 @@ elsif LLM_SAMPLE.positive?
   display_names = handles.map { |h| h.try(:display_name).to_s.strip }.select { |n| n.length >= 5 }
   exact_tags = handles.map { |h| h.respond_to?(:display_handle) ? h.display_handle.to_s : '' }
                       .reject(&:empty?).map(&:downcase)
+  # bp5 P6: handles configured WITHOUT a $/@ sigil (e.g. PayPal usernames)
+  prefixless_tags = exact_tags.reject { |t| t.start_with?('$', '@') }
 
   inbox = account.inboxes.detect { |i| i.channel_type == 'Channel::Api' } || account.inboxes.order(:id).first
   abort '[tier2] no inbox' unless inbox
@@ -334,16 +400,21 @@ elsif LLM_SAMPLE.positive?
         v << "cot-marker(#{cot.size})" if cot.any?
         v << "cot-leak(#{reply.strip.length}/#{ct_len})" if ct_len.positive? && reply.strip.length > ct_len + 8
         v << 'person-name-leak' if display_names.any? { |n| reply.downcase.include?(n.downcase) }
-        bad_tags = reply.scan(/[\$@][a-z0-9][a-z0-9._\-]*/i).map(&:downcase).reject { |tg| exact_tags.include?(tg) }
-        # customer's own tags echoed back are allowed only if they appeared in the input
-        bad_tags = bad_tags.reject { |tg| text.to_s.downcase.include?(tg.sub(/\A[\$@]/, '')) }
+        # bp5 P6 calibrated graders (see helper defs at top; precision UP only)
+        bad_tags = grade_unknown_tags(reply, text, exact_tags, prefixless_tags)
         v << "unknown-tag(#{bad_tags.join(',')})" if bad_tags.any?
-        allowed_nums = (text.to_s + sys.to_s).scan(/\d+(?:\.\d+)?/).to_set
-        stray = reply.scan(/\$\s*(\d+(?:\.\d+)?)/).flatten.reject { |n| allowed_nums.include?(n) }
+        raw_nums, derived_nums = derive_allowed_amounts(text, sys)
+        stray = reply.scan(/\$\s*(\d+(?:\.\d+)?)/).flatten.reject { |n| amount_traceable?(n, raw_nums, derived_nums) }
         v << "untraceable-amount(#{stray.join(',')})" if stray.any?
         if MONEY_LABELS.include?(label)
           act = reply.match?(/\?|send|screenshot|tag|load|process|confirm|check|teammate|manager|one sec|moment|hang tight/i)
-          v << 'money-dead-end' unless act
+          # delivering OUR handle is the action for deposit-direction labels
+          # only — a cashout needs THEIR tag, so a tag-only reply stays a dead
+          # end there (reviewer finding b)
+          unless %w[cashout_redeem redeem_partial_replay].include?(label)
+            act ||= exact_tags.any? { |tg| reply.downcase.include?(tg) }
+          end
+          v << 'money-dead-end' unless act || gratitude_closing_turn?(text)
         end
         five_part_bad = $TG.select { |(m, k)| m == :human_escalation }
                            .reject { |(_m, k)| k[:reason].to_s.include?('PLAYER WANTS') }

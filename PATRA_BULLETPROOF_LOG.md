@@ -519,3 +519,22 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
   → human-gated cashout reply names moolah (no crash, cashier-manual); R5 phrasing ruling suggested
   "we don't have moolah yet love..." — current reply uses the existing honest unavailable line with
   the real list instead (product can re-skin the copy later; behavior per ruling: not added, routed).
+### P6 — GRADER CALIBRATION (script/patra_corpus_replay.rb, NOT hot, 1 commit)
+Precision UP, strictness NEVER down. Per-change justification:
+- unknown-tag (:337): (1) tag candidates must be LETTER-BEARING — "$10"/"$12" are amounts, not tags
+  (kills FP family 1); (2) allowed set now also accepts sigil-prefixed echoes of handles configured
+  WITHOUT a sigil (PayPal username devpatel742 IS configured — kills FP family 3); sigil-configured
+  handles still need exact match (no loosening — verified "@hustle09" vs "$hustle09" still flagged).
+- untraceable-amount (:341): derive_allowed_amounts adds SINGLE-STEP, SHAPE-CONSTRAINED arithmetic:
+  %-adjacent percent × $-adjacent amount (30% of $20 = 6; +bonus total 26) and sums/differences of
+  $-adjacent pairs (kills FP family 2). FIRST DRAFT REJECTED by reviewer (DO-NOT-SHIP): unconstrained
+  number pairs whitelisted 74-100/100 of the $1..100 range at realistic prompt density — iron-rule
+  violation. Fixed; re-probe: bare numbers derive NOTHING (derived=∅), invented $13 vs $20+30% still
+  flagged, dense-bare-number coverage 18/100 all-verbatim.
+- money-dead-end (:344): exempts (1) PURE gratitude/closing customer turns (digit/$ in raw turn →
+  never exempt — reviewer finding c) and (2) replies that delivered a configured handle — but ONLY
+  for deposit-direction labels (cashout_redeem/redeem_partial_replay still require action language —
+  a cashout needs THEIR tag; reviewer finding b). Markdown-list FAIL untouched (kills FP family 4
+  without touching format strictness).
+- Tier 1 byte-identical (reviewer-verified). VERIFIED BY ME NOW: 16/16 unit suite + TIER1_LIMIT=25
+  smoke run (real checkpoint backed up/restored). Re-review: SHIP (independent 12/12 probe).
