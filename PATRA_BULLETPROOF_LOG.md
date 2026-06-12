@@ -611,3 +611,108 @@ RED-TEAM (P7 adversary agent) confirmed 3 real holes; all fixed + re-verified 31
 ### TIER 2 (DeepSeek reply grading)
 - LOCAL: DEEPSEEK_API_KEY absent → auto-skipped (Tier-2 graders are now P6-calibrated; first run
   was 215/65 of 280 ~23% fail before calibration). RENDER command below.
+
+================================================================================
+# BP5 — FINAL DUMP
+================================================================================
+## PER-PHASE ROLLBACK HASHES (run-start: 9be06b724; revert all: git reset --hard 9be06b724)
+- P1  false-action-claim guard ............ fcc5dc74d
+- P2a R2 detector (:context_answer) ....... bca238e22
+- P2b R2 pending-question state ........... 4fdf7940e
+- P3a R1/R3 detector + mojibake repair .... 07e22c27b
+- P3b R1/R3 orchestrator flows ............ 58cf24132
+- P4a R4 multi-load parser ................ f0ffdde5a
+- P4b R4 multi-load composition ........... 991ffe695
+- P5  Tier-1 quick wins + R5 moolah ....... dd1440dc2
+- P6  grader calibration .................. 4b70f668d
+- P7  harness lock-in (BP5-G1/R1-R4/P5) ... 38de4b7d7
+- P8  red-team A+B2 (reply_service) ....... 4911a3095
+- P8  red-team C (detector trim_tag) ...... 7447ace28
+- P8  red-team C (orchestrator veto) ...... cdec01d98
+- P8b harness red-team regression (G2) .... d102ca993
+- iter-C1 convergence ..................... 24370cf0a
+
+## R1-R6 IMPLEMENTATION NOTES (Genius rulings = law)
+- R1 customer pastes own tag -> stored per platform on contact (cashout_tag_<platform>), reply =
+  PLATFORM WORD ONLY, never echoes their tag / never volunteers ours; 5-part cashier Telegram with
+  tag+platform+amount; "done/ok done" -> player-confirms-received Telegram; "no, only X" -> overwrite +
+  updated Telegram. SAFETY: echo of any OUR configured handle (incl. trailing-punct variants, any
+  status) is NEVER stored (our_configured_handle? fail-safe). [P3a/P3b/P8c]
+- R2 pending_question stamped {type,context,at} at 24 question sites; lowest-priority :context_answer
+  (affirm/did_it/same_game/ready), gratitude EXCLUDED (chitchat never money), digit-veto; orchestrator
+  resolves only when fresh (<24h) by RE-ENTERING existing gated handlers; stale/no-pending -> nil ->
+  DeepSeek. [P2a/P2b]
+- R3 "Request $X" -> :outbound_request -> cashier REQUEST Telegram (stored R1 tag; none -> ask platform
+  first) + in-progress "sending that request now hun, one sec"; NEVER claimed sent-as-fact. [P3a/P3b]
+- R4 auto-split multi-game: detect_load_multi strict 1:1 (ambiguity stays unrouted -> escalation);
+  handle_load_multi composes the EXISTING gated single-load path per leg (total payment gate, R7 hold,
+  all-or-escalate pre-flight, pay<sha> unified order-ids closing cross-path double-pay, honest
+  partials). Auto-bonus NOT applied to split legs (queued). [P4a/P4b]
+- R5 MooLah NOT added; aliases route to the existing honest unavailable-game reply with the real list.
+  [P5]
+- R6 username pre-create existence check + "tell username only after [:ok]" was already implemented
+  pre-BP5 (handle_account_creation_request R6b existing-account choice + verified_stored_game_username);
+  no change required this run. Confirmed by P0 read.
+
+## FALSE-ACTION-CLAIM GUARD (top bug) — P1 + P8 red-team hardening
+Single chokepoint guard_against_false_load_claim (all 5 reply exits). A reply may assert a completed/
+in-progress money action ONLY when a matching successful GameAction exists <5min (load->load,
+payout->cashout, transfer->both). Vocabulary broadened in P8 after red-team found 14/25 synonym bypasses
+(added/credited/deposited/topped-up/money-in/balance-updated/its-in-there/knocked-out + payout
+completions) + homoglyph fold (Cyrillic/Greek->Latin). Else -> intent-form rewrite. Percent bonus
+promises must trace to a configured GameRule/contact percent.
+
+## GRADER-CHANGE JUSTIFICATIONS (P6, Tier-2 only; precision UP, strictness NEVER down)
+- unknown-tag: tag candidates must be letter-bearing ("$10" is an amount); allow sigil-prefixed echoes
+  of prefix-less configured handles (PayPal usernames); sigil-configured handles still exact-match.
+- untraceable-amount: shape-constrained derived arithmetic — percent-adjacent percent x dollar-adjacent
+  amount, dollar-adjacent pair sums/diffs (bare numbers derive nothing). First draft REJECTED by
+  reviewer (unconstrained pairs whitelisted ~all <$100); fixed.
+- money-dead-end: exempt pure gratitude/closing turns (digit/$ -> never exempt) + replies delivering a
+  configured handle (deposit-direction labels only; cashout still needs THEIR tag). Markdown FAIL kept.
+
+## REVIEWER / RED-TEAM SUMMARY
+- Every fix phase passed a dedicated code-reviewer (SHIP) after fixes. DO-NOT-SHIP verdicts fixed
+  before commit: P4b cross-path double-pay (finding A — unified order-id namespace); P6 first-draft
+  arithmetic over-whitelisting (iron-rule violation — shape-constrained); P8 {0,3025} typo.
+- P7 RED-TEAM (adversary agent) found 3 real holes, ALL FIXED + locked into BP5-G2: (A) 14/25 false-
+  claim synonym bypasses + Cyrillic homoglyph; (C) trailing-punct echo-veto bypass storing OUR handle;
+  (B2) double-space display_name name leak. Goals D (multi-load double-pay) + E (context_answer money
+  trigger) red-teamed = NO HOLE.
+
+## FINAL STATE
+- Harness assertions: 239 ok! call sites (203 baseline at BP5 start -> +36). Assertion count only ever
+  increased across the whole program (142 -> 203 -> 239). Full-harness 100% check = Genius on Render.
+- Local gate (tmp/bp5_local_gate.rb): 11/11 BP5 + regression suites PASS in one boot. FULL money
+  harness (incl. BP5-G1/G2 sections) is Render-only (encrypted agent_games.credentials LOCAL BAN).
+- Tier-1 curve: 22,969 -> 21,257 money-miss (-7.5%), resolved 51.7% -> 54.3%, 0 detect errors / 73k.
+- LOCAL ENV REVERTED at run end: Gemfile (ruby pin), Gemfile.lock (ruby 3.4.9p76, pg 1.6.3+mingw,
+  irb/reline/io-console) — restored via git checkout. NOTHING pushed, NOTHING deployed, ZERO real
+  sends all run (panels/Telegram/DeepSeek stubbed or absent; throwaway contacts cleaned;
+  bella_rag_pairs READ-ONLY). tmp/bp5_*.rb scratch is uncommitted.
+
+## NEW PRODUCT-DECISION QUEUE (skip-and-queue — NEVER invented business rules)
+1. Gratitude rows mislabeled load_deposit inflate Tier-1 money_miss (~217). Apply the P6 gratitude
+   exemption to the Tier-1 money_miss counter too? (grader-precision change, not a detector gap).
+2. "Yes $tag" precedence: route affirm+pasted-tag to :customer_tag_provided vs :context_answer?
+3. Bare "fire"/"fire plz" -> fire_kirin alias? ("fire" is a common word — needs a domain ruling.)
+4. R4 split legs: should the configured auto-bonus apply per leg / to the total?
+5. R4 finding D: per-leg max_load_amount vs total cap — currently only R7 total hold gates the sum.
+6. P1 pre-existing: orchestrator "got your $X payment (check) what username..." trips the check-emoji
+   load family when no GameAction exists yet (rewritten to bank-verify line) — intended? unchanged.
+7. R5 copy: ruling suggested "we don't have moolah yet love, but we got juwa..."; current uses the
+   existing honest unavailable-game line + real list. Product can re-skin the copy.
+8. Repeated "done" with no sender name on file re-asks forever (handle_payment_sent_confirmation) —
+   pre-existing; no money moves.
+
+## RENDER WORKER-SHELL COMMANDS (Genius, after pull-before-push + deploy)
+    # 1) FULL money harness — must be 100% (now includes BP5-G1/G2 sections):
+    bundle exec rails runner script/patra_money_harness.rb
+    # 2) Tier-1 corpus grader (full 73k, ~2-3 min, READ-ONLY):
+    bundle exec rails runner script/patra_corpus_replay.rb
+    #    resume after interruption:  RESUME=1 bundle exec rails runner script/patra_corpus_replay.rb
+    # 3) Tier-1 + Tier-2 DeepSeek reply grading (P6-calibrated graders, 300-row sample):
+    REPLAY_LLM_SAMPLE=300 bundle exec rails runner script/patra_corpus_replay.rb
+    #    report -> PATRA_REPLAY_REPORT.md  (REPORT_PATH=... to redirect)
+
+## STOP — committed (15 commits fcc5dc74d..24370cf0a), NEVER pushed. Genius deploys.
