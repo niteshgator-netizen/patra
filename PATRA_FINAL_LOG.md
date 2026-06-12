@@ -130,3 +130,21 @@ None. The legitimate fix is operational (commands above) + Phase 5d's code-level
 # as an agent: send feedback from the sidebar, then as admin check /patra/feedback and the bell icon
 bundle exec rails runner "puts PatraAgentFeedback.count"
 ```
+
+---
+
+## PHASE 4 — SLA SEED: NOT BUILT (EE-blocked, as instructed)
+
+Phase 1 finding (verified in code): SLA is Chatwoot Enterprise-gated on two levels —
+1. The `sla` account feature flag is in `enterprise/config/premium_features.yml` and is **force-disabled on every account, every night** by `Internal::ReconcilePlanConfigService` while the install is on the free community plan.
+2. Every SLA backend file (SlaPolicy, AppliedSla, SlaEvent models, the evaluation jobs/service, both controllers) lives in `enterprise/` under the Chatwoot Enterprise license — production use requires a paid subscription.
+
+Consequence: a seed that creates `sla_policies` rows + automation rules would write data into a feature whose flag dies within 24 hours and whose runtime jobs are license-restricted. Per run instructions ("if EE-blocked, build nothing extra"), **no seed/migration was created**.
+
+**If Genius buys a Chatwoot EE license later**, the seed is 4 manual steps (or ask for the seed then — Genius's numbers preserved here):
+- Policy "FB first response": first_response_time_threshold = 300 (5 min)
+- Policy "Telegram first response": first_response_time_threshold = 600 (10 min)
+- Automation rule: conversation_created + inbox = FB inbox (5) → add_sla "FB first response"
+- Automation rule: conversation_created + inbox channel = Telegram → add_sla "Telegram first response"
+
+Alternative if no license: build a Patra-own SLA (own `patra_sla_*` tables + Sidekiq checker + the already-working conversation chips) — multi-day build, see Phase 1 estimate. PROPOSED, not built.
