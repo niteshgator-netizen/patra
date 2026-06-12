@@ -2798,11 +2798,14 @@ module Games
     # status - a retired handle echoed back is still OURS). Fails SAFE: on
     # error treat as ours so a possibly-echoed tag is never stored.
     def our_configured_handle?(tag)
-      norm = tag.to_s.sub(/\A[\$@]/, '').gsub(/\s+/, '').downcase
+      # bp5 P8 (red-team C): strip the sigil, ALL whitespace, AND trailing
+      # punctuation before comparing — "$ourhandle." defeated the old veto and
+      # got our own payout handle stored as the customer's cashout tag.
+      norm = tag.to_s.sub(/\A[\$@]/, '').gsub(/\s+/, '').sub(/[^a-z0-9]+\z/i, '').downcase
       return false if norm.empty?
 
       account.payment_handles.to_a.any? do |h|
-        h.normalized_handle.to_s.gsub(/\s+/, '').downcase == norm
+        h.normalized_handle.to_s.gsub(/\s+/, '').sub(/[^a-z0-9]+\z/i, '').downcase == norm
       end
     rescue StandardError => e
       Rails.logger.warn("[Orchestrator] our_configured_handle? failed: #{e.message}")

@@ -551,3 +551,27 @@ Precision UP, strictness NEVER down. Per-change justification:
 - LOCAL GATE (tmp/bp5_local_gate.rb, one Rails boot): 11/11 suites ALL PASS — P1, P2 det+orch,
   P3 det+orch, P4 det+orch, P5 det, steal-check, iter4, BP-F/I section runner. FULL harness (incl.
   these BP5-* sections) is Genius's Render step (encrypted-creds LOCAL BAN).
+### P8 — RED-TEAM REMEDIATION (3 commits, one hot file each)
+RED-TEAM (P7 adversary agent) confirmed 3 real holes; all fixed + re-verified 31/31:
+- GOAL A (severe, reply_service.rb): guard_against_false_load_claim vocabulary was far too narrow —
+  14/25 synonym phrasings reached the customer as false money claims. BROADENED load family
+  (added/credited/deposited+to/in, funds/money/balance+added/in-there/topped-up, "topped you up",
+  "put it on", "money's in", "it's in there", "balance updated/reflects", "knocked...out",
+  "all set ON <game>") + payout family (sent-it-your-way/out, cashout/payout+processed/went-out/done,
+  "paid out", "went out a min ago"). Added fold_homoglyphs (Cyrillic/Greek lookalikes→Latin) applied
+  to a scan_text COPY before matching (kills the "lоаded" homoglyph bypass; customer text unmutated).
+  Reviewer false-positive hunt: every orchestrator reply string checked — "all set!" credential
+  delivery does NOT trip "all set ON", "processing"/"verified"/in-progress all clear. {0,3025} typo
+  caught by reviewer, fixed.
+- GOAL C (high, detector + orchestrator): a trailing "."/".."/"_" on OUR configured handle defeated
+  the echo-veto, storing our payout handle as the customer's cashout destination. FIXED both sides:
+  detector trim_tag strips trailing non-alphanumerics off the captured tag (customer tag stored
+  clean); orchestrator our_configured_handle? strips sigil+ALL-whitespace+trailing-punct on BOTH the
+  tag and each configured normalized_handle before EXACT compare (reviewer: not prefix — distinct
+  tags sharing a prefix are NOT vetoed).
+- GOAL B2 (medium, reply_service.rb): a display_name stored with a double space ("dev  patel") leaked
+  the person's real name. strip_handle_person_names now builds the regex from \s+-joined escaped
+  tokens. Goals D (multi-load double-pay) + E (context_answer money trigger) red-teamed = NO HOLE.
+- VERIFIED BY ME NOW: tmp/bp5_verify_p8.rb 31/31 (16 A bypasses blocked, 9 legit untouched,
+  truthful-with-action passes, 3 C variants caught, B2 fixed) + full local gate 11/11 prior suites
+  still green. REVIEWER: SHIP all three (split C across two commits per one-hot-file rule).
