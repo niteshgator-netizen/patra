@@ -103,6 +103,8 @@ module Games
       /withdraw\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /payout\s+\$?(\d+(?:\.\d{1,2})?)/i,
       /i\s+(?:want\s+|wanna\s+)?(?:to\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i,
+      # bp5 P5: "Cash me out" / "cash me out 50" (corpus cluster)
+      /\bcash\s+me\s+out\b(?:\s+\$?(\d+(?:\.\d{1,2})?))?/i,
       # bp iter1/2: a bare "cash out (please)" / "redeem plz" / "check out"
       # message is an amount-less cashout ask — the handler asks the amount.
       /\A\s*(?:cash\s*out|cashout|redeem|withdraw|check\s*out)\s*(?:pls+|plz+|please+)?\s*[?!.]*\s*\z/i,
@@ -236,6 +238,13 @@ module Games
       'game_room' => 'game_room',
       'gr' => 'game_room',
 
+      # bp5 P5/R5: MooLah is NOT a game we have - the alias routes the ask to
+      # the existing unavailable-game reply (real list offered). Do NOT add
+      # the game (Genius ruling R5).
+      'moolah' => 'moolah',
+      'moo lah' => 'moolah',
+      'mool lah' => 'moolah',
+
       # Mr All In One
       'mr all in one' => 'mr_all_in_one',
       'mrallinone' => 'mr_all_in_one',
@@ -361,7 +370,9 @@ module Games
       /(?:i\s+)?(?:can'?t|cant|cannot)\s+(?:log\s*in|login|sign\s*in)/i,
       /(?:my\s+)?(?:pw|password|pass)\s+(?:isn'?t|isnt|not)\s+working/i,
       /(?:my\s+)?(?:pw|password|pass)\s+(?:doesn'?t|doesnt|don'?t|dont)\s+work/i,
-      /need\s+(?:a\s+)?(?:new\s+)?(?:pw|password|pass)/i
+      /need\s+(?:a\s+)?(?:new\s+)?(?:pw|password|pass)/i,
+      # bp5 P5: bare "Password?" / "pw?" — a reset ask (handler asks which game)
+      /\A\s*(?:pw|password|pass)\s*[?!.]*\s*\z/i
     ].freeze
 
     # Bug 2/3/4 fix — May 19 2026:
@@ -472,7 +483,14 @@ module Games
       # bp iter4: "Not loaded" / "it's not on there" — the-load-didn't-show
       # reports; the status handler re-verifies and finishes undone work.
       /\A\s*not\s+loaded\s*[?!.]*\s*\z/i,
-      /\bnot\s+(?:on|in)\s+there\b/i
+      /\bnot\s+(?:on|in)\s+there\b/i,
+      # bp5 P5: "Loaded yet" / "is it loaded yet" / "Lmk when loaded" /
+      # "let me know when it's loaded plz love" (corpus status clusters)
+      /\A\s*(?:is\s+it\s+)?loaded\s+yet\s*[?!.]*\s*\z/i,
+      # anchored to the message START so combined money asks keep their route
+      # (\"sent 20 lmk when loaded\" stays payment_sent; \"put 5 on juwa lmk
+      # when loaded\" stays load)
+      /\A\s*(?:ok\s+|plz+\s+|pls+\s+|please\s+)?(?:lmk|let\s+me\s+know)\s+when\b[^.!?]{0,40}\bloaded\b/i
     ].freeze
 
     COMPLAINT_ANGRY_PATTERNS = [
@@ -533,7 +551,9 @@ module Games
       /which\s+games?\s+(?:are\s+)?(?:hitting|working|hot|good|available)/i,
       /any\s+(?:good\s+)?games?\s+(?:hitting|working|available)/i,
       /what\s+games?\s+(?:are\s+)?(?:up|on|running|live)/i,
-      /what(?:'?s|\s+is)\s+(?:good|working)\s+(?:right\s+now|tonight|today)/i
+      /what(?:'?s|\s+is)\s+(?:good|working)\s+(?:right\s+now|tonight|today)/i,
+      # bp5 P5: "Any suggestions" — what-should-i-play ask (corpus cluster)
+      /\bany\s+suggestions?\b/i
     ].freeze
 
     REFERRAL_PATTERNS = [
@@ -972,6 +992,10 @@ module Games
         candidates += candidates.map { |c| c.split(' ').uniq.join(' ') }
         # glued/space-mangled tolerance ("JuwA2. 0" -> "juwa2.0")
         candidates += candidates.map { |c| c.gsub(' ', '') }.reject(&:empty?)
+        # bp5 P5: "on all in one" — names CONTAINING filler words survive a
+        # leading-edge filler trim ("on "/"the ") where the global filler
+        # strip would gut them ("all in one" -> "all")
+        candidates += candidates.map { |c| c.sub(/\A(?:please|pls+|plz+|ok|okay|on|in|for|to|the|my|me)\s+/, '') }.reject(&:empty?)
         candidates.uniq!
         return nil if candidates.empty?
 

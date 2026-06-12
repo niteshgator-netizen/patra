@@ -499,3 +499,23 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
   already-loaded, zero exec calls), idempotent re-run, end-to-end text→handle()→2 legs + BP runner
   17/17 + BP-I1/I2. Reviewer verified all 8 claimed properties + double-pay closed both directions
   (multi legs carry payment_id metadata → existing single-path dedup sees them).
+### P5 — TIER-1 QUICK WINS (intent_detector.rb, HOT, 1 commit)
+- CASHOUT += "cash me out (N)"; STATUS += anchored "Loaded yet"/"is it loaded yet" + START-anchored
+  "lmk/let me know when ... loaded" (reviewer caught two steals from the unanchored version —
+  "sent 20 lmk when loaded" must stay payment_sent, "put 5 on juwa lmk when loaded" must stay load —
+  fixed pre-commit with \A anchoring, steal-check 6/6); RESET += bare anchored "password?"/"pw?"/
+  "pass"; WHATS_HITTING += "any suggestions"; bare_game_name_load += leading-edge filler-trim
+  candidate (additive only) so "on all in one" → mr_all_in_one (alias existed since pre-BP5; slug
+  verified present in live games table this run).
+- R5 MOOLAH: aliases moolah/moo lah/mool lah → slug 'moolah' which deliberately does NOT exist →
+  orchestrator's existing agent_game_for_intent/unavailable_game_reply answers honestly with the
+  REAL game list (E2E verified: "i don't recognize that game. we got Game Vault, Juwa, ... — which
+  one you want?"). Game NEVER added. Reviewer traced every moolah flow (load/create/multi-create/
+  load_multi leg/username-veto) = nil-safe everywhere, R4 all-or-escalate catches split legs.
+- VERIFIED BY ME NOW: 32/32 (incl. prod truth checks: mr_all_in_one EXISTS, moolah ABSENT) +
+  steal-check 6/6 + iter4 + P4 sweeps ALL PASS.
+- REVIEWER: SHIP (live-probed steal hunt). Queued non-blockers: one-word "pass" as a DECLINE now
+  asks "which game do you want me to reset?" (recoverable, no money); "cash me out 50 from moolah"
+  → human-gated cashout reply names moolah (no crash, cashier-manual); R5 phrasing ruling suggested
+  "we don't have moolah yet love..." — current reply uses the existing honest unavailable line with
+  the real list instead (product can re-skin the copy later; behavior per ruling: not added, routed).
