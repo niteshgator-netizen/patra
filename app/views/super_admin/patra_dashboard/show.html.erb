@@ -122,7 +122,11 @@
       <span class="patra-stat"><span class="v neg">$<%= @money[:cashouts][:total] %></span><br/><span class="l">cashouts (<%= @money[:cashouts][:count] %>)</span></span>
       <span class="patra-stat"><span class="v <%= @money[:net].negative? ? 'neg' : 'pos' %>">$<%= @money[:net] %></span><br/><span class="l">NET</span></span>
       <% if @money[:malformed_count].positive? %>
-        <div class="warn" style="font-size:12px;">⚠ <%= @money[:malformed_count] %> malformed finance entr<%= @money[:malformed_count] == 1 ? 'y' : 'ies' %> skipped</div>
+        <%# patra-final 5g (G45): warning now links to the read-only listing %>
+        <div class="warn" style="font-size:12px;">⚠
+          <%= link_to "#{@money[:malformed_count]} malformed finance entr#{@money[:malformed_count] == 1 ? 'y' : 'ies'} skipped — view them",
+                      super_admin_patra_malformed_finance_path, style: 'text-decoration:underline;color:inherit;' %>
+        </div>
       <% end %>
 
       <% if @money[:by_day].any? %>

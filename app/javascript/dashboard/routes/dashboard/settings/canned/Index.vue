@@ -191,28 +191,35 @@ const seedSweepstakesPack = async () => {
   seedingPack.value = true;
   let created = 0;
   let failed = 0;
-  // Sequential on purpose — each save fires the Bella RAG embed hook
-  // server-side; hammering them in parallel buys nothing. Failures (e.g. a
-  // duplicate short_code created by another agent) skip that item only.
-  for (const item of SWEEPSTAKES_PACK) {
-    if (existingShortCodes.value.has(item.short_code)) continue;
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      await store.dispatch('createCannedResponse', item);
-      created += 1;
-    } catch (error) {
-      failed += 1;
+  // patra-final 5f: the whole run sits in try/finally — if anything threw
+  // mid-loop, seedingPack stayed true forever and every later click was a
+  // silent dead click (the audited symptom). Now the flag always resets and
+  // a toast always fires.
+  try {
+    // Sequential on purpose — each save fires the Bella RAG embed hook
+    // server-side; hammering them in parallel buys nothing. Failures (e.g. a
+    // duplicate short_code created by another agent) skip that item only.
+    for (const item of SWEEPSTAKES_PACK) {
+      if (existingShortCodes.value.has(item.short_code)) continue;
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await store.dispatch('createCannedResponse', item);
+        created += 1;
+      } catch (error) {
+        failed += 1;
+      }
     }
-  }
-  seedingPack.value = false;
-  if (failed > 0 && created === 0) {
-    useAlert(t('CANNED_MGMT.STARTER_PACK.ERROR'));
-  } else {
-    useAlert(
-      created > 0
-        ? t('CANNED_MGMT.STARTER_PACK.SUCCESS', { n: created })
-        : t('CANNED_MGMT.STARTER_PACK.NONE_ADDED')
-    );
+    if (failed > 0 && created === 0) {
+      useAlert(t('CANNED_MGMT.STARTER_PACK.ERROR'));
+    } else {
+      useAlert(
+        created > 0
+          ? t('CANNED_MGMT.STARTER_PACK.SUCCESS', { n: created })
+          : t('CANNED_MGMT.STARTER_PACK.NONE_ADDED')
+      );
+    }
+  } finally {
+    seedingPack.value = false;
   }
 };
 

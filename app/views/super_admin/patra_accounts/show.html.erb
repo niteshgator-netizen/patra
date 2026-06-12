@@ -59,7 +59,11 @@
       <h2>Risk</h2>
       <span class="patra-stat"><span class="v"><%= @money[:risk][:flagged_players_total] %></span><br/><span class="l">flagged players</span></span>
       <% if @money[:malformed_count].positive? %>
-        <div class="muted" style="font-size:12px;">⚠ <%= @money[:malformed_count] %> malformed finance entries skipped</div>
+        <%# patra-final 5g (G45): warning now links to the read-only listing %>
+        <div class="muted" style="font-size:12px;">⚠
+          <%= link_to "#{@money[:malformed_count]} malformed finance entries skipped — view them",
+                      super_admin_patra_malformed_finance_path, style: 'text-decoration:underline;color:inherit;' %>
+        </div>
       <% end %>
     </div>
 

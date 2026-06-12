@@ -148,3 +148,40 @@ Consequence: a seed that creates `sla_policies` rows + automation rules would wr
 - Automation rule: conversation_created + inbox channel = Telegram → add_sla "Telegram first response"
 
 Alternative if no license: build a Patra-own SLA (own `patra_sla_*` tables + Sidekiq checker + the already-working conversation chips) — multi-day build, see Phase 1 estimate. PROPOSED, not built.
+
+---
+
+## PHASE 5 — BUG CLOSURES
+
+### 5a (G59) — dead ActionCableBroadcastJobs
+- `app/jobs/action_cable_broadcast_job.rb`: `prepare_broadcast_data` now (1) skips when `data[:id]` is blank (nil display_id — the audited cause), (2) rescues `ActiveRecord::RecordNotFound` for both the Account and Conversation lookups → warn-log + drop, never die. Websocket refreshes are best-effort by nature.
+- `script/patra_cleanup_nil_display_ids.rb` (new): REPORT-ONLY — counts + lists conversations with NULL display_id (id, account, inbox, contact, created_at). No mutation.
+- **Genius runner (report script):** `bundle exec rails runner script/patra_cleanup_nil_display_ids.rb`
+
+### 5b (G58) — New User form autofill
+- Cause: the browser autofilled saved credentials (the form pattern-matched a login form). Administrate's default field partials are now overridden: `app/views/fields/password/_form.html.erb` (autocomplete="new-password", explicit blank value) and `app/views/fields/string/_form.html.erb` (autocomplete="off"). Affects all super-admin forms — desirable.
+
+### 5c (G53) — Account show custom_attributes
+- `app/views/super_admin/accounts/_custom_attributes_table.html.erb` (new): key/value table, values > 80 chars collapse behind a `<details>` expander. Wired in `accounts/show.html.erb` (special-case for the `custom_attributes` attribute only; everything else renders as before).
+
+### 5d (G40) — brandName/installationName say "Chatwoot"
+- **Root cause (Phase 1):** nightly EE reconcile resets the InstallationConfig rows to stock on the community plan. Writing 'Patra' into the DB rows would re-arm the "unauthorized premium changes" banner.
+- **Fix (code-level, MIT core):** `app/controllers/dashboard_controller.rb` merges `PATRA_BRANDING_OVERRIDES` (INSTALLATION_NAME/BRAND_NAME → 'Patra') into the dashboard `globalConfig` — the dashboard now always brands as Patra regardless of DB rows, and the EE banner stays un-triggered. Also `config/installation_config.yml` BRAND_NAME default → 'Patra' (fresh installs only; ConfigLoader never overwrites existing rows).
+- **Runner the task asked for** (sets the prod DB rows — KNOW THE TRADE-OFF: the nightly EE job will reset them and re-show the banner; with the code fix above this runner is NOT needed for the dashboard, only emails/widget read the DB rows):
+```
+bundle exec rails runner "%w[INSTALLATION_NAME BRAND_NAME].each { |k| InstallationConfig.find_by(name: k)&.update!(value: 'Patra') }; GlobalConfig.clear_cache"
+```
+- Recommendation: do NOT run it; if email branding matters, that needs the same code-level treatment in mailers (PROPOSED).
+
+### 5e (G44) — super admin player search
+- New read-only page `/super_admin/patra_players` (`patra_players_controller.rb` + view + route + "Player Search" nav item in the Patra console section). Searches contacts by name/email/phone/identifier AND GameAction.game_username (ILIKE, cap 50), shows account link, contact link into the live app, blocked flag, successful load/cashout totals per contact.
+
+### 5f — "Add sweepstakes pack" dead click
+- Re-verified the whole chain in source: button → `seedSweepstakesPack` → `store.dispatch('createCannedResponse')` → `CannedResponseAPI.create` → store ADD_CANNED; all i18n toast keys exist (SUCCESS/NONE_ADDED/ERROR/SEEDING). Chain is wired (verified by reading, not by clicking).
+- **Real wedge found & fixed:** if anything threw mid-seed, `seedingPack` stayed `true` forever → every later click silently dead (matches the audit symptom). The loop now sits in try/finally; the flag always resets and a toast always fires (`canned/Index.vue`).
+- Likely audit-time factor: stale vite bundle (frontend changes need built bundles committed — this run rebuilds at the end).
+
+### 5g (G45) — malformed finance entries
+- `lib/patra/finance_analytics.rb`: new READ-ONLY `malformed_report` (mirrors the scan's classification exactly: non-list log / non-hash entry / money row with unparseable amount or time; cap 200 rows).
+- New page `/super_admin/patra_malformed_finance` (controller + view + route): account link, contact link, reason, raw logged_at, raw entry snippet. NO mutation anywhere.
+- Both "N malformed finance entries skipped" warnings (Command Center + account control panel) are now links to that page.

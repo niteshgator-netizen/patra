@@ -1,0 +1,75 @@
+<%# patra-final 5e (G44): cross-account player search — READ-ONLY %>
+<% content_for(:title) { 'Player Search' } %>
+
+<header class="main-content__header" role="banner">
+  <div>
+    <h1 class="text-base font-medium leading-6 text-n-slate-12" id="page-title">
+      Player Search
+    </h1>
+    <p class="text-sm font-normal leading-5 text-slate-500 m-0">
+      Find a player across every account — by name, phone, email, platform ID, or game username. Read-only.
+    </p>
+  </div>
+</header>
+
+<section class="main-content__body px-8">
+  <%= form_with url: super_admin_patra_players_path, method: :get, local: true, class: 'mb-6 flex gap-2 items-center' do %>
+    <%= text_field_tag :q, @query, placeholder: 'Name, phone, email, platform ID, or game username…',
+                       class: 'w-96 rounded-md border border-slate-300 px-3 py-2 text-sm', autocomplete: 'off' %>
+    <%= submit_tag 'Search', class: 'button' %>
+    <span class="text-xs text-slate-500">Press Enter to search</span>
+  <% end %>
+
+  <% if @query.present? && @contacts.empty? %>
+    <p class="text-sm text-slate-500">No players matched "<%= @query %>".</p>
+  <% elsif @contacts.any? %>
+    <p class="text-xs text-slate-500 mb-2">
+      Showing up to <%= SuperAdmin::PatraPlayersController::RESULT_LIMIT %> matches. Totals are successful loads/cashouts only.
+    </p>
+    <table class="w-full text-sm border border-slate-200 rounded">
+      <thead>
+        <tr class="text-left bg-slate-100">
+          <th class="px-3 py-2 font-medium">Player</th>
+          <th class="px-3 py-2 font-medium">Account</th>
+          <th class="px-3 py-2 font-medium">Email / Phone</th>
+          <th class="px-3 py-2 font-medium">Platform ID</th>
+          <th class="px-3 py-2 font-medium">Flag</th>
+          <th class="px-3 py-2 font-medium text-right">Loads</th>
+          <th class="px-3 py-2 font-medium text-right">Cashouts</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @contacts.each do |contact| %>
+          <% totals = @totals[contact.id] || {} %>
+          <tr class="border-t border-slate-200 align-top">
+            <td class="px-3 py-2">
+              <%# Link into the live app's contact page for that account %>
+              <a class="text-woot-600 underline" target="_blank" rel="noopener"
+                 href="/app/accounts/<%= contact.account_id %>/contacts/<%= contact.id %>">
+                <%= contact.name.presence || "Contact ##{contact.id}" %>
+              </a>
+            </td>
+            <td class="px-3 py-2">
+              <%= link_to contact.account.name, super_admin_account_path(contact.account_id), class: 'underline' %>
+              <span class="text-xs text-slate-400">#<%= contact.account_id %></span>
+            </td>
+            <td class="px-3 py-2">
+              <div><%= contact.email.presence || '—' %></div>
+              <div class="text-xs text-slate-500"><%= contact.phone_number.presence || '—' %></div>
+            </td>
+            <td class="px-3 py-2"><%= contact.identifier.presence || '—' %></td>
+            <td class="px-3 py-2">
+              <% if contact.blocked? %>
+                <span class="inline rounded-full bg-red-200 text-red-800 px-2 text-xs">blocked</span>
+              <% else %>
+                <span class="text-xs text-slate-500">clear</span>
+              <% end %>
+            </td>
+            <td class="px-3 py-2 text-right"><%= totals['load'] ? number_with_precision(totals['load'], precision: 2) : '—' %></td>
+            <td class="px-3 py-2 text-right"><%= totals['cashout'] ? number_with_precision(totals['cashout'], precision: 2) : '—' %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

@@ -1,0 +1,52 @@
+<%# patra-final 5g (G45): read-only listing of malformed finance entries %>
+<% content_for(:title) { 'Malformed Finance Entries' } %>
+
+<header class="main-content__header" role="banner">
+  <div>
+    <h1 class="text-base font-medium leading-6 text-n-slate-12" id="page-title">
+      Malformed Finance Entries
+    </h1>
+    <p class="text-sm font-normal leading-5 text-slate-500 m-0">
+      The rows the Command Center money scan skips. Read-only — nothing here changes data.
+    </p>
+  </div>
+</header>
+
+<section class="main-content__body px-8">
+  <% if @rows.empty? %>
+    <p class="text-sm text-slate-500">No malformed finance entries found. 🎉</p>
+  <% else %>
+    <p class="text-xs text-slate-500 mb-2">
+      <%= @rows.size %> entr<%= @rows.size == 1 ? 'y' : 'ies' %> shown (cap <%= Patra::FinanceAnalytics::MALFORMED_REPORT_LIMIT %>).
+      "Raw" is the entry exactly as stored on the contact.
+    </p>
+    <table class="w-full text-sm border border-slate-200 rounded">
+      <thead>
+        <tr class="text-left bg-slate-100">
+          <th class="px-3 py-2 font-medium">Account</th>
+          <th class="px-3 py-2 font-medium">Contact</th>
+          <th class="px-3 py-2 font-medium">Why it's malformed</th>
+          <th class="px-3 py-2 font-medium">Logged at (raw)</th>
+          <th class="px-3 py-2 font-medium">Raw entry</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @rows.each do |row| %>
+          <tr class="border-t border-slate-200 align-top">
+            <td class="px-3 py-2 whitespace-nowrap">
+              <%= link_to (@account_names[row[:account_id]] || 'Account'), super_admin_account_path(row[:account_id]), class: 'underline' %>
+              <span class="text-xs text-slate-400">#<%= row[:account_id] %></span>
+            </td>
+            <td class="px-3 py-2">
+              <a class="underline" target="_blank" rel="noopener"
+                 href="/app/accounts/<%= row[:account_id] %>/contacts/<%= row[:contact_id] %>">#<%= row[:contact_id] %></a>
+            </td>
+            <td class="px-3 py-2"><%= row[:reason] %></td>
+            <td class="px-3 py-2 text-xs"><%= row[:logged_at].presence || '—' %></td>
+            <td class="px-3 py-2 font-mono text-xs break-all"><%= row[:raw] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

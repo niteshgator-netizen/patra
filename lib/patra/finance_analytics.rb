@@ -38,6 +38,53 @@ module Patra
       new(range: range, account_id: account_id).scan
     end
 
+    # patra-final 5g (G45): READ-ONLY listing of the entries the scan counts
+    # as malformed — mirrors ingest_contact/ingest_money_entry classification
+    # exactly so the listing matches the "N malformed" warning. Never mutates.
+    MALFORMED_REPORT_LIMIT = 200
+
+    def self.malformed_report(limit: MALFORMED_REPORT_LIMIT)
+      rows = []
+      scope = Contact.where('custom_attributes ? :key', key: FINANCE_LOG_KEY)
+                     .select(:id, :account_id, :custom_attributes)
+      scope.find_each(batch_size: BATCH_SIZE) do |contact|
+        collect_malformed_for_contact(contact, rows)
+        break if rows.size >= limit
+      end
+      rows.first(limit)
+    end
+
+    def self.collect_malformed_for_contact(contact, rows)
+      entries = (contact.custom_attributes || {})[FINANCE_LOG_KEY]
+      unless entries.is_a?(Array)
+        rows << malformed_row(contact, entries, 'finance log is not a list')
+        return
+      end
+
+      parser = new(range: nil)
+      entries.each do |raw|
+        unless raw.is_a?(Hash)
+          rows << malformed_row(contact, raw, 'entry is not a key/value row')
+          next
+        end
+        next unless MONEY_KINDS.include?(raw['kind'].to_s)
+
+        amount_bad = parser.send(:parse_amount, raw['amount']).nil?
+        time_bad = parser.send(:parse_time, raw['logged_at']).nil?
+        rows << malformed_row(contact, raw, [amount_bad ? 'unparseable amount' : nil, time_bad ? 'unparseable time' : nil].compact.join(' + ')) if amount_bad || time_bad
+      end
+    end
+
+    def self.malformed_row(contact, raw, reason)
+      {
+        account_id: contact.account_id,
+        contact_id: contact.id,
+        raw: raw.inspect.to_s.truncate(160),
+        logged_at: raw.is_a?(Hash) ? raw['logged_at'].to_s : '',
+        reason: reason
+      }
+    end
+
     def scan
       acc = blank_accumulator
       contact_scope.find_each(batch_size: BATCH_SIZE) { |contact| ingest_contact(contact, acc) }

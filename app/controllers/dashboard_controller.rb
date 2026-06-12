@@ -26,6 +26,15 @@ class DashboardController < ActionController::Base
     INSTALLATION_PRICING_PLAN
   ].freeze
 
+  # patra-final 5d (G40): Patra is a hard fork — the dashboard always brands
+  # as Patra at code level (MIT core). We deliberately do NOT write these into
+  # InstallationConfig: the EE plan-reconcile job resets those rows nightly on
+  # the community plan and raises the "unauthorized premium changes" banner.
+  PATRA_BRANDING_OVERRIDES = {
+    'INSTALLATION_NAME' => 'Patra',
+    'BRAND_NAME' => 'Patra'
+  }.freeze
+
   before_action :set_application_pack
   before_action :set_global_config
   before_action :set_dashboard_scripts
@@ -44,7 +53,7 @@ class DashboardController < ActionController::Base
   end
 
   def set_global_config
-    @global_config = GlobalConfig.get(*GLOBAL_CONFIG_KEYS).merge(app_config)
+    @global_config = GlobalConfig.get(*GLOBAL_CONFIG_KEYS).merge(app_config).merge(PATRA_BRANDING_OVERRIDES)
   end
 
   def set_dashboard_scripts

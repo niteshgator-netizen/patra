@@ -85,7 +85,14 @@ as well as a link to its edit page.
                 ) %>
               </div>
 
-              <div class="attribute-data attribute-data--<%=attribute.html_class%>"><%= render_field attribute, page: page %></div>
+              <% if attribute.name == 'custom_attributes' %>
+                <%# patra-final 5c (G53): key/value table instead of a raw hash dump %>
+                <div class="attribute-data">
+                  <%= render partial: 'custom_attributes_table', locals: { resource: page.resource } %>
+                </div>
+              <% else %>
+                <div class="attribute-data attribute-data--<%=attribute.html_class%>"><%= render_field attribute, page: page %></div>
+              <% end %>
             <% end %>
           </fieldset>
         <% end %>

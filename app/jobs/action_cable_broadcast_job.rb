@@ -14,6 +14,8 @@ class ActionCableBroadcastJob < ApplicationJob
     return if members.blank?
 
     broadcast_data = prepare_broadcast_data(event_name, data)
+    return if broadcast_data.nil?
+
     broadcast_to_members(members, event_name, broadcast_data)
   end
 
@@ -25,9 +27,21 @@ class ActionCableBroadcastJob < ApplicationJob
   def prepare_broadcast_data(event_name, data)
     return data unless CONVERSATION_UPDATE_EVENTS.include?(event_name)
 
+    # patra-final 5a (G59): conversations with a nil display_id (or already
+    # deleted records) made find_by!/find raise here and the job died —
+    # 1,189 dead jobs piled up. A websocket refresh event is best-effort:
+    # log and drop instead of dying.
+    if data[:id].blank?
+      Rails.logger.warn "ActionCableBroadcastJob: skipping #{event_name} — nil conversation display_id (account #{data[:account_id]})"
+      return nil
+    end
+
     account = Account.find(data[:account_id])
     conversation = account.conversations.find_by!(display_id: data[:id])
     conversation.push_event_data.merge(account_id: data[:account_id])
+  rescue ActiveRecord::RecordNotFound
+    Rails.logger.warn "ActionCableBroadcastJob: skipping #{event_name} — conversation #{data[:id]} / account #{data[:account_id]} not found"
+    nil
   end
 
   def broadcast_to_members(members, event_name, broadcast_data)

@@ -909,6 +909,10 @@ Rails.application.routes.draw do
       post :set_plan_feature
       post :assign_plan
     end
+    # patra-final 5e (G44): cross-account player search, read-only.
+    resource :patra_players, only: [:show], controller: 'patra_players'
+    # patra-final 5g (G45): read-only browser for malformed finance entries.
+    resource :patra_malformed_finance, only: [:show], controller: 'patra_malformed_finance'
   end
   # == END PATRA TAB-C ROUTES ==
 end

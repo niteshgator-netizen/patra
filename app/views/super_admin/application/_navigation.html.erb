@@ -53,12 +53,14 @@ as defined by the routes in the `admin/` namespace
       <%= render partial: "nav_item", locals: { icon: 'icon-grid-line', url: super_admin_patra_feature_gating_path, label: 'Feature Gating' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-robot-line', url: super_admin_patra_game_health_path, label: 'Game Health' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-health-book-line', url: super_admin_patra_admin_audit_logs_path, label: 'Audit Trail' } %>
+      <%# patra-final 5e (G44): cross-account player search (read-only) %>
+      <%= render partial: "nav_item", locals: { icon: 'icon-user-follow-line', url: super_admin_patra_players_path, label: 'Player Search' } %>
     </ul>
     <div class="patra-nav-section">Platform</div>
     <ul class="mb-2">
       <%= render partial: "nav_item", locals: { icon: 'icon-grid-line', url: super_admin_root_url, label: 'Overview' } %>
       <% Administrate::Namespace.new(namespace).resources.each do |resource| %>
-        <% next if ["account_users", "access_tokens", "installation_configs", "dashboard", "devise/sessions", "app_configs", "instance_statuses", "settings", "push_diagnostics", "agent_bots", "platform_apps", "patra_dashboard", "feature_flags", "patra_admin_audit_logs", "patra_accounts", "patra_game_health", "patra_impersonations", "patra_plans", "patra_feature_gating"].include?  resource.resource %>
+        <% next if ["account_users", "access_tokens", "installation_configs", "dashboard", "devise/sessions", "app_configs", "instance_statuses", "settings", "push_diagnostics", "agent_bots", "platform_apps", "patra_dashboard", "feature_flags", "patra_admin_audit_logs", "patra_accounts", "patra_game_health", "patra_impersonations", "patra_plans", "patra_feature_gating", "patra_players"].include?  resource.resource %>
         <% next if resource.resource == "platform_banners" && !ChatwootApp.chatwoot_cloud? %>
         <%= render partial: "nav_item", locals: {
             icon: sidebar_icons[resource.resource.to_sym],

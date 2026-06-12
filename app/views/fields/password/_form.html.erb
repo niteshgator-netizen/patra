@@ -1,0 +1,13 @@
+<%#
+patra-final 5b (G58): override of administrate's password form partial.
+The super-admin New User form was browser-autofilled with the logged-in
+admin's saved credentials. `new-password` tells the browser this is an
+account-creation field, and we never echo a server-side value.
+%>
+
+<div class="field-unit__label">
+  <%= f.label field.attribute %>
+</div>
+<div class="field-unit__field">
+  <%= f.password_field field.attribute, value: '', autocomplete: 'new-password' %>
+</div>

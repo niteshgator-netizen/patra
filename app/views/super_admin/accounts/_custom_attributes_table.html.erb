@@ -1,0 +1,36 @@
+<%#
+patra-final 5c (G53): custom_attributes used to render as a raw Ruby hash
+dump. This renders a key/value table instead; values longer than 80 chars
+collapse behind a native <details> expander (no JS needed).
+%>
+<% attrs = resource.custom_attributes || {} %>
+<% if attrs.empty? %>
+  <span class="text-n-slate-11">None</span>
+<% else %>
+  <table class="w-full text-sm border border-n-weak rounded">
+    <thead>
+      <tr class="text-left bg-n-alpha-2">
+        <th class="px-3 py-1.5 font-medium">Key</th>
+        <th class="px-3 py-1.5 font-medium">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% attrs.each do |key, value| %>
+        <% value_text = value.is_a?(String) ? value : value.to_json %>
+        <tr class="border-t border-n-weak align-top">
+          <td class="px-3 py-1.5 font-mono whitespace-nowrap"><%= key %></td>
+          <td class="px-3 py-1.5 break-all">
+            <% if value_text.to_s.length > 80 %>
+              <details>
+                <summary class="cursor-pointer"><%= truncate(value_text, length: 80) %></summary>
+                <span class="break-all"><%= value_text %></span>
+              </details>
+            <% else %>
+              <%= value_text %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

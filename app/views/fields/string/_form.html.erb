@@ -1,0 +1,13 @@
+<%#
+patra-final 5b (G58): override of administrate's string form partial.
+autocomplete=off keeps the browser from dropping the admin's saved email
+into the Name field on the New User form (it pattern-matched the form as
+a login form). Applies to all super-admin string inputs — harmless there.
+%>
+
+<div class="field-unit__label">
+  <%= f.label field.attribute %>
+</div>
+<div class="field-unit__field">
+  <%= f.text_field field.attribute, autocomplete: 'off' %>
+</div>
