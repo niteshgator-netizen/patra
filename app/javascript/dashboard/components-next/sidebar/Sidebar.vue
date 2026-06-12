@@ -57,10 +57,13 @@ const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
 
-const hasAdvancedAssignment = computed(() => {
+// patra-final 2c: the settings entry now gates on the same flag as the
+// assignment_policy_index route itself (assignment_v2, core, default-on) —
+// the old ADVANCED_ASSIGNMENT gate (EE premium) hid a working page.
+const hasAssignmentV2 = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
-    FEATURE_FLAGS.ADVANCED_ASSIGNMENT
+    FEATURE_FLAGS.ASSIGNMENT_V2
   );
 });
 
@@ -423,10 +426,13 @@ const menuItems = computed(() => {
       ],
     },
     {
+      // patra-final 2a: Reports now lands on the hub page (grouped cards for
+      // every report); the sweepstakes report is the hub's featured card.
       name: 'PatraReports',
       label: t('PATRA.REPORTS.NAV'),
       icon: 'i-lucide-chart-spline',
-      to: accountScopedRoute('patra_reports'),
+      to: accountScopedRoute('patra_reports_hub'),
+      activeOn: ['patra_reports_hub', 'patra_reports'],
     },
     // Phase H.10 item 5: Campaigns nav entry hidden. Routes still registered;
     // only the sidebar link is removed.
@@ -511,20 +517,34 @@ const menuItems = computed(() => {
           to: accountScopedRoute('patra_backup_pages'),
           activeOn: ['patra_backup_pages'],
         },
-        {
-          name: 'Broadcasts',
-          label: 'Broadcasts',
-          icon: 'i-lucide-megaphone',
-          to: accountScopedRoute('campaigns_livechat_index'),
-          activeOn: ['campaigns_livechat_index'],
-        },
-        {
-          name: 'Audit Logs',
-          label: 'Audit Logs',
-          icon: 'i-lucide-scroll-text',
-          to: accountScopedRoute('auditlogs_list'),
-          activeOn: ['auditlogs_list'],
-        },
+        ...(currentRole.value === 'administrator'
+          ? [
+              {
+                // patra-final 2c: was pointing at the old Campaigns route
+                // (campaigns_livechat_index) — now lands on the real Patra
+                // Broadcasts list. Admin-gated to match the route meta.
+                name: 'Broadcasts',
+                label: 'Broadcasts',
+                icon: 'i-lucide-megaphone',
+                to: accountScopedRoute('patra_broadcast_list'),
+                activeOn: [
+                  'patra_broadcast_list',
+                  'patra_broadcast_compose_new',
+                  'patra_broadcast_compose',
+                ],
+              },
+              {
+                // patra-final 2c: was pointing at the EE audit-logs page
+                // (auditlogs_list), which is feature-gated off on the
+                // community plan — now lands on Patra's own audit trail.
+                name: 'Audit Logs',
+                label: 'Audit Logs',
+                icon: 'i-lucide-scroll-text',
+                to: accountScopedRoute('patra_audit_logs'),
+                activeOn: ['patra_audit_logs'],
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -573,11 +593,11 @@ const menuItems = computed(() => {
           ],
           to: accountScopedRoute('settings_teams_list'),
         },
-        ...(hasAdvancedAssignment.value
+        ...(hasAssignmentV2.value
           ? [
               {
                 name: 'Settings Agent Assignment',
-                label: t('SIDEBAR.AGENT_ASSIGNMENT'),
+                label: 'Auto-routing',
                 icon: 'i-lucide-user-cog',
                 activeOn: [
                   'assignment_policy_index',
@@ -612,8 +632,22 @@ const menuItems = computed(() => {
           icon: 'i-lucide-tags',
           to: accountScopedRoute('labels_list'),
         },
-        // Phase H.10 item 6: Custom Attributes / Agent Bots / Macros hidden.
-        // Routes still registered; only sidebar entries removed.
+        // patra-final 2c: Custom Attributes + Macros restored to settings nav
+        // (hidden since H.10 item 6; both pages work). Agent Bots stays hidden.
+        {
+          name: 'Settings Custom Attributes',
+          label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
+          icon: 'i-lucide-list-checks',
+          to: accountScopedRoute('attributes_list'),
+          activeOn: ['attributes_list'],
+        },
+        {
+          name: 'Settings Macros',
+          label: t('SIDEBAR.MACROS'),
+          icon: 'i-lucide-zap',
+          to: accountScopedRoute('macros_wrapper'),
+          activeOn: ['macros_wrapper', 'macros_new', 'macros_edit'],
+        },
         {
           name: 'Settings Automation',
           label: t('SIDEBAR.AUTOMATION'),
@@ -701,9 +735,16 @@ const menuItems = computed(() => {
           to: accountScopedRoute('sla_list'),
           activeOn: ['sla_list'],
         },
-        // Phase H.10 item 6: Audit Logs / Custom Roles / Conversation
-        // Workflow / Security hidden (SLA restored above, patra-fix2 F14).
-        // Routes still registered.
+        // patra-final 2c: Audit Logs restored — points at Patra's own audit
+        // trail page, not the EE one. Custom Roles / Conversation Workflow /
+        // Security stay hidden (deliberate, H.10 item 6).
+        {
+          name: 'Settings Audit Logs',
+          label: t('SIDEBAR.AUDIT_LOGS'),
+          icon: 'i-lucide-scroll-text',
+          to: accountScopedRoute('patra_audit_logs'),
+          activeOn: ['patra_audit_logs'],
+        },
         {
           name: 'Settings Billing',
           label: t('SIDEBAR.BILLING'),

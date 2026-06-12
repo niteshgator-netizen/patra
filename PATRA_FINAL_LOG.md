@@ -66,3 +66,40 @@ bundle exec rails runner "a=Account.find(2); %w[sla audit_logs disable_branding 
 
 ### Phase 1 code changes
 None. The legitimate fix is operational (commands above) + Phase 5d's code-level branding. No EE file was modified.
+
+---
+
+## PHASE 2 — NAVIGATION REORG
+
+### Nav map: BEFORE → AFTER
+
+| Item | Before | After |
+|---|---|---|
+| Reports (rail) | → `/patra/reports` directly | → `/patra/reports-hub` (new hub page, sweepstakes report = featured card) |
+| More → Broadcasts | → `campaigns_livechat_index` (wrong target — old Campaigns) | → `patra_broadcast_list` (the real Broadcasts UI), admin-gated |
+| More → Audit Logs | → `auditlogs_list` (EE page, feature-gated OFF — dead link) | → `patra_audit_logs` (new Patra page over Patra's own AuditLog model), admin-gated |
+| More → Cashier Queue | already present (`patra_cashier_queue`) | unchanged — 2b was already satisfied by a prior fix; verified route + entry both exist |
+| More → Backup Pages | already present (`patra_backup_pages`) | unchanged — same |
+| Settings → Auto-routing | "Agent Assignment", gated on EE `advanced_assignment` flag (hidden in practice) | labeled **Auto-routing**, gated on `assignment_v2` (core, default-on — same flag as the route itself) |
+| Settings → Custom Attributes | hidden (H.10) | restored → `attributes_list` (the real persisted page; `patra_custom_attributes` builder is a non-persisting demo — left URL-only) |
+| Settings → Macros | hidden (H.10) | restored → `macros_wrapper` |
+| Settings → Audit Logs | hidden (H.10) | added → `patra_audit_logs` |
+| Custom Roles / Security / Conversation Workflow / Campaigns | hidden | still hidden (deliberate) |
+
+### 2a Reports hub — new files
+- `app/javascript/dashboard/routes/dashboard/patra/PatraReportsHub.vue` (new): featured Sweepstakes Reports card + grouped cards: Owner Live Overview (`account_overview_reports`), Agent Leaderboard (`patra_leaderboard`), Sweeps Financial (`patra_sweeps_report`), CSAT (`csat_reports`), Agents (`agent_reports`), SLA (`sla_reports`), Conversations (`conversation_reports`), Inboxes (`inbox_reports`), Labels (`label_reports`), Teams (`team_reports`). One-line plain-English description per card. Admin-only cards hide for agents (matches target-route permissions). Patra tokens (n-slate/n-weak/n-solid), works in both themes.
+- Route `patra/reports-hub` → `patra_reports_hub` registered in `dashboard.routes.js`.
+
+### 2c Audit logs page — new files
+- `app/javascript/dashboard/routes/dashboard/patra/PatraAuditLogs.vue` (new): last 100 entries from `GET /api/v1/accounts/:id/patra_audit_logs` (existing controller), table with time/action/target/details/IP.
+- `app/javascript/dashboard/api/patraAuditLogs.js` (new API client).
+- Route `patra/audit-logs` → `patra_audit_logs` (admin) in `dashboard.routes.js`.
+
+### 2d Macros copy
+- `app/javascript/dashboard/i18n/locale/en/macros.json` MACROS.DESCRIPTION: Chatwoot email-transcript text → Patra voice ("...label a chat, assign it to a team, update a player attribute...").
+
+### Files changed in Phase 2
+- `app/javascript/dashboard/components-next/sidebar/Sidebar.vue` (nav edits above)
+- `app/javascript/dashboard/routes/dashboard/dashboard.routes.js` (2 routes)
+- `app/javascript/dashboard/i18n/locale/en/macros.json` (copy)
+- 3 new files (hub page, audit page, api client)

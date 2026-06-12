@@ -20,6 +20,8 @@ import PatraReports from './patra/PatraReports.vue';
 import PatraFacebookAccounts from './patra/PatraFacebookAccounts.vue';
 import PatraBackupPages from './patra/PatraBackupPages.vue';
 import PatraCashierQueue from './patra/PatraCashierQueue.vue';
+import PatraReportsHub from './patra/PatraReportsHub.vue';
+import PatraAuditLogs from './patra/PatraAuditLogs.vue';
 import broadcastsRoutes from './broadcasts/broadcasts.routes';
 import Leaderboard from './reports/Leaderboard.vue';
 import SweepsReport from './reports/SweepsReport.vue';
@@ -102,6 +104,28 @@ export default {
           component: PatraReports,
           meta: {
             permissions: ['administrator', 'agent'],
+          },
+        },
+        {
+          // patra-final 2a: the Reports rail item lands here — a hub of all
+          // report pages (sweepstakes + stock Chatwoot) with plain-English
+          // descriptions. The sweepstakes report above stays the featured card.
+          path: 'patra/reports-hub',
+          name: 'patra_reports_hub',
+          component: PatraReportsHub,
+          meta: {
+            permissions: ['administrator', 'agent'],
+          },
+        },
+        {
+          // patra-final 2c: Patra's own audit trail (AuditLog model +
+          // patra_audit_logs API) finally gets a page. The EE audit-logs page
+          // (auditlogs_list) is feature-gated off on the community plan.
+          path: 'patra/audit-logs',
+          name: 'patra_audit_logs',
+          component: PatraAuditLogs,
+          meta: {
+            permissions: ['administrator'],
           },
         },
         {
