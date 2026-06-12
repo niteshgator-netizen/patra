@@ -1195,7 +1195,7 @@ module Games
         return nil if t.empty? || t.length > 80
 
         if (m = t.match(/\bcash\.app\/\$?([A-Za-z][A-Za-z0-9._\-]{2,30})/i))
-          return { intent: :customer_tag_provided, tag: "$#{m[1]}", platform: 'cashapp', amount: nil }
+          return { intent: :customer_tag_provided, tag: "$#{trim_tag(m[1])}", platform: 'cashapp', amount: nil }
         end
 
         if (m = t.match(/\A\s*#{CUSTOMER_TAG_LEAD}(?:(cashapp|cash\s*app|chime|venmo|paypal|zelle)(?:\s+is|\s*:)?\s+)?([\$@][A-Za-z][A-Za-z0-9._\-]{2,30})\s*(?:\$?(\d+(?:\.\d{1,2})?)\$?)?\s*\z/i))
@@ -1204,9 +1204,18 @@ module Games
                      elsif m[2].start_with?('$')
                        'cashapp'
                      end
-          return { intent: :customer_tag_provided, tag: m[2], platform: platform, amount: m[3] ? m[3].to_f : nil }
+          sigil = m[2][0]
+          return { intent: :customer_tag_provided, tag: "#{sigil}#{trim_tag(m[2][1..])}", platform: platform, amount: m[3] ? m[3].to_f : nil }
         end
         nil
+      end
+
+      # bp5 P8 (red-team C): a tag often arrives with sentence punctuation
+      # glued on ("$tag." / "$tag_"). Strip trailing non-alphanumerics so the
+      # stored destination is clean AND so the orchestrator's our-handle echo
+      # veto compares apples to apples.
+      def trim_tag(token)
+        token.to_s.sub(/[^A-Za-z0-9]+\z/, '')
       end
 
       # bp5 R2: whole-message match against CONTEXT_ANSWER_KINDS after
