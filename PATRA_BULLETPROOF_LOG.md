@@ -581,3 +581,33 @@ RED-TEAM (P7 adversary agent) confirmed 3 real holes; all fixed + re-verified 31
   trailing-punct variants. Mirrors tmp/bp5_verify_p8.rb (31/31, already verified). Render full
   harness picks these up. Assertions only ever increased across the whole BP5 run (142 baseline
   pre-BULLETPROOF → 203 post-BULLETPROOF → 239 post-BP5).
+
+================================================================================
+# BP5 — MEASURE + CONVERGENCE (final phase)
+================================================================================
+### TIER-1 CURVE (full 73,070-row READ-ONLY re-runs, detector + routing map)
+| stage                       | resolved | money-miss(HIGH) | delta vs baseline |
+|-----------------------------|----------|------------------|-------------------|
+| baseline (pre-BP5, HEAD)    | 51.7%    | 22,969           | —                 |
+| after P2-P8 (BP5 core)      | 53.8%    | 21,569           | -1,400 (-6.1%)    |
+| after iter-C1 (convergence) | 54.3%    | 21,257           | -1,712 (-7.5%)    |
+- detect errors: 0 across all 73k rows at every stage.
+### CONVERGENCE LOOP — STOPPED after iter-C1 (rule: <2% improvement)
+- iter-C1 added 3 safe corpus routings (reviewer SHIP, 22/22 + live steal-probe + ReDoS check):
+  "can u let me know when loaded" + game-first "Juwa Loaded?" → status_check; "where do i deposit/
+  send/pay/put" → payment_method_question; "tag for <platform>" → payment_method_chosen. Delta
+  -312 (-1.4%) → below the 2% threshold → loop STOPS (1 iteration; max was 4).
+### REMAINING CLUSTERS — NOT routed (NEW PRODUCT-DECISION QUEUE / grader noise):
+1. GRATITUDE mislabeled load_deposit (~217 rows: "thanks"/"thank you"/"ok thanks"/"ok ty") — these
+   CORRECTLY fall through (R2: gratitude is chitchat, NEVER money). The Tier-1 money_miss counter
+   over-counts them because the LABEL is load_deposit; routing them to money would VIOLATE R2.
+   GRADER NOISE, not a detector gap. (Could exempt gratitude from Tier-1 money_miss like P6 did for
+   Tier-2, but that is a grader change outside this run's scope — QUEUED.)
+2. "Yes $tag" / "Yes 10" (#5, ~20 rows) — affirm + a pasted tag/amount. Routable by adding "yes" to
+   CUSTOMER_TAG_LEAD, but mixes with R2 affirm — needs a product call on precedence. QUEUED.
+3. "Fire plz" (#10, ~18 rows) — bare "fire" → fire_kirin alias. "fire" is a common word (denylisted);
+   adding it risks broad false loads. PRODUCT DECISION (is bare "fire" always fire_kirin here?). QUEUED.
+4. Long tail of vague/unique single messages — no cluster ≥ ~18 after the above; diminishing returns.
+### TIER 2 (DeepSeek reply grading)
+- LOCAL: DEEPSEEK_API_KEY absent → auto-skipped (Tier-2 graders are now P6-calibrated; first run
+  was 215/65 of 280 ~23% fail before calibration). RENDER command below.

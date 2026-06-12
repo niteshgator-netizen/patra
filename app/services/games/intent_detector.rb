@@ -93,7 +93,9 @@ module Games
       /\bhow\s+(?:can|do)\s+i\s+pay\b/i,
       /\bpayment\s+(?:methods?|options?)\b/i,
       /\bwhat\s+do\s+you\s+accept\b/i,
-      /\bhow\s+(?:can|do)\s+i\s+(?:send|deposit)\b/i
+      /\bhow\s+(?:can|do)\s+i\s+(?:send|deposit)\b/i,
+      # bp5 iter-C1: "Where do I deposit?" / "where do i send the money".
+      /\bwhere\s+(?:do|can|should)\s+i\s+(?:deposit|send|pay|put)\b/i
     ].freeze
 
     CASHOUT_PATTERNS = [
@@ -406,7 +408,9 @@ module Games
       /\A\s*(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s*\?+\s*\z/i,
       # bp iter4: "PayPal available?" — availability ask = tag request.
       /\b(cashapp|cash\s*app|chime|venmo|paypal|zelle)\s+available\b/i,
-      /\bdo\s+(?:you|u|yall|y'?all)\s+(?:have|take|accept|do)\s+(apple\s*pay|cashapp|cash\s*app|chime|venmo|paypal|zelle)/i
+      /\bdo\s+(?:you|u|yall|y'?all)\s+(?:have|take|accept|do)\s+(apple\s*pay|cashapp|cash\s*app|chime|venmo|paypal|zelle)/i,
+      # bp5 iter-C1: "tag for chime" / "get a tag for chime please" (corpus).
+      /\b(?:tag|handle|info)\s+for\s+(?:the\s+)?(cashapp|cash\s*app|chime|venmo|paypal|zelle)\b/i
     ].freeze
 
     # Stand-downs: mentions a platform/handle but is NOT a method pick — cashout
@@ -490,7 +494,13 @@ module Games
       # anchored to the message START so combined money asks keep their route
       # (\"sent 20 lmk when loaded\" stays payment_sent; \"put 5 on juwa lmk
       # when loaded\" stays load)
-      /\A\s*(?:ok\s+|plz+\s+|pls+\s+|please\s+)?(?:lmk|let\s+me\s+know)\s+when\b[^.!?]{0,40}\bloaded\b/i
+      /\A\s*(?:ok\s+|plz+\s+|pls+\s+|please\s+)?(?:lmk|let\s+me\s+know)\s+when\b[^.!?]{0,40}\bloaded\b/i,
+      # bp5 iter-C1: "can u/can you let me know when it's loaded plz love"
+      # (corpus cluster) — pure status ask, no amount/game so it cannot swallow
+      # a money intent.
+      /\A\s*(?:can\s+(?:u|you|ya)\s+)?(?:please\s+|plz+\s+|pls+\s+)?(?:lmk|let\s+me\s+know)\s+(?:when|once|after)\b[^.!?]{0,40}\bloaded\b/i,
+      # bp5 iter-C1: "Juwa Loaded?" / "Juwa2.0 Loaded?" — game-first status ask
+      /\A[a-z0-9. ]{2,22}\bloaded\s*\?+\s*\z/i
     ].freeze
 
     COMPLAINT_ANGRY_PATTERNS = [
