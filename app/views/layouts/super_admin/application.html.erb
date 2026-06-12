@@ -19,7 +19,9 @@ By default, it renders:
   <meta name="ROBOTS" content="NOODP">
   <meta name="viewport" content="initial-scale=1">
   <title>
-    <%= content_for(:title) %> - <%= application_title %>
+    <%# patra-fix2 F5: application_title resolves to the Rails app module
+        ("Chatwoot") - hardcode the brand instead of renaming the module. %>
+    <%= content_for(:title) %> - Patra
   </title>
   <%= render "stylesheet" %>
   <%= render "patra_admin_styles" %>

@@ -389,6 +389,7 @@
       "SHOWING": "Showing {startItem}–{endItem} of {totalItems} contact | Showing {startItem}–{endItem} of {totalItems} contacts"
     },
     "DETAIL_EMPTY": {
+      "TITLE": "Select a contact to see details.",
       "HISTORY": "No activity history yet.",
       "NOTES": "No notes yet.",
       "MEDIA": "No media yet.",

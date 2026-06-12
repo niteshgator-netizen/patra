@@ -597,7 +597,9 @@ const onSpotlightLeave = () => {
 
       <div class="detail detail-empty">
         <div class="empty-note">
-          {{ t('CONTACTS_LAYOUT.DETAIL_EMPTY') }}
+          <!-- patra-fix2 F6: DETAIL_EMPTY is an object - addressing the
+               parent key rendered the raw key string. -->
+          {{ t('CONTACTS_LAYOUT.DETAIL_EMPTY.TITLE') }}
         </div>
       </div>
     </div>
