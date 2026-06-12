@@ -71,16 +71,9 @@ const menuItems = computed(() => {
       icon: 'i-lucide-user-pen',
       link: { name: 'profile_settings_index' },
     },
-    {
-      show: true,
-      showOnCustomBrandedInstance: true,
-      label: t('SIDEBAR_ITEMS.APPEARANCE'),
-      icon: 'i-lucide-palette',
-      click: () => {
-        const ninja = document.querySelector('ninja-keys');
-        ninja.open({ parent: 'appearance_settings' });
-      },
-    },
+    // patra-fix2 F10: "Change appearance" removed - it opened a redundant
+    // ninja-keys palette; Profile settings -> Appearance is the canonical
+    // toggle (the Cmd/Ctrl+K command bar still drives the same setting).
     {
       show: currentUser.value.type === 'SuperAdmin',
       showOnCustomBrandedInstance: true,

@@ -21,6 +21,20 @@ const defaultSansFonts = [
 
 const tailwindConfig = {
   darkMode: 'class',
+  // patra-fix2 F9: the avatar-popover icon classes exist only as JS string
+  // props; across builds the generated utilities drifted between CSS chunks
+  // and some deployed sheets dropped them (keyboard/palette/power rendered
+  // blank while sibling rows worked). Safelisting pins them into the emitted
+  // CSS regardless of content-scan/chunk placement. Works in both themes -
+  // mask icons paint with currentColor.
+  safelist: [
+    'i-lucide-life-buoy',
+    'i-lucide-keyboard',
+    'i-lucide-user-pen',
+    'i-lucide-palette',
+    'i-lucide-castle',
+    'i-lucide-power',
+  ],
   content: [
     './enterprise/app/views/**/*.html.erb',
     './app/javascript/widget/**/*.vue',
