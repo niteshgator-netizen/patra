@@ -112,6 +112,17 @@ export default {
             permissions: ['administrator', 'agent'],
           },
         },
+        // patra-fix2 F3: both audited spellings 404'd - the page lives at
+        // patra/leaderboard (sidebar already points there); keep the other
+        // two URLs working as aliases.
+        {
+          path: 'patra/agent-leaderboard',
+          redirect: { name: 'patra_leaderboard' },
+        },
+        {
+          path: 'reports/leaderboard',
+          redirect: { name: 'patra_leaderboard' },
+        },
         {
           path: 'patra/sweeps',
           name: 'patra_sweeps_report',

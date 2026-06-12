@@ -17,12 +17,25 @@ By default, the relationship is rendered as a link to the associated object.
 %>
 
 <% if field.data %>
-  <% if existing_action?(field.data.class, :show) %>
-    <%= link_to(
-      field.display_associated_resource,
-      [namespace, field.data],
-    ) %>
+  <%# patra-fix2 F1: same nil/route/dashboard hardening as the index partial -
+      targets without an Administrate dashboard (e.g. PatraPlan) must render
+      as plain text instead of 500ing the audit show page. %>
+  <% display = begin
+       field.display_associated_resource
+     rescue StandardError
+       "#{field.data.class.name} ##{field.data.id}"
+     end %>
+  <% if (begin
+          existing_action?(field.data.class, :show)
+        rescue StandardError
+          false
+        end) %>
+    <%= begin
+          link_to(display, [namespace, field.data])
+        rescue StandardError
+          display
+        end %>
   <% else %>
-    <%= field.display_associated_resource %>
+    <%= display %>
   <% end %>
 <% end %>

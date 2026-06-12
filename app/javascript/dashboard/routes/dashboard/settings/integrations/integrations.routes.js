@@ -117,6 +117,15 @@ export default {
           },
         },
         {
+          // patra-fix2 F8: Patra's brain is DeepSeek - the stock OpenAI
+          // integration is not configured here (no apps.yml entry), so the
+          // :integration_id catch-all rendered a blank IntegrationHooks page
+          // for /settings/integrations/openai. Route hidden (redirects to the
+          // list), nothing deleted.
+          path: 'openai',
+          redirect: { name: 'settings_applications' },
+        },
+        {
           path: ':integration_id',
           name: 'settings_applications_integration',
           component: IntegrationHooks,

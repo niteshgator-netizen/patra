@@ -17,15 +17,26 @@ By default, the relationship is rendered as a link to the associated object.
 %>
 
 <% if field.data %>
+  <%# patra-fix2 F1: real audit rows reference targets with no Administrate
+      dashboard or show route (e.g. PatraPlan) - display_associated_resource
+      raises DashboardLoadError and [namespace, data] raises on URL
+      generation, 500ing the whole index. Fall back to "Class #id" text and
+      only link when the route actually resolves. %>
+  <% display = begin
+       field.display_associated_resource
+     rescue StandardError
+       "#{field.data.class.name} ##{field.data.id}"
+     end %>
   <% if field.data.is_a? User %>
     <%= link_to(
       "User ##{field.data.id}",
       super_admin_user_path(field.data)
     ) %>
   <% else %>
-    <%= link_to(
-      field.display_associated_resource,
-      [namespace, field.data]
-    ) %>
+    <%= begin
+          link_to(display, [namespace, field.data])
+        rescue StandardError
+          display
+        end %>
   <% end %>
 <% end %>
