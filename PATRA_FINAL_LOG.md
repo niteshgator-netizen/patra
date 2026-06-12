@@ -247,3 +247,33 @@ Recommendation: run 1–3; skip 4 (the dashboard already shows Patra via the cod
 | After P5 (bug closures) | `e30c7a4bf` |
 | After P6 (polish) | `86c008ec8` |
 | After vite bundles | `fadceae9b` |
+
+---
+
+## PHASE 7 — SELF-VERIFICATION SWEEP
+
+### Routes added this run — each with router entry AND nav/entry link
+| Route | Router entry | Nav / entry link |
+|---|---|---|
+| `/patra/reports-hub` (`patra_reports_hub`) | dashboard.routes.js ✓ | Sidebar "Reports" rail item ✓ |
+| `/patra/audit-logs` (`patra_audit_logs`) | dashboard.routes.js ✓ | More → Audit Logs + Settings → Audit Logs ✓ |
+| `/patra/feedback` (`patra_feedback`) | dashboard.routes.js ✓ | More → Send Feedback/Agent Feedback + conversation ⋯ menu + notification click ✓ |
+| API `patra_agent_feedbacks` (index/create/update) | config/routes.rb ✓ | consumed by the /patra/feedback page (APIs have no nav by design) ✓ |
+| `/super_admin/patra_players` | config/routes.rb ✓ | super-admin nav "Player Search" ✓ |
+| `/super_admin/patra_malformed_finance` | config/routes.rb ✓ | linked from both "malformed entries" warnings (Command Center + account panel) ✓ |
+
+### VERIFICATION TABLE
+| Check | Result |
+|---|---|
+| Log re-read top to bottom; per-phase changes match committed files | PASS (15/15 marker spot-checks across every load-bearing file) |
+| Every changed file re-opened / change present, no truncated edits | PASS |
+| `ruby -c` on all .rb touched this run | PASS — 16 files, 0 failures |
+| Vite build re-run | PASS — ✓ built in 35.19s, 0 bundle files differ from committed (`fadceae9b`) |
+| Hot-file names in run diff (reply_service / conversation_orchestrator / intent_detector / chatwoot_bridge_service) | PASS — zero (also zero in added lines) |
+| Owner-WIP files (telegram_notifier / winback_service / base_provider / outbound_dispatcher / zernio_provider) staged | PASS — zero staged, zero referenced |
+| "TODO" / "FIXME" / stub-"placeholder" in added lines | PASS — zero (only legit input `placeholder=` attributes / i18n keys) |
+| Secret/token-like strings in added lines | PASS — zero |
+| Every route added has router entry + nav link | PASS (table above) |
+| Committed, never pushed | PASS — all commits local on `main`, no push executed this run |
+
+All checks pass. Run complete. STOP.
