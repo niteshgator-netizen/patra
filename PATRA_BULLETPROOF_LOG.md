@@ -420,3 +420,22 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
   (orchestrator case has no :context_answer branch + no else → returns nil exactly as before);
   RAG-cutover :230-242 now bypassed for these bare phrases (a bare "ok done" can no longer be
   RAG-routed into a money intent — strictly safer).
+### P2b — R2 PENDING-QUESTION STATE (conversation_orchestrator.rb, HOT, 1 commit)
+- store_pending_question!/pending_question/clear_pending_question! (proven additional_attributes
+  pattern, <24h freshness, all rescued). 24 question sites stamped {type, context, at} — replies and
+  labels byte-identical (5 single-line returns restructured to block form, content unchanged).
+- when :context_answer → handle_context_answer: affirm→create_account_offer only; did_it→
+  handle_payment_sent_confirmation (gated; never loads without verified email match; miss counter
+  bounds repeats); same_game→dispatch_which_game_answer re-enters 12 EXISTING gated handlers
+  (verified_load re-runs the full payment gate + R7 hold); ready→question-only reprompt. Everything
+  else → nil → DeepSeek. Pre-detection pendings (account_choice/overmax/transfer_create/load+cashout
+  confirms) physically run before detection — no double-fire.
+- VERIFIED BY ME NOW: tmp/bp5_verify_p2_orch.rb 13/13 PASS incl. mandatory negatives ("Thanks" cold
+  → nil; "yes please" no-pending → nil; stale 25h → nil; affirm-on-which_game → nil). Create-path
+  re-entry asserted via dispatch stub — the real create handler reads AR-encrypted
+  agent_games.credentials (Render-only keys, LOCAL BAN) and crashes locally by design; covered by
+  Render full harness. Full local regression: BP-F1..F4 17/17 + BP-I1 + BP-I2 ALL PASS
+  (tmp/bp5_run_sections.rb wrapper adds queue_adapter=:test since no local Redis this run).
+- REVIEWER: SHIP. Zero new money paths (no executor/Telegram/panel calls in new code); benign note:
+  repeated "done" with no sender name re-asks forever without escalating (pre-existing
+  handle_payment_sent_confirmation behavior — parked in product-decision queue).

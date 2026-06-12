@@ -329,6 +329,10 @@ module Games
         # bp iter2: "same tag?" — resend the tag for the platform this
         # conversation already picked (fresh lookup), menu-once guarded.
         payment_menu_or_stored_reply
+      when :context_answer
+        # bp5 R2: bare answer ("yes please" / "i did" / "same one" / "ready")
+        # resolves against the stamped pending question; nil -> DeepSeek.
+        handle_context_answer(intent)
       end
     rescue StandardError => e
       Rails.logger.error("[ConversationOrchestrator] #{e.class}: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
@@ -417,6 +421,7 @@ module Games
       username = intent[:game_username] || verified_stored_game_username(ag)
 
       if username.present? && !valid_username?(username)
+        store_pending_question!('username', flow: 'load', game_slug: ag.game.slug, amount: requested_amount)
         return {
           reply: 'what username would you like for your account?',
           labels: ['needs-username']
@@ -425,6 +430,7 @@ module Games
 
       if username.blank?
         # Need to ask + offer auto-create
+        store_pending_question!('username', flow: 'load', game_slug: ag.game.slug, amount: requested_amount)
         return {
           reply: "got your $#{requested_amount} payment ✅ what username would you like on #{ag.game.name}? if you've never played, just pick one (3-20 letters/numbers) and i'll set up your account.",
           labels: ['needs-username']
@@ -629,6 +635,7 @@ module Games
       game_slug = chosen_game_slug(intent || { intent: :load })
 
       unless game_slug
+        store_pending_question!('which_game', flow: 'freeplay')
         return { reply: 'which game for freeplay?', labels: [] }
       end
 
@@ -886,6 +893,7 @@ module Games
     def execute_freeplay_load(game_slug, fp_amount, rules, source:)
       username = find_game_username_for_slug(contact, game_slug)
       unless username
+        store_pending_question!('create_account_offer', game_slug: game_slug)
         return { reply: "I don't have your #{game_slug} account yet - want me to create one?", labels: [] }
       end
 
@@ -1061,6 +1069,7 @@ module Games
       game_slug = chosen_game_slug(intent || { intent: :load })
 
       unless game_slug
+        store_pending_question!('which_game', flow: 'bonus', amount: intent.is_a?(Hash) ? intent[:amount] : nil)
         return { reply: 'which game?', labels: [] }
       end
 
@@ -1130,6 +1139,7 @@ module Games
       begin
         username = find_game_username_for_slug(contact, game_slug)
         unless username
+          store_pending_question!('create_account_offer', game_slug: game_slug)
           return {
             reply: "I don't have your #{game_slug} account — want me to create one?",
             labels: []
@@ -1247,6 +1257,7 @@ module Games
       end
 
       unless game_slug
+        store_pending_question!('which_game', flow: 'cashout', amount: intent.is_a?(Hash) ? intent[:amount] : nil)
         return {
           reply: "which game do you want to cash out from?",
           labels: ['cashier-action-needed']
@@ -1334,6 +1345,7 @@ module Games
               .any? { |m| m.attachments.any? }
 
             unless has_screenshot
+              store_pending_question!('screenshot', flow: 'cashout', game_slug: game_slug, amount: requested_amount)
               return {
                 reply: "send me a screenshot of your balance and I'll process the cashout",
                 labels: ['cashier-action-needed']
@@ -1396,6 +1408,7 @@ module Games
       username = intent[:game_username]
 
       unless valid_username?(username)
+        store_pending_question!('username', flow: 'load', game_slug: ag.game.slug)
         return {
           reply: 'what username would you like for your account?',
           labels: ['needs-username']
@@ -1522,6 +1535,7 @@ module Games
     def handle_account_creation_request(intent)
       game_slug = intent[:game_slug]
       if game_slug.blank?
+        store_pending_question!('which_game', flow: 'create_account')
         return {
           reply: "hey! which game you wanna get on? we got #{active_games_list_text}",
           labels: ['needs-game']
@@ -1907,6 +1921,7 @@ module Games
       slugs = slugs.uniq.compact
 
       if slugs.empty?
+        store_pending_question!('which_game', flow: 'create_account')
         return {
           reply: "hey! which game you wanna get on? we got #{active_games_list_text}",
           labels: ['needs-game']
@@ -2539,6 +2554,138 @@ module Games
       Rails.logger.warn("[Orchestrator] mark_payment_menu_sent! failed: #{e.message}")
     end
 
+    # ---- bp5 R2 - pending_question state (same proven additional_attributes
+    # pattern as expected_platform / payment_menu_sent_at). Every question
+    # site stamps {type, context, at}; bare context answers resolve against
+    # it only while fresh (<24h). ----
+
+    PENDING_QUESTION_MAX_AGE_HOURS = 24
+
+    def store_pending_question!(type, context = {})
+      return if conversation.blank? || type.blank?
+
+      attrs = (conversation.additional_attributes || {}).stringify_keys
+      attrs['pending_question'] = {
+        'type' => type.to_s,
+        'context' => (context || {}).transform_keys(&:to_s)
+                                    .transform_values { |v| v.nil? ? nil : v.to_s }.compact,
+        'at' => Time.current.iso8601
+      }
+      conversation.additional_attributes = attrs
+      conversation.save!
+    rescue StandardError => e
+      Rails.logger.warn("[Orchestrator] store_pending_question! failed: #{e.message}")
+    end
+
+    def pending_question
+      pq = conversation&.additional_attributes&.dig('pending_question')
+      return nil unless pq.is_a?(Hash)
+
+      pq = pq.stringify_keys
+      at = begin
+        Time.parse(pq['at'].to_s)
+      rescue StandardError
+        nil
+      end
+      return nil if at.nil? || at < PENDING_QUESTION_MAX_AGE_HOURS.hours.ago
+
+      pq
+    rescue StandardError
+      nil
+    end
+
+    def clear_pending_question!
+      return if conversation.blank?
+
+      attrs = (conversation.additional_attributes || {}).stringify_keys
+      return unless attrs.key?('pending_question')
+
+      attrs.delete('pending_question')
+      conversation.additional_attributes = attrs
+      conversation.save!
+    rescue StandardError => e
+      Rails.logger.warn("[Orchestrator] clear_pending_question! failed: #{e.message}")
+    end
+
+    # bp5 R2 - resolve a bare answer against the pending question. Every
+    # resolved path re-enters an EXISTING fully-gated handler (compose, never
+    # fork). No/stale pending, or an answer that doesn't fit the question,
+    # -> nil so DeepSeek handles the turn. Gratitude never reaches here (the
+    # detector keeps thanks/ty unrouted). The pre-detection pendings
+    # (account_choice / overmax / transfer_create / load+cashout confirms)
+    # run before detection and always win - no double handling.
+    def handle_context_answer(intent)
+      pq = pending_question
+      return nil unless pq
+
+      kind = intent.is_a?(Hash) ? intent[:answer_kind].to_s : ''
+      type = pq['type'].to_s
+      ctx = pq['context'].is_a?(Hash) ? pq['context'].stringify_keys : {}
+
+      case kind
+      when 'affirm'
+        return nil unless type == 'create_account_offer'
+
+        clear_pending_question!
+        handle_account_creation_request(intent: :request_account_creation, game_slug: ctx['game_slug'].presence)
+      when 'did_it'
+        return nil unless %w[screenshot sender_name payment_method].include?(type)
+
+        clear_pending_question!
+        handle_payment_sent_confirmation(intent: :payment_sent_confirmation)
+      when 'same_game'
+        return nil unless type == 'which_game'
+
+        slug = last_game_slug_from_history
+        return nil if slug.blank?
+
+        clear_pending_question!
+        dispatch_which_game_answer(ctx['flow'].to_s, slug, ctx)
+      when 'ready'
+        reprompt_pending_question(type)
+      end
+    end
+
+    # The "which game?" flows a same-game answer can resume - each target is
+    # the existing gated handler (payment gate, thresholds, velocity, approval
+    # gates all still apply).
+    def dispatch_which_game_answer(flow, slug, ctx)
+      amount = ctx['amount'].to_f
+      amount = nil unless amount.positive?
+
+      case flow
+      when 'freeplay' then handle_load_freeplay(intent: :load_freeplay, game_slug: slug)
+      when 'bonus' then handle_load_bonus(intent: :load_bonus, game_slug: slug, amount: amount)
+      when 'cashout' then handle_cashout_intent(intent: :cashout, game_slug: slug, amount: amount)
+      when 'reset' then handle_reset_password_intent(intent: :reset_password, game_slug: slug)
+      when 'create_account' then handle_account_creation_request(intent: :request_account_creation, game_slug: slug)
+      when 'verified_load' then handle_load_intent(intent: :load, amount: amount, game_slug: slug, game_username: nil)
+      when 'balance' then handle_balance_check(intent: :balance_check, game_slug: slug)
+      when 'game_link' then handle_request_game_link(intent: :request_game_link, game_slug: slug)
+      when 'download_link' then handle_request_download_link(intent: :request_download_link, game_slug: slug)
+      when 'cashout_rules' then handle_cashout_rules(intent: :cashout_rules, game_slug: slug)
+      when 'partial_redeem' then handle_redeem_partial_replay(intent: :redeem_partial_replay, game_slug: slug)
+      when 'replay' then handle_replay_from_balance(intent: :replay_from_balance, game_slug: slug)
+      end
+    end
+
+    # "ready" resumes the pending flow by re-stating what is needed.
+    # Questions only - no money moves here.
+    def reprompt_pending_question(type)
+      case type
+      when 'screenshot'
+        { reply: 'drop the screenshot here when you got it 📸', labels: [] }
+      when 'sender_name'
+        { reply: "what name did you send it from? i'll match it up", labels: ['needs-sender-name'] }
+      when 'payment_method'
+        payment_menu_or_stored_reply
+      when 'username'
+        { reply: 'what username would you like? (3-20 letters/numbers)', labels: ['needs-username'] }
+      when 'which_game'
+        { reply: "which game we doing? we got #{active_games_list_text}", labels: [] }
+      end
+    end
+
     # E3: the pick menu must never loop. Order: (1) a platform this
     # conversation ALREADY picked (stored by store_expected_payment_handle!)
     # is reused with a FRESH top-handle lookup (covers rotation; a stale
@@ -2551,6 +2698,7 @@ module Games
         tag = top_handle_for_platform(plat)
         if tag
           store_expected_payment_handle!(platform: plat, handle: tag)
+          store_pending_question!('screenshot', flow: 'deposit', platform: plat)
           return {
             reply: "easy! send to #{tag} on #{plat} and drop the screenshot here 📸",
             labels: ['payment-method-chosen', "payment-#{plat}"]
@@ -2560,6 +2708,7 @@ module Games
 
       unless payment_menu_sent?
         mark_payment_menu_sent!
+        store_pending_question!('payment_method')
         return { reply: payment_methods_question, labels: [] }
       end
 
@@ -2599,6 +2748,7 @@ module Games
 
       Rails.logger.info("[Orchestrator] payment_method_chosen platform=#{platform} handle=#{handle_text}")
       store_expected_payment_handle!(platform: platform, handle: handle_text)
+      store_pending_question!('screenshot', flow: 'deposit', platform: platform)
       {
         reply: "easy! send to #{handle_text} on #{platform} and drop the screenshot here 📸",
         labels: ['payment-method-chosen', "payment-#{platform}"]
@@ -2619,6 +2769,7 @@ module Games
       else
         ag = account.agent_games.joins(:game).where(status: 'active').first
         unless ag
+          store_pending_question!('which_game', flow: 'reset')
           return {
             reply: "which game do you want me to reset? (juwa, milky way, mafia, etc.)",
             labels: ['reset-needs-game']
@@ -2631,6 +2782,7 @@ module Games
       username = intent[:game_username].presence || stored_game_username(ag.game.slug)
 
       if username.blank?
+        store_pending_question!('username', flow: 'reset', game_slug: ag.game.slug)
         return {
           reply: "what's your #{ag.game.name} username? need it to reset your password.",
           labels: ['reset-needs-username']
@@ -2685,6 +2837,7 @@ module Games
       # No name from message, screenshot OCR, or memory -> ask for it (and the
       # screenshot when there is none). Asking is not a miss.
       if sender_name.blank?
+        store_pending_question!('sender_name', flow: 'payment_sent')
         ask = "what name did you send it from? i'll match it up"
         ask += ' - and drop the screenshot here too' unless claim[:has_screenshot]
         return { reply: ask, labels: ['payment-pending', 'needs-sender-name'] }
@@ -2705,6 +2858,7 @@ module Games
         completion = handle_load_intent({ intent: :load, amount: matched_amount, game_slug: chosen_game_slug(intent), game_username: nil })
         return completion if completion.is_a?(Hash) && completion[:reply].present?
 
+        store_pending_question!('which_game', flow: 'verified_load', amount: matched_amount)
         return { reply: "your $#{fmt_amt(matched_amount)} is verified - which game do you want it on?", labels: ['payment-verified'] }
       end
 
@@ -2732,6 +2886,7 @@ module Games
         return { reply: "i still don't see it on our end - flagged a teammate to dig in, they'll sort you out shortly.", labels: %w[payment-unverified needs-human] }
       end
 
+      store_pending_question!('screenshot', flow: 'payment_sent')
       reply = if claim[:has_screenshot]
                 "don't see it on our end yet - payments can take a few minutes to land. mind double-checking the name and exact amount you sent?"
               else
@@ -3089,6 +3244,7 @@ module Games
 
       if stored.size > 1
         names = stored.map { |s| slug_label(s) }
+        store_pending_question!('which_game', flow: 'balance')
         return { reply: "which game - #{humanize_list(names)}?", labels: ['balance-check-requested'] }
       end
 
@@ -3278,6 +3434,7 @@ module Games
       return game_slug if game_slug.is_a?(Hash) # disambiguation question
 
       unless game_slug
+        store_pending_question!('which_game', flow: 'balance')
         return { reply: 'which game do you want me to check?', labels: ['balance-check-requested'] }
       end
 
@@ -4325,7 +4482,10 @@ module Games
 
     def handle_request_game_link(intent)
       game_slug = chosen_game_slug(intent)
-      return { reply: "which game you wanna play? we got #{active_games_list_text}", labels: ['needs-game'] } unless game_slug
+      unless game_slug
+        store_pending_question!('which_game', flow: 'game_link')
+        return { reply: "which game you wanna play? we got #{active_games_list_text}", labels: ['needs-game'] }
+      end
 
       game, rule = game_and_rule(game_slug)
       name = game&.name.presence || game_slug.tr('_', ' ')
@@ -4343,7 +4503,10 @@ module Games
 
     def handle_request_download_link(intent)
       game_slug = chosen_game_slug(intent)
-      return { reply: "which game you wanna download? we got #{active_games_list_text}", labels: ['needs-game'] } unless game_slug
+      unless game_slug
+        store_pending_question!('which_game', flow: 'download_link')
+        return { reply: "which game you wanna download? we got #{active_games_list_text}", labels: ['needs-game'] }
+      end
 
       game, rule = game_and_rule(game_slug)
       name = game&.name.presence || game_slug.tr('_', ' ')
@@ -4363,7 +4526,10 @@ module Games
 
     def handle_cashout_rules(intent)
       game_slug = chosen_game_slug(intent)
-      return { reply: "which game you asking about? we got #{active_games_list_text}", labels: ['needs-game'] } unless game_slug
+      unless game_slug
+        store_pending_question!('which_game', flow: 'cashout_rules')
+        return { reply: "which game you asking about? we got #{active_games_list_text}", labels: ['needs-game'] }
+      end
 
       game, rule = game_and_rule(game_slug)
       name = game&.name.presence || game_slug.tr('_', ' ')
@@ -4554,7 +4720,10 @@ module Games
 
     def handle_redeem_partial_replay(intent)
       game_slug = chosen_game_slug(intent)
-      return { reply: 'which game do you want to cash part of out from?', labels: ['partial-needs-game'] } unless game_slug
+      unless game_slug
+        store_pending_question!('which_game', flow: 'partial_redeem')
+        return { reply: 'which game do you want to cash part of out from?', labels: ['partial-needs-game'] }
+      end
 
       msg = (latest_customer_text || recent_customer_text).to_s
       # TAB A fix: prefer the number right after the cashout verb - first-number
@@ -4566,11 +4735,13 @@ module Games
       keep_m = msg.match(/(?:keep|leave)\s+(?:the\s+)?\$?(\d+(?:\.\d{1,2})?)/i)
       keep_amount = keep_m ? keep_m[1].to_f : nil
       if amount.nil? || amount <= 0
+        store_pending_question!('amount', flow: 'partial_redeem', game_slug: game_slug)
         return { reply: 'how much do you want to cash out? the rest stays in to play', labels: ['partial-needs-amount'] }
       end
 
       username = find_game_username_for_slug(contact, game_slug)
       unless username
+        store_pending_question!('username', flow: 'partial_redeem', game_slug: game_slug)
         return { reply: "what's your #{game_slug} username? need it to cash out part of your balance.", labels: ['partial-needs-username'] }
       end
 
@@ -4688,10 +4859,14 @@ module Games
     def handle_replay_from_balance(intent)
       # Read-only: confirms the player's existing in-game balance. Moves NO money.
       game_slug = chosen_game_slug(intent)
-      return { reply: 'which game do you want to keep playing on?', labels: ['replay-needs-game'] } unless game_slug
+      unless game_slug
+        store_pending_question!('which_game', flow: 'replay')
+        return { reply: 'which game do you want to keep playing on?', labels: ['replay-needs-game'] }
+      end
 
       username = find_game_username_for_slug(contact, game_slug)
       unless username
+        store_pending_question!('username', flow: 'replay', game_slug: game_slug)
         return { reply: "I don't have your #{game_slug} account on file — what's your username?", labels: ['replay-needs-username'] }
       end
 
