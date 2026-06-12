@@ -655,6 +655,9 @@ module Games
                   elsif balance_report?(text)
                     Rails.logger.info('[IntentDetector] matched balance_check (report, pre-load)')
                     { intent: :balance_check, game_slug: detect_game(text) }
+                  elsif (lm = detect_load_multi(text))
+                    Rails.logger.info("[IntentDetector] matched load_multi legs=#{lm[:legs].inspect}")
+                    lm
                   elsif (m = match_any(text, LOAD_PATTERNS))
                     amount = m[1] ? m[1].to_f : nil
                     # Some patterns capture username in group 2
@@ -1020,6 +1023,77 @@ module Games
         return nil unless bare_game_name_load(rest)
 
         { intent: :payment_method_chosen, platform: normalize_platform_token(plats.first) }
+      end
+
+      # bp5 R4: "20 yolo 20 ultra panda" / "10 juwa 5 gamevault" — an
+      # AUTO-SPLIT multi-game load. STRICT 1:1 unambiguity: the message must
+      # decompose into >=2 alternating (amount, game) pairs where every game
+      # resolves and every amount is positive. Anything else — "20 yolo 20",
+      # "juwa 20 20", a token that is BOTH numeric and a game alias ("2.0" is
+      # juwa_2), duplicate games — returns nil and stays unrouted (escalation
+      # path owns ambiguity, R4). The orchestrator composes the EXISTING
+      # gated single-load machinery per leg; this only parses.
+      AMOUNT_TOKEN = /\A\$?\d+(?:\.\d{1,2})?\$?\z/
+      MULTI_LOAD_LEAD = /\b(?:load|add|put|recharge|top\s*up|me|please|pls+|plz+|and|on|to|for|in)\b/i
+
+      def detect_load_multi(text)
+        norm = text.to_s.downcase.gsub(/[^a-z0-9.\s$]/, ' ').gsub(/\s+/, ' ').strip
+        return nil if norm.empty? || norm.length > 80
+        return nil if norm.match?(/\b(?:cash\s*out|cashout|redeem|withdraw|freeplay|fp|bonus|promo|sent|request)\b/)
+        # the whole message is one game name ("juwa 2.0") — not a split
+        return nil if bare_game_name_load(norm)
+
+        tokens = norm.split(' ')
+        # ambiguity veto: a token that is BOTH numeric and a known game alias
+        # ("2.0" = juwa_2) makes the split unparseable — stay unrouted.
+        return nil if tokens.any? { |t| t.match?(AMOUNT_TOKEN) && GAME_NAME_ALIASES.key?(t.delete('$')) }
+
+        # segment into alternating amount / word-run pieces (lead/filler words
+        # stripped from word-runs before game resolution)
+        segments = []
+        buf = []
+        tokens.each do |t|
+          if t.match?(AMOUNT_TOKEN)
+            segments << [:game, buf.join(' ')] unless buf.empty?
+            buf = []
+            segments << [:amt, t.delete('$').to_f]
+          else
+            buf << t
+          end
+        end
+        segments << [:game, buf.join(' ')] unless buf.empty?
+
+        # a leading word-run of pure lead words ("load", "put me") is dropped
+        # BEFORE the 1:1 count check
+        if segments.first && segments.first[0] == :game
+          head = segments.first[1].gsub(MULTI_LOAD_LEAD, ' ').gsub(/\s+/, ' ').strip
+          segments.shift if head.empty?
+        end
+
+        types = segments.map(&:first)
+        amts = types.count(:amt)
+        return nil unless amts >= 2 && types.count(:game) == amts
+        # strict alternation: [amt, game]*N or [game, amt]*N
+        return nil unless types.each_cons(2).all? { |a, b| a != b }
+
+        pairs = segments.each_slice(2).to_a
+        legs = pairs.map do |a, b|
+          return nil unless a && b && a[0] != b[0]
+
+          amount = (a[0] == :amt ? a : b)[1]
+          gtxt = (a[0] == :game ? a : b)[1].gsub(MULTI_LOAD_LEAD, ' ').gsub(/\s+/, ' ').strip
+          return nil if amount.to_f <= 0 || gtxt.empty?
+
+          slug = bare_game_name_load(gtxt)
+          return nil unless slug
+
+          { amount: amount.to_f, game_slug: slug }
+        end
+        return nil if legs.size < 2
+        # duplicate game in one split is ambiguous ("20 juwa 20 juwa")
+        return nil if legs.map { |l| l[:game_slug] }.uniq.size != legs.size
+
+        { intent: :load_multi, legs: legs }
       end
 
       # bp iter3: "Juwa 5" / "10 juwa" / "25 on os" / "5.00 Orion star 🌟" —

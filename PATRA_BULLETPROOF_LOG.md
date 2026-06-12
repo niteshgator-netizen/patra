@@ -470,3 +470,32 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
   + BP section runner 17/17 + BP-I1/I2 PASS. Zero sends (Telegram captured).
 - REVIEWER: SHIP. Independently verified: zero panel/executor/Payments calls in new code; both new
   reply phrases pass all 3 P1 guard families; echo-veto normalization symmetric; persona rules kept.
+### P4a — R4 MULTI-LOAD PARSER (intent_detector.rb, HOT, 1 commit)
+- detect_load_multi: strict 1:1 (>=2 alternating amount/game pairs, every game resolves, every amount
+  positive, distinct games), placed BEFORE LOAD_PATTERNS so "load 20 yolo 20 ultra panda" splits.
+  Ambiguity → nil/unrouted: "20 yolo 20", "juwa 20 20", "15 juwa 5 2.0" (token both-numeric-and-alias),
+  duplicates, unresolvable names; cashout/freeplay/bonus/sent/request vetoed; "juwa 2.0" never splits.
+- VERIFIED BY ME NOW: 25/25 (7 happy incl. decimals/$/fillers/multi-word/game-first; 14 red-team;
+  4 single regressions) + iter4 ALL PASS.
+- REVIEWER (red-team, 30 live probes): SHIP — zero wrong-leg outputs; every failure degrades to nil
+  or pre-existing behavior. Parked conservative gaps: (1) "mr all in one" can't be a split leg (its
+  'in'/'one' are lead-filler words → leg unresolvable → nil); (2) game-first + trailing politeness
+  ("juwa 20 yolo 20 please") → nil; (3) PRE-EXISTING: "load 20 yolo 20" → single :load 20 yolo via
+  LOAD_PATTERNS (trailing amount dropped) — unchanged behavior, queued.
+### P4b — R4 MULTI-LOAD COMPOSITION (conversation_orchestrator.rb, HOT, 1 commit)
+- handle_load_multi: TOTAL payment gate (find_matching_confirmed_payment), R7 hold on total,
+  confirm_before_load resumes via existing pending_load_intent yes/no (resume block routes
+  'load_multi'), pre-flight ALL-OR-ESCALATE (any leg without active game/username → zero executor
+  calls + per-leg Telegram detail), sequential executor.load_player per leg with [:ok] checks,
+  honest partial reporting (transfer half-fail pattern). Auto-bonus intentionally NOT applied to
+  split legs (product-decision queue).
+- REVIEWER FINDING A FIXED PRE-COMMIT: per-leg order ids now share the single path's pay<sha20>
+  namespace (pay<sha>_g<i>_a<n>) so deterministic_payment_order_id's LIKE probe blocks the single
+  path after a split, and a new pre-loop guard blocks the split when a single-path action exists for
+  the payment (already_loaded_response). Finding C fixed (LIKE "..._g<i>\_a%" separator). Finding B
+  (load_failed skipped when result has no :action — cosmetic) + Finding D (per-leg max_load_amount
+  vs total — product sign-off needed) queued.
+- VERIFIED BY ME NOW: 12/12 incl. cross-path guard (single-path GameAction for same payment →
+  already-loaded, zero exec calls), idempotent re-run, end-to-end text→handle()→2 legs + BP runner
+  17/17 + BP-I1/I2. Reviewer verified all 8 claimed properties + double-pay closed both directions
+  (multi legs carry payment_id metadata → existing single-path dedup sees them).
