@@ -633,6 +633,9 @@ module Games
                       tip_amount: extract_tip(text),
                       reload_amount: extract_reload(text)
                     }
+                  elsif (orq = detect_outbound_request(text))
+                    Rails.logger.info("[IntentDetector] matched outbound_request amount=#{orq[:amount].inspect}")
+                    orq
                   elsif match_any(text, FREEPLAY_PATTERNS)
                     amt = match_any(text, LOAD_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched load_freeplay')
@@ -687,6 +690,9 @@ module Games
                   elsif new.detect_sent_without_screenshot?(text)
                     Rails.logger.info('[IntentDetector] matched payment_sent_confirmation')
                     { intent: :payment_sent_confirmation }
+                  elsif (ct = detect_customer_tag(text))
+                    Rails.logger.info("[IntentDetector] matched customer_tag_provided platform=#{ct[:platform].inspect}")
+                    ct
                   elsif match_any(text, COMPLAINT_ANGRY_PATTERNS)
                     Rails.logger.info('[IntentDetector] matched complaint_angry')
                     { intent: :complaint_angry }
@@ -1061,14 +1067,58 @@ module Games
         PAYMENT_PICK_STANDDOWN_PATTERNS.any? { |re| text.match?(re) }
       end
 
+      # bp5 R3: "Request $25" / "send me a request" — the customer asks US to
+      # fire a payment-app REQUEST at their tag. Cashout-direction words are
+      # owned by the cashout branch; "request sent" is a payment report.
+      def detect_outbound_request(text)
+        t = text.to_s
+        return nil if t.match?(/\b(?:cash\s*out|cashout|redeem|withdraw)\b/i)
+        return nil if t.match?(/\brequest\s+sent\b|\bsent\s+(?:the\s+)?request\b/i)
+
+        if (m = t.match(/\A\s*(?:can\s+(?:you|u)\s+|pls\s+|please\s+)?(?:send\s+(?:me\s+)?(?:a\s+)?)?request\s+(?:me\s+)?\$?(\d+(?:\.\d{1,2})?)\s*[?!.]*\s*\z/i))
+          return { intent: :outbound_request, amount: m[1].to_f }
+        end
+        if t.match?(/\A\s*(?:can\s+(?:you|u)\s+)?send\s+(?:me\s+)?(?:a\s+|the\s+)?request\s*[?!.]*\s*\z/i)
+          return { intent: :outbound_request, amount: nil }
+        end
+        nil
+      end
+
+      # bp5 R1: the customer pastes THEIR OWN cashout destination — a bare
+      # $tag/@tag (optional no/only/use/my lead-in, optional trailing amount),
+      # a cash.app link (unambiguous anywhere in the text), or "platform $tag".
+      # The orchestrator stores it per platform and vetoes echoes of OUR
+      # configured handles (needs DB context the detector doesn't have).
+      # $-prefix implies cashapp; @-prefix leaves platform nil.
+      CUSTOMER_TAG_LEAD = '(?:no[,!]?\s+|not\s+that\s+one[,!]?\s+|only\s+|use\s+|actually\s+|its\s+|my\s+)*'
+
+      def detect_customer_tag(text)
+        t = text.to_s.strip
+        return nil if t.empty? || t.length > 80
+
+        if (m = t.match(/\bcash\.app\/\$?([A-Za-z][A-Za-z0-9._\-]{2,30})/i))
+          return { intent: :customer_tag_provided, tag: "$#{m[1]}", platform: 'cashapp', amount: nil }
+        end
+
+        if (m = t.match(/\A\s*#{CUSTOMER_TAG_LEAD}(?:(cashapp|cash\s*app|chime|venmo|paypal|zelle)(?:\s+is|\s*:)?\s+)?([\$@][A-Za-z][A-Za-z0-9._\-]{2,30})\s*(?:\$?(\d+(?:\.\d{1,2})?)\$?)?\s*\z/i))
+          platform = if m[1]
+                       normalize_platform_token(m[1])
+                     elsif m[2].start_with?('$')
+                       'cashapp'
+                     end
+          return { intent: :customer_tag_provided, tag: m[2], platform: platform, amount: m[3] ? m[3].to_f : nil }
+        end
+        nil
+      end
+
       # bp5 R2: whole-message match against CONTEXT_ANSWER_KINDS after
       # stripping punctuation/emoji. Returns the kind symbol or nil.
       def context_answer_kind(text)
-        # a digit means real content ("yes 50") ? never flatten to a bare
+        # a digit means real content ("yes 50") — never flatten to a bare
         # affirmation; DeepSeek gets the full text instead.
         return nil if text.to_s.match?(/\d/)
 
-        core = text.to_s.downcase.gsub(/['?]/, '').gsub(/[^a-z\s]/, ' ').gsub(/\s+/, ' ').strip
+        core = text.to_s.downcase.gsub(/['’]/, '').gsub(/[^a-z\s]/, ' ').gsub(/\s+/, ' ').strip
         return nil if core.empty? || core.length > 20
 
         CONTEXT_ANSWER_KINDS.each do |kind, phrases|

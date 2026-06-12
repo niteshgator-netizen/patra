@@ -439,3 +439,19 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
 - REVIEWER: SHIP. Zero new money paths (no executor/Telegram/panel calls in new code); benign note:
   repeated "done" with no sender name re-asks forever without escalating (pre-existing
   handle_payment_sent_confirmation behavior — parked in product-decision queue).
+### P3a — R1/R3 DETECTOR INTENTS (intent_detector.rb, HOT, 1 commit)
+- :outbound_request ("Request $25", "send me a request" — anchored; cashout-direction + "request
+  sent" vetoed; placed after the cashout branch). :customer_tag_provided (bare $tag/@tag with
+  no/only/use/my lead-ins, cash.app link anywhere, "platform $tag", "tag + amount"; $→cashapp,
+  @→platform nil; placed after payment_sent_confirmation so reports keep priority).
+- Also repaired P2a mojibake (committed digit-veto pass had mangled '’'→'?' in context_answer_kind's
+  char class and an em-dash; the '?' class was deleting literal question marks — now back to
+  stripping curly apostrophes; belt-and-braces since detect() already tr's curly quotes).
+- TOOLING FIX (important for the rest of the run): patch scripts now use src.sub(o) { n } block form —
+  String#sub with a replacement STRING interprets \' as post-match and interleaved the whole file
+  (caught by ruby -c both times, restored from git, zero damage committed).
+- VERIFIED BY ME NOW: 25/25 new suite (corpus exemplars $MegsnAvakian5 / @Afaseler1981 / cash.app
+  link / "$CasiqueJorge69 10$" / "no, only $X" / "my venmo @x" / "cashapp $x"; 5 request shapes;
+  9 priority regressions; negatives "$20"→nil, embedded-tag→payment_sent, "whats your cashapp"→pick,
+  "request a cashout"→cashout) + iter4 + P2 suites ALL PASS. Reviewer independently re-verified 23
+  inputs through the real chain + backtracking probes (<0.001s) → SHIP.
