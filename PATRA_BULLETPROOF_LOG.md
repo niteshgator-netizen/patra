@@ -408,3 +408,15 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
   ruby 3.4.9p76 + pg 1.6.3(+mingw) + irb/reline/io-console bumps. Live-verify recipe for this run:
   RAILS_ENV=production EAGER_LOAD=false SECRET_KEY_BASE=dummy DATABASE_URL=$PATRA_DATABASE_URL +
   ActiveJob::Base.queue_adapter = :test inside every script (no local Redis; jobs captured in-memory).
+### P2a — R2 CONTEXT-ANSWER DETECTOR CLASS (intent_detector.rb, HOT, 1 commit)
+- CONTEXT_ANSWER_KINDS constant + context_answer_kind helper + LOWEST-priority elsif (the final
+  branch of detect()) → { intent: :context_answer, answer_kind: :affirm|:did_it|:same_game|:ready }.
+- Gratitude (thanks/ty/thank you/you're welcome) deliberately ABSENT → stays nil (chitchat, never
+  money). Digit veto: "yes 50"/"ok 100" → nil (real content goes to DeepSeek, never flattened).
+- VERIFIED BY ME NOW: tmp/bp5_verify_p2_detector.rb 28/28 PASS (12 new context answers incl.
+  "I'm ready" apostrophe fix; 10 higher-priority regressions untouched; 6 negatives) + iter4
+  regression sweep ALL PASS + digit-veto spot check.
+- REVIEWER: SHIP. Findings applied: digit veto added pre-commit. Noted: inter-commit window safe
+  (orchestrator case has no :context_answer branch + no else → returns nil exactly as before);
+  RAG-cutover :230-242 now bypassed for these bare phrases (a bare "ok done" can no longer be
+  RAG-routed into a money intent — strictly safer).

@@ -545,6 +545,20 @@ module Games
       /(?:they|he|she)\s+(?:used|mentioned)\s+my\s+(?:name|referral)/i
     ].freeze
 
+    # bp5 R2: bare context answers ("yes please", "i did", "same one",
+    # "ready") are meaningless without the conversation's pending question.
+    # LOWEST priority in detect(): only fires when nothing else matched. The
+    # orchestrator resolves the kind against the stamped pending_question
+    # (<24h fresh) or returns nil so DeepSeek handles it. Gratitude
+    # (thanks/ty/thank you) is deliberately ABSENT — chitchat, never money.
+    CONTEXT_ANSWER_KINDS = {
+      affirm: ['yes', 'yess', 'yes please', 'yes pls', 'yes plz', 'yeah', 'yea', 'yep', 'yup',
+               'ok', 'okay', 'k', 'sure', 'please', 'pls', 'plz', 'go ahead', 'yes go ahead', 'ok yes'],
+      did_it: ['i did', 'did it', 'i did it', 'ok done', 'okay done', 'done', 'all done', 'just did'],
+      same_game: ['same one', 'same game', 'the same one', 'the same game', 'same'],
+      ready: ['ready', 'im ready', 'i am ready', 'ok ready', 'ready now']
+    }.freeze
+
     def detect_sent_without_screenshot?(message_text)
       return false if message_text.blank?
 
@@ -735,6 +749,12 @@ module Games
                   elsif (username = extract_username(text)) && username.length >= 3
                     Rails.logger.info("[IntentDetector] matched username #{username}")
                     { intent: :username_provided, game_username: username, game_slug: detect_game(text) }
+                  elsif (ck = context_answer_kind(text))
+                    # bp5 R2: lowest priority — a bare answer to whatever
+                    # Bella just asked; orchestrator resolves it against the
+                    # stamped pending_question or hands the turn to DeepSeek.
+                    Rails.logger.info("[IntentDetector] matched context_answer kind=#{ck}")
+                    { intent: :context_answer, answer_kind: ck }
                   end)
 
         Rails.logger.info("[IntentDetector] result=#{result.inspect}")
@@ -1039,6 +1059,22 @@ module Games
 
       def payment_pick_standdown?(text)
         PAYMENT_PICK_STANDDOWN_PATTERNS.any? { |re| text.match?(re) }
+      end
+
+      # bp5 R2: whole-message match against CONTEXT_ANSWER_KINDS after
+      # stripping punctuation/emoji. Returns the kind symbol or nil.
+      def context_answer_kind(text)
+        # a digit means real content ("yes 50") ? never flatten to a bare
+        # affirmation; DeepSeek gets the full text instead.
+        return nil if text.to_s.match?(/\d/)
+
+        core = text.to_s.downcase.gsub(/['?]/, '').gsub(/[^a-z\s]/, ' ').gsub(/\s+/, ' ').strip
+        return nil if core.empty? || core.length > 20
+
+        CONTEXT_ANSWER_KINDS.each do |kind, phrases|
+          return kind if phrases.include?(core)
+        end
+        nil
       end
 
       # True only for clear balance REPORTS; vetoes any imperative load verb so that
