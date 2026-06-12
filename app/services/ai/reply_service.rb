@@ -2423,6 +2423,16 @@ class Ai::ReplyService
     reply_text = guard_against_unconfigured_bonus_claim(reply_text)
     return reply_text if reply_text.blank?
 
+    # bp5 P8 (red-team A): fold common Cyrillic/Greek homoglyphs to Latin
+    # BEFORE matching so "lоаded" can't smuggle a false claim past the
+    # word-boundary patterns. Match on the folded copy; the customer-visible
+    # text is never mutated.
+    scan_text = fold_homoglyphs(reply_text)
+
+    # completed/credited-by-synonym LOAD claims. PAST-TENSE / done-state only;
+    # in-progress phrasings ("processing", "verifying", "sending that request
+    # now") and the credential-delivery "all set! username..." are deliberately
+    # NOT here so they pass untouched.
     load_claim_patterns = [
       /\bloaded\b/i,
       /\bloading\b/i,
@@ -2430,9 +2440,19 @@ class Ai::ReplyService
       /lemme load/i,
       /let me load/i,
       /loading you up/i,
-      /you'?re? (set|good)/i,
+      /you'?re? (set|good|loaded|topped\s*up|all\s*good)/i,
       /done.{0,10}load/i,
-      /✅/
+      /✅/,
+      /\b(?:added|credited|deposited)\b[^.!?\n]{0,30}\b(?:to|in|into|on|onto|your)\b/i,
+      /\b(?:funds?|money|credits?|balance|points?)\b[^.!?\n]{0,20}\b(?:added|credited|deposited|loaded|in\s+there|topped\s*up)\b/i,
+      /\btopped\s+(?:you|u|it|your\s+account)\s*(?:up|off)?\b/i,
+      /\bput\s+(?:it|you|that|the\s+(?:funds|money|load))\s+on\b/i,
+      /\b(?:your\s+)?(?:money|funds?|cash|credits?)(?:'s|\s+is|\s+are)?\s+in\b/i,
+      /\bit'?s\s+in\s+there\b/i,
+      /\bin\s+there\s+now\b/i,
+      /\bbalance\b[^.!?\n]{0,20}\b(?:updated|reflects?|reflected|good\s+to\s+go)\b/i,
+      /\bknocked\b[^.!?\n]{0,20}\b(?:load|out)\b/i,
+      /\ball\s+set\s+on\b/i
     ]
     transfer_claim_patterns = [
       /\btransferr?ed\b/i,
@@ -2443,16 +2463,20 @@ class Ai::ReplyService
       /\b(?:i|we)(?:'ve)?\s+(?:just\s+)?(?:sent|paid)\b/i,
       /\bpaying\s+(?:you\s+|it\s+|that\s+)?(?:now|rn)\b/i,
       /\bgot\s+it[,!.]?\s*paying\b/i,
-      /\b(?:sent|paid)\s+(?:your|the)\s+(?:cash\s*out|cashout|payout|winnings|request)\b/i,
-      /\b(?:cash\s*out|cashout|payout|winnings)\s+(?:is\s+|was\s+)?(?:sent|paid|done|completed)\b/i
+      /\b(?:sent|paid)\s+(?:your|the|it|that)\b[^.!?\n]{0,24}\b(?:cash\s*out|cashout|payout|winnings|request|way|out)\b/i,
+      /\bsent\s+it\s+(?:your\s+way|out|over)\b/i,
+      /\b(?:cash\s*out|cashout|payout|winnings)\b[^.!?\n]{0,20}\b(?:sent|paid|done|completed|processed|went\s+out)\b/i,
+      /\b(?:payout|cashout|cash\s*out)\b[^.!?\n]{0,12}\bprocessed\b/i,
+      /\bpaid\s+out\s+(?:your|the|it)\b/i,
+      /\bwent\s+out\s+(?:a\s+min|already|just\s+now)\b/i
     ]
 
     claim_kind =
-      if payout_claim_patterns.any? { |p| reply_text.match?(p) }
+      if payout_claim_patterns.any? { |p| scan_text.match?(p) }
         :payout
-      elsif transfer_claim_patterns.any? { |p| reply_text.match?(p) }
+      elsif transfer_claim_patterns.any? { |p| scan_text.match?(p) }
         :transfer
-      elsif load_claim_patterns.any? { |p| reply_text.match?(p) }
+      elsif load_claim_patterns.any? { |p| scan_text.match?(p) }
         :load
       end
     return reply_text unless claim_kind
@@ -2483,6 +2507,23 @@ class Ai::ReplyService
       add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
       'on it — getting that going for you now, one sec 🙏'
     end
+  end
+
+  # bp5 P8 (red-team A): map the common Cyrillic/Greek homoglyphs that
+  # visually impersonate Latin a-z so a claim word spelled with lookalike
+  # letters still trips the guard. Lowercase mapping is enough (patterns are /i).
+  HOMOGLYPH_FOLD = {
+    'а' => 'a', 'е' => 'e', 'о' => 'o', 'с' => 'c', 'р' => 'p', 'х' => 'x',
+    'у' => 'y', 'к' => 'k', 'м' => 'm', 'н' => 'h', 'т' => 't', 'в' => 'b',
+    'і' => 'i', 'ј' => 'j', 'ѕ' => 's', 'ԁ' => 'd', 'ɡ' => 'g',
+    'α' => 'a', 'ο' => 'o', 'ρ' => 'p', 'ε' => 'e', 'ι' => 'i', 'ν' => 'v',
+    'ѵ' => 'v', 'ⅼ' => 'l', 'ո' => 'n'
+  }.freeze
+
+  def fold_homoglyphs(text)
+    text.to_s.chars.map { |ch| HOMOGLYPH_FOLD[ch.downcase] || ch }.join
+  rescue StandardError
+    text.to_s
   end
 
   # bp5 P1: a % bonus PROMISE must trace to a configured percentage (an
@@ -2762,7 +2803,10 @@ class Ai::ReplyService
       tag = h.respond_to?(:display_handle) ? h.display_handle.to_s : ''
       next if tag.empty?
 
-      pattern = /(?<![\$@\w])#{Regexp.escape(name)}\b/i
+      # bp5 P8 (red-team B2): a display_name stored with irregular internal
+      # whitespace ("dev  patel") must still match single-spaced reply text.
+      name_re = name.split(/\s+/).map { |tok| Regexp.escape(tok) }.join('\\s+')
+      pattern = /(?<![\$@\w])#{name_re}\b/i
       out = out.gsub(pattern, tag) if out.match?(pattern)
     end
     out
