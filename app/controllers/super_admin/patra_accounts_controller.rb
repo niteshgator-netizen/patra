@@ -8,6 +8,9 @@
 # written BEFORE the change. Everything here is reversible — there is no
 # delete path in this controller on purpose.
 class SuperAdmin::PatraAccountsController < SuperAdmin::ApplicationController
+  # patra-fix2 G2: shared kill-switch gate (redirect back + styled flash).
+  include SuperAdmin::ConsoleActionsGate
+
   before_action :set_account
   before_action :require_console_actions!, only: [:suspend, :reactivate, :toggle_feature]
   before_action :require_reason!, only: [:suspend, :reactivate, :toggle_feature]
@@ -69,13 +72,6 @@ class SuperAdmin::PatraAccountsController < SuperAdmin::ApplicationController
 
   def set_account
     @account = Account.find(params[:id])
-  end
-
-  def require_console_actions!
-    return if Patra::AdminConsole.actions_enabled?
-
-    render plain: 'Patra console actions are disabled (set PATRA_ADMIN_CONSOLE_ACTIONS=true).',
-           status: :forbidden
   end
 
   def require_reason!

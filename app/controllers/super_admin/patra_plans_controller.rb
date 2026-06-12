@@ -4,6 +4,9 @@
 # enforces limits; enforcement ships later. Every mutation writes an ADM5
 # audit row before the change (same contract as the rest of the console).
 class SuperAdmin::PatraPlansController < SuperAdmin::ApplicationController
+  # patra-fix2 G2: shared kill-switch gate (redirect back + styled flash).
+  include SuperAdmin::ConsoleActionsGate
+
   before_action :set_plan, only: [:edit, :update, :destroy]
   # Deleting a plan is the one irreversible action here — same kill-switch as
   # the rest of the console. Create/update stay open: definitions only.
@@ -57,13 +60,6 @@ class SuperAdmin::PatraPlansController < SuperAdmin::ApplicationController
 
   def set_plan
     @plan = PatraPlan.find(params[:id])
-  end
-
-  def require_console_actions!
-    return if Patra::AdminConsole.actions_enabled?
-
-    render plain: 'Patra console actions are disabled (set PATRA_ADMIN_CONSOLE_ACTIONS=true).',
-           status: :forbidden
   end
 
   def plan_params

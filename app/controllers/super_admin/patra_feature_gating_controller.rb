@@ -7,6 +7,8 @@
 # this page only links there, it never flips account flags itself.
 class SuperAdmin::PatraFeatureGatingController < SuperAdmin::ApplicationController
   include SuperAdmin::PatraFeatureGatingHelper
+  # patra-fix2 G2: shared kill-switch gate (redirect back + styled flash).
+  include SuperAdmin::ConsoleActionsGate
 
   # assign_plan writes to an account row — that crosses the console's
   # account-mutation line, so it sits behind the same kill-switch as
@@ -55,12 +57,4 @@ class SuperAdmin::PatraFeatureGatingController < SuperAdmin::ApplicationControll
                 notice: plan ? "#{account.name} is now on the #{plan.name} plan." : "#{account.name} removed from its plan."
   end
 
-  private
-
-  def require_console_actions!
-    return if Patra::AdminConsole.actions_enabled?
-
-    render plain: 'Patra console actions are disabled (set PATRA_ADMIN_CONSOLE_ACTIONS=true).',
-           status: :forbidden
-  end
 end

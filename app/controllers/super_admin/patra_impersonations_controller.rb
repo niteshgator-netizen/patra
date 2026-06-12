@@ -10,6 +10,11 @@
 #   - one-click exit (#destroy) — never gated by the kill-switch, always audited
 #   - the SSO token/link is never persisted or logged anywhere
 class SuperAdmin::PatraImpersonationsController < SuperAdmin::ApplicationController
+  # patra-fix2 G2: shared kill-switch gate (redirect back + styled flash).
+  # Exit (#destroy) stays intentionally ungated.
+  include SuperAdmin::ConsoleActionsGate
+  before_action :require_console_actions!, only: [:create]
+
   # Documented status contract for the SPA banner (DEFERRED-FRONTEND).
   def show
     data = patra_impersonation
@@ -28,10 +33,6 @@ class SuperAdmin::PatraImpersonationsController < SuperAdmin::ApplicationControl
   end
 
   def create
-    unless Patra::AdminConsole.actions_enabled?
-      return render plain: 'Patra console actions are disabled (set PATRA_ADMIN_CONSOLE_ACTIONS=true).',
-                    status: :forbidden
-    end
     # Re-check at session creation, not just route level.
     unless current_super_admin.is_a?(SuperAdmin)
       return render plain: 'Super admin required.', status: :forbidden
