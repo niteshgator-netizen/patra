@@ -27,10 +27,16 @@ RSpec.describe 'Super Admin Patra account control', type: :request do
   end
 
   describe 'POST /super_admin/patra_accounts/:id/suspend' do
-    it 'returns 403 when the actions kill-switch is off (default)' do
+    # patra-final: G2 (a2587bfd8) replaced the raw 403 with
+    # SuperAdmin::ConsoleActionsGate — redirect_back + styled flash. With no
+    # Referer in a request spec, redirect_back lands on the fallback
+    # (super_admin_root_path).
+    it 'redirects back with the disabled flash when the kill-switch is off (default)' do
       sign_in(super_admin, scope: :super_admin)
       post "/super_admin/patra_accounts/#{account.id}/suspend", params: { reason: 'fraud' }
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:redirect)
+      expect(response).to redirect_to('/super_admin')
+      expect(flash[:alert]).to include('Console actions are disabled')
       expect(account.reload.status).to eq('active')
       expect(PatraAdminAuditLog.count).to eq(0)
     end
@@ -81,11 +87,14 @@ RSpec.describe 'Super Admin Patra account control', type: :request do
       expect(PatraAdminAuditLog.last.action).to eq('account.reactivate')
     end
 
-    it 'is blocked without the kill-switch' do
+    it 'is blocked without the kill-switch (redirect + flash, account untouched)' do
       sign_in(super_admin, scope: :super_admin)
       post "/super_admin/patra_accounts/#{account.id}/reactivate", params: { reason: 'x' }
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:redirect)
+      expect(response).to redirect_to('/super_admin')
+      expect(flash[:alert]).to include('Console actions are disabled')
       expect(account.reload.status).to eq('suspended')
+      expect(PatraAdminAuditLog.count).to eq(0)
     end
   end
 

@@ -25,11 +25,16 @@ RSpec.describe 'Super Admin Patra impersonation', type: :request do
       expect(PatraAdminAuditLog.count).to eq(0)
     end
 
-    it 'is 403 while the kill-switch is off (default)' do
+    # patra-final: G2 gate contract — redirect_back + styled flash instead of
+    # a raw 403 (SuperAdmin::ConsoleActionsGate).
+    it 'redirects back with the disabled flash while the kill-switch is off (default)' do
       sign_in(super_admin, scope: :super_admin)
       start_impersonation
-      expect(response).to have_http_status(:forbidden)
+      expect(response).to have_http_status(:redirect)
+      expect(response).to redirect_to('/super_admin')
+      expect(flash[:alert]).to include('Console actions are disabled')
       expect(PatraAdminAuditLog.count).to eq(0)
+      expect(session['patra_impersonation']).to be_nil
     end
 
     it 'requires a reason' do
