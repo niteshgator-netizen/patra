@@ -329,6 +329,10 @@ module Games
         # bp iter2: "same tag?" — resend the tag for the platform this
         # conversation already picked (fresh lookup), menu-once guarded.
         payment_menu_or_stored_reply
+      when :customer_tag_provided
+        handle_customer_tag_provided(intent)
+      when :outbound_request
+        handle_outbound_request(intent)
       when :context_answer
         # bp5 R2: bare answer ("yes please" / "i did" / "same one" / "ready")
         # resolves against the stamped pending question; nil -> DeepSeek.
@@ -2629,6 +2633,26 @@ module Games
         clear_pending_question!
         handle_account_creation_request(intent: :request_account_creation, game_slug: ctx['game_slug'].presence)
       when 'did_it'
+        # bp5 R1: "done / ok done" right after we stored their cashout tag =
+        # the player confirms the payout LANDED. Telegram the close-out;
+        # nothing moves.
+        if type == 'cashout_receipt'
+          clear_pending_question!
+          safe_telegram do
+            Games::TelegramNotifier.human_escalation(
+              account: account, contact: contact,
+              reason: escalation_context(
+                wants: 'nothing - closing the loop',
+                done: "player CONFIRMS RECEIVED the cashout at their tag #{ctx['tag']}",
+                left: 'nothing',
+                suggest: 'mark the payout done on your side',
+                need: 'nothing - informational'
+              ),
+              conversation: conversation
+            )
+          end
+          return { reply: 'ayy love it — enjoy! 🙏', labels: ['cashout-received-confirmed'] }
+        end
         return nil unless %w[screenshot sender_name payment_method].include?(type)
 
         clear_pending_question!
@@ -2684,6 +2708,128 @@ module Games
       when 'which_game'
         { reply: "which game we doing? we got #{active_games_list_text}", labels: [] }
       end
+    end
+
+    # ---- bp5 R1/R3 - customer cashout tag + outbound request ----
+
+    # R1: the customer pasted THEIR OWN tag. Store it per platform as the
+    # cashout destination, reply with the PLATFORM WORD ONLY (never echo
+    # their tag, never volunteer ours), Telegram the cashier the full 5-part
+    # with tag + platform + amount. NOTHING is paid here.
+    def handle_customer_tag_provided(intent)
+      tag = intent.is_a?(Hash) ? intent[:tag].to_s.strip : ''
+      return nil if tag.blank?
+
+      # R1 SAFETY: a tag normalizing to any of OUR configured handles is the
+      # customer echoing US back - never stored as theirs.
+      if our_configured_handle?(tag)
+        Rails.logger.info('[Orchestrator] customer_tag_provided matches OUR handle (echo) - not stored')
+        return nil
+      end
+
+      platform = intent[:platform].presence
+      store_customer_cashout_tag!(platform, tag)
+      amount = intent[:amount].to_f
+      amount = nil unless amount.positive?
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "their cashout sent to their #{platform.presence || 'pasted'} tag #{tag}#{amount ? " ($#{fmt_amt(amount)})" : ''}",
+            done: "tag stored on the contact as the #{platform.presence || 'default'} cashout destination - NOTHING paid",
+            left: 'the payout itself (cashier-manual)',
+            suggest: 'pay to this exact tag when the cashout is ready',
+            need: "send the cashout to #{tag}#{amount ? " ($#{fmt_amt(amount)})" : ''} and confirm in chat"
+          ),
+          conversation: conversation
+        )
+      end
+
+      store_pending_question!('cashout_receipt', platform: platform, tag: tag)
+      reply = if platform
+                "got it love, sending your cashout to your #{platform} 🙏"
+              else
+                'got it love, saved that for your cashout 🙏'
+              end
+      { reply: reply, labels: ['cashout-tag-stored'] }
+    end
+
+    # R3: "Request $X" - the cashier fires the actual payment-app request at
+    # the player's stored tag. No stored tag -> ask for platform+tag first.
+    # Bella never claims the request was sent as FACT - in-progress phrasing
+    # only, and only AFTER the escalation fired.
+    def handle_outbound_request(intent)
+      amount = intent.is_a?(Hash) ? intent[:amount].to_f : 0.0
+      platform, tag = stored_customer_cashout_tag
+
+      if tag.blank?
+        return {
+          reply: 'which app you want that request on, and drop your tag for me 🙏',
+          labels: ['outbound-request-needs-tag']
+        }
+      end
+
+      amt_txt = amount.positive? ? "$#{fmt_amt(amount)}" : 'their amount'
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "a #{platform.presence || 'payment-app'} REQUEST to their tag #{tag} for #{amt_txt}",
+            done: 'nothing sent - outbound requests are cashier-manual',
+            left: 'fire the request from our handle',
+            suggest: 'send the request and confirm here once done',
+            need: "send a #{platform.presence || 'payment-app'} request to #{tag} for #{amt_txt} and confirm in chat"
+          ),
+          conversation: conversation
+        )
+      end
+      { reply: 'sending that request now hun, one sec 🙏', labels: %w[outbound-request cashier-action-needed] }
+    end
+
+    # True when the tag normalizes onto any configured payment handle (any
+    # status - a retired handle echoed back is still OURS). Fails SAFE: on
+    # error treat as ours so a possibly-echoed tag is never stored.
+    def our_configured_handle?(tag)
+      norm = tag.to_s.sub(/\A[\$@]/, '').gsub(/\s+/, '').downcase
+      return false if norm.empty?
+
+      account.payment_handles.to_a.any? do |h|
+        h.normalized_handle.to_s.gsub(/\s+/, '').downcase == norm
+      end
+    rescue StandardError => e
+      Rails.logger.warn("[Orchestrator] our_configured_handle? failed: #{e.message}")
+      true
+    end
+
+    def store_customer_cashout_tag!(platform, tag)
+      key = "cashout_tag_#{platform.presence || 'default'}"
+      attrs = (contact.custom_attributes || {}).merge(
+        key => tag.to_s,
+        'cashout_tag_last_platform' => (platform.presence || 'default'),
+        'cashout_tag_updated_at' => Time.current.iso8601
+      )
+      contact.update(custom_attributes: attrs)
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] store_customer_cashout_tag! failed: #{e.message}")
+    end
+
+    # [platform, tag] - the most recently stored customer cashout destination
+    # (platform nil for the default slot). [nil, nil] when none stored.
+    def stored_customer_cashout_tag
+      ca = (contact.custom_attributes || {})
+      last = ca['cashout_tag_last_platform'].presence
+      if last && ca["cashout_tag_#{last}"].present?
+        return [last == 'default' ? nil : last, ca["cashout_tag_#{last}"]]
+      end
+
+      %w[cashapp venmo chime paypal zelle default].each do |p|
+        t = ca["cashout_tag_#{p}"]
+        return [p == 'default' ? nil : p, t] if t.present?
+      end
+      [nil, nil]
+    rescue StandardError
+      [nil, nil]
     end
 
     # E3: the pick menu must never loop. Order: (1) a platform this

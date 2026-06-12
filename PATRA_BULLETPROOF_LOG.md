@@ -455,3 +455,18 @@ Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0
   9 priority regressions; negatives "$20"→nil, embedded-tag→payment_sent, "whats your cashapp"→pick,
   "request a cashout"→cashout) + iter4 + P2 suites ALL PASS. Reviewer independently re-verified 23
   inputs through the real chain + backtracking probes (<0.001s) → SHIP.
+### P3b — R1/R3 ORCHESTRATOR FLOWS (conversation_orchestrator.rb, HOT, 1 commit)
+- handle_customer_tag_provided: stores tag per platform on contact (cashout_tag_<platform> +
+  last_platform + updated_at), reply = PLATFORM WORD ONLY (never echoes their tag, never volunteers
+  ours), 5-part cashier Telegram (safe_telegram) with tag+platform+amount, stamps cashout_receipt.
+  ECHO VETO our_configured_handle?: tag vs ALL payment_handles (any status), normalized symmetric
+  (reviewer verified vs PaymentHandle#normalized_handle), fail-SAFE → on error treated as ours,
+  never stored. "no, only $X" → overwrite + updated Telegram (lead-ins in detector).
+- handle_outbound_request: stored tag → 5-part REQUEST Telegram then "sending that request now hun,
+  one sec 🙏" (in-progress, after escalation, never sent-as-fact); no tag → ask platform+tag,
+  ZERO telegram. did_it on cashout_receipt → "player CONFIRMS RECEIVED" Telegram + warm ack.
+- VERIFIED BY ME NOW: 10/10 end-to-end through handle() vs live DB (store / platform-word-only /
+  echo-veto with account 2's real active handle / overwrite / done-confirms / request both ways)
+  + BP section runner 17/17 + BP-I1/I2 PASS. Zero sends (Telegram captured).
+- REVIEWER: SHIP. Independently verified: zero panel/executor/Payments calls in new code; both new
+  reply phrases pass all 3 P1 guard families; echo-veto normalization symmetric; persona rules kept.
