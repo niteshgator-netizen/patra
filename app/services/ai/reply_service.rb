@@ -2405,9 +2405,22 @@ class Ai::ReplyService
     Rails.logger.error("[AiReply] add_conversation_labels failed conversation=#{@conversation_id} #{e.class}: #{e.message}")
   end
 
+  # bp5 P1: chokepoint guard for FALSE COMPLETED-ACTION CLAIMS (all 5 reply
+  # exits route through here). A reply may assert a completed/in-progress
+  # money action ONLY when a matching real GameAction succeeded in the last
+  # 5 minutes; otherwise the claim is rewritten to intent-form and the
+  # deterministic path acts/escalates. Families: load (original behavior,
+  # reply + label unchanged), transfer/switch ("Transferred to panda masters
+  # ✅", "switching to fire kirin now"), payout ("Got it, paying now"). Also
+  # kills % bonus promises that trace to no configured rule ("40% is still
+  # on for you"). Phrasing about the CUSTOMER's inbound payment ("lmk when
+  # you sent it") and R3's blessed "sending that request now" stay untouched.
   def guard_against_false_load_claim(reply_text)
     reply_text = enforce_exact_payment_handles(reply_text)
     reply_text = strip_handle_person_names(reply_text)
+    return reply_text if reply_text.blank?
+
+    reply_text = guard_against_unconfigured_bonus_claim(reply_text)
     return reply_text if reply_text.blank?
 
     load_claim_patterns = [
@@ -2421,22 +2434,109 @@ class Ai::ReplyService
       /done.{0,10}load/i,
       /✅/
     ]
+    transfer_claim_patterns = [
+      /\btransferr?ed\b/i,
+      /\bswitch(?:ed|ing)\b[^.!?\n]{0,30}\b(?:now|over)\b/i,
+      /\bmoved\s+(?:it|you|your|that|everything)\b/i
+    ]
+    payout_claim_patterns = [
+      /\b(?:i|we)(?:'ve)?\s+(?:just\s+)?(?:sent|paid)\b/i,
+      /\bpaying\s+(?:you\s+|it\s+|that\s+)?(?:now|rn)\b/i,
+      /\bgot\s+it[,!.]?\s*paying\b/i,
+      /\b(?:sent|paid)\s+(?:your|the)\s+(?:cash\s*out|cashout|payout|winnings|request)\b/i,
+      /\b(?:cash\s*out|cashout|payout|winnings)\s+(?:is\s+|was\s+)?(?:sent|paid|done|completed)\b/i
+    ]
 
-    return reply_text unless load_claim_patterns.any? { |p| reply_text.match?(p) }
+    claim_kind =
+      if payout_claim_patterns.any? { |p| reply_text.match?(p) }
+        :payout
+      elsif transfer_claim_patterns.any? { |p| reply_text.match?(p) }
+        :transfer
+      elsif load_claim_patterns.any? { |p| reply_text.match?(p) }
+        :load
+      end
+    return reply_text unless claim_kind
 
     cid = fetch_sender_contact_id
     return reply_text if cid.blank?
 
-    real_load = GameAction
-                .where(contact_id: cid, action_type: 'load', status: 'success')
-                .where('game_actions.created_at > ?', 5.minutes.ago)
-                .exists?
+    recent_success = GameAction
+                     .where(contact_id: cid, status: 'success')
+                     .where('game_actions.created_at > ?', 5.minutes.ago)
+    evidence =
+      case claim_kind
+      when :load then recent_success.where(action_type: 'load').exists?
+      when :payout then recent_success.where(action_type: 'cashout').exists?
+      when :transfer
+        # a real game-to-game transfer = redeem (cashout) + recharge (load)
+        recent_success.where(action_type: 'cashout').exists? &&
+          recent_success.where(action_type: 'load').exists?
+      end
 
-    return reply_text if real_load
+    return reply_text if evidence
 
-    Rails.logger.warn("[ReplyService] BLOCKED_FALSE_LOAD_CLAIM contact=#{cid} reply=#{reply_text.inspect[0..120]}")
-    add_conversation_labels!(%w[blocked-false-load-claim]) rescue nil
-    'verifying your payment with the bank, takes 1-5 min — hang tight 🙏'
+    Rails.logger.warn("[ReplyService] BLOCKED_FALSE_#{claim_kind.to_s.upcase}_CLAIM contact=#{cid} reply=#{reply_text.inspect[0..120]}")
+    if claim_kind == :load
+      add_conversation_labels!(%w[blocked-false-load-claim]) rescue nil
+      'verifying your payment with the bank, takes 1-5 min — hang tight 🙏'
+    else
+      add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
+      'on it — getting that going for you now, one sec 🙏'
+    end
+  end
+
+  # bp5 P1: a % bonus PROMISE must trace to a configured percentage (an
+  # enabled GameRule deposit_bonus_percentage, or the player's stored
+  # bonus_percent_override / preferred_bonus_percentage). Plain percents with
+  # no promise wording pass through. Fails open on any error.
+  BONUS_PROMISE_CONTEXT = /\b(bonus|match|extra|promo|still\s+on|on\s+for\s+you|you\s+get|i'?ll\s+(?:give|add|throw))\b/i
+
+  def guard_against_unconfigured_bonus_claim(reply_text)
+    return reply_text if reply_text.to_s.strip.empty?
+
+    percents = reply_text.scan(/(\d{1,3}(?:\.\d{1,2})?)\s*%/).flatten
+    return reply_text if percents.empty?
+    return reply_text unless reply_text.match?(BONUS_PROMISE_CONTEXT)
+
+    allowed = configured_bonus_percents
+    stray = percents.reject { |p| allowed.include?(p.to_f) }
+    return reply_text if stray.empty?
+
+    Rails.logger.warn("[ReplyService] BLOCKED_UNCONFIGURED_BONUS_CLAIM stray=#{stray.join(',')} reply=#{reply_text.inspect[0..120]}")
+    add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
+    'lemme double check what bonus is running for you rn — one sec 🙏'
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] bonus claim guard failed: #{e.class}: #{e.message}")
+    reply_text
+  end
+
+  # Percent values Bella is allowed to promise: enabled GameRule bonuses for
+  # this account + the player's stored bonus attrs. [] on any error (=> every
+  # percent promise gets the safe check line).
+  def configured_bonus_percents
+    allowed = []
+    GameRule.where(account_id: account_id).each do |r|
+      next unless r.respond_to?(:deposit_bonus_enabled) && r.deposit_bonus_enabled
+
+      allowed << r.deposit_bonus_percentage.to_f if r.deposit_bonus_percentage.present?
+    end
+    cid = begin
+      fetch_sender_contact_id
+    rescue StandardError
+      nil
+    end
+    contact = cid.present? ? Contact.find_by(id: cid, account_id: account_id) : nil
+    if contact
+      ca = (contact.custom_attributes || {}).stringify_keys
+      %w[bonus_percent_override preferred_bonus_percentage].each do |k|
+        v = ca[k].to_s[/\d+(?:\.\d+)?/]
+        allowed << v.to_f if v
+      end
+    end
+    allowed
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] configured_bonus_percents failed: #{e.class}: #{e.message}")
+    []
   end
 
   # Payfix output guard: any $/@ tag in the reply that is NOT an exact active

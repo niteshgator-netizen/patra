@@ -345,3 +345,66 @@ TOTAL: fallthrough -24.2% (11,288 rows), money-miss -31.4% (10,536 rows), resolv
     # Tier 1 + Tier 2 (DeepSeek replies, 300-row sample; uses the worker's DEEPSEEK_API_KEY):
     REPLAY_LLM_SAMPLE=300 bundle exec rails runner script/patra_corpus_replay.rb
     # report lands in PATRA_REPLAY_REPORT.md (REPORT_PATH=... to redirect)
+
+================================================================================
+# BP5 MEGA RUN — ITERATION 5 (started 2026-06-12)
+================================================================================
+## REGIME
+Commit per phase "bp5:", NEVER pushed. Zero real sends (panels/Telegram/DeepSeek stubbed/captured).
+bella_rag_pairs READ-ONLY. Hot files: one per commit, full read first, ruby -c, anchor-abort patches.
+LOCAL FULL-HARNESS BAN stands (AR-encrypted agent_games.credentials, keys Render-only).
+
+## RUN-START ROLLBACK HASH (revert everything: git reset --hard 9be06b724dc13614a49a1ecf6043872dc43e8e1d)
+HEAD at start: 9be06b724dc13614a49a1ecf6043872dc43e8e1d
+DRIFT NOTE: prompt context said HEAD=5de219f645a (bot asset commit); actual local HEAD is 9be06b724
+(merge of patra-clean main). Local tree clean except untracked scratch (ci4.txt ci5.txt tl5.zip).
+Working from actual HEAD; all VERIFIED MAP line numbers to be re-confirmed by P0 explorers.
+
+## PHASE LOG
+### P0 — PARALLEL EXPLORER RECONCILIATION (4 agents, full fresh reads)
+- reply_service.rb (3056): guard_against_false_load_claim :2408-2440, call sites :567/:639/:803/:824/:897
+  (confirmed ALL), enforce_exact_payment_handles :2447 (regex requires $/@ prefix — prefix-less PayPal
+  usernames pass through untouched), strip_handle_person_names :2651. NO DRIFT vs map.
+- conversation_orchestrator.rb (4976): all 7 anchors exact. All 10 listed question sites confirmed;
+  EXTRA question sites found: :420/:428 (username asks), :889/:1132 (create-account offers), :1547
+  (account-choice-pending), :1634 (reset username), :2290 (needs-account-offer), :3281 (balance which
+  game), :4009 (overmax-choice-pending), :4328/:4346/:4366 (which-game list asks), :4557/:4569/:4574
+  (partial redeem), :4691/:4695 (replay-from-balance). Cashout is cashier-manual (Telegram escalation,
+  no [:ok] in path). additional_attributes pattern = stringify_keys + save! (proven).
+- intent_detector.rb (1118): all anchors confirmed (payment_handle_again now :662, BARE_GAME_FILLERS :929).
+  detect() priority chain fully mapped; insertion point for lowest-priority context_answer = after :735
+  extract_username branch. 'all in one'/'mr all in one' aliases ALREADY in GAME_NAME_ALIASES → P5 item
+  becomes verify-only. bare_game_amount_load enforces exactly-1-number (R4 parser sits beside it).
+- patra_corpus_replay.rb (397): graders :329-:350 confirmed (unknown-tag :340, untraceable :343,
+  dead-end :346); exact_tags = display_handle downcased; allowed_nums = input+sys numbers only (no
+  arithmetic) — confirms all 4 grader false-positive families from the prompt.
+- Harness: script/patra_money_harness.rb 203 ok! sites (log said 204 — recount via grep says 203;
+  baseline for "only increase" = 203). tmp/bp_section_runner.rb intact (BP-F1..F4 + I1/I2 local subset).
+- DRIFT LOG: none structural. Local HEAD 9be06b724 ≠ prompt's 5de219f645a (noted above).
+### P1 — FALSE-ACTION-CLAIM GUARD (reply_service.rb, HOT, 1 commit)
+- Extended guard_against_false_load_claim (the single chokepoint behind all 5 reply exits
+  :567/:639/:803/:824/:897 — no call-site changes). New claim families + evidence:
+  * transfer/switch ("Transferred to panda masters ✅", "switching to fire kirin now") →
+    needs BOTH a cashout AND a load GameAction success <5min (a real transfer = redeem+recharge).
+  * payout ("Got it, paying now", "i sent your cashout") → needs a cashout GameAction success <5min.
+  * load family unchanged (same reply line + blocked-false-load-claim label as before).
+  * No evidence → intent-form rewrite "on it — getting that going for you now, one sec 🙏"
+    + blocked-false-action-claim label. Deterministic path still acts/escalates.
+- NEW guard_against_unconfigured_bonus_claim: a % promise ("40% is still on for you") must trace
+  to an ENABLED GameRule.deposit_bonus_percentage or contact bonus attrs (bonus_percent_override /
+  preferred_bonus_percentage); else safe check line. Plain percents without promise wording pass.
+  Fails open (rescue → reply unchanged).
+- Deliberate distinctions: "sending that request now" (R3-blessed in-progress phrasing) and
+  customer-inbound phrasing ("lmk when you sent the payment") are NOT matched — verified.
+- VERIFIED BY ME NOW: tmp/bp5_verify_p1.rb via rails runner vs live DB = 19/19 PASS (4 false
+  families rewritten, truthful claims with GameAction evidence pass, configured 20% promise passes,
+  73% blocked, 6 legit phrasings untouched). ruby -c OK. Throwaway contact+GameActions cleaned.
+- REVIEWER (agent): SHIP for the reply_service hunk. Findings: no new unrescued raise path; all 6
+  known orchestrator replies evaluated against new patterns = SAFE; advisory = PRE-EXISTING /✅/
+  pattern can rewrite orchestrator's "got your $X payment ✅ what username..." when no load exists
+  yet (unchanged behavior, parked in product-decision queue); Gemfile/Gemfile.lock local-env edits
+  must stay OUT of commits (they do — local only, reverted at run end).
+- LOCAL ENV NOTE (uncommitted, revert at end): Gemfile ruby pin '3.4.4'→'~> 3.4', Gemfile.lock
+  ruby 3.4.9p76 + pg 1.6.3(+mingw) + irb/reline/io-console bumps. Live-verify recipe for this run:
+  RAILS_ENV=production EAGER_LOAD=false SECRET_KEY_BASE=dummy DATABASE_URL=$PATRA_DATABASE_URL +
+  ActiveJob::Base.queue_adapter = :test inside every script (no local Redis; jobs captured in-memory).
