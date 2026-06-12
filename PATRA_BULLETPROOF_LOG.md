@@ -575,3 +575,9 @@ RED-TEAM (P7 adversary agent) confirmed 3 real holes; all fixed + re-verified 31
 - VERIFIED BY ME NOW: tmp/bp5_verify_p8.rb 31/31 (16 A bypasses blocked, 9 legit untouched,
   truthful-with-action passes, 3 C variants caught, B2 fixed) + full local gate 11/11 prior suites
   still green. REVIEWER: SHIP all three (split C across two commits per one-hot-file rule).
+### P8b — RED-TEAM REGRESSION LOCK-IN (script/patra_money_harness.rb, NOT hot)
+- Added BP5-G2 section (ok! sites 236 → 239 literal; ~16 runtime assertions): the 10 false-claim
+  bypasses now blocked, 3 legit-untouched (processing/verified/all-set-credentials), 3 echo-veto
+  trailing-punct variants. Mirrors tmp/bp5_verify_p8.rb (31/31, already verified). Render full
+  harness picks these up. Assertions only ever increased across the whole BP5 run (142 baseline
+  pre-BULLETPROOF → 203 post-BULLETPROOF → 239 post-BP5).

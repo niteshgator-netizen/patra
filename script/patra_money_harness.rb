@@ -1835,6 +1835,46 @@ begin
       (bp5_ct = Games::IntentDetector.detect('$CasiqueJorge69 10$')).is_a?(Hash) &&
       bp5_ct[:intent] == :customer_tag_provided && bp5_ct[:amount] == 10.0)
 
+  puts "
+[BP5-G2 red-team regression - false-claim vocab + homoglyph + echo-veto + name leak]"
+  GameAction.where(contact_id: contact.id).delete_all
+  bp5g2 = Ai::ReplyService.new(0, account_id: account.id)
+  bp5g2.instance_variable_set(:@bp5_cid, contact.id)
+  def bp5g2.fetch_sender_contact_id; @bp5_cid; end
+  def bp5g2.add_conversation_labels!(_l); nil; end
+  bp5g2_guard = ->(t) { bp5g2.send(:guard_against_false_load_claim, t) }
+  bp5g2_load = 'verifying your payment with the bank, takes 1-5 min — hang tight 🙏'
+  bp5g2_intent = 'on it — getting that going for you now, one sec 🙏'
+  {
+    "your money's in, go ahead and play 🎰" => bp5g2_load,
+    'topped you up 20 on firekirin'         => bp5g2_load,
+    'money has been added to your account'  => bp5g2_load,
+    'deposited 30 into your account'        => bp5g2_load,
+    "it's in there now, go ahead"           => bp5g2_load,
+    'your balance should reflect it now'    => bp5g2_load,
+    'lоаded you up'                         => bp5g2_load,
+    'your payout went out a min ago'        => bp5g2_intent,
+    'paid out your winnings, all done'      => bp5g2_intent,
+    'sent it your way just now'             => bp5g2_intent
+  }.each do |text, want|
+    ok!("BP5-G2 false-claim blocked: #{text[0, 32].inspect}", bp5g2_guard.call(text) == want)
+  end
+  # legit in-progress / credential phrasings stay untouched
+  ['got it, processing your payment now', 'your $20 is verified - which game do you want it on?',
+   'all set! username: rob123, password: rob456 (save this!)'].each do |t|
+    ok!("BP5-G2 legit untouched: #{t[0, 30].inspect}", bp5g2_guard.call(t) == t)
+  end
+  # echo-veto: OUR handle + trailing punctuation must still be vetoed
+  bp5g2_our = account.payment_handles.where(status: 'active').first
+  if bp5g2_our
+    bp5g2_o = orch(account, contact, [], convo: new_harness_conversation(account, contact))
+    ['.', '..', '_'].each do |suf|
+      probe = Games::IntentDetector.detect("#{bp5g2_our.display_handle}#{suf}")
+      ok!("BP5-G2 echo-veto catches OUR handle + #{suf.inspect}",
+          bp5g2_o.send(:our_configured_handle?, probe.is_a?(Hash) ? probe[:tag] : "#{bp5g2_our.display_handle}#{suf}") == true)
+    end
+  end
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"
