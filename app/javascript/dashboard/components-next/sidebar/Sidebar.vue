@@ -691,8 +691,19 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_integrations_notifications'),
           activeOn: ['settings_integrations_notifications'],
         },
-        // Phase H.10 item 6: Audit Logs / Custom Roles / SLA / Conversation
-        // Workflow / Security hidden. Routes still registered.
+        // patra-fix2 F14: SLA un-hidden from H.10 - the page is the only way
+        // to create the policies the conversation countdown chips need; the
+        // item still self-gates on the route's featureFlag/permissions meta.
+        {
+          name: 'Settings SLA',
+          label: t('SIDEBAR.SLA'),
+          icon: 'i-lucide-timer',
+          to: accountScopedRoute('sla_list'),
+          activeOn: ['sla_list'],
+        },
+        // Phase H.10 item 6: Audit Logs / Custom Roles / Conversation
+        // Workflow / Security hidden (SLA restored above, patra-fix2 F14).
+        // Routes still registered.
         {
           name: 'Settings Billing',
           label: t('SIDEBAR.BILLING'),

@@ -12,7 +12,8 @@
          id="search"
          type="search"
          name="search"
-         placeholder="<%= t("administrate.search.label", resource: resource_name) %>"
+         <%# patra-fix2 F12: form submits on Enter only - say so. %>
+         placeholder="<%= t("administrate.search.label", resource: resource_name) %> — press Enter"
          value="<%= search_term %>">
 
   <%= link_to clear_search_params, class: "search__clear-link" do %>

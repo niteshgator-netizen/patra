@@ -4,8 +4,6 @@ import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import PatraAiAPI from 'dashboard/api/patraAi';
-import { emitter } from 'shared/helpers/mitt';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 const props = defineProps({
   conversationId: { type: [Number, String], required: true },
@@ -97,35 +95,18 @@ const scrollToFirstAiMessage = () => {
     msgs[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
-/* 2c fix: the old handler only focused the composer — to the agent the
-   button did nothing. Now it asks Bella for a suggested reply for THIS
-   conversation (existing patra/ai copilot_suggestion endpoint) and inserts
-   it into the composer via the same bus event the copilot uses. */
-const asking = ref(false);
-
-const askPatraAi = async () => {
-  if (asking.value) return;
-  asking.value = true;
-  try {
-    const { data } = await PatraAiAPI.copilotSuggestion(
-      props.conversationId,
-      ''
-    );
-    const suggestion = data?.suggestion || '';
-    if (!suggestion) {
-      useAlert(t('PATRA.AI_CARD.ASK_EMPTY'));
-      return;
-    }
-    emitter.emit(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, suggestion);
-    const el = document.querySelector(
-      '.reply-box--container textarea, .reply-box--container .ProseMirror'
-    );
-    if (el) el.focus();
-  } catch {
+/* patra-fix2 F13 (supersedes the 2c silent API call, which showed nothing
+   visible): the button now drives the REAL ask mechanism - the "Ask Patra AI
+   anything…" copilot input lives in this same panel - by scrolling to it and
+   focusing it. No backend involved. */
+const askPatraAi = () => {
+  const el = document.querySelector('.patra-cop-input');
+  if (!el) {
     useAlert(t('PATRA.AI_CARD.ASK_FAILED'));
-  } finally {
-    asking.value = false;
+    return;
   }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.focus({ preventScroll: true });
 };
 </script>
 
@@ -250,8 +231,8 @@ const askPatraAi = async () => {
       }}
     </button>
 
-    <button class="ai-hc-ask-btn" :disabled="asking" @click="askPatraAi">
-      {{ asking ? $t('PATRA.AI_CARD.ASKING') : $t('PATRA.AI_CARD.ASK_PATRA') }}
+    <button class="ai-hc-ask-btn" @click="askPatraAi">
+      {{ $t('PATRA.AI_CARD.ASK_PATRA') }}
     </button>
   </div>
 </template>

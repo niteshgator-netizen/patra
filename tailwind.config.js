@@ -34,6 +34,7 @@ const tailwindConfig = {
     'i-lucide-palette',
     'i-lucide-castle',
     'i-lucide-power',
+    'i-lucide-timer',
   ],
   content: [
     './enterprise/app/views/**/*.html.erb',
