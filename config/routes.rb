@@ -477,6 +477,7 @@ Rails.application.routes.draw do
             end
           end
           resources :patra_audit_logs, only: [:index]
+          resources :patra_agent_feedbacks, only: [:index, :create, :update]
           resources :approval_requests, only: [:index] do
             member do
               post :approve

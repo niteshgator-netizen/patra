@@ -517,6 +517,18 @@ const menuItems = computed(() => {
           to: accountScopedRoute('patra_backup_pages'),
           activeOn: ['patra_backup_pages'],
         },
+        {
+          // patra-final P3: agents send feedback to the owner; admins read
+          // the same page as an inbox.
+          name: 'Feedback',
+          label:
+            currentRole.value === 'administrator'
+              ? 'Agent Feedback'
+              : 'Send Feedback',
+          icon: 'i-lucide-message-square-heart',
+          to: accountScopedRoute('patra_feedback'),
+          activeOn: ['patra_feedback'],
+        },
         ...(currentRole.value === 'administrator'
           ? [
               {

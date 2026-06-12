@@ -3,6 +3,7 @@ class Notification::EmailNotificationService
 
   def perform
     return if notification.patra_all_payment_handles_dead?
+    return if notification.patra_agent_feedback?
     # don't send emails if user read the push notification already
     return if notification.read_at.present?
     # don't send emails if user is not confirmed

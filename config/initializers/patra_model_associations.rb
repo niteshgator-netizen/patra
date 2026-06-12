@@ -21,5 +21,6 @@ ActiveSupport::Reloader.to_prepare do
     has_many :cashier_claims, dependent: :destroy_async
     has_many :backup_pages, dependent: :destroy_async
     has_many :accounting_syncs, dependent: :destroy_async
+    has_many :patra_agent_feedbacks, dependent: :destroy_async
   end
 end

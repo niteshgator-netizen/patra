@@ -5,6 +5,7 @@ class Notification::PushNotificationService
 
   def perform
     return if notification.patra_all_payment_handles_dead?
+    return if notification.patra_agent_feedback?
     return unless user_subscribed_to_notification?
 
     notification_subscriptions.each do |subscription|

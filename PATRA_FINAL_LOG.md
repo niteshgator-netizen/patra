@@ -103,3 +103,30 @@ None. The legitimate fix is operational (commands above) + Phase 5d's code-level
 - `app/javascript/dashboard/routes/dashboard/dashboard.routes.js` (2 routes)
 - `app/javascript/dashboard/i18n/locale/en/macros.json` (copy)
 - 3 new files (hub page, audit page, api client)
+
+---
+
+## PHASE 3 — AGENT FEEDBACK (agents → owner, never players)
+
+### Backend (all `ruby -c` clean)
+- **Migration** `db/migrate/20260612090000_create_patra_agent_feedbacks.rb` — additive only: `patra_agent_feedbacks` (account_id, user_id, conversation_id nullable, contact_id nullable, body, category int enum, status int enum, timestamps) + 3 indexes. No FKs, no changes to existing tables. NOTE: `db/schema.rb` not regenerated locally (no local DB) — Render's `db:migrate` applies it on deploy.
+- **Model** `app/models/patra_agent_feedback.rb` — enums `category: bug/player_issue/suggestion/other`, `status: new/seen` (prefixed — `new` clashes with Ruby otherwise). `after_create_commit :notify_admins` creates one in-app `Notification` per account admin (skips the author), wrapped in rescue so notification failure can never break feedback creation. `push_event_data` provided for the notification payload.
+- **Controller** `app/controllers/api/v1/accounts/patra_agent_feedbacks_controller.rb` — index (agents: own only; admins: all + category/status filters, newest first, cap 200), create (resolves conversation by display_id, contact by id, both scoped to the account), update (admin-only, status only).
+- **Route** `config/routes.rb`: `resources :patra_agent_feedbacks, only: [:index, :create, :update]` (next to patra_audit_logs).
+- **Association** added in `config/initializers/patra_model_associations.rb` (house pattern): `Account has_many :patra_agent_feedbacks`.
+- **Notification type** `patra_agent_feedback: 10` in `app/models/notification.rb` mirroring the existing `patra_all_payment_handles_dead: 9` precedent: title in `config/locales/en.yml`, body from feedback, fcm guard; early-returns added in push/email notification services (in-app only — push/email flags also default off for new types).
+- **Bug found & fixed while wiring this**: `Notification::RemoveDuplicateNotificationJob` deduped on `(user_id, primary_actor_id)` WITHOUT `primary_actor_type` — a Conversation and any non-conversation actor sharing a numeric id counted as duplicates and one notification was silently destroyed. Now scoped by type as well.
+
+### Frontend
+- `app/javascript/dashboard/api/patraAgentFeedback.js` (new client).
+- `app/javascript/dashboard/routes/dashboard/patra/PatraFeedback.vue` (new): agents see a send form (category select + body, conversation/contact pre-fill via query params) + their own entries; admins see the inbox — newest first, category/status filters, New/Seen pill, mark seen/new, links to the conversation and contact. Route `/patra/feedback` → **the audited 404 URL is now a real page**.
+- Sidebar (More group): "Send Feedback" for agents / "Agent Feedback" for admins.
+- Conversation header ⋯ menu (`MoreActions.vue`): "Send feedback" → `/patra/feedback?conversation_id=…&contact_id=…`.
+- Notification click (`InboxList.vue`): `patra_agent_feedback` notifications mark read and open the feedback inbox instead of trying to open a (nonexistent) conversation.
+- i18n: notification TYPE_LABEL in `generalSettings.json`, title in `en.yml`.
+
+### VERIFY (Genius, after deploy + migration)
+```
+# as an agent: send feedback from the sidebar, then as admin check /patra/feedback and the bell icon
+bundle exec rails runner "puts PatraAgentFeedback.count"
+```

@@ -2,6 +2,7 @@
 import { computed, onUnmounted } from 'vue';
 import { useToggle } from '@vueuse/core';
 import { useStore } from 'vuex';
+import { useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
@@ -18,6 +19,7 @@ import {
 
 // No props needed as we're getting currentChat from the store directly
 const store = useStore();
+const router = useRouter();
 const { t } = useI18n();
 
 const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
@@ -51,6 +53,14 @@ const actionMenuItems = computed(() => {
     value: 'send_transcript',
   });
 
+  // patra-final P3: agent→owner feedback, pre-filled with this conversation.
+  items.push({
+    icon: 'i-lucide-message-square-heart',
+    label: 'Send feedback',
+    action: 'patra_feedback',
+    value: 'patra_feedback',
+  });
+
   return items;
 });
 
@@ -65,6 +75,14 @@ const handleActionClick = ({ action }) => {
     useAlert(t('CONTACT_PANEL.UNMUTED_SUCCESS'));
   } else if (action === 'send_transcript') {
     toggleEmailModal();
+  } else if (action === 'patra_feedback') {
+    router.push({
+      name: 'patra_feedback',
+      query: {
+        conversation_id: currentChat.value.id,
+        contact_id: currentChat.value.meta?.sender?.id,
+      },
+    });
   }
 };
 

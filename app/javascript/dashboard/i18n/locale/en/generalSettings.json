@@ -168,7 +168,8 @@
       "sla_missed_first_response": "SLA Missed",
       "sla_missed_next_response": "SLA Missed",
       "sla_missed_resolution": "SLA Missed",
-      "patra_all_payment_handles_dead": "Payment handles unavailable"
+      "patra_all_payment_handles_dead": "Payment handles unavailable",
+      "patra_agent_feedback": "Agent feedback"
     }
   },
   "NETWORK": {

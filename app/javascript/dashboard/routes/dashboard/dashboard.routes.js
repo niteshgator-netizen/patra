@@ -22,6 +22,7 @@ import PatraBackupPages from './patra/PatraBackupPages.vue';
 import PatraCashierQueue from './patra/PatraCashierQueue.vue';
 import PatraReportsHub from './patra/PatraReportsHub.vue';
 import PatraAuditLogs from './patra/PatraAuditLogs.vue';
+import PatraFeedback from './patra/PatraFeedback.vue';
 import broadcastsRoutes from './broadcasts/broadcasts.routes';
 import Leaderboard from './reports/Leaderboard.vue';
 import SweepsReport from './reports/SweepsReport.vue';
@@ -126,6 +127,16 @@ export default {
           component: PatraAuditLogs,
           meta: {
             permissions: ['administrator'],
+          },
+        },
+        {
+          // patra-final P3: agent→owner feedback. Agents get a send form +
+          // their own entries; admins get the inbox (filter, mark seen).
+          path: 'patra/feedback',
+          name: 'patra_feedback',
+          component: PatraFeedback,
+          meta: {
+            permissions: ['administrator', 'agent'],
           },
         },
         {

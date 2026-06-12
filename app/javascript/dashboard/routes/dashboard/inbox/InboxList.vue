@@ -174,6 +174,24 @@ const openConversation = async notificationItem => {
     notificationType,
   } = notificationItem;
 
+  // patra-final P3: agent-feedback notifications point at a feedback record,
+  // not a conversation — open the feedback inbox instead.
+  if (notificationType === 'patra_agent_feedback') {
+    try {
+      await store.dispatch('notifications/read', {
+        id,
+        primaryActorId,
+        primaryActorType,
+        unreadCount: meta.value.unreadCount,
+      });
+      store.dispatch('notifications/unReadCount');
+    } catch {
+      // best-effort read; still navigate
+    }
+    router.push({ name: 'patra_feedback' });
+    return;
+  }
+
   if (route.params.id === String(conversationId)) return;
 
   useTrack(INBOX_EVENTS.OPEN_CONVERSATION_VIA_INBOX, {
