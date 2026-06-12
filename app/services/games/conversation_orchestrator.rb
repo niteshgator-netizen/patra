@@ -153,6 +153,11 @@ module Games
               attrs.delete('pending_load_intent')
               attrs['load_confirmed'] = true
               conversation.update_columns(additional_attributes: attrs)
+              # bp5 R4: a confirmed split resumes through the multi handler
+              if intent_data[:intent].to_s == 'load_multi'
+                intent_data[:legs] = Array(intent_data[:legs]).map { |l| l.is_a?(Hash) ? l.transform_keys(&:to_sym) : l }
+                return handle_load_multi(intent_data)
+              end
               return handle_load_intent(intent_data)
             rescue StandardError => e
               Rails.logger.error("[Orchestrator] Confirm-load processing failed: #{e.message}")
@@ -279,6 +284,8 @@ module Games
         handle_load_bonus(intent)
       when :load
         handle_load_intent(intent)
+      when :load_multi
+        handle_load_multi(intent)
       when :cashout
         handle_cashout_intent(intent)
       when :username_provided
@@ -2830,6 +2837,162 @@ module Games
       [nil, nil]
     rescue StandardError
       [nil, nil]
+    end
+
+    # ---- bp5 R4 - auto-split multi-game load. COMPOSES the existing gated
+    # machinery, forks nothing: the TOTAL must match a verified payment via
+    # the same find_matching_confirmed_payment rules; the R7 over-threshold
+    # hold applies to the total; confirm_before_load asks once for the whole
+    # split (resumes through the existing pending_load_intent yes/no flow);
+    # every leg pre-flights (game active + username on file) and ANY blocked
+    # leg = ALL-OR-ESCALATE — nothing loads, per-leg Telegram detail. Legs
+    # then execute SEQUENTIALLY through the same executor.load_player with
+    # deterministic per-leg order ids (F12 pattern, payment+leg suffixed) so
+    # duplicate messages collapse. A mid-run leg failure reports the REAL
+    # partial state (transfer half-fail pattern) — never a false success.
+    # NOTE: auto-bonus is intentionally NOT applied to split legs (parked as
+    # a product decision; the single-load path keeps its bonus behavior).
+    def handle_load_multi(intent)
+      legs = Array(intent.is_a?(Hash) ? intent[:legs] : nil)
+             .select { |l| l.is_a?(Hash) }
+             .map { |l| l.transform_keys(&:to_sym) }
+      return nil if legs.size < 2
+
+      total = legs.sum { |l| l[:amount].to_f }
+      return nil if total <= 0
+
+      legs_txt = legs.map { |l| "$#{fmt_amt(l[:amount])} #{slug_label(l[:game_slug])}" }.join(' + ')
+
+      begin
+        pref = ReplyPreference.for_account(account.id)
+        if pref&.confirm_before_load && conversation && !conversation.additional_attributes&.dig('load_confirmed')
+          attrs = (conversation.additional_attributes || {}).merge('pending_load_intent' => { intent: :load_multi, legs: legs }.to_json)
+          conversation.update_columns(additional_attributes: attrs)
+          return { reply: "confirm split load #{legs_txt}? (yes/no)", labels: [] }
+        end
+      rescue StandardError => e
+        Rails.logger.error("[Orchestrator] multi confirm-before-load check failed: #{e.message}")
+      end
+
+      payment = find_matching_confirmed_payment(total)
+      unless payment
+        handle_text = active_payment_handle_for_account
+        default_platform = begin
+          active_payment_platforms.first.to_s
+        rescue StandardError
+          ''
+        end
+        return {
+          reply: payment_request_reply(total, handle_text, default_platform, legs_txt),
+          labels: ['awaiting-payment', 'multi-load']
+        }
+      end
+
+      hold = over_threshold_load_hold(payment, legs_txt)
+      return hold if hold
+
+      prepared = legs.map do |l|
+        ag = pick_agent_game(l[:game_slug])
+        username = ag ? find_game_username_for_slug(contact, l[:game_slug]) : nil
+        { leg: l, ag: ag, username: username }
+      end
+      blocked = prepared.select { |p| p[:ag].nil? || p[:username].blank? }
+      if blocked.any?
+        detail = prepared.map do |p|
+          status = if p[:ag].nil?
+                     'game unavailable'
+                   elsif p[:username].blank?
+                     'no username on file'
+                   else
+                     'ready'
+                   end
+          "$#{fmt_amt(p[:leg][:amount])} #{slug_label(p[:leg][:game_slug])} (#{status})"
+        end.join(', ')
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "a split load: #{legs_txt} (verified $#{fmt_amt(total)} payment id #{payment[:id]})",
+              done: "NOTHING loaded - all-or-escalate (R4). Legs: #{detail}",
+              left: 'the whole split',
+              suggest: 'load the ready legs by hand and sort the blocked ones',
+              need: "run the split (#{legs_txt}) manually, then confirm in chat"
+            ),
+            conversation: conversation
+          )
+        end
+        return { reply: 'one sec love — splitting that across games needs a quick teammate touch 🙏', labels: %w[multi-load needs-human] }
+      end
+
+      # SAME sha root as deterministic_payment_order_id: the single path's
+      # LIKE probe sees multi legs (pay<sha>_g<i>_a<n>) and blocks; and a
+      # prior single-path action (pay<sha>_a<n>) for this payment blocks the
+      # whole split here. Closes the cross-path double-pay direction.
+      base = "pay#{Digest::SHA1.hexdigest("#{account.id}:#{contact&.id}:#{payment[:id]}")[0, 20]}"
+      single_done = GameAction.where(account_id: account.id)
+                              .where('order_id LIKE ?', "#{base}%")
+                              .where.not('order_id LIKE ?', "#{base}\\_g%")
+                              .where(status: %w[success pending ambiguous]).exists?
+      return already_loaded_response(total) if single_done
+
+      loaded = []
+      failed = []
+      prepared.each_with_index do |p, i|
+        leg_base = "#{base}_g#{i}"
+        existing = GameAction.where(account_id: account.id).where('order_id LIKE ?', "#{leg_base}\\_a%")
+        if existing.where(status: %w[success pending ambiguous]).exists?
+          loaded << { label: p[:ag].game.name, amount: p[:leg][:amount].to_f, already: true }
+          next
+        end
+
+        executor = Games::ActionExecutor.new(agent_game: p[:ag], contact: contact, conversation: conversation)
+        result = begin
+          executor.load_player(
+            game_username: p[:username],
+            amount: p[:leg][:amount].to_f,
+            payment_method: payment[:method],
+            metadata: { source: 'bella_multi_load', payment_id: payment[:id], leg: i, legs_total: legs.size },
+            order_id: "#{leg_base}_a#{existing.count}"
+          )
+        rescue Games::ActionExecutor::IdempotencyError, ActiveRecord::RecordNotUnique
+          { ok: true, already: true }
+        rescue StandardError => e
+          { ok: false, error: e.message, code: 'crash' }
+        end
+
+        if result[:ok]
+          loaded << { label: p[:ag].game.name, amount: p[:leg][:amount].to_f }
+        else
+          failed << { label: p[:ag].game.name, amount: p[:leg][:amount].to_f, reason: "#{result[:error]} (code #{result[:code]})" }
+          safe_telegram { Games::TelegramNotifier.load_failed(result[:action]) if result[:action] }
+        end
+      end
+
+      if failed.empty?
+        mark_payment_loaded(payment[:id], game_slug: legs.map { |l| l[:game_slug] }.join('+'))
+        loaded_phrase = loaded.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(' + ')
+        apply_receipt_preference({ reply: "loaded #{loaded_phrase} 🎰 good luck!", labels: ['auto-load', 'multi-load'] })
+      else
+        loaded_txt = loaded.any? ? "loaded #{loaded.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]}" }.join(', ')}" : 'NOTHING loaded'
+        safe_telegram do
+          Games::TelegramNotifier.human_escalation(
+            account: account, contact: contact,
+            reason: escalation_context(
+              wants: "a split load: #{legs_txt} (verified $#{fmt_amt(total)} payment id #{payment[:id]})",
+              done: "#{loaded_txt}; FAILED: #{failed.map { |x| "$#{fmt_amt(x[:amount])} #{x[:label]} (#{x[:reason]})" }.join(', ')}",
+              left: 'the failed leg(s) - payment received for the full split',
+              suggest: 'finish the failed legs on the panel',
+              need: "load #{failed.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(' + ')} manually, then confirm in chat"
+            ),
+            conversation: conversation
+          )
+        end
+        if loaded.any?
+          { reply: "got #{loaded.map { |x| "$#{fmt_amt(x[:amount])} on #{x[:label]}" }.join(' + ')} in — the rest hit a snag, a teammate is finishing it now.", labels: %w[multi-load load-failed needs-human] }
+        else
+          { reply: 'hit a snag on that split — flagged a teammate, they will get every leg loaded in a couple minutes.', labels: %w[multi-load load-failed needs-human] }
+        end
+      end
     end
 
     # E3: the pick menu must never loop. Order: (1) a platform this
