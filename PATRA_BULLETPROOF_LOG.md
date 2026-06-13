@@ -858,3 +858,18 @@ prod-only (Render): live reply path with a real configured agent_policy; full ha
   (pre-existing generic load pattern grabs the 4-char token first). The shorthand forms all work.
 prod-only (Render): detector live-verify via rails runner + full corpus Tier-1 re-run.
 
+### A4 — invented-balance grounding (reply_service.rb, HOT, 1 commit; reviewer SHIP-with-fixes→fixed)
+- NEW guard_against_invented_balance (chokepoint, after the freelance guard): a SPECIFIC on-account
+  balance figure ("$10 left", "balance is $75", "$50 on your account", "sitting at $30") that does NOT
+  trace to the customer's own last message numbers (@routing_last_incoming_raw_content) or simple pairwise
+  sums of them is rewritten to "lemme pull up your balance real quick — one sec 🙏". Echoes of the
+  customer's number + in-message arithmetic (20+30=50) pass. Fails open; defers never move money.
+- The system prompt already tells Bella to escalate specific balances (SYSTEM_PROMPT :181-187) — this
+  guard is the backstop for slips.
+- VERIFIED BY ME NOW (verified-by-running, pure-ruby model byte-mirroring the constants): 17/17 initial +
+  14/14 after the reviewer's boundary fix ("pay $cashtag123 left"/"handle99 left side"/"send $25 to
+  $cashtag123" no longer over-capture). ruby -c clean.
+- REVIEWER (code-reviewer): SHIP-with-fixes — confirmed fail-open (no reachable raise; combination cap at
+  8); the one finding (missing left word-boundary on the digit capture) FIXED with (?:^|[\s$]) + re-verified.
+prod-only (Render): live reply path + full corpus Tier-2 (balance-claim grader).
+

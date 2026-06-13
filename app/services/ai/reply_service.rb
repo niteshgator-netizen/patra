@@ -2429,6 +2429,11 @@ class Ai::ReplyService
     reply_text = guard_against_policy_freelancing(reply_text)
     return reply_text if reply_text.blank?
 
+    # it6 (A4): block INVENTED on-account balances — a $ balance not traceable to the
+    # customer's own last message defers to a check line.
+    reply_text = guard_against_invented_balance(reply_text)
+    return reply_text if reply_text.blank?
+
     # bp5 P8 (red-team A): fold common Cyrillic/Greek homoglyphs to Latin
     # BEFORE matching so "lоаded" can't smuggle a false claim past the
     # word-boundary patterns. Match on the folded copy; the customer-visible
@@ -2644,6 +2649,47 @@ class Ai::ReplyService
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] policy freelance guard failed: #{e.class}: #{e.message}")
     reply_text
+  end
+
+  # it6 (A4) — Bella must never state a SPECIFIC on-account balance she wasn't given. A $ balance
+  # figure that doesn't trace to the customer's own last message (or simple pairwise sums of those
+  # numbers) is rewritten to a defer/check line. Deposit/load confirmations, cashout limits, and the
+  # customer echoing their own number are NOT balance claims. Fails open.
+  BALANCE_FIGURE = /
+    (?:^|[\s$])(\d{1,6}(?:\.\d{1,2})?)\s+(?:left|remaining|in\s+there)\b
+    | (?:^|[\s$])(\d{1,6}(?:\.\d{1,2})?)\s+(?:on\s+(?:your\s+)?account|in\s+your\s+account)\b
+    | \bbalance\s+(?:is\s+|of\s+|:\s*|=\s*)?\$?(\d{1,6}(?:\.\d{1,2})?)\b
+    | (?:sitting\s+at|you'?re\s+at)\s+\$(\d{1,6}(?:\.\d{1,2})?)\b
+  /ix
+
+  def guard_against_invented_balance(reply_text)
+    return reply_text if reply_text.to_s.strip.empty?
+
+    claimed = normalize_guard_text(reply_text).scan(BALANCE_FIGURE).flatten.compact.map(&:to_f)
+    return reply_text if claimed.empty?
+
+    allowed = customer_provided_numbers
+    stray = claimed.reject { |c| allowed.any? { |a| (a - c).abs < 0.01 } }
+    return reply_text if stray.empty?
+
+    Rails.logger.warn("[ReplyService] BLOCKED_INVENTED_BALANCE stray=#{stray.join(',')} reply=#{reply_text.inspect[0..120]}")
+    add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
+    'lemme pull up your balance real quick so i get it right — one sec 🙏'
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] balance guard failed: #{e.class}: #{e.message}")
+    reply_text
+  end
+
+  # Numbers the customer themselves provided in their last message (+ simple pairwise sums) — the only
+  # figures Bella may state back as a balance. [] when unavailable (=> any stated balance defers).
+  def customer_provided_numbers
+    txt = @routing_last_incoming_raw_content.to_s
+    nums = txt.scan(/\d{1,6}(?:\.\d{1,2})?/).map(&:to_f).uniq
+    sums = []
+    nums.combination(2).each { |a, b| sums << (a + b).round(2) } if nums.size <= 8
+    (nums + sums).uniq
+  rescue StandardError
+    []
   end
 
   # Percent values Bella is allowed to promise: enabled GameRule bonuses for
