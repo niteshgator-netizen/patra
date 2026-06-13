@@ -36,7 +36,7 @@
 
   <% unless Patra::AdminConsole.actions_enabled? %>
     <div class="patra-panel" style="border-color:#fde68a;background:#fffbeb;">
-      Console actions are <strong>disabled</strong> (read-only). Set <code>PATRA_ADMIN_CONSOLE_ACTIONS=true</code> to enable suspend/reactivate/feature toggles.
+      Console actions are <strong>disabled</strong> (read-only). Enable platform actions in your server configuration to turn on suspend / reactivate / feature toggles.
     </div>
   <% end %>
 
@@ -101,7 +101,7 @@
       <% end %>
     <% end %>
     <div class="muted" style="font-size:12px;margin-top:8px;">
-      No delete here by design. Suspension enforcement: API base blocks non-active accounts on the next request (see ADM7 notes in PATRA_FEAT_LOG.md).
+      No delete here by design. Suspension enforcement: the API blocks non-active accounts on their next request.
     </div>
   </div>
 

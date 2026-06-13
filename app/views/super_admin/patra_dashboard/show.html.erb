@@ -50,7 +50,7 @@
       <h2>Quick Actions</h2>
       <% unless @actions_enabled %>
         <div class="warn" style="font-size: 12px; margin-bottom: 10px;">
-          Actions are switched off (safety kill-switch). Set <code>PATRA_ADMIN_CONSOLE_ACTIONS=true</code> on Render to enable them. Links below still work.
+          Actions are switched off by the safety kill-switch. Enable platform actions in your server configuration to turn them on — the links below still work.
         </div>
       <% end %>
 
@@ -221,9 +221,9 @@
       <h2>Billing</h2>
       <% if @billing[:initialized] %>
         <span class="patra-stat"><span class="v"><%= @billing[:subscriptions] %></span><br/><span class="l">subscriptions</span></span>
-        <span class="patra-stat"><span class="v muted">—</span><br/><span class="l">MRR (TODO-CONFIG)</span></span>
+        <span class="patra-stat"><span class="v muted">—</span><br/><span class="l">MRR</span></span>
       <% else %>
-        <div class="muted">Billing not initialized — no patra_billing_subscriptions table yet. This panel activates automatically when billing ships.</div>
+        <div class="muted">Billing isn't set up yet. This panel activates automatically once billing is live.</div>
       <% end %>
     </div>
   </div>
