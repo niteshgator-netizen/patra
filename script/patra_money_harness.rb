@@ -1875,6 +1875,83 @@ begin
     end
   end
 
+  puts "\n[it6-A3 detector gaps: context-gated up/fire nicknames, phrasings, gratitude-chitchat]"
+  {
+    '20 up'              => [:load, 20.0, 'ultra_panda'],
+    'up 20'              => [:load, 20.0, 'ultra_panda'],
+    'fire 30'            => [:load, 30.0, 'fire_kirin'],
+    '20 on up'           => [:load, 20.0, 'ultra_panda'],
+    'check out 50'       => [:cashout, nil, nil],
+    'checkout 25'        => [:cashout, nil, nil],
+    'is juwa loaded'     => [:status_check, nil, nil],
+    'is fire loaded'     => [:status_check, nil, nil],
+    'you pick please'    => [:whats_hitting, nil, nil],
+    'where do i request' => [:cashout_rules, nil, nil]
+  }.each do |text, (want, amt, slug)|
+    r = Games::IntentDetector.detect(text)
+    ok!("it6-A3 #{text.inspect} -> #{want}#{slug ? "/#{slug}" : ''}",
+        r.is_a?(Hash) && r[:intent] == want &&
+        (amt.nil? || r[:amount].to_f == amt) && (slug.nil? || r[:game_slug].to_s == slug))
+  end
+  # context-gating: bare common words NEVER become a phantom up/fire load
+  ['up', 'fire', 'whats up', 'load it up', 'level up', 'up to you'].each do |t|
+    r = Games::IntentDetector.detect(t)
+    ok!("it6-A3 bare #{t.inspect} not a phantom up/fire load",
+        !(r.is_a?(Hash) && r[:intent] == :load && %w[ultra_panda fire_kirin].include?(r[:game_slug].to_s)))
+  end
+  # gratitude stays chitchat (NEVER money) — regression guard
+  ['thanks', 'thank you', 'ty', 'ok thanks', 'ok ty', 'thank u'].each do |t|
+    ok!("it6-A3 gratitude #{t.inspect} stays chitchat (nil)", Games::IntentDetector.detect(t).nil?)
+  end
+
+  puts "\n[it6-A2 multi-op detector: clean combos fire + ambiguous bails (never a phantom multi-load)]"
+  ok!('it6-A2 "cash out 80, load 20 juwa" -> multi_op (2 legs)',
+      (mo = Games::IntentDetector.detect('cash out 80, load 20 juwa')).is_a?(Hash) &&
+      mo[:intent] == :multi_op && mo[:legs].size == 2)
+  ok!('it6-A2 "cash out 50 and is juwa loaded" -> multi_op',
+      Games::IntentDetector.detect('cash out 50 and is juwa loaded')&.dig(:intent) == :multi_op)
+  ok!('it6-A2 3-leg cashout+load+load -> 3 legs',
+      Games::IntentDetector.detect('cash out 80, load 20 juwa, load 10 yolo')&.dig(:legs)&.size == 3)
+  ['cash out 80, load back 20, send 25 to chime, is juwa loaded',
+   'load 20 juwa, send 25 to chime', 'load 20 juwa, i sent 30',
+   'cash out 80, cash out 80', 'load 20 and 30 juwa'].each do |t|
+    i = Games::IntentDetector.detect(t)
+    i = i[:intent] if i.is_a?(Hash)
+    ok!("it6-A2 ambiguous #{t[0, 30].inspect} bails (not multi_op/load_multi)",
+        ![:multi_op, :load_multi].include?(i))
+  end
+
+  puts "\n[it6-P PolicyResolver: active-window / out-window-defer / empty / off / referral / cashout]"
+  it6_fake = Struct.new(:agent_policy, :reporting_timezone)
+  it6_now = Time.now
+  it6_w = it6_now.wday
+  ok!('it6-P always-on bonus active (50%)',
+      Games::PolicyResolver.new(account: it6_fake.new({ 'bonuses' => [{ 'name' => 'Welcome', 'percent' => 50, 'active' => true, 'schedule' => { 'mode' => 'always' } }] }, nil), now: it6_now).active_bonus_percents == [50.0])
+  it6_win_s = format('%02d:00', it6_now.hour)
+  it6_win_e = format('%02d:00', (it6_now.hour + 1) % 24)
+  ok!('it6-P window-now bonus active (30%)',
+      Games::PolicyResolver.new(account: it6_fake.new({ 'bonuses' => [{ 'percent' => 30, 'active' => true, 'schedule' => { 'mode' => 'window', 'days' => [it6_w], 'start_hm' => it6_win_s, 'end_hm' => it6_win_e } }] }, nil), now: it6_now).active_bonus_percents == [30.0])
+  it6_rout = Games::PolicyResolver.new(account: it6_fake.new({ 'bonuses' => [{ 'percent' => 30, 'active' => true, 'schedule' => { 'mode' => 'window', 'days' => [(it6_w + 3) % 7], 'start_hm' => '00:00', 'end_hm' => '23:59' } }] }, nil), now: it6_now)
+  ok!('it6-P out-of-window bonus: configured but NOT active (=> Bella defers)',
+      it6_rout.bonuses_configured? && it6_rout.active_bonus_percents.empty?)
+  ok!('it6-P active:false bonus is OFF',
+      Games::PolicyResolver.new(account: it6_fake.new({ 'bonuses' => [{ 'percent' => 20, 'active' => false, 'schedule' => { 'mode' => 'always' } }] }, nil), now: it6_now).active_bonuses.empty?)
+  ok!('it6-P empty policy not configured',
+      Games::PolicyResolver.new(account: it6_fake.new({}, nil), now: it6_now).configured? == false)
+  ok!('it6-P garbage policy safe (no raise, [])',
+      Games::PolicyResolver.new(account: it6_fake.new('garbage', nil), now: it6_now).active_bonus_percents == [])
+  ok!('it6-P referral configured',
+      Games::PolicyResolver.new(account: it6_fake.new({ 'referral' => { 'percent' => 10, 'trigger_deposit_number' => 1, 'active' => true } }, nil), now: it6_now).referral_configured?)
+  ok!('it6-P cashout per-platform merge (cashapp min=30 over global 20)',
+      Games::PolicyResolver.new(account: it6_fake.new({ 'cashout' => { 'min' => 20, 'max' => 500, 'active' => true, 'per_platform' => { 'cashapp' => { 'min' => 30 } } } }, nil), now: it6_now).cashout_for('cashapp')['min'] == 30)
+
+  puts "\n[it6-M multi-op wiring (handler defined + dispatch routes; full money E2E is this Render harness)]"
+  it6_m_orch = orch(account, contact, [], convo: new_harness_conversation(account, contact))
+  ok!('it6-M handle_multi_op is defined on the orchestrator', it6_m_orch.respond_to?(:handle_multi_op, true))
+  it6_m_intent = Games::IntentDetector.detect('cash out 80, load 20 juwa')
+  ok!('it6-M detector emits a clean 2-leg multi_op for the handler to compose',
+      it6_m_intent.is_a?(Hash) && it6_m_intent[:intent] == :multi_op && it6_m_intent[:legs].size == 2)
+
   # ───────────────────────── summary ─────────────────────────────────────────
   puts "\n#{'=' * 72}"
   puts "MONEY HARNESS: #{$pass} passed, #{$fail} failed"

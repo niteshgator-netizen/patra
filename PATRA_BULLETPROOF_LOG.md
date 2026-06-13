@@ -917,3 +917,21 @@ loaded" deliberately FALLS THROUGH (2 legs mis-type under single-op detection; f
 a send→load) → resolves to a single SAFE intent (status_check), no money moves. The clean combos DO multi-op.
 prod-only (Render): handle_multi_op runtime + full harness [it6-*] multi-op section.
 
+### A6 — harness lock-in [it6-*] (script/patra_money_harness.rb, NOT hot; 1 commit)
+- Added 4 sections before the summary (ok! literal sites 238 → 256; runtime assertions +~40 via hash-each
+  loops — assertion count ONLY EVER increased):
+  * [it6-A3] context-gated up/fire (20 up→ultra_panda, fire 30→fire_kirin, 20 on up), check-out/
+    is-game-loaded/you-pick/where-do-i-request routings, bare up/fire/whats-up/load-it-up = NO phantom
+    load, gratitude (thanks/ty/thank you/...) stays chitchat (nil).
+  * [it6-A2] multi-op: clean combos fire (cashout+load 2 legs, cashout+status, 3-leg) + ambiguous/mixed
+    BAIL (canonical 4-part, send-to-chime, i-sent, dup-cashout, "20 and 30") not multi_op/load_multi.
+  * [it6-P] PolicyResolver via a Struct double (pure, no prod write): always-on active, window-now active
+    (robust current-hour window), out-of-window configured-but-defer, active:false OFF, empty not
+    configured, garbage safe, referral configured, cashout per-platform merge.
+  * [it6-M] multi-op wiring: handle_multi_op defined + detector emits a clean 2-leg multi_op (full money
+    E2E = this Render harness).
+- VERIFIED BY ME NOW: ruby -c clean; tmp/it6_a6_verify.rb runs the PURE it6 assertions (detector +
+  resolver, real Time.now) = ALL PASS. The orch-dependent existing sections + [it6-M] run on Render.
+- prod-only (Render): full `bundle exec rails runner script/patra_money_harness.rb` must be 100%
+  (encrypted agent_games.credentials LOCAL BAN).
+
