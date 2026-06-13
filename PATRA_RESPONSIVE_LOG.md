@@ -91,3 +91,29 @@ horizontal-scroll wrapper so cells aren't cut off.
 `overflow-y:auto` scroll container (matching PatraReportsHub) + wrap tables in `overflow-x:auto`.**
 
 ---
+
+## PHASE 1 — CONVERSATION LAYOUT RESPONSIVE (symptoms 1 + 2)
+
+**File:** `components/widgets/conversation/ConversationSidebar.vue` (1 file; not a hot file).
+
+**Change — extend the drawer range from `xl` → `2xl`:**
+- Wrapper class (line 82): `xl:static xl:w-[360px] xl:min-w-[360px] … xl:shadow-none`
+  → `2xl:static 2xl:w-[360px] 2xl:min-w-[360px] … 2xl:shadow-none`.
+  The sidebar now stays a **fixed slide-over drawer up to 1535px** and only becomes a static
+  in-flow 360px column at **≥1536px (2xl)**, where there is finally room for nav + 340 + 360 + messages.
+  Below that, it overlays instead of stealing width — so ChatList **and** the messages stay on screen.
+- Script: replaced the `isSmallScreen` (<768) gate on click-outside-to-close with
+  `isOverlayDrawer` (<1536) so clicking the messages closes the drawer across the **whole** overlay
+  range (previously it would only auto-close below 768, trapping the drawer open on a laptop).
+- Removed the now-unused `wootConstants` import.
+
+**Why this is the right fix (not a rebuild):** the drawer behavior already existed in the codebase
+for <1280px; the bug was only that the static-column threshold was one breakpoint too low for a
+3-column layout that also carries a resizable 200–320px nav. Pure breakpoint/threshold adjustment,
+~4 tokens + one computed. Reuses Tailwind's standard `2xl` (already used in `ChatList.vue:961`).
+No new custom breakpoint invented. Light/dark unaffected (layout-only).
+
+**Mentally tested:** 1536px → static column, comfortable. 1280/1024/768px → drawer overlay, ChatList +
+messages both visible, click-outside closes. 375px → full-width overlay (`w-full max-w-sm`), unchanged.
+
+---

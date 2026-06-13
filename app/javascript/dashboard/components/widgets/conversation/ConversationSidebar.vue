@@ -4,7 +4,6 @@ import ContactPanel from 'dashboard/routes/dashboard/conversation/ContactPanel.v
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useWindowSize } from '@vueuse/core';
 import { vOnClickOutside } from '@vueuse/components';
-import wootConstants from 'dashboard/constants/globals';
 
 defineProps({
   currentChat: {
@@ -26,12 +25,17 @@ const activeTab = computed(() => {
   return null;
 });
 
-const isSmallScreen = computed(
-  () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
+// patra-responsive: the contact panel is an overlay drawer below Tailwind's
+// 2xl (1536px) and only becomes a static in-flow column at 2xl+. Treat the
+// whole drawer range as "overlay" so click-outside closes it and it never
+// traps the message list behind it on a laptop.
+const OVERLAY_DRAWER_MAX_WIDTH = 1536;
+const isOverlayDrawer = computed(
+  () => windowWidth.value < OVERLAY_DRAWER_MAX_WIDTH
 );
 
 const closeContactPanel = () => {
-  if (isSmallScreen.value && uiSettings.value?.is_contact_sidebar_open) {
+  if (isOverlayDrawer.value && uiSettings.value?.is_contact_sidebar_open) {
     updateUISettings({
       is_contact_sidebar_open: false,
       is_copilot_panel_open: false,
@@ -75,7 +79,7 @@ onUnmounted(() => {
         ],
       },
     ]"
-    class="ctx conv-sidebar-patra h-full overflow-hidden flex flex-col fixed top-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out ltr:right-0 rtl:left-0 xl:static xl:w-[360px] xl:min-w-[360px] ltr:border-l rtl:border-r border-n-weak shadow-lg xl:shadow-none"
+    class="ctx conv-sidebar-patra h-full overflow-hidden flex flex-col fixed top-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out ltr:right-0 rtl:left-0 2xl:static 2xl:w-[360px] 2xl:min-w-[360px] ltr:border-l rtl:border-r border-n-weak shadow-lg 2xl:shadow-none"
     :class="[
       {
         'md:flex': activeTab === 0,
