@@ -51,6 +51,10 @@ class Account < ApplicationRecord
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
+  # it6 (agent-policy engine): account-level, agent-configurable bonus/referral/cashout policy.
+  # JSONB shape validated by AGENT_POLICY_SCHEMA (AccountSettingsSchema). Read live each message
+  # by Games::PolicyResolver (no redeploy). Owner-editable via the Agent Policy settings screen.
+  store_accessor :settings, :agent_policy
   store_accessor :settings, :captain_auto_resolve_mode
   include AccountCaptainAutoResolve
 

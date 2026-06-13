@@ -716,3 +716,68 @@ promises must trace to a configured GameRule/contact percent.
     #    report -> PATRA_REPLAY_REPORT.md  (REPORT_PATH=... to redirect)
 
 ## STOP — committed (15 commits fcc5dc74d..24370cf0a), NEVER pushed. Genius deploys.
+
+================================================================================
+# IT6 UNIFIED MEGA RUN — LANE A (agent-policy engine + money fixes) — 2026-06-12
+================================================================================
+**RUN-START ROLLBACK HASH (revert ALL it6 + policy-ui work): `git reset --hard 7b2f10f6f6b2cc70600af3b454cbdc9f0e66a1ae`**
+HEAD at start (clean tree): 7b2f10f6f6b2cc70600af3b454cbdc9f0e66a1ae.
+Commit prefixes: Lane A `it6:` · Lane B `policy-ui:` · Lane C `responsive:` (already done — see below).
+NEVER pushed. bella_rag_pairs READ-ONLY. Hot files one-per-commit, full read, ruby -c, anchor-abort patches.
+
+## LOCAL VERIFICATION POSTURE (declared up-front — NO fake 100%)
+- Ruby 3.4.9 (mingw) present → `ruby -c` on every edited .rb (primary hot-file gate). `verified-in-code`.
+- Node 24 + pnpm present → vite build runs locally (Lane B/finalize). 
+- PATRA_DATABASE_URL present (prod PG reachable) BUT full Rails boot needs bumping 4 pinned gems
+  (pg 1.5.3, irb 1.7.2, reline 0.3.6, io-console 0.6.0 — Ruby-3.4.9/Windows incompat, BP5-documented
+  native-compile yak-shave). Per "after ONE failed experiment STOP", NOT rebuilding the boot.
+  → Pure-Ruby unit tests (plain `ruby`, no bundle) for the resolver time-window math + pure detector
+    helpers = genuine `verified-by-running` on the riskiest new logic.
+  → detector live-verify, resolver-vs-AR, bp_section_runner, full money harness, Tier-1/Tier-2 corpus
+    = `prod-only (Render)` — Genius runs the documented commands (same class as BP5's encrypted-creds ban).
+- DEEPSEEK_API_KEY absent → Tier-2 reply grading `prod-only (Render)`.
+
+## A0 — DRIFT RECONCILIATION (verified-in-code by 4 parallel explorers + my own reads)
+- **DRIFT (important):** the prompt's premise "`cashout_calculator.rb` parses regex over CannedResponse
+  free-text = root cause of bonus freelancing" is INACCURATE. `Games::CashoutCalculator` exists
+  (regex /min\s+(\d+)x/i, /max\s+(\d+)x/i over CannedResponse, DEFAULT_MIN/MAX_PLAYTHROUGH=4/10) but is
+  **DEAD CODE — never instantiated anywhere in app/** (verified by full-tree search). The REAL money
+  rules are already STRUCTURED: `GameRule` table (per account+game: deposit_bonus_percentage,
+  cashout_min/max_multiplier, cashout_min/max_amount, freeplay_*) + account generosity settings
+  (custom_attributes via generosity_setting: bonus_percent, first_deposit_bonus_percent,
+  referral_percent/mode/fixed/min_deposit) + ReplyPreference (referral_enabled etc.) + contact attrs
+  (bonus_percent_override, preferred_bonus_percentage).
+- **Honest reframe:** the agent-policy engine is therefore a legitimately ADDITIVE feature —
+  account-level, agent-NAMED, SCHEDULED promotions (e.g. "Sunday Funday", time-window) + ONE grounding
+  source-of-truth for what Bella may STATE — not the replacement of a regex root-cause. GameRule stays
+  the per-game fallback. Built on this honest footing.
+- Confirmed anchors: Account `store_accessor :settings` + JsonSchemaValidator(SETTINGS_PARAMS_SCHEMA via
+  AccountSettingsSchema concern, additionalProperties:true) + `reporting_timezone` (validated tz).
+  reply_service grounding hooks: `configured_bonus_percents` :2557, `dynamic_game_rules_prompt` :2997,
+  `guard_against_unconfigured_bonus_claim` :2535 (BONUS_PROMISE_CONTEXT :2533), chokepoint
+  `guard_against_false_load_claim` exits :567/:639/:803/:824/:897. orchestrator `generosity_setting`
+  :753, `referral_reward_amount` :4962, `handle_cashout_rules` :4839. Detector: GAME_NAME_ALIASES
+  already maps mw/gv/os/fk (NOT fire/up — common words, BP5-queued). Harness 238 ok! sites (recount;
+  BP5 log said 239 — baseline for "only increase" = 238). Corpus grader: DeepSeek call :383 NO retry,
+  verbatim dump first(40) :448, gratitude_closing exemption exists for money-dead-end only.
+- **Lane C (responsive) ALREADY COMPLETE** in prior commits 74430e7..0c7ac17 (3 phases + vite build +
+  symptom→fix→confidence table in PATRA_RESPONSIVE_LOG.md). it6 Lane C = verify-only, do NOT redo.
+
+## PHASE LOG (it6)
+
+### A1a — agent_policy storage + JSON schema (account.rb + account_settings_schema.rb; NOT hot files; 1 commit)
+- Account: `store_accessor :settings, :agent_policy` (account-level, read live; absent on existing accounts = clean).
+- AccountSettingsSchema: new `AGENT_POLICY_SCHEMA` constant (reusable Ruby hash) embedded as the
+  'agent_policy' property of SETTINGS_PARAMS_SCHEMA. Shape: bonuses[] (id, name, kind enum
+  signup|deposit|custom, percent 0-100, min/max_deposit, cap, schedule{mode always|window, days 0-6,
+  start_hm, end_hm}, active); referral{percent 0-100, trigger_deposit_number>=1, cap, active};
+  cashout{min, max, playthrough_min/max, per_platform, terms_text, active}. null-tolerant everywhere;
+  additionalProperties:false on policy (true at settings top-level).
+- SAFETY: agent_policy NOT in SETTINGS 'required' → existing account saves unaffected; json_schemer
+  never raises on validation failure (adds errors → rejects only malformed agent_policy writes). Reused
+  by Lane B controller for strong-params shape validation (single source of truth).
+- VERIFIED BY ME NOW (verified-by-running): ruby -c clean both files; pure-ruby JSON serialize check
+  (tmp/it6_schema_check.rb) = SCHEMA_JSON_VALID with agent_policy shape asserted (percent 0-100, kind/
+  mode enums, days 0-6, referral trigger>=1, all 7 cashout keys present).
+- prod-only (Render): live JsonSchemaValidator acceptance + AR store_accessor round-trip on a real save.
+
