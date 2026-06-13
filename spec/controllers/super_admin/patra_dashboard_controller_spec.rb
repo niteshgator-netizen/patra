@@ -28,7 +28,7 @@ RSpec.describe 'Super Admin Patra command center', type: :request do
       get '/super_admin/patra_dashboard'
       expect(response).to have_http_status(:success)
       expect(response.body).to include('Patra Command Center')
-      expect(response.body).to include('Billing not initialized')
+      expect(response.body).to include('This panel activates automatically')
       expect(response.body).to include('malformed finance entry skipped')
       expect(response.body).to include('Alpha Ops') # top account by net
     end
