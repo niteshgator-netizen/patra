@@ -136,7 +136,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="patra-pop bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 flex flex-col min-w-[136px] shadow-lg pt-2 overflow-hidden"
+    class="patra-pop bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 flex flex-col min-w-[180px] shadow-lg pt-2 overflow-hidden"
   >
     <div v-if="showSearch" class="relative shrink-0 px-2 mb-2">
       <span

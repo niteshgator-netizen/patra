@@ -76,3 +76,10 @@ Done as ONE global sweep (consistent + efficient vs scattering across phases). C
 **Confidence: 90%** (width + empty-state logic certain; Leaderboard mobile name-column is cramped-but-functional and the exact fill/empty rendering wants Genius/Chrome).
 
 ---
+
+## PHASE 2 (MoreActions) + PHASE 4 (Facebook Accounts) — targeted audit bugs — DONE
+- **MoreActions truncation** → root cause is the shared `DropdownMenu.vue`: `min-w-[136px]` + `truncate` labels clip "Mute Conversation"/"Send Transcript" (>~88px usable). Bumped to `min-w-[180px]` (additive — minimum only grows; fits the action labels). Shared change, so it also de-truncates other menus app-wide. **Flagged for Genius/Chrome to confirm no menu now feels too wide.**
+- **PatraFacebookAccounts contrast/dark-card** → file hardcoded dark-only Tailwind (`bg-slate-800`, `border-slate-700`, `text-slate-100/400`, `text-purple-400`, `bg-purple-700`, `text-green-400`, `text-red-400/border-red-500`) → forced-dark card that breaks in light mode. Converted to theme-aware design tokens: `bg-n-solid-2`/`border-n-weak` card, `text-n-slate-12`/`text-n-slate-11` text, `text-n-brand` link + `bg-n-brand` avatar, `text-n-teal-10`/`text-n-ruby-11` status, `border-n-ruby-9` button. Now correct in BOTH themes. Verified: 0 hardcoded color classes remain.
+**Confidence: 92%** (token swap certain & matches sibling Patra pages; light/dark pixel pass wants Genius/Chrome).
+
+---
