@@ -55,7 +55,7 @@ export default {
     <div class="max-w-2xl">
       <h2 class="text-lg font-medium mb-4">Reply Style</h2>
       <p class="text-sm text-slate-400 mb-6">
-        Control how Bella replies to customers.
+        Control how Patra AI replies to customers.
       </p>
 
       <div v-if="loading" class="flex flex-col gap-3">
@@ -96,7 +96,7 @@ export default {
           <input
             v-model="pref.sign_off_text"
             type="text"
-            placeholder="e.g. - Bella, xo, etc."
+            placeholder="e.g. - your name, xo, etc."
             class="w-full mt-1 p-2 bg-slate-800 border border-slate-600 rounded text-sm"
           />
         </label>

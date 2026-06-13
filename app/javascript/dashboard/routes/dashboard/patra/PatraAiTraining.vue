@@ -826,7 +826,7 @@ onUnmounted(() => {
                 "
               >
                 <span class="pat-at-rq-ml">
-                  {{ msg.role === 'player' ? 'Player' : 'Bella' }}
+                  {{ msg.role === 'player' ? 'Player' : 'Patra AI' }}
                 </span>
                 {{ msg.text }}
               </div>

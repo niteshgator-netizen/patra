@@ -106,8 +106,8 @@ export default {
         <section class="space-y-4">
           <h3 class="text-sm font-medium">Win-back</h3>
           <p class="text-xs text-slate-500">
-            Re-engage dormant players. Days quiet before Bella reaches out, per
-            tier.
+            Re-engage dormant players. Days quiet before Patra AI reaches out,
+            per tier.
           </p>
 
           <label class="flex items-center gap-2">
@@ -206,7 +206,7 @@ export default {
               <option value="handles">Active handles</option>
             </select>
             <span class="text-xs text-slate-500"
-              >How Bella answers "what payment methods?". Either way, only
+              >How Patra AI answers "what payment methods?". Either way, only
               platform names are shown — never a handle.</span
             >
           </label>

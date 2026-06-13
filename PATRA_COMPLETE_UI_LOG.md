@@ -56,3 +56,13 @@ Remaining `ADM1`/`ADM2` are in `<%# %>` ERB comments (server-side, never rendere
 Commits use `--no-verify` per documented Patra workflow; authoritative check is the final `pnpm exec vite build`.
 
 ---
+
+## AI NAMING — "Bella" → "Patra AI" (satisfies the Bella→Patra AI sub-goal in phases 2–7) — DONE
+Done as ONE global sweep (consistent + efficient vs scattering across phases). Codebase already standardizes on "Patra AI" (`PATRA_AI_TAB`, `PERSONA_NAME`, `CAPTAIN.NAME`, "Patra AI Training") — these were stragglers.
+- **Footprint (verified):** 13 rendered strings in 3 en-locale JSON + 5 Vue template strings. Non-en locales: **0** "Bella" (nothing to translate).
+- **Changed (display only):** conversation.json ×3, integrations.json ×5 (COPILOT panel), patra.json ×5 (AI trend note, knowledge hint, playground), automationSafety ×2, replyStyle ×2 (incl. sign-off placeholder → "your name" to keep human-cashier persona), PatraAiTraining playground label ×1.
+- **Preserved (NOT user-visible):** 4 code comments referencing the real backend system `Bella RAG`/`BellaRagPair`/persona (table `bella_rag_pairs`, model untouched). i18n KEYS (`COPILOT*`) unchanged — logic.
+- **Verified:** all 3 JSON parse (`JSON.parse` OK); grep confirms only the 4 comments remain.
+**Confidence: 97%** (strings certain; 3% is rendered-context eyeballing).
+
+---
