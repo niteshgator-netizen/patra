@@ -178,6 +178,23 @@ def gratitude_closing_turn?(customer_text)
   core.match?(GRATITUDE_CLOSING)
 end
 
+# it6 A5: DeepSeek (Tier-2) calls retry up to 3x with exponential backoff on transient network errors
+# so a momentary blip records a real grade instead of a skip. Persistent failures still raise → the
+# caller's rescue records the (now rare) skip. Drives network-skip toward 0.
+def invoke_with_retry(svc, framed, sys, tries: 3)
+  attempt = 0
+  begin
+    attempt += 1
+    svc.send(:invoke_anthropic, framed, sys, use_deepseek: true)
+  rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error, Errno::ECONNRESET, SocketError
+    if attempt < tries
+      sleep(0.5 * (2**(attempt - 1)))
+      retry
+    end
+    raise
+  end
+end
+
 def normalize_cluster(text)
   t = text.to_s.downcase
   t = t.gsub(/[\$@][a-z0-9][a-z0-9._\-]*/, '$TAG')
@@ -246,7 +263,10 @@ scope.in_batches(of: 2000) do |batch|
       end
     else
       t['fallthrough'] += 1
-      money_miss = MONEY_LABELS.include?(label)
+      # it6 A5 calibration: a PURE gratitude/closing turn mislabeled with a money label is GRADER
+      # NOISE, not a detector gap — routing it to money would violate R2 (gratitude stays chitchat).
+      # gratitude_closing_turn? already excludes any turn carrying a digit/$ (a real ask).
+      money_miss = MONEY_LABELS.include?(label) && !gratitude_closing_turn?(text)
       t['money_miss'] += 1 if money_miss
       unless FALLTHROUGH_OK.include?(label)
         key = normalize_cluster(text)
@@ -380,7 +400,7 @@ elsif LLM_SAMPLE.positive?
                        (svc.send(:needs_payment_link?, framed) rescue false), rag_examples_block: rag_block)
         $LAST_POST = nil
         $TG.clear
-        reply = svc.send(:invoke_anthropic, framed, sys, use_deepseek: true)
+        reply = invoke_with_retry(svc, framed, sys)
         raw = ($LAST_POST&.parsed_response rescue nil)
         ct_len = raw.is_a?(Hash) ? raw.dig('choices', 0, 'message', 'content').to_s.strip.length : 0
 
@@ -444,8 +464,8 @@ elsif LLM_SAMPLE.positive?
     tier2_summary << "| label | pass | fail | skip |\n|---|---|---|---|\n"
     t2.sort.each { |l, x| tier2_summary << "| #{l} | #{x[:pass]} | #{x[:fail]} | #{x[:skip]} |\n" }
     if t2_failures.any?
-      tier2_summary << "\n### Tier 2 failures (first 40, verbatim)\n"
-      t2_failures.first(40).each do |f|
+      tier2_summary << "\n### Tier 2 failures (first 200, verbatim)\n"
+      t2_failures.first(200).each do |f|
         tier2_summary << "- [#{f[:label]}] #{f[:v].join(', ')}\n  - PLAYER: #{f[:msg].inspect}\n  - BELLA: #{f[:reply].inspect}\n"
       end
     end

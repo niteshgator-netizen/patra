@@ -873,3 +873,17 @@ prod-only (Render): detector live-verify via rails runner + full corpus Tier-1 r
   8); the one finding (missing left word-boundary on the digit capture) FIXED with (?:^|[\s$]) + re-verified.
 prod-only (Render): live reply path + full corpus Tier-2 (balance-claim grader).
 
+### A5 — corpus grader hardening (script/patra_corpus_replay.rb, NOT hot; 1 commit; precision UP only)
+- DeepSeek (Tier-2) network retry: new invoke_with_retry — 3 tries, exp backoff (0.5/1/2s) on
+  OpenTimeout/ReadTimeout/Timeout/ECONNRESET/SocketError; persistent failure still raises → rescue
+  records a now-rare skip. Drives network-skip toward 0.
+- Verbatim failure dump first(40) → first(200) (more diagnostic visibility).
+- Tier-1 calibration: money_miss now EXCLUDES pure gratitude/closing turns mislabeled with a money label
+  (gratitude_closing_turn? already vetoes any digit/$ turn) — removes grader noise (BP5 queue noted ~217
+  such rows) WITHOUT routing chitchat to money (R2 preserved). In-message arithmetic already accepted as
+  traceable (derive_allowed_amounts, BP5 P6 — unchanged). Bonus-invention/negotiation detection NOT weakened.
+- VERIFIED BY ME NOW: ruby -c clean; markers confirmed (invoke_with_retry@184 used@403, gratitude
+  exclusion@269, first(200)@468).
+- prod-only (Render): full Tier-1 (re-baseline money_miss, gratitude excluded) + Tier-2 with the worker's
+  DEEPSEEK_API_KEY (skip→~0).
+
