@@ -150,3 +150,28 @@ touched — only the three Patra pages named in the brief. If those stock pages 
 a separate wrapper and a follow-up.
 
 ---
+
+## PHASE 3 — CONGESTION + GLOBAL POLISH (symptoms 2 + 3)
+
+### Lag (symptom 3) — one concrete culprit fixed
+`ConversationSidebar.vue` `onSpotlightMove`: was writing `left`/`top` to the `#spotlight`
+`position:fixed; filter:blur(12px)` layer on **every** `mousemove` (a `document` listener active the
+whole time a conversation is open). Rewrote it to **rAF-coalesce** (one write per frame) + a
+**passive** listener, and to cancel the pending frame on leave/unmount. This is the exact fix the
+codebase already applied to the global spotlight in `Dashboard.vue` — this sibling was missed.
+Left/top are still used (not transform), so there is **zero visual change**, only fewer paints.
+
+**Honest caveat:** I can't profile the running app, so I can't *prove* this was the dominant cause of
+the perceived lag — it's a real, measurable thrash source and a safe win. Any remaining lag on small
+screens is most likely data volume (long non-virtualized lists) or device GPU and needs a real
+DevTools Performance trace — I did **not** guess-fix anything else for "lag."
+
+### Congestion (symptom 2) — responsive padding
+- `SweepsReport.vue` root: `p-6` → `p-4 md:p-6` (16px gutter on phones, 24px desktop).
+- `PatraReports.vue` inner content: `p-6` → `p-4 md:p-6`.
+- The main congestion driver (conversation message column being crushed) was already removed in
+  Phase 1; grids on both report pages were already responsive. No overlap bug remained to fix beyond
+  that. Tap targets left as-is (period/export buttons ~26px) — acceptable, not enlarged to avoid
+  changing desktop density; flag for Genius if they feel small on touch.
+
+---

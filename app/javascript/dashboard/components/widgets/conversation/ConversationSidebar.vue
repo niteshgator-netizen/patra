@@ -43,27 +43,50 @@ const closeContactPanel = () => {
   }
 };
 
+// patra-responsive perf: the old handler wrote left/top to a blur(12px) fixed
+// layer on EVERY mousemove (uncoalesced layout+paint thrash — the same lag bug
+// Dashboard.vue already rAF-fixed for its global spotlight). Coalesce to one
+// write per animation frame and use a passive listener.
+let spotRaf = null;
+let spotEvent = null;
+
 const onSpotlightMove = e => {
-  const el = spotlightRef.value;
-  if (!el) return;
-  el.style.left = `${e.clientX}px`;
-  el.style.top = `${e.clientY}px`;
-  el.style.opacity = '1';
+  spotEvent = e;
+  if (spotRaf) return;
+  spotRaf = requestAnimationFrame(() => {
+    spotRaf = null;
+    const el = spotlightRef.value;
+    const ev = spotEvent;
+    if (!el || !ev) return;
+    el.style.left = `${ev.clientX}px`;
+    el.style.top = `${ev.clientY}px`;
+    el.style.opacity = '1';
+  });
+};
+
+const cancelSpotRaf = () => {
+  if (spotRaf) {
+    cancelAnimationFrame(spotRaf);
+    spotRaf = null;
+  }
 };
 
 const onSpotlightLeave = () => {
+  cancelSpotRaf();
+  spotEvent = null;
   const el = spotlightRef.value;
   if (el) el.style.opacity = '0';
 };
 
 onMounted(() => {
-  document.addEventListener('mousemove', onSpotlightMove);
+  document.addEventListener('mousemove', onSpotlightMove, { passive: true });
   document.addEventListener('mouseleave', onSpotlightLeave);
 });
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', onSpotlightMove);
   document.removeEventListener('mouseleave', onSpotlightLeave);
+  cancelSpotRaf();
 });
 </script>
 

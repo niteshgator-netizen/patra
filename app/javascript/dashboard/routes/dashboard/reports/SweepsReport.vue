@@ -76,7 +76,9 @@ onMounted(fetchReport);
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 p-6 sw-page h-full w-full min-h-0 overflow-y-auto">
+  <div
+    class="flex flex-col gap-4 p-4 md:p-6 sw-page h-full w-full min-h-0 overflow-y-auto"
+  >
     <header class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-2xl font-semibold text-n-slate-12 sw-display">
