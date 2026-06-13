@@ -835,3 +835,26 @@ RESIDUALS (documented; defended by PROMPT grounding, NOT regex — red-team agre
   invented). Future iteration could drive payout from agent_policy if the owner wants.
 prod-only (Render): live reply path with a real configured agent_policy; full harness.
 
+### A3 — Tier-1 detector gaps (intent_detector.rb, HOT, 1 commit; reviewer SHIP)
+- CASHOUT += "check out N"/"checkout N" (amount captured). CASHOUT_RULES += "where do i request".
+- STATUS += "is <game> loaded" (no my/the needed; "is juwa loaded"/"is fire loaded" → status_check).
+- WHATS_HITTING += "you pick"/"u choose"/"you decide" (suggest-or-ask, NO invented pick).
+- NICKNAMES (context-gated, money-safe): CONTEXTUAL_GAME_ALIASES {up→ultra_panda, fire→fire_kirin} +
+  contextual_game_slug, consulted ONLY in bare_game_amount_load + detect_load_multi legs (both REQUIRE an
+  amount; the sole remaining game-slot word must EQUAL up/fire after filler-strip). mw/gv/os/fk already
+  mapped (BP5). Bare "up"/"fire"/"whats up"/"load it up"/"level up"/"up to you" NEVER resolve.
+- VERIFIED BY ME NOW (verified-by-running — the REAL detector loaded in pure ruby via a Rails.logger +
+  blank?/present? shim; tmp/it6_as_shim.rb): tmp/it6_a3_spec.rb 35/36 (the non-fail: "whats up"→:greeting,
+  correctly NOT a load); tmp/it6_a3_redteam.rb 20/20 adversarial up/fire idioms = ZERO phantom loads,
+  shorthand "20 up"/"up 20"/"fire 30"/"20 on up"/"20 up 20 yolo" resolve correctly, gratitude→nil. ruby -c clean.
+- REVIEWER (code-reviewer, BEFORE-vs-AFTER diff over ~150 inputs on the real detector): SHIP. No money
+  hole: status pattern can't steal a load (LOAD veto holds); no phantom/wrong up-fire load (27 idioms);
+  check-out-N contained; no ReDoS; existing multi-load byte-identical. Notes: "where can i request a
+  cashout" now → cashout_rules (SAFER — info not initiation); "check out 0"→cashout 0 (pre-existing junk,
+  cashier-gated).
+- DOCUMENTED CONSERVATIVE MISSES (SAFE — load with NO game → Bella asks which game; never a wrong game):
+  explicit-verb "load 20 up" / "put 20 on fire" route via LOAD_PATTERNS (game resolved by the alias
+  fragment, which excludes up/fire) → load amount, game nil. "30 on fire" → load, username "fire", no slug
+  (pre-existing generic load pattern grabs the 4-char token first). The shorthand forms all work.
+prod-only (Render): detector live-verify via rails runner + full corpus Tier-1 re-run.
+

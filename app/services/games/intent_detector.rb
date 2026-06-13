@@ -73,7 +73,9 @@ module Games
       /(?:cash\s*out|cashout|redeem|withdraw)\s+(?:minimum|min|max|maximum|limit|rules?)/i,
       /how\s+much\s+(?:can|do)\s+i\s+(?:cash\s*out|cashout|redeem|withdraw)/i,
       /withdrawal\s+limit/i,
-      /min(?:imum)?\s+to\s+redeem/i
+      /min(?:imum)?\s+to\s+redeem/i,
+      # it6 A3: "where do i request (my cashout)" — a how-to-redeem question.
+      /\bwhere\s+(?:do|can)\s+i\s+request\b/i
     ].freeze
 
     LIST_PLATFORMS_PATTERNS = [
@@ -110,6 +112,8 @@ module Games
       # bp iter1/2: a bare "cash out (please)" / "redeem plz" / "check out"
       # message is an amount-less cashout ask — the handler asks the amount.
       /\A\s*(?:cash\s*out|cashout|redeem|withdraw|check\s*out)\s*(?:pls+|plz+|please+)?\s*[?!.]*\s*\z/i,
+      # it6 A3: "check out 50" / "checkout 50" — check-out is a cashout synonym (amount captured).
+      /\bcheck\s*out\s+\$?(\d+(?:\.\d{1,2})?)/i,
       # bp iter1: "i requested a cashout" — request-verb cashout phrasing.
       /\brequest(?:ed|ing)?\s+(?:a\s+|the\s+|my\s+)?(?:cash\s*out|cashout|redeem|withdraw)/i,
       # bp iter3: "Cashing out 50$ do i request it" — gerund form (amount captured).
@@ -500,7 +504,9 @@ module Games
       # a money intent.
       /\A\s*(?:can\s+(?:u|you|ya)\s+)?(?:please\s+|plz+\s+|pls+\s+)?(?:lmk|let\s+me\s+know)\s+(?:when|once|after)\b[^.!?]{0,40}\bloaded\b/i,
       # bp5 iter-C1: "Juwa Loaded?" / "Juwa2.0 Loaded?" — game-first status ask
-      /\A[a-z0-9. ]{2,22}\bloaded\s*\?+\s*\z/i
+      /\A[a-z0-9. ]{2,22}\bloaded\s*\?+\s*\z/i,
+      # it6 A3: "is juwa loaded" / "is fire loaded" — game-named status ask (no my/the needed).
+      /\bis\s+[a-z][a-z0-9._ ]{0,16}\bloaded\b/i
     ].freeze
 
     COMPLAINT_ANGRY_PATTERNS = [
@@ -563,7 +569,9 @@ module Games
       /what\s+games?\s+(?:are\s+)?(?:up|on|running|live)/i,
       /what(?:'?s|\s+is)\s+(?:good|working)\s+(?:right\s+now|tonight|today)/i,
       # bp5 P5: "Any suggestions" — what-should-i-play ask (corpus cluster)
-      /\bany\s+suggestions?\b/i
+      /\bany\s+suggestions?\b/i,
+      # it6 A3: "you pick" / "u pick please" / "you choose" — let-the-cashier-suggest (NO invented pick).
+      /\b(?:you|u)\s+(?:pick|choose|decide)\b/i
     ].freeze
 
     REFERRAL_PATTERNS = [
@@ -815,6 +823,17 @@ module Games
         return nil if matches.empty?
 
         matches.max_by { |(_, kw)| kw.length }.first
+      end
+
+      # it6 A3: nicknames that are COMMON WORDS ("up"=ultra panda, "fire"=fire kirin) — resolved to a
+      # game ONLY when amount-adjacent (bare_game_amount_load / detect_load_multi legs), NEVER as a bare
+      # token. So "what's up" / "load it up" / bare "fire" can never become a phantom load. The sole
+      # remaining game-slot word must EQUAL one of these (after filler strip).
+      CONTEXTUAL_GAME_ALIASES = { 'up' => 'ultra_panda', 'fire' => 'fire_kirin' }.freeze
+
+      def contextual_game_slug(text)
+        key = text.to_s.downcase.gsub(BARE_GAME_FILLERS, ' ').gsub(/[^a-z]/, ' ').gsub(/\s+/, ' ').strip
+        CONTEXTUAL_GAME_ALIASES[key]
       end
 
       def resolve_game_slug(text)
@@ -1119,6 +1138,7 @@ module Games
           return nil if amount.to_f <= 0 || gtxt.empty?
 
           slug = bare_game_name_load(gtxt)
+          slug ||= contextual_game_slug(gtxt)
           return nil unless slug
 
           { amount: amount.to_f, game_slug: slug }
@@ -1148,6 +1168,7 @@ module Games
 
         rest = norm.gsub(/(?<![a-z0-9._])\$?\d+(?:\.\d{1,2})?(?![a-z0-9_])/, ' ').gsub(/\s+/, ' ').strip
         slug = rest.empty? ? nil : bare_game_name_load(rest)
+        slug ||= contextual_game_slug(rest) unless rest.empty?
         return nil unless slug
 
         { intent: :load, amount: amount, game_slug: slug }
