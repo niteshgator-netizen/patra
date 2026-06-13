@@ -128,3 +128,22 @@ GlobalConfig.clear_cache if defined?(GlobalConfig)
 **Validated:** integrations.json parses; referrals/playerTiers targeted palette removed; "Woot Server" gone from integrations.json.
 
 ---
+
+## SIX-AGENT GATE — ROUND 2 (re-dispatched all six over the fixed files)
+- **responsive_auditor → ZERO** (all 5 fixes verified correct on 360px w/o breaking desktop; no double-scroll/clip).
+- **leak_hunter → ZERO** (Woot Server fixed; full re-scan of all changed files clean).
+- **regression_sentinel → ZERO VIOLATIONS** (re-verified the new a11y handlers / empty-state computeds / Spinner import are all presentation-only; no forbidden file in diff).
+- **accessibility_auditor → 2** (both pre-existing, outside round-1 list): ContactHeader segment "create"/"delete" icon buttons had no accessible name; compact-list arrow glyph read aloud. All 10 round-1 a11y fixes verified correct.
+- **consistency_checker → 1 actionable** (Low, pre-existing): `hover:bg-indigo-500` not covered by the `.pat-tpage` cure. All round-1 token conversions verified valid (checked tokens exist in `theme/colors.js` + both-theme vars in `_next-colors.scss`; computed WCAG contrast passes light+dark).
+- **empty_state_auditor → 1** (Low): SummaryReports empty-state rendered under a stranded `<Table>` header. Both round-1 fixes verified correct (no flash in practice — store sets the fetching flag synchronously before paint).
+
+### ROUND 3 FIXES (all four findings)
+- ContactHeader.vue: `aria-label="Save segment"` / `aria-label="Delete segment"` on the two unnamed icon buttons (the filter button already had a `:title` = accessible name).
+- PatraContactsCompactList.vue: `aria-hidden="true"` on the decorative `c-arrow` glyph.
+- SummaryReports.vue: gated `<Table v-if="tableData.length || isLoading">` so the empty-state no longer sits under an orphaned header (keeps header during load).
+- patra-themes.css: added ONE global cure rule `.pat-tpage .hover\:bg-indigo-500:hover { background: <purple gradient> }` — fixes the hover flash on all 5 `.pat-tpage` pages at once (vs editing 7 button class-lists).
+
+### DISCOVERED PRE-EXISTING BUG (surfaced honestly, NOT fixed — out of UI-only scope)
+`PatraCashierQueue.vue:6` → `const showAlert = useAlert;` should be `const showAlert = useAlert();` per the Patra invariant ("useAlert is called as `const showAlert = useAlert()`"). This is a functional bug in the error-alert path, not presentation. Left for Genius to fix separately so this UI run stays logic-clean (regression_sentinel would otherwise flag it).
+
+---

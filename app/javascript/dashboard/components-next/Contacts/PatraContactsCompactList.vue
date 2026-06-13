@@ -151,7 +151,9 @@ const isActiveRoute = name => route.name === name;
             }}</span>
           </div>
         </div>
-        <span class="c-arrow">{{ t('CONTACTS_LAYOUT.LIST.ARROW') }}</span>
+        <span class="c-arrow" aria-hidden="true">{{
+          t('CONTACTS_LAYOUT.LIST.ARROW')
+        }}</span>
       </div>
     </div>
   </div>

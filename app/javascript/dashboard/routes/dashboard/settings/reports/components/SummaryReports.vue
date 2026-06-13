@@ -225,7 +225,7 @@ defineExpose({ downloadReports });
   <div
     class="relative flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >
-    <Table :table="table" />
+    <Table v-if="tableData.length || isLoading" :table="table" />
     <EmptyState
       v-if="!isLoading && !tableData.length"
       :title="emptyStateTitle"

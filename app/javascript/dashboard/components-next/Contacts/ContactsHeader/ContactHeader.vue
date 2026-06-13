@@ -82,6 +82,7 @@ const emit = defineEmits([
           "
           type="button"
           class="icon-btn"
+          aria-label="Save segment"
           @click="emit('createSegment')"
         >
           <svg
@@ -101,6 +102,7 @@ const emit = defineEmits([
           v-if="isSegmentsView && !isLabelView && !isActiveView"
           type="button"
           class="icon-btn danger"
+          aria-label="Delete segment"
           @click="emit('deleteSegment')"
         >
           <svg

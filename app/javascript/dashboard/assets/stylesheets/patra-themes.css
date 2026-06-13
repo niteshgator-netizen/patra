@@ -5298,6 +5298,13 @@ body:not(.dark) .report-card:nth-child(6) { animation-delay: 0.2s; }
   box-shadow: 0 6px 16px rgba(110, 86, 207, 0.4);
 }
 
+/* patra-ui: keep the cured purple gradient on hover. Tailwind's
+   hover:bg-indigo-500 on these buttons would otherwise paint a flat indigo
+   background-color over the gradient on hover. Applies to all .pat-tpage pages. */
+.pat-tpage .hover\:bg-indigo-500:hover {
+  background: linear-gradient(135deg, var(--patra), #5b45b0) !important;
+}
+
 .pat-tpage .bg-indigo-600:focus-visible {
   outline: 2px solid var(--patra);
   outline-offset: 2px;
