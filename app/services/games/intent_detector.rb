@@ -622,13 +622,21 @@ module Games
     end
 
     class << self
-      def detect(message_text)
+      def detect(message_text, allow_split: true)
         return nil if message_text.blank?
 
         # bp iter4: mobile keyboards send curly quotes — "What’s hitting"
         # missed every '?-based pattern. Normalize before matching.
         text = message_text.to_s.tr('’‘“”', "''\"\"")
         Rails.logger.info("[IntentDetector] checking text=#{text[0..200]}")
+
+        # it6 A2: a message bundling MULTIPLE ops ("cash out 80, load 20 juwa, is fire loaded") is split
+        # on strong delimiters and each segment re-detected; only fires on cleanly-typed legs (ambiguous
+        # -> nil -> normal single detection). allow_split guards against recursion.
+        if allow_split && (multi_op = detect_multi_op(text))
+          Rails.logger.info("[IntentDetector] matched multi_op legs=#{multi_op[:legs].inspect}")
+          return multi_op
+        end
 
         # Greeting only when nothing intent-shaped follows: "hey can i load 20"
         # must fall through to :load, not die as :greeting (golden-suite H1 fix).
@@ -868,6 +876,59 @@ module Games
         return nil if slugs.size < 2
 
         { intent: :request_multi_account_creation, game_slugs: slugs }
+      end
+
+      MULTI_OP_DELIMITERS = /\s*(?:,|;|&|\band\b|\bthen\b|\balso\b|\bplus\b|\n)\s*/i
+
+      # it6 A2 — recognize a message bundling MULTIPLE distinct money/status ops. Splits on strong
+      # delimiters and re-detects each segment with the SAME single-op detector (allow_split:false).
+      # Returns { intent: :multi_op, legs: [...] } ONLY when every segment is a CLEANLY typed,
+      # unambiguous op from a safe whitelist: cashout (w/ amount), load (w/ amount AND game), load_multi
+      # (expanded), status_check. ANY ambiguous / off-whitelist / nil segment -> nil (fall through to
+      # normal single detection — no regression, never a mis-route). Requires >=2 legs, >=1 money-MOVING
+      # leg, and no duplicate money leg (idempotency).
+      def detect_multi_op(text)
+        norm = text.to_s.strip
+        return nil if norm.empty? || norm.length > 160
+
+        segs = norm.split(MULTI_OP_DELIMITERS).map(&:strip).reject(&:empty?)
+        return nil if segs.size < 2
+
+        legs = []
+        segs.each do |seg|
+          r = detect(seg, allow_split: false)
+          r = { intent: r } unless r.is_a?(Hash)
+          case r[:intent]
+          when :cashout
+            return nil unless r[:amount].to_f.positive?
+
+            legs << r
+          when :load
+            return nil unless r[:amount].to_f.positive? && r[:game_slug].to_s.strip.length.positive?
+
+            legs << r
+          when :load_multi
+            Array(r[:legs]).each do |l|
+              legs << { intent: :load, amount: l[:amount].to_f, game_slug: l[:game_slug], game_username: nil }
+            end
+          when :status_check
+            legs << { intent: :status_check }
+          else
+            return nil
+          end
+        end
+
+        return nil if legs.size < 2
+        return nil unless legs.any? { |l| %i[cashout load].include?(l[:intent]) }
+
+        money_keys = legs.select { |l| %i[cashout load].include?(l[:intent]) }
+                         .map { |l| [l[:intent], l[:amount].to_f, l[:game_slug]] }
+        return nil if money_keys.uniq.size != money_keys.size
+
+        { intent: :multi_op, legs: legs }
+      rescue StandardError => e
+        Rails.logger.warn("[IntentDetector] detect_multi_op failed: #{e.class}: #{e.message}")
+        nil
       end
 
       def detect_account_creation_request(text)
