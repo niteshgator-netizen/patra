@@ -60,6 +60,7 @@ async function disconnect(identity) {
           <img
             v-if="identity.fb_user_avatar_url"
             :src="identity.fb_user_avatar_url"
+            :alt="identity.fb_user_name"
             class="w-10 h-10 rounded-full"
             @error="identity.fb_user_avatar_url = ''"
           />

@@ -195,10 +195,10 @@ export default {
             <span
               class="text-xs px-2 py-1 rounded"
               :class="{
-                'bg-yellow-900 text-yellow-300': ref.status === 'pending',
-                'bg-green-900 text-green-300': ref.status === 'paid',
-                'bg-blue-900 text-blue-300': ref.status === 'verified',
-                'bg-red-900 text-red-300': ref.status === 'rejected',
+                'bg-n-amber-3 text-n-amber-11': ref.status === 'pending',
+                'bg-n-teal-3 text-n-teal-11': ref.status === 'paid',
+                'bg-n-blue-3 text-n-blue-11': ref.status === 'verified',
+                'bg-n-ruby-3 text-n-ruby-11': ref.status === 'rejected',
               }"
               >{{ ref.status }}</span
             >

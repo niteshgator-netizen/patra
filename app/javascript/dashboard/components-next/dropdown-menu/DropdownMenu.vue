@@ -136,7 +136,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="patra-pop bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 flex flex-col min-w-[180px] shadow-lg pt-2 overflow-hidden"
+    class="patra-pop bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 flex flex-col min-w-[180px] max-w-[calc(100vw-1rem)] shadow-lg pt-2 overflow-hidden"
   >
     <div v-if="showSearch" class="relative shrink-0 px-2 mb-2">
       <span
@@ -149,6 +149,7 @@ onMounted(() => {
         :placeholder="
           searchPlaceholder || t('DROPDOWN_MENU.SEARCH_PLACEHOLDER')
         "
+        :aria-label="searchPlaceholder || t('DROPDOWN_MENU.SEARCH_PLACEHOLDER')"
         class="reset-base w-full h-8 py-2 ltr:pl-10 ltr:pr-2 rtl:pl-2 rtl:pr-10 text-sm focus:outline-none border-none rounded-lg bg-n-alpha-black2 dark:bg-n-solid-1 text-n-slate-12"
         @input="handleSearchInput"
       />

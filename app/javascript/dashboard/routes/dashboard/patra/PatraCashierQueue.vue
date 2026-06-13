@@ -77,8 +77,11 @@ onUnmounted(() => clearInterval(pollInterval));
         No pending claims.
       </p>
 
-      <section v-else class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
-        <table class="w-full text-sm">
+      <section
+        v-else
+        class="rounded-xl border border-n-weak bg-n-solid-1 p-4 overflow-x-auto"
+      >
+        <table class="w-full min-w-[560px] text-sm">
           <thead>
             <tr class="text-left text-n-slate-11">
               <th class="pb-2 font-medium">Action</th>

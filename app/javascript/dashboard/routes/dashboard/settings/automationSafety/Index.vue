@@ -115,7 +115,7 @@ export default {
             <span class="text-sm">Win-back enabled</span>
           </label>
 
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <label class="block">
               <span class="text-xs text-slate-400">VIP — days quiet</span>
               <input
@@ -156,7 +156,7 @@ export default {
             <p class="text-xs text-slate-500 mb-2">
               Flag a player who cashes out N times within M hours.
             </p>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <label class="block">
                 <span class="text-xs text-slate-400">Cashout count (N)</span>
                 <input

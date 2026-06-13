@@ -129,6 +129,7 @@ const emit = defineEmits([
         :value="searchValue"
         type="search"
         :placeholder="$t('CONTACTS_LAYOUT.HEADER.SEARCH_PLACEHOLDER_PATRA')"
+        :aria-label="$t('CONTACTS_LAYOUT.HEADER.SEARCH_PLACEHOLDER_PATRA')"
         @input="emit('search', $event.target.value)"
       />
     </div>

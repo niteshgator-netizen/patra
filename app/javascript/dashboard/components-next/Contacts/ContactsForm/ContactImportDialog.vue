@@ -113,6 +113,8 @@ defineExpose({ dialogRef });
             />
             <div class="w-px h-3 bg-n-strong" />
             <Button
+              v-tooltip="'Remove file'"
+              aria-label="Remove file"
               icon="i-lucide-trash"
               color="slate"
               variant="ghost"

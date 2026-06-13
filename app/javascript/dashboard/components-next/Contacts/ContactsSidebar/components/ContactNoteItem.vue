@@ -73,6 +73,8 @@ onMounted(() => {
       </div>
       <Button
         v-if="allowDelete"
+        v-tooltip="'Delete note'"
+        aria-label="Delete note"
         variant="faded"
         color="ruby"
         size="xs"

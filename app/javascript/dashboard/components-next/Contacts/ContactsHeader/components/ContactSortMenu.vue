@@ -95,6 +95,8 @@ const handleOrderChange = value => {
 <template>
   <div class="relative">
     <Button
+      v-tooltip="'Sort contacts'"
+      aria-label="Sort contacts"
       icon="i-lucide-arrow-down-up"
       color="slate"
       size="sm"

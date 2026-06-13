@@ -111,8 +111,12 @@ const isActiveRoute = name => route.name === name;
         v-for="contact in contacts"
         :key="contact.id"
         class="contact"
+        role="button"
+        tabindex="0"
         :class="{ active: contact.id === activeId }"
         @click="navigateToContact(contact.id)"
+        @keydown.enter="navigateToContact(contact.id)"
+        @keydown.space.prevent="navigateToContact(contact.id)"
       >
         <div
           class="c-ava"

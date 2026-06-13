@@ -125,7 +125,7 @@ export default {
       </p>
 
       <!-- New tier form -->
-      <div v-if="adding" class="border border-indigo-600 rounded-lg p-4 mb-6">
+      <div v-if="adding" class="border border-n-brand rounded-lg p-4 mb-6">
         <h3 class="text-sm font-medium mb-3">New Tier</h3>
         <div class="grid grid-cols-2 gap-4">
           <label class="block">
@@ -202,7 +202,7 @@ export default {
             {{ saving ? 'Saving...' : 'Create' }}
           </button>
           <button
-            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+            class="px-4 py-2 bg-n-alpha-2 hover:bg-n-alpha-3 text-n-slate-12 rounded text-sm"
             @click="adding = false"
           >
             Cancel
@@ -239,13 +239,13 @@ export default {
               {{ Object.keys(tier.rule_overrides || {}).length }} overrides
             </span>
             <button
-              class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs"
+              class="px-3 py-1.5 bg-n-alpha-2 hover:bg-n-alpha-3 text-n-slate-12 rounded text-xs"
               @click="toggleEdit(tier.id)"
             >
               {{ editingId === tier.id ? 'Close' : 'Edit' }}
             </button>
             <button
-              class="px-3 py-1.5 bg-red-900 hover:bg-red-800 text-red-200 rounded text-xs"
+              class="px-3 py-1.5 bg-n-ruby-9 hover:bg-n-ruby-10 text-white rounded text-xs"
               @click="deleteTier(tier)"
             >
               Delete

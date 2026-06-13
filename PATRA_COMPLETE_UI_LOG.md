@@ -113,3 +113,18 @@ GlobalConfig.clear_cache if defined?(GlobalConfig)
 **Report:** affected keys = whatever Step 1 prints (likely none, since code defaults are blank — but Genius confirms against the live DB). **Confidence: code 100% clean; DB unverifiable from here (honest).**
 
 ---
+
+## SIX-AGENT VERIFICATION GATE — ROUND 1 (dispatched 6 fresh skeptics in parallel, read-only; fixes applied by main loop)
+
+**regression_sentinel → ZERO VIOLATIONS.** Confirmed every hunk is presentation-only, no HOT/OWNER-WIP file touched, i18n KEYS unchanged (only values), WootReports `dataLoaded`/`Promise.resolve(dispatch).finally` changes nothing about what's fetched. This is the safety gate — it passed.
+
+**Findings collected & FIXED in Round 2:**
+- **responsive_auditor (5):** PatraCashierQueue 6-col table → wrapped `overflow-x-auto`+`min-w-[560px]`; PatraReports Top-Players/Game-Usage/Agent-Performance tables → `overflow-x-auto` (+`min-w-[460px]` on the 4-col one); automationSafety `grid-cols-3`/`-2` → `grid-cols-1 sm:grid-cols-N`; DropdownMenu → added `max-w-[calc(100vw-1rem)]` viewport clamp. (Cleared as already-fine: WootReports, FacebookAccounts, Leaderboard, SweepsReport, ReportsHub, OwnerDashboard.)
+- **accessibility_auditor (9 + 1):** added `v-tooltip`+`aria-label` to contacts icon-only buttons — kebab menu (**blocker**), sort, card chevron (+`aria-expanded`), note **delete (blocker)**, import remove-file; made `PatraContactsCompactList` rows keyboard-operable (`role/tabindex/@keydown.enter/space`); `aria-label` on tier `<select>`s (ContactDetails, BulkActionBar) and search inputs (ContactHeader, ContactCustomAttributes, DropdownMenu); `alt` on FacebookAccounts avatar `<img>`. THE audit-flagged "contacts icon-only menu" = ContactMoreActions kebab — fixed.
+- **empty_state_auditor (2):** found a SECOND live team-report route — `team_reports_index`/`teams_overview` → `SummaryReports.vue` (TanStack table) blanks with 0 teams (my Round-1 WootReports fix only covered the `team_reports` route). Added reused `EmptyState` (`v-if="!isLoading && !tableData.length"`). Also added a `Spinner` to WootReports' brief pre-`dataLoaded` window. It verified my WootReports EmptyState correctly covers the permanent no-teams case.
+- **consistency_checker (3 real, in adjacent Patra settings pages):** referrals status badges `bg-{yellow,green,blue,red}-900` (dark-only, light-mode break) → soft `bg-n-{amber,teal,blue,ruby}-3 text-n-…-11`; playerTiers `border-indigo-600`→`border-n-brand`, `bg-slate-700` secondary buttons→`bg-n-alpha-2 hover:bg-n-alpha-3 text-n-slate-12`, `bg-red-900` delete→`bg-n-ruby-9 …text-white`. KEY INSIGHT it surfaced: a global `.pat-tpage` "cure" already remaps `slate-800/900`,`indigo-600`,`text-slate-400/500`,`border-slate-600/700` to Patra tokens for both themes — so only palette OUTSIDE that set breaks (I left the cured classes alone, e.g. the tier card's `border-slate-700`).
+- **leak_hunter (1, minor):** stock upstream "Could not connect to **Woot Server**" in 3 webhook error strings (integrations.json) → "Could not reach the server…". NOTE: the same upstream "Woot Server" string appears in ~17 more places across ~11 other stock i18n files I did NOT touch (out of Patra-custom scope) — flagged here for Genius.
+
+**Validated:** integrations.json parses; referrals/playerTiers targeted palette removed; "Woot Server" gone from integrations.json.
+
+---

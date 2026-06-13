@@ -378,6 +378,7 @@ const updateTier = async event => {
           <select
             :value="selectedContact?.playerTierId ?? ''"
             class="tier-select"
+            :aria-label="t('CONTACTS_LAYOUT.PROFILE.PLAYER_TIER')"
             @change="updateTier"
           >
             <option value="">{{ t('CONTACTS_LAYOUT.PROFILE.NO_TIER') }}</option>

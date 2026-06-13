@@ -193,6 +193,9 @@ const handleAvatarHover = isHovered => {
       </div>
 
       <Button
+        v-tooltip="isExpanded ? 'Collapse' : 'View details'"
+        :aria-label="isExpanded ? 'Collapse' : 'View details'"
+        :aria-expanded="isExpanded"
         icon="i-lucide-chevron-down"
         variant="ghost"
         color="slate"

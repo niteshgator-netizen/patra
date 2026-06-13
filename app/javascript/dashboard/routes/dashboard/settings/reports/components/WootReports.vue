@@ -7,6 +7,7 @@ import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import ReportHeader from './ReportHeader.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 
 export default {
   components: {
@@ -15,6 +16,7 @@ export default {
     ReportFilters,
     ReportContainer,
     EmptyState,
+    Spinner,
   },
   props: {
     type: {
@@ -198,4 +200,7 @@ export default {
     :title="emptyStateTitle"
     :message="emptyStateBody"
   />
+  <div v-else class="flex justify-center py-16">
+    <Spinner :size="24" />
+  </div>
 </template>

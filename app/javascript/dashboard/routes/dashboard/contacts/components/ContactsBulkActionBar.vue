@@ -133,6 +133,7 @@ onMounted(() => {
           <select
             class="tier-bulk-select"
             :disabled="!selectedCount || isLoading"
+            :aria-label="t('CONTACTS_BULK_ACTIONS.ASSIGN_TIER')"
             @change="handleTierChange"
           >
             <option value="">

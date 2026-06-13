@@ -5,6 +5,7 @@ import { formatTime } from '@chatwoot/utils';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
+import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import {
   useVueTable,
@@ -55,6 +56,20 @@ const uiFlags = useMapGetter('summaryReports/getUIFlags');
 const isLoading = computed(() => uiFlags.value[flagMap[props.type]] ?? false);
 
 const rowItems = useMapGetter([props.getterKey]) || [];
+
+const pluralType = computed(
+  () =>
+    ({ agent: 'agents', team: 'teams', inbox: 'inboxes', label: 'labels' })[
+      props.type
+    ] || props.type
+);
+const emptyStateTitle = computed(
+  () => `No ${pluralType.value} to report on yet`
+);
+const emptyStateBody = computed(
+  () =>
+    `This report breaks activity down by ${props.type}. As soon as you have ${pluralType.value} with activity, the numbers show up here.`
+);
 const reportMetrics = useMapGetter([props.summaryKey]) || [];
 
 const getMetrics = id =>
@@ -211,6 +226,11 @@ defineExpose({ downloadReports });
     class="relative flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >
     <Table :table="table" />
+    <EmptyState
+      v-if="!isLoading && !tableData.length"
+      :title="emptyStateTitle"
+      :message="emptyStateBody"
+    />
     <Transition
       enter-active-class="transition-opacity duration-300 ease-out"
       leave-active-class="transition-opacity duration-200 ease-in"

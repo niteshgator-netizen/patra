@@ -45,6 +45,8 @@ const handleContactAction = ({ action }) => {
 <template>
   <div v-on-clickaway="() => (showActionsDropdown = false)" class="relative">
     <Button
+      v-tooltip="'More actions'"
+      aria-label="More actions"
       icon="i-lucide-ellipsis-vertical"
       color="slate"
       variant="ghost"

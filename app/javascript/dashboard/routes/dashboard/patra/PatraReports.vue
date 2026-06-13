@@ -216,7 +216,9 @@ onMounted(async () => {
           </section>
 
           <div class="grid gap-6 md:grid-cols-2">
-            <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+            <section
+              class="rounded-xl border border-n-weak bg-n-solid-1 p-4 overflow-x-auto"
+            >
               <h2 class="mb-4 text-sm font-semibold text-n-slate-12">
                 {{ $t('PATRA.REPORTS.TOP_PLAYERS') }}
               </h2>
@@ -249,7 +251,9 @@ onMounted(async () => {
               </p>
             </section>
 
-            <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+            <section
+              class="rounded-xl border border-n-weak bg-n-solid-1 p-4 overflow-x-auto"
+            >
               <h2 class="mb-4 text-sm font-semibold text-n-slate-12">
                 {{ $t('PATRA.REPORTS.GAME_USAGE') }}
               </h2>
@@ -422,13 +426,15 @@ onMounted(async () => {
             </p>
           </section>
 
-          <section class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+          <section
+            class="rounded-xl border border-n-weak bg-n-solid-1 p-4 overflow-x-auto"
+          >
             <h2 class="mb-4 text-sm font-semibold text-n-slate-12">
               {{ $t('PATRA.REPORTS.AGENT_PERFORMANCE') }}
             </h2>
             <table
               v-if="stats.agent_performance?.length"
-              class="w-full text-sm"
+              class="w-full min-w-[460px] text-sm"
             >
               <thead>
                 <tr class="text-left text-n-slate-11">
