@@ -515,7 +515,15 @@ body:not(.dark) .pat-page-wrap {
   --red: #f85149;
 
   position: relative;
-  min-height: 100%;
+  /* patra-responsive: own the scroll. The shell <main> is overflow-hidden,
+     so a min-height:100% block was just being clipped (lower rows unreachable).
+     Become a bounded flex column and let .pat-page-main scroll inside it — its
+     scrollbar then sits at the visible right edge, not behind the -24px bleed. */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   margin-left: -24px;
   margin-right: -24px;
   padding: 0 24px 24px;
@@ -527,6 +535,10 @@ body:not(.dark) .pat-page-wrap {
 .pat-page-main {
   position: relative;
   z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .pat-page-wrap :deep(.text-heading-1),

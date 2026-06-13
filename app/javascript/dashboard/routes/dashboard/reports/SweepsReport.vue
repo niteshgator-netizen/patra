@@ -76,7 +76,7 @@ onMounted(fetchReport);
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 p-6 sw-page">
+  <div class="flex flex-col gap-4 p-6 sw-page h-full w-full min-h-0 overflow-y-auto">
     <header class="flex items-start justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-2xl font-semibold text-n-slate-12 sw-display">
@@ -166,7 +166,7 @@ onMounted(fetchReport);
       <template v-else>
         <section class="sw-card">
           <h2 class="sw-card-t">{{ $t('PATRA.SWEEPS.BY_GAME') }}</h2>
-          <table class="sw-table">
+          <div class="sw-table-wrap"><table class="sw-table">
             <thead>
               <tr>
                 <th>{{ $t('PATRA.SWEEPS.GAME') }}</th>
@@ -187,13 +187,13 @@ onMounted(fetchReport);
                 </td>
               </tr>
             </tbody>
-          </table>
+          </table></div>
         </section>
 
         <section class="sw-card">
           <h2 class="sw-card-t">{{ $t('PATRA.SWEEPS.BY_AGENT') }}</h2>
           <p class="sw-note">{{ $t('PATRA.SWEEPS.AGENT_NOTE') }}</p>
-          <table class="sw-table">
+          <div class="sw-table-wrap"><table class="sw-table">
             <thead>
               <tr>
                 <th>{{ $t('PATRA.SWEEPS.AGENT') }}</th>
@@ -214,7 +214,7 @@ onMounted(fetchReport);
                 </td>
               </tr>
             </tbody>
-          </table>
+          </table></div>
         </section>
 
         <section v-if="gameTrends.length" class="sw-card">
@@ -236,7 +236,7 @@ onMounted(fetchReport);
 
         <section class="sw-card">
           <h2 class="sw-card-t">{{ $t('PATRA.SWEEPS.BY_DAY') }}</h2>
-          <table class="sw-table">
+          <div class="sw-table-wrap"><table class="sw-table">
             <thead>
               <tr>
                 <th>{{ $t('PATRA.SWEEPS.DATE') }}</th>
@@ -257,7 +257,7 @@ onMounted(fetchReport);
                 </td>
               </tr>
             </tbody>
-          </table>
+          </table></div>
         </section>
       </template>
     </template>
@@ -356,8 +356,16 @@ onMounted(fetchReport);
   margin-bottom: 8px;
 }
 
+/* patra-responsive: tables scroll horizontally instead of crushing on phones */
+.sw-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .sw-table {
   width: 100%;
+  min-width: 460px;
   border-collapse: collapse;
   font-size: 13px;
 }

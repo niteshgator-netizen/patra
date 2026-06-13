@@ -117,3 +117,36 @@ No new custom breakpoint invented. Light/dark unaffected (layout-only).
 messages both visible, click-outside closes. 375px → full-width overlay (`w-full max-w-sm`), unchanged.
 
 ---
+
+## PHASE 2 — REPORT PAGES SCROLL + RESPONSIVE (symptoms 4 + 5 + 6)
+
+**Files:** `routes/dashboard/reports/SweepsReport.vue`, `routes/dashboard/patra/PatraReports.vue`.
+(`PatraReportsHub.vue` already had `overflow-y-auto` and scrolls — left untouched.)
+
+### SweepsReport.vue (the "Sweeps Financial" page, `patra_sweeps_report`)
+- **Scroll:** root `<div class="… sw-page">` → added `h-full w-full min-h-0 overflow-y-auto` (line 79).
+  As a flex child of the `overflow-hidden` `<main>` it stretches to the bounded shell height and now
+  scrolls its own content instead of being clipped. Matches the working PatraReportsHub pattern.
+- **Tables:** wrapped all 3 tables (by-game / by-agent / by-day) in `<div class="sw-table-wrap">`
+  (`overflow-x:auto`) + gave `.sw-table` `min-width:460px`. On phones the table scrolls sideways
+  instead of crushing 4 columns into illegible wrap; on desktop `width:100%` still wins (no change).
+- KPI grid was already fluid (`repeat(auto-fit,minmax(150px,1fr))`); trend grid already
+  `repeat(auto-fit,minmax(280px,1fr))`. No change needed.
+
+### PatraReports.vue (the `/patra/reports` "Sweepstakes Reports" page)
+- **Scroll (CSS only):** `.pat-page-wrap` was `min-height:100%` with no overflow → clipped.
+  Changed it to a bounded flex column (`display:flex; flex-direction:column; height:100%;
+  min-height:0; overflow:hidden`) and made `.pat-page-main` the scroll container
+  (`flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden`).
+  Scrolling on the inner `.pat-page-main` (which has no negative margin) keeps the scrollbar at the
+  **visible** right edge — putting it on `.pat-page-wrap` itself would hide it behind the `-24px`
+  edge-bleed that `<main overflow-hidden>` clips. Style is `scoped`, so only this page is affected.
+- Stat grids were already responsive (`grid-cols-2 md:grid-cols-3 / md:grid-cols-4`); heatmap already
+  had `overflow-x-auto`; tables are fluid `w-full`. Vertical scroll was the real gap.
+
+**Out of scope (reported honestly):** the stock Chatwoot report pages under `settings/reports/*`
+(Agents/SLA/Inbox/Label/Team/CSAT) use their own `ReportContainer`/`ReportsWrapper` and were **not**
+touched — only the three Patra pages named in the brief. If those stock pages still mis-scroll, that's
+a separate wrapper and a follow-up.
+
+---
