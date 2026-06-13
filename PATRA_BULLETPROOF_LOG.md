@@ -801,3 +801,37 @@ NEVER pushed. bella_rag_pairs READ-ONLY. Hot files one-per-commit, full read, ru
   cashout_for merge truthful) — no code change.
 - prod-only (Render): resolver vs real AR Account.settings round-trip + tz conversion.
 
+### A1c — Bella grounding (reply_service.rb, HOT, 1 commit; reviewer SHIP + 2 red-team rounds)
+Wired PolicyResolver into Bella's bonus/referral/cashout grounding:
+- policy_resolver (memoized, nil-safe) + agent_policy_prompt_section (lists ACTIVE bonuses + configured
+  referral/cashout; "state ONLY these — never invent/negotiate/promise to add"; '' when unconfigured).
+- dynamic_game_rules_prompt: prepends the policy section; suppresses GameRule "Bonus:"/"Cashout:" lines
+  only when policy owns that domain; skips empty game lines.
+- configured_bonus_percents: agent_policy ACTIVE bonus percents authoritative when bonuses_configured?
+  (=> [] out-of-window => % guard defers every promise); else legacy GameRule+contact; configured
+  REFERRAL % merged in (so a real referral rate isn't blocked as invented).
+- guard_against_unconfigured_bonus_claim: scans a homoglyph+fullwidth-normalized copy; matches % OR the
+  word "percent"; BONUS_PROMISE_CONTEXT broadened (rate/back/pays out/comes to/up to/referral/between us/
+  call it/we're at/i got you at). A stray (non-allowed) % in bonus context => defer.
+- NEW guard_against_policy_freelancing (chokepoint, after the bonus guard): normalize → block if
+  ALWAYS_BLOCK (double/match your deposit, dollar-for-dollar) OR (number present && NEGOTIATION) OR
+  (money-flavored && ADD). Money-context promise-fix narrowed to a BONUS object → "i'll fix your cashout"
+  is NOT touched. Fails open; defer line on block.
+VERIFICATION (verified-by-running, pure-ruby mirroring file constants byte-for-byte):
+- tmp/it6_guard_v3.rb = 42/42 (full regression + red-team-v2 new holes + FP-safety incl. "100% sure/
+  verified/good to go", "call you back", "completed cashout", "credit card", "50 credits", "fix cashout",
+  "double check", refund-back). ruby -c clean.
+- REVIEWER (fresh code-reviewer agent): SHIP — FPs fixed, no new FP from broadened context, no unrescued
+  raise, configured_bonus_percents restructure correct.
+- RED-TEAM round 1 (v1): 24 bypasses + 4 FPs → all fixed v2. RED-TEAM round 2 (v2): confirmed 24+4 closed,
+  found 2 NEW (bare stray % "between us 55%"; fullwidth "４５％") → both closed v3 (value-framing context +
+  fullwidth fold) + comp/get-you ADD. Re-verified 42/42.
+RESIDUALS (documented; defended by PROMPT grounding, NOT regex — red-team agreed acceptable):
+- Word-number bonuses ("forty percent", "a hundred back"); invented CASHOUT caps as bare numbers
+  ("max cashout is 5000" — out of the bonus-guard charter; the prompt states the real cashout; A4 guards
+  balance); split-digit "4 0 %"; vague no-number paraphrases ("double it", "more bonus than that").
+- SCOPE: agent_policy drives what Bella STATES (prompt + guard allow-list). Internal referral PAYOUT calc
+  (orchestrator referral_reward_amount) still reads generosity_setting — unchanged here (configured, not
+  invented). Future iteration could drive payout from agent_policy if the owner wants.
+prod-only (Render): live reply path with a real configured agent_policy; full harness.
+

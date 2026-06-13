@@ -2423,6 +2423,12 @@ class Ai::ReplyService
     reply_text = guard_against_unconfigured_bonus_claim(reply_text)
     return reply_text if reply_text.blank?
 
+    # it6 (A1c): block bonus/referral/cashout FREELANCING — haggling/negotiation
+    # ("best i can do", "can't go above"), promise-to-add ("throw in", "add it next
+    # time"), money-context promise-fix. Engages only on money-flavored replies.
+    reply_text = guard_against_policy_freelancing(reply_text)
+    return reply_text if reply_text.blank?
+
     # bp5 P8 (red-team A): fold common Cyrillic/Greek homoglyphs to Latin
     # BEFORE matching so "lоаded" can't smuggle a false claim past the
     # word-boundary patterns. Match on the folded copy; the customer-visible
@@ -2526,18 +2532,27 @@ class Ai::ReplyService
     text.to_s
   end
 
+  # it6 (A1c v3) — fold homoglyphs AND fullwidth digits/percent to ASCII before guard matching so
+  # "４５％" and Cyrillic lookalikes can't evade. Customer-visible text is never mutated.
+  def normalize_guard_text(text)
+    fold_homoglyphs(text).tr('０-９', '0-9').tr('％', '%')
+  rescue StandardError
+    text.to_s
+  end
+
   # bp5 P1: a % bonus PROMISE must trace to a configured percentage (an
   # enabled GameRule deposit_bonus_percentage, or the player's stored
   # bonus_percent_override / preferred_bonus_percentage). Plain percents with
   # no promise wording pass through. Fails open on any error.
-  BONUS_PROMISE_CONTEXT = /\b(bonus|match|extra|promo|still\s+on|on\s+for\s+you|you\s+get|i'?ll\s+(?:give|add|throw))\b/i
+  BONUS_PROMISE_CONTEXT = /\b(?:bonus|match(?:ing)?|promo|extra|still\s+on|on\s+for\s+you|you\s+get|you'?ll\s+(?:get|see)|rate|pays?\s+out|comes?\s+(?:out\s+)?to|up\s+to|referral|between\s+us|call\s+it|we(?:'?re|\s+are)\s+at|i\s+got\s+(?:you|ya|u)\s+at|i'?ll\s+(?:give|add|throw|do|make|stretch)|i\s+can\s+(?:give|do|stretch)|stretch\s+it)\b/i
 
   def guard_against_unconfigured_bonus_claim(reply_text)
     return reply_text if reply_text.to_s.strip.empty?
 
-    percents = reply_text.scan(/(\d{1,3}(?:\.\d{1,2})?)\s*%/).flatten
+    scan = normalize_guard_text(reply_text)
+    percents = scan.scan(/(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent\b)/i).flatten
     return reply_text if percents.empty?
-    return reply_text unless reply_text.match?(BONUS_PROMISE_CONTEXT)
+    return reply_text unless scan.match?(BONUS_PROMISE_CONTEXT)
 
     allowed = configured_bonus_percents
     stray = percents.reject { |p| allowed.include?(p.to_f) }
@@ -2551,29 +2566,120 @@ class Ai::ReplyService
     reply_text
   end
 
+  # it6 (A1c) — memoized agent-policy resolver for this reply's account (nil-safe, memoizes nil).
+  def policy_resolver
+    return @policy_resolver if defined?(@policy_resolver)
+
+    acct = Account.find_by(id: account_id)
+    @policy_resolver = acct ? Games::PolicyResolver.new(account: acct, now: Time.current) : nil
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] policy_resolver init failed: #{e.class}: #{e.message}")
+    @policy_resolver = nil
+  end
+
+  # it6 (A1c) — Bella must NEVER negotiate or freelance bonus/referral/cashout terms. These
+  # phrasings are off-limits regardless of configured policy. Engage ONLY on a money-flavored
+  # reply so non-money support replies ("i'll fix the login link") pass untouched. Fails open.
+  # match/double promises with no number — always off-limits (Bella never offers these).
+  POLICY_ALWAYS_BLOCK = Regexp.union(
+    /\bdouble\s+(?:your|the)\s+(?:deposit|load|money)\b/i,
+    /\bmatch\s+(?:it|your\s+(?:deposit|load))\b/i,
+    /\bdollar\s+for\s+dollar\b/i
+  )
+  # haggling/negotiating a number — blocked whenever the reply carries a number ($/%/digit);
+  # no money-word required (haggle phrasing IS a terms statement). "best i can do is escalate"
+  # (no number) passes.
+  POLICY_NEGOTIATION_PATTERNS = Regexp.union(
+    /\bbest i can do\b/i,
+    /\bcan'?t go (?:any\s+)?(?:higher|above|over|past)\b/i,
+    /\bcan'?t do (?:any\s+)?(?:less|lower|more)\b/i,
+    /\bjust this once\b/i,
+    /\b(?:i'?ll|i can|i will|lemme|let me)\s+do\s+\$?\d/i,
+    /\b(?:give|giving|get)\s+(?:you|ya|u)\s+\$?\d/i,
+    /\bmake\s+it\s+\$?\d/i,
+    /\b(?:i'?ll|i can|i could)\s+stretch\b/i,
+    /\bmax i can (?:give|do|go)\b/i,
+    /\bfor\s+you[, ]+\$?\d/i,
+    /\bsince you asked\b/i,
+    /\bbump\s+(?:it|that|you|your\s+\w+)\s+(?:up|to)\b/i,
+    /\b(?:we'?ll\s+)?call it\s+\$?\d/i,
+    /\bi\s+got\s+(?:you|ya|u)\s+at\s+\$?\d/i,
+    /\bround\s+(?:it\s+)?(?:up\s+|down\s+)?to\s+\$?\d/i,
+    /\bbetween\s+us[,: ]+\$?\d/i,
+    /\b\d+\s*:\s*\d+\b/
+  )
+  # promise to ADD value — blocked when money-flavored AND a money object follows the verb
+  # (so "throw in the screenshot" / "add the extra info to your ticket" pass). The fix/sort
+  # branch is narrowed to a BONUS object so "i'll fix your cashout" is NOT touched.
+  POLICY_ADD_PATTERNS = Regexp.union(
+    /\b(?:throw|threw|toss|tossed|throwing|tossing)\s+in\s+(?:you\s+|ya\s+|u\s+)?(?:an?\s+|some\s+|another\s+|the\s+)?(?:extra|bonus|comp|\$?\d|\d+\s*%)/i,
+    /\b(?:i'?ll|i will|lemme|let me|i can|i could)\s+(?:add|tack\s+on|throw\s+on)\s+(?:in\s+)?(?:you\s+|ya\s+|u\s+)?(?:an?\s+|some\s+|another\s+)?(?:extra|bonus|comp|\$?\d|\d+\s*%)/i,
+    /\badd\s+(?:that\s+|the\s+)?(?:extra\s+)?bonus\s+(?:next\s+time|later|on\s+next)\b/i,
+    /\b(?:i'?ll|i will)\s+sweeten\b/i,
+    /\bon the house\b/i,
+    /\bhook\s+(?:you|ya|u)\s+up\s+(?:with\s+)?(?:a\s+|an\s+|some\s+)?(?:bonus|extra|comp|\$?\d|\d+\s*%)/i,
+    /\bbump\s+(?:your\s+)?(?:bonus|comp)\b/i,
+    /\bi(?:'?ll| will)\s+(?:fix|sort|take\s+care\s+of)\b[^.!?\n]{0,24}\bbonus\b/i,
+    /\b(?:here'?s|heres|got\s+(?:you|ya|u))\s+(?:a\s+)?\$?\d+\s*(?:comp|bonus)\b/i,
+    /\bget\s+(?:you|ya|u)\s+\$?\d+\s*(?:extra|comp|bonus|credit)\b/i,
+    /\$\d+\s*comp\b/i
+  )
+  MONEY_FLAVOR = %r{[$%]|\b(?:bonus|match|promo|cash\s*out|cashout|referral|credit|extra|comp(?:ed)?|bucks?|dollars?)\b}i
+
+  def guard_against_policy_freelancing(reply_text)
+    return reply_text if reply_text.to_s.strip.empty?
+
+    # match on a homoglyph-folded copy (customer text unchanged) so lookalike letters can't
+    # smuggle a freelance phrase past the patterns.
+    scan = normalize_guard_text(reply_text)
+    has_number = scan.match?(/[$%]|\b\d/)
+    blocked = scan.match?(POLICY_ALWAYS_BLOCK) ||
+              (has_number && scan.match?(POLICY_NEGOTIATION_PATTERNS)) ||
+              (scan.match?(MONEY_FLAVOR) && scan.match?(POLICY_ADD_PATTERNS))
+    return reply_text unless blocked
+
+    Rails.logger.warn("[ReplyService] BLOCKED_POLICY_FREELANCE reply=#{reply_text.inspect[0..120]}")
+    add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
+    'lemme confirm what we got going for you right now — one sec 🙏'
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] policy freelance guard failed: #{e.class}: #{e.message}")
+    reply_text
+  end
+
   # Percent values Bella is allowed to promise: enabled GameRule bonuses for
   # this account + the player's stored bonus attrs. [] on any error (=> every
   # percent promise gets the safe check line).
   def configured_bonus_percents
-    allowed = []
-    GameRule.where(account_id: account_id).each do |r|
-      next unless r.respond_to?(:deposit_bonus_enabled) && r.deposit_bonus_enabled
+    # it6 (A1c): when the owner defined agent_policy bonuses, that is authoritative —
+    # only ACTIVE-window bonus percents may be stated; GameRule is NOT consulted. [] here
+    # => no bonus active right now => the % guard defers every promise.
+    resolver = policy_resolver
+    allowed =
+      if resolver&.bonuses_configured?
+        resolver.active_bonus_percents.dup
+      else
+        legacy = []
+        GameRule.where(account_id: account_id).each do |r|
+          next unless r.respond_to?(:deposit_bonus_enabled) && r.deposit_bonus_enabled
 
-      allowed << r.deposit_bonus_percentage.to_f if r.deposit_bonus_percentage.present?
-    end
-    cid = begin
-      fetch_sender_contact_id
-    rescue StandardError
-      nil
-    end
-    contact = cid.present? ? Contact.find_by(id: cid, account_id: account_id) : nil
-    if contact
-      ca = (contact.custom_attributes || {}).stringify_keys
-      %w[bonus_percent_override preferred_bonus_percentage].each do |k|
-        v = ca[k].to_s[/\d+(?:\.\d+)?/]
-        allowed << v.to_f if v
+          legacy << r.deposit_bonus_percentage.to_f if r.deposit_bonus_percentage.present?
+        end
+        cid = begin
+          fetch_sender_contact_id
+        rescue StandardError
+          nil
+        end
+        contact = cid.present? ? Contact.find_by(id: cid, account_id: account_id) : nil
+        if contact
+          ca = (contact.custom_attributes || {}).stringify_keys
+          %w[bonus_percent_override preferred_bonus_percentage].each do |k|
+            v = ca[k].to_s[/\d+(?:\.\d+)?/]
+            legacy << v.to_f if v
+          end
+        end
+        legacy
       end
-    end
+    allowed << resolver.referral['percent'].to_f if resolver&.referral_configured? && resolver.referral['percent']
     allowed
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] configured_bonus_percents failed: #{e.class}: #{e.message}")
@@ -2993,30 +3099,82 @@ class Ai::ReplyService
     Rails.logger.warn("[ReplyService] record_payment_handle_success #{e.class}: #{e.message}")
   end
 
-  # Build dynamic rules from game_rules DB
-  def dynamic_game_rules_prompt
-    begin
-      rules = GameRule.where(account_id: account_id).includes(:game)
-      return '' if rules.empty?
+  # it6 (A1c) — ACTIVE agent_policy promotions (authoritative; the ONLY bonus/referral/
+  # cashout terms Bella may state). '' when no policy configured.
+  def agent_policy_prompt_section
+    resolver = policy_resolver
+    return '' unless resolver&.configured?
 
-      lines = ["\nGAME RULES (from Settings — follow these, not any older rules):"]
-      rules.each do |r|
-        game_name = r.game&.name || r.game&.slug || 'Unknown'
-        parts = ["#{game_name}:"]
-        parts << "Bonus: #{r.deposit_bonus_percentage}%" if r.deposit_bonus_enabled
-        parts << "Min deposit for bonus: $#{r.deposit_bonus_min_amount}" if r.deposit_bonus_enabled
-        parts << "Cashout: #{r.cashout_min_multiplier}x-#{r.cashout_max_multiplier}x, max $#{r.cashout_max_amount}" if r.cashout_enabled
-        parts << "Freeplay: $#{r.freeplay_amount}/day" if r.freeplay_enabled
-        if r.cashout_rules_text.present?
-          parts << "Rules: #{r.cashout_rules_text}"
-        end
-        lines << "  " + parts.join(" | ")
+    lines = ["\nACTIVE PROMOTIONS & POLICY (state ONLY these — never invent, negotiate, or promise to add):"]
+    active = resolver.active_bonuses
+    if active.any?
+      active.each do |b|
+        name = b['name'].to_s.strip
+        bits = []
+        bits << "#{b['percent']}% bonus" if b['percent']
+        bits << "min deposit $#{b['min_deposit']}" if b['min_deposit']
+        bits << "max deposit $#{b['max_deposit']}" if b['max_deposit']
+        bits << "max bonus $#{b['cap']}" if b['cap']
+        lines << "  - #{name.empty? ? 'Bonus' : name}#{bits.any? ? ": #{bits.join(', ')}" : ''}"
       end
-      lines.join("\n")
-    rescue StandardError => e
-      Rails.logger.error("[ReplyService] dynamic_game_rules_prompt failed: #{e.message}")
-      ''
+    elsif resolver.bonuses_configured?
+      lines << "  - No bonus is active right now. If asked, say you'll check the current promo — do NOT offer a percentage."
     end
+    if resolver.referral_configured?
+      r = resolver.referral
+      extra = []
+      extra << "after deposit ##{r['trigger_deposit_number']}" if r['trigger_deposit_number']
+      extra << "cap $#{r['cap']}" if r['cap']
+      lines << "  - Referral: #{r['percent']}%#{extra.any? ? " (#{extra.join(', ')})" : ''}"
+    end
+    if resolver.cashout_configured?
+      c = resolver.cashout
+      cb = []
+      cb << "min $#{c['min']}" if c['min']
+      cb << "max $#{c['max']}" if c['max']
+      cb << "playthrough #{c['playthrough_min']}x-#{c['playthrough_max']}x" if c['playthrough_min'] || c['playthrough_max']
+      lines << "  - Cashout: #{cb.join(', ')}" if cb.any?
+      lines << "  - Cashout terms: #{c['terms_text']}" if c['terms_text'].to_s.strip.length.positive?
+    end
+    lines << '  RULE: if a customer wants more, a different bonus, or one not listed/active now — say you will confirm. NEVER invent a number, negotiate, or promise to add/throw in a bonus.'
+    lines.join("\n")
+  rescue StandardError => e
+    Rails.logger.warn("[ReplyService] agent_policy_prompt_section failed: #{e.class}: #{e.message}")
+    ''
+  end
+
+  # Build dynamic rules from agent_policy (it6 — authoritative) + game_rules DB (per-game fallback).
+  def dynamic_game_rules_prompt
+    policy_section = agent_policy_prompt_section
+    rules_section =
+      begin
+        rules = GameRule.where(account_id: account_id).includes(:game)
+        if rules.empty?
+          ''
+        else
+          resolver = policy_resolver
+          policy_owns_bonus = resolver&.bonuses_configured? || false
+          policy_owns_cashout = resolver&.cashout_configured? || false
+          lines = ["\nGAME RULES (from Settings — follow these, not any older rules):"]
+          rules.each do |r|
+            game_name = r.game&.name || r.game&.slug || 'Unknown'
+            parts = ["#{game_name}:"]
+            parts << "Bonus: #{r.deposit_bonus_percentage}%" if r.deposit_bonus_enabled && !policy_owns_bonus
+            parts << "Min deposit for bonus: $#{r.deposit_bonus_min_amount}" if r.deposit_bonus_enabled && !policy_owns_bonus
+            parts << "Cashout: #{r.cashout_min_multiplier}x-#{r.cashout_max_multiplier}x, max $#{r.cashout_max_amount}" if r.cashout_enabled && !policy_owns_cashout
+            parts << "Freeplay: $#{r.freeplay_amount}/day" if r.freeplay_enabled
+            parts << "Rules: #{r.cashout_rules_text}" if r.cashout_rules_text.present?
+            next if parts.size == 1
+
+            lines << "  " + parts.join(" | ")
+          end
+          lines.size > 1 ? lines.join("\n") : ''
+        end
+      rescue StandardError => e
+        Rails.logger.error("[ReplyService] dynamic_game_rules_prompt failed: #{e.message}")
+        ''
+      end
+    [policy_section, rules_section].reject { |s| s.to_s.strip.empty? }.join("\n")
   end
 
   def fetch_rag_examples(customer_text, account_id, intent_label = nil)
