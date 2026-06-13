@@ -935,3 +935,45 @@ prod-only (Render): handle_multi_op runtime + full harness [it6-*] multi-op sect
 - prod-only (Render): full `bundle exec rails runner script/patra_money_harness.rb` must be 100%
   (encrypted agent_games.credentials LOCAL BAN).
 
+================================================================================
+# IT6 — GATE 1 (HARD): LANE A GREEN before any Lane-B/C file
+================================================================================
+- ruby -c CLEAN on every edited hot file: reply_service.rb, conversation_orchestrator.rb,
+  intent_detector.rb (chatwoot_bridge_service.rb NOT touched this run).
+- Consolidated pure-ruby local gate (the REAL detector + resolver + guard regexes, loaded via
+  tmp/it6_as_shim.rb): resolver 54/54 · guard_v3 42/42 · A4 14/14 · A2 24/24 · A6-pure ALL PASS ·
+  A3 35/36 (the 1 non-fail = "whats up"→:greeting, correctly NOT a money/load intent — test-expectation
+  artifact; detector is right). ZERO cross-phase regressions.
+- Harness ok! sites 256 ≥ 238 baseline (assertions only increase).
+- Per-phase code-reviewer = SHIP on every hot-file change (A1b/A1c/A3/A4/A2); RED-TEAM on A1c (2 rounds,
+  all 24+4 holes closed) + A2 (44 attacks, money-safe). DO-NOT-SHIP / SHIP-with-fixes verdicts FIXED
+  before commit (A1c FP + bypasses, A4 boundary, A2 status-leg).
+- prod-only (Render, Genius): full money harness 100% · corpus Tier-1 + Tier-2 · detector live-verify on
+  prod DB (encrypted agent_games creds + no local DEEPSEEK_API_KEY).
+- **GATE 1 = GREEN.** Lane B may now bind to the agent_policy model below.
+
+## AGENT_POLICY MODEL — EXACT SHAPE (Lane B binds to THIS; Lane-A reality)
+Storage: `account.settings['agent_policy']` (store_accessor :agent_policy on Account, account.rb).
+JSON schema: `AccountSettingsSchema::AGENT_POLICY_SCHEMA` (Ruby hash constant — reuse in the Lane-B controller;
+validated automatically on every account save by JsonSchemaValidator → a malformed agent_policy save is rejected).
+Resolver: `Games::PolicyResolver.new(account:, now:)` → bonuses_configured?, active_bonuses,
+  active_bonus_percents, referral/referral_configured?, cashout/cashout_configured?, cashout_for(platform).
+Shape (every key optional + null-tolerant; additionalProperties:false on the policy object):
+```
+{
+  "bonuses": [
+    { "id": str, "name": str, "kind": "signup"|"deposit"|"custom",
+      "percent": num 0-100, "min_deposit": num>=0, "max_deposit": num>=0|null, "cap": num>=0|null,
+      "schedule": { "mode": "always"|"window", "days": [int 0-6 Sun=0], "start_hm": "HH:MM", "end_hm": "HH:MM" },
+      "active": bool } ],
+  "referral": { "percent": num 0-100, "trigger_deposit_number": int>=1, "cap": num>=0|null, "active": bool },
+  "cashout":  { "min": num>=0, "max": num>=0, "playthrough_min": num>=0, "playthrough_max": num>=0,
+                "per_platform": { "<platform>": { "min": num, "max": num } }, "terms_text": str, "active": bool }
+}
+```
+OWNER MUST FILL (NO defaults — empty policy ⇒ Bella defers / falls back to GameRule, by design):
+  - bonuses[].{name, percent, min_deposit, schedule.mode (+days/start_hm/end_hm if window), active:true}
+  - referral.{percent, trigger_deposit_number, active:true}  (only if auto-referral messaging wanted)
+  - cashout.{min, max, playthrough_min, playthrough_max, active:true}  (else GameRule cashout used)
+
+
