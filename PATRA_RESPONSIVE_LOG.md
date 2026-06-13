@@ -175,3 +175,40 @@ DevTools Performance trace — I did **not** guess-fix anything else for "lag."
   changing desktop density; flag for Genius if they feel small on touch.
 
 ---
+
+## SELF-VERIFICATION
+
+- **Files changed (vs rollback `20ee1ac4`):** exactly 4 source files —
+  `PATRA_RESPONSIVE_LOG.md`, `ConversationSidebar.vue`, `SweepsReport.vue`, `PatraReports.vue`
+  — plus rebuilt `public/vite/` bundles. **No hot file** (reply_service / conversation_orchestrator /
+  intent_detector / chatwoot_bridge_service) and **no owner-WIP file** (telegram_notifier /
+  winback_service / base_provider / outbound_dispatcher / zernio_provider) is in the diff — verified
+  by grep, result `CLEAN`.
+- **SFC integrity:** all three Vue files have balanced `<template>/<script>/<style>` tags; tables in
+  SweepsReport balance 3 `<div class="sw-table-wrap">` opens ↔ 3 `</table></div>` closes; no orphaned
+  `wootConstants`/`isSmallScreen` references.
+- **Breakpoints confirmed real:** `tailwind.config.js` defines `xl:1280px`, `2xl:1536px` (the exact
+  values the diagnosis assumed); `2xl:` is already used in `ChatList.vue`, so the new classes resolve.
+- **Vite build:** `pnpm exec vite build` → **exit 0, "built in 36.30s"**, bundles regenerated and
+  committed (`public/vite/`: 14 modified + 52 new). Build log was gitignored, not staged.
+- **NOT pushed.** Committed locally per phase only — Genius deploys.
+- **Hard limit:** I cannot physically resize a real browser or run the app interactively. Every
+  confidence below is reasoned from the real code + the shell flex/overflow model + the confirmed
+  Tailwind breakpoints — **the real test is Genius opening it on his laptop + phone.**
+
+### Symptom → fix → confidence
+
+| # | Symptom | Fix shipped | Confidence it works | What I could NOT verify |
+|---|---------|-------------|:---:|---|
+| 1 | Contact sidebar hides chat/message list at laptop width | `ConversationSidebar.vue`: static-column threshold `xl`→`2xl`, so 1280–1535px keeps the **overlay drawer** (frees 360px); click-outside-close extended to <1536px | **85%** | Can't resize a real browser. Mechanism is solid (3 width-locked columns crush the one flexible one), but the exact px where it "broke" depends on Genius's Windows display scaling + how wide he dragged the nav. |
+| 2 | Blocks/panels congested / cramped / overlapping | Mostly resolved by #1 (messages no longer crushed) + `p-4 md:p-6` gutters on report pages | **70%** | "Congested" is subjective and global; I fixed the main driver + mobile padding but can't eyeball every panel at every width. |
+| 3 | Laggy on small screens | `ConversationSidebar.vue`: rAF-coalesce + passive the `#spotlight` mousemove (was per-move `left/top` writes to a `blur(12px)` fixed layer) | **fix correct ~90% / cures the lag ~45%** | Can't profile the running app. One real thrash source removed (and it was a genuine bug — twin already fixed in Dashboard.vue), but I can't prove it was the *dominant* cause. Remaining lag likely data-volume/device → needs a DevTools trace. |
+| 4 | Sweepstakes report (`/patra/sweeps`, SweepsReport.vue) doesn't scroll | Root `<div>` gets `h-full w-full min-h-0 overflow-y-auto` (same pattern as the working PatraReportsHub) | **90%** | Can't scroll a real browser, but the cause (shell `<main>` is `overflow-hidden`; page must own its scroll) is proven by PatraReportsHub already working with this exact pattern. |
+| 5 | Sweeps Financial doesn't scroll | Same file — SweepsReport.vue **is** the "Sweeps Financial" page (`patra_sweeps_report`); same `overflow-y-auto` fix | **90%** | Same as #4. |
+| 6 | Reports not responsive (fixed widths, no reflow) | SweepsReport tables → `overflow-x:auto` wrappers + `min-width:460px`; PatraReports → `.pat-page-wrap` flex-column + scroll on `.pat-page-main`; grids were already fluid; responsive padding | **80%** (Patra pages) | Can't resize. **Stock Chatwoot report pages** under `settings/reports/*` (Agents/SLA/Inbox/Label/Team/CSAT) were **out of scope / untouched** — if "reports in general" includes those, they need a separate pass on their `ReportContainer` wrapper. |
+
+**No fake 100% anywhere.** The two highest-confidence fixes (4/5) are backed by an in-repo working
+example of the same pattern. The lowest honest one is the lag (#3): the code change is correct but I
+can't prove it's what Genius is feeling.
+
+---
