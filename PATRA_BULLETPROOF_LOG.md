@@ -781,3 +781,23 @@ NEVER pushed. bella_rag_pairs READ-ONLY. Hot files one-per-commit, full read, ru
   mode enums, days 0-6, referral trigger>=1, all 7 cashout keys present).
 - prod-only (Render): live JsonSchemaValidator acceptance + AR store_accessor round-trip on a real save.
 
+### A1b — PolicyResolver service (app/services/games/policy_resolver.rb; NEW, not hot; 1 commit)
+- Games::PolicyResolver: PURE READ of account.settings['agent_policy']. Resolves ACTIVE bonuses
+  (schedule window in account.reporting_timezone), referral, cashout. Single source of truth for what
+  Bella may STATE. NEVER writes, NEVER raises to callers (every public method rescues to safe empty).
+- Scheduling math = PURE class methods (window_matches?/hm_to_minutes/normalize_days/day_allowed?):
+  same-day + overnight windows (early-AM attributed to previous day), empty days=every day, fail-closed
+  on malformed HH:MM. active flag = allow-list truthy (true/'true'/1/'1') → "false"/"0"/nil fail OFF.
+- Granular predicates: bonuses_configured? (>=1 defined bonus → authoritative, GameRule bonus suppressed),
+  referral_configured?, cashout_configured? (per-domain fallback so a cashout-only policy doesn't silence
+  GameRule bonuses).
+- VERIFIED BY ME NOW (verified-by-running): ruby -c clean; pure-ruby spec tmp/it6_resolver_spec.rb =
+  54/54 PASS (hm parse, day normalize, same-day + overnight Fri22:00→Sat02:00 spillover, active:false/
+  "0"/nil OFF, percent-as-string, referral/cashout predicates, cashout_for per-platform merge,
+  empty/garbage/nil policy safe).
+- REVIEWER (code-reviewer agent, independent re-derivation w/ hostile inputs): SHIP. Confirmed all 6
+  scrutiny points (fail-safety; no wrong-value path; overnight math incl. (0-1)%7=6 Sun wrap; configured?
+  semantics; numeric/truthy helpers; Sun=0 base). 2 non-blocking notes (rescue-path not memoized;
+  cashout_for merge truthful) — no code change.
+- prod-only (Render): resolver vs real AR Account.settings round-trip + tz conversion.
+
