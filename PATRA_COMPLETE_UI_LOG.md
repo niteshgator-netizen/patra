@@ -83,3 +83,33 @@ Done as ONE global sweep (consistent + efficient vs scattering across phases). C
 **Confidence: 92%** (token swap certain & matches sibling Patra pages; light/dark pixel pass wants Genius/Chrome).
 
 ---
+
+## PHASE 8 — GMAIL-AS-ID IN APP CONFIG — DIAGNOSED (no code change needed)
+**Verified, not guessed:**
+- `config/installation_config.yml` — every named OAuth key (`FB_APP_ID/SECRET`, `IG_VERIFY_TOKEN`, `INSTAGRAM_APP_ID/SECRET/VERIFY_TOKEN`, `TIKTOK_APP_ID/SECRET`, `GOOGLE_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI`, `MICROSOFT_APP_ID`, `LINEAR_*`, `NOTION_*`, `SLACK_*`, `FIREBASE_PROJECT_ID/CREDENTIALS`) has a **blank `value:`**. No gmail/email in code defaults → **nothing to fix in code.**
+- DB check from this environment failed (`postgres` MCP `ECONNRESET` — the live DB isn't reachable locally). So any gmail-as-ID is a **runtime DB value** Genius must clear. Per house rules I do NOT run DB mutations — runner below is for Genius.
+
+### Rails runner for GENIUS (run on Render console). STEP 1 = read-only diagnose:
+```ruby
+keys = %w[FB_APP_ID FB_APP_SECRET FB_VERIFY_TOKEN IG_VERIFY_TOKEN
+  INSTAGRAM_APP_ID INSTAGRAM_APP_SECRET INSTAGRAM_VERIFY_TOKEN
+  TIKTOK_APP_ID TIKTOK_APP_SECRET
+  GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET GOOGLE_OAUTH_REDIRECT_URI
+  MICROSOFT_APP_ID LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET
+  NOTION_CLIENT_ID NOTION_CLIENT_SECRET SLACK_CLIENT_ID SLACK_CLIENT_SECRET
+  FIREBASE_PROJECT_ID FIREBASE_CREDENTIALS]
+InstallationConfig.where(name: keys).find_each do |c|
+  flag = c.value.to_s.match?(/@[\w.-]+\.\w+/i) ? '   <-- LOOKS LIKE AN EMAIL/GMAIL' : ''
+  puts "#{c.name} = #{c.value.inspect}#{flag}"
+end
+# catch ANY config holding a gmail, even outside the list:
+InstallationConfig.all.select { |c| c.value.to_s =~ /gmail\.com/i }.each { |c| puts "GMAIL IN #{c.name}: #{c.value.inspect}" }
+```
+### STEP 2 = clear ONLY the keys Step 1 flagged (mutating — review first, then run per key):
+```ruby
+c = InstallationConfig.find_by(name: 'KEY_FROM_STEP_1'); c.value = ''; c.save!
+GlobalConfig.clear_cache if defined?(GlobalConfig)
+```
+**Report:** affected keys = whatever Step 1 prints (likely none, since code defaults are blank — but Genius confirms against the live DB). **Confidence: code 100% clean; DB unverifiable from here (honest).**
+
+---
