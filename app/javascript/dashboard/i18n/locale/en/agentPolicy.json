@@ -1,0 +1,74 @@
+{
+  "AGENT_POLICY": {
+    "NAV_LABEL": "Agent Policy",
+    "HEADER": "Agent Policy",
+    "DESCRIPTION": "The bonus, referral, and cashout terms your AI cashier is allowed to state to customers. These are the only numbers she will quote — leave a section empty and she'll defer to a human instead.",
+    "SAVE": "Save changes",
+    "SAVED": "Agent policy saved",
+    "SAVE_ERROR": "Could not save the agent policy",
+    "ON": "On",
+    "OFF": "Off",
+    "ACTIVE": "Active",
+    "NO_CAP": "No cap",
+    "CANCEL": "Cancel",
+    "BONUS": {
+      "TITLE": "Bonuses",
+      "SUBTITLE": "Named promotions your agent can offer. Add as many as you like — each can run always-on or on a schedule.",
+      "ADD": "Add bonus",
+      "ADD_FIRST": "Add your first bonus",
+      "EMPTY": "No bonuses yet.",
+      "UNNAMED": "Untitled bonus",
+      "ADD_TITLE": "Add bonus",
+      "EDIT_TITLE": "Edit bonus",
+      "MODAL_DESC": "Give the bonus a name and the exact terms your agent may offer.",
+      "NAME": "Name",
+      "NAME_PLACEHOLDER": "e.g. Sunday Funday",
+      "KIND": "Kind",
+      "PERCENT": "Bonus %",
+      "MIN_DEPOSIT": "Min deposit $",
+      "MAX_DEPOSIT": "Max deposit $",
+      "CAP": "Max bonus $",
+      "ACTIVE": "This bonus is active",
+      "SAVE": "Save bonus",
+      "SCHEDULE": {
+        "TITLE": "Schedule",
+        "ALWAYS": "Always on",
+        "WINDOW": "Time window",
+        "EVERY_DAY": "Every day",
+        "EVERY_DAY_HINT": "Leave all days unselected to run every day.",
+        "START": "Start",
+        "END": "End"
+      }
+    },
+    "REFERRAL": {
+      "TITLE": "Referral",
+      "SUBTITLE": "What your agent may say about referral rewards.",
+      "PERCENT": "Referral %",
+      "TRIGGER": "Pays after deposit #",
+      "CAP": "Cap $"
+    },
+    "CASHOUT": {
+      "TITLE": "Cashout",
+      "SUBTITLE": "The cashout limits and playthrough your agent may quote.",
+      "MIN": "Min $",
+      "MAX": "Max $",
+      "PT_MIN": "Playthrough min (x)",
+      "PT_MAX": "Playthrough max (x)",
+      "PER_PLATFORM": "Per-platform overrides",
+      "ADD_PLATFORM": "Add platform",
+      "PLATFORM_NAME": "Platform (e.g. cashapp)",
+      "TERMS": "Terms text (optional)",
+      "TERMS_PLACEHOLDER": "Any extra cashout terms the agent may state…"
+    },
+    "VALIDATION": {
+      "NAME_REQUIRED": "Bonus name is required.",
+      "PERCENT_REQUIRED": "Bonus percent must be between 0 and 100.",
+      "PERCENT": "{name}: percent must be between 0 and 100.",
+      "NEGATIVE": "{name}: amounts can't be negative.",
+      "WINDOW": "{name}: window end time must be after the start time.",
+      "REFERRAL_PERCENT": "Referral percent must be between 0 and 100.",
+      "CASHOUT_NEGATIVE": "Cashout amounts can't be negative.",
+      "CASHOUT_MINMAX": "Cashout max must be greater than or equal to min."
+    }
+  }
+}

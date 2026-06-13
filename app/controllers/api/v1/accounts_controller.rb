@@ -132,7 +132,12 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def permitted_settings_attributes
-    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label]
+    # it6 (policy-ui B1): agent_policy is a deeply-nested JSONB blob (bonuses[] + referral + cashout).
+    # Permit the whole subtree — JsonSchemaValidator(AGENT_POLICY_SCHEMA) validates its shape on save,
+    # so a malformed policy is rejected (422) rather than silently stored. Admin-only via
+    # account_policy#update? (before_action :check_authorization).
+    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions,
+     :auto_resolve_label, { agent_policy: {} }]
   end
 
   def check_signup_enabled

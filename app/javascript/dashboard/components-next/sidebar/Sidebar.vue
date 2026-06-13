@@ -696,6 +696,13 @@ const menuItems = computed(() => {
           activeOn: ['settings_game_rules'],
         },
         {
+          name: 'Settings Agent Policy',
+          label: t('AGENT_POLICY.NAV_LABEL'),
+          icon: 'i-lucide-shield-check',
+          to: accountScopedRoute('settings_agent_policy_index'),
+          activeOn: ['settings_agent_policy_index'],
+        },
+        {
           name: 'Settings Player Tiers',
           label: t('PATRA.SETTINGS.NAV_PLAYER_TIERS'),
           icon: 'i-lucide-layers',
