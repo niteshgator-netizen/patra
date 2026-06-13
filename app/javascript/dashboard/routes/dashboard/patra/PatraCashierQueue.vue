@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useAlert } from 'dashboard/composables';
 import PatraCashierClaimsAPI from 'dashboard/api/patraCashierClaims';
 
-const showAlert = useAlert;
+const showAlert = useAlert();
 const claims = ref([]);
 const loading = ref(true);
 const acting = ref(null);
