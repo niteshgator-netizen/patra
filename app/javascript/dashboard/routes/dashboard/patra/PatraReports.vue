@@ -99,7 +99,7 @@ onMounted(async () => {
 <template>
   <div class="pat-page-wrap">
     <div class="pat-page-main">
-      <div class="flex flex-col w-full max-w-6xl gap-6 p-4 md:p-6">
+      <div class="flex flex-col w-full gap-6 p-4 md:p-6">
         <header>
           <div class="flex items-center justify-between gap-4">
             <div>

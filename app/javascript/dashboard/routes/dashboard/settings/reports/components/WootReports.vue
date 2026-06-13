@@ -6,6 +6,7 @@ import ReportContainer from '../ReportContainer.vue';
 import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import ReportHeader from './ReportHeader.vue';
+import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 
 export default {
   components: {
@@ -13,6 +14,7 @@ export default {
     V4Button,
     ReportFilters,
     ReportContainer,
+    EmptyState,
   },
   props: {
     type: {
@@ -51,6 +53,7 @@ export default {
       selectedFilter: this.selectedItem,
       groupBy: GROUP_BY_FILTER[1],
       businessHours: false,
+      dataLoaded: false,
     };
   },
   computed: {
@@ -82,9 +85,17 @@ export default {
         REPLY_TIME: 'reply_time',
       };
     },
+    emptyStateTitle() {
+      return `No ${this.filterType} to report on yet`;
+    },
+    emptyStateBody() {
+      return `This report breaks activity down by ${this.type}. As soon as you have ${this.filterType} with activity, the numbers show up here.`;
+    },
   },
   mounted() {
-    this.$store.dispatch(this.actionKey);
+    Promise.resolve(this.$store.dispatch(this.actionKey)).finally(() => {
+      this.dataLoaded = true;
+    });
   },
   methods: {
     fetchAllData() {
@@ -181,5 +192,10 @@ export default {
     v-if="filterItemsList.length"
     :group-by="groupBy"
     :report-keys="reportKeys"
+  />
+  <EmptyState
+    v-else-if="dataLoaded"
+    :title="emptyStateTitle"
+    :message="emptyStateBody"
   />
 </template>

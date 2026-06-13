@@ -66,3 +66,13 @@ Done as ONE global sweep (consistent + efficient vs scattering across phases). C
 **Confidence: 97%** (strings certain; 3% is rendered-context eyeballing).
 
 ---
+
+## PHASE 3 — REPORTS — DONE
+**Truth-rule correction to the audit:** audit claimed "left-half width" on all 4 of PatraReports / SweepsReport / Leaderboard / PatraReportsHub. **Verified by reading roots:** only **PatraReports** had a width cap (`max-w-6xl`, left-aligned → right gutter). SweepsReport (`w-full`), Leaderboard (no cap), PatraReportsHub (`w-full` + responsive grid) were already full-width. Reported honestly rather than "fixing" non-issues.
+- **PatraReports.vue:** removed `max-w-6xl` → full width, consistent with its 3 siblings. (1-class change.)
+- **WootReports.vue** (shared by Team/Agent/Inbox/Label reports): added a reused `EmptyState` as `v-else-if="dataLoaded"` after `ReportContainer`. Fixes the **blank Team report** when an account has no teams (previously rendered nothing). Guarded by a `dataLoaded` flag set after the fetch resolves → no loading-flash, no infinite-empty. Additive only; populated reports unchanged. This is the "empty Team report → empty-state" deliverable, and it also covers agent/inbox/label reports.
+- **Responsive (verified at code level):** SweepsReport tables already scroll (`.sw-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch }`); Leaderboard uses a flex list (`lb-info{flex:1;min-width:0}` truncates the name, `lb-metric{min-width:58px}`) that shrinks without overflow; PatraReportsHub grid is `sm:grid-cols-2 xl:grid-cols-3`.
+- **Note (TeamReportsIndex.vue):** audit called it "empty" — it is a full 141-line styled file using `SummaryReports` (a different shared component than WootReports). Its empty rendering is the SummaryReports path; not modified this round (the routed `team_reports` is TeamReports.vue → WootReports, which IS fixed).
+**Confidence: 90%** (width + empty-state logic certain; Leaderboard mobile name-column is cramped-but-functional and the exact fill/empty rendering wants Genius/Chrome).
+
+---
