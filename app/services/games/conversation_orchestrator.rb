@@ -286,6 +286,8 @@ module Games
         handle_load_intent(intent)
       when :load_multi
         handle_load_multi(intent)
+      when :multi_op
+        handle_multi_op(intent)
       when :cashout
         handle_cashout_intent(intent)
       when :username_provided
@@ -2996,6 +2998,61 @@ module Games
           { reply: 'hit a snag on that split — flagged a teammate, they will get every leg loaded in a couple minutes.', labels: %w[multi-load load-failed needs-human] }
         end
       end
+    end
+
+    # it6 A2 — MULTI-OP across intents ("cash out 80, load 20 juwa, is fire loaded"). COMPOSES the
+    # EXISTING gated handlers per leg — never forks a money path: load legs run the proven multi/single
+    # load path (total payment gate + R7 hold + pay<sha> cross-path double-pay guard); cashout legs run
+    # the existing cashier-manual escalation; a status leg runs the status handler only when no load leg shares the bundle (else a benign check note, since handle_status_check can itself finish a load). Replies merge into
+    # one message. The detector (detect_multi_op) only emits clean, unambiguous legs, so this never has
+    # to re-type a leg. Fails safe (nil -> DeepSeek) on any error.
+    def handle_multi_op(intent)
+      legs = Array(intent.is_a?(Hash) ? intent[:legs] : nil).select { |l| l.is_a?(Hash) }
+      return nil if legs.size < 2
+
+      load_legs    = legs.select { |l| l[:intent].to_s == 'load' }
+      cashout_legs = legs.select { |l| l[:intent].to_s == 'cashout' }
+      status_legs  = legs.select { |l| l[:intent].to_s == 'status_check' }
+
+      parts = []
+      labels = %w[multi-op]
+      collect = lambda do |r|
+        next unless r.is_a?(Hash)
+
+        parts << r[:reply] if r[:reply].present?
+        labels.concat(Array(r[:labels]))
+      end
+
+      # 1) LOAD legs through the EXISTING gated load path (multi for >=2, single for 1). No new exec.
+      if load_legs.size >= 2
+        collect.call(handle_load_multi({ intent: :load_multi,
+                                         legs: load_legs.map { |l| { amount: l[:amount].to_f, game_slug: l[:game_slug] } } }))
+      elsif load_legs.size == 1
+        collect.call(handle_load_intent(load_legs.first))
+      end
+
+      # 2) CASHOUT legs through the EXISTING cashier-manual cashout path (each escalates; no auto-pay).
+      cashout_legs.each { |l| collect.call(handle_cashout_intent(l)) }
+
+      # 3) STATUS leg: handle_status_check can itself finish an unloaded payment (it calls
+      # handle_load_intent), so with a load leg already in this bundle we DON'T run it (avoid the
+      # collision entirely; pay<sha> idempotency would block a double-load, but we skip the path). A
+      # benign check note answers the status ask instead. With no load leg, run the real status handler.
+      if status_legs.any?
+        if load_legs.empty?
+          collect.call(handle_status_check({ intent: :status_check }))
+        else
+          parts << 'and lemme check on that for you too — one sec 🙏'
+        end
+      end
+
+      parts.reject!(&:blank?)
+      return nil if parts.empty?
+
+      { reply: parts.join(' — '), labels: labels.uniq }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] handle_multi_op failed: #{e.class}: #{e.message}")
+      nil
     end
 
     # E3: the pick menu must never loop. Order: (1) a platform this

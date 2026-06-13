@@ -887,3 +887,33 @@ prod-only (Render): live reply path + full corpus Tier-2 (balance-claim grader).
 - prod-only (Render): full Tier-1 (re-baseline money_miss, gratitude excluded) + Tier-2 with the worker's
   DEEPSEEK_API_KEY (skip→~0).
 
+### A2 — multi-op all-Bella (2 commits: orchestrator + detector; reviewer SHIP-with-fixes→fixed + red-team)
+DETECTOR (intent_detector.rb): detect_multi_op + detect(allow_split:) recursion guard. Splits on strong
+delimiters (, ; & and then also plus newline), re-detects each segment with allow_split:false, returns
+:multi_op{legs:[...]} ONLY when EVERY segment is cleanly-typed cashout(w/amount)/load(w/amount+game)/
+load_multi(expanded)/status_check; ANY ambiguous/off-whitelist/nil segment → nil (fall through — NO
+regression, never a mis-route). Requires >=2 legs, >=1 money leg, no duplicate money leg. Placed at the TOP
+of detect() so a single pattern can't grab the first leg.
+ORCHESTRATOR (conversation_orchestrator.rb): handle_multi_op + dispatch `when :multi_op`. COMPOSES, never
+forks — load legs → handle_load_multi(>=2)/handle_load_intent(1) (total payment gate + R7 hold + pay<sha>
+cross-path double-pay guard, all reused); cashout legs → handle_cashout_intent (cashier-manual escalation,
+NO auto-pay); status leg → handle_status_check ONLY when no load leg shares the bundle (else a benign note —
+reviewer F1 fix). Replies merged; fail-safe rescue→nil.
+VERIFIED BY ME NOW (verified-by-running, REAL detector in pure ruby): tmp/it6_a2_spec.rb 24/24 — clean
+combos fire with correct leg counts; ALL ambiguous/mixed SAFELY BAIL (canonical 4-part, send-to-chime,
+load-no-game, dup-cashout, comma+thanks, fire-verb-miss) = never a phantom multi-load; regressions intact
+("andrew123" not split on "and"). ruby -c clean both hot files.
+REVIEWER (orchestrator, source-reasoned, Render-only runtime): SHIP-with-fixes. NO double-pay (pay<sha>
+bidirectional dedup on payment_id), NO double-load, NO cashout auto-pay, fail-safe, idempotent, lambda
+`next` correct. F1 (status-leg-not-read-only) FIXED. F2 (merged-reply wording — downstream guards catch
+false claims) + F3 (two gameless cashouts → fallback game_vault, manual, no money risk) documented, low.
+RED-TEAM (44 detector attacks on the REAL detector + orchestrator source): detector MONEY-SAFE, ZERO new
+holes; bail-to-single proven BYTE-IDENTICAL to pre-A2 (zero regression); no double-pay/auto-cashout/clobber.
+DOCUMENTED RESIDUAL → PRODUCT QUEUE (PRE-EXISTING, NOT A2): detect_game uses substring match (:828
+lower.include?(kw)) so "mafianet"→mafia / "load 20 juwa yolo"→juwa — IDENTICAL in single-message detection,
+gated+payment-confirmed+reversible. Fix = word-boundary but gv/mw rely on loose match → needs golden-suite
+test; out of A2 scope. The prompt's exact canonical "cash out 80, load back 20, send 25 to chime, is juwa
+loaded" deliberately FALLS THROUGH (2 legs mis-type under single-op detection; forcing them would mis-route
+a send→load) → resolves to a single SAFE intent (status_check), no money moves. The clean combos DO multi-op.
+prod-only (Render): handle_multi_op runtime + full harness [it6-*] multi-op section.
+
