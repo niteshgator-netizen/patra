@@ -976,4 +976,70 @@ OWNER MUST FILL (NO defaults — empty policy ⇒ Bella defers / falls back to G
   - referral.{percent, trigger_deposit_number, active:true}  (only if auto-referral messaging wanted)
   - cashout.{min, max, playthrough_min, playthrough_max, active:true}  (else GameRule cashout used)
 
+================================================================================
+# IT6 UNIFIED MEGA RUN — FINAL DUMP (STOP — committed, NEVER pushed)
+================================================================================
+## RUN-START ROLLBACK: `git reset --hard 7b2f10f6f6b2cc70600af3b454cbdc9f0e66a1ae`
+## PER-PHASE COMMITS (revert any lane independently by prefix)
+LANE A (it6:):  A1a 2f4588319 · A1b 82543cdad · A1c edee64374 · A3 2bd646772 · A4 fa4f14922 ·
+                A5 e604fa68e · A2-orch ed2760efd · A2-det a8959a286 · A6 8fc43cc54 · GATE1 f1fab3792
+LANE B (policy-ui:): screen 1734ba105 · vite bundles 01c726994
+LANE C (responsive:): pre-existing 74430e7..0c7ac17 (verified intact + isolated this run; NOT re-touched)
+
+## WHAT SHIPPED (per-item HONEST confidence)
+| Item | What | Local verification | Label |
+|---|---|---|---|
+| A1 agent-policy engine | account.settings['agent_policy'] store+schema · Games::PolicyResolver (schedule windows in acct tz) · reply_service grounding (bonus allow-list + freelance guard + prompt) | resolver 54/54 + guard_v3 42/42 pure-ruby; ruby -c; schema JSON valid; reviewer SHIP + 2 red-team rounds (24+4+2 holes closed) | verified-in-code + verified-by-running (logic). Live reply path = prod-only |
+| A2 multi-op | detect_multi_op (clean-leg split, ambiguous→bail) + handle_multi_op (delegates to existing gated handlers) | 24/24 vs REAL detector; reviewer SHIP-with-fixes(fixed) + red-team 44 attacks money-safe; ruby -c | detector verified-by-running. handle_multi_op runtime = prod-only (Render) |
+| A3 detector gaps | check-out/is-game-loaded/you-pick/where-request + context-gated up/fire | 35/36 + 20/20 adversarial vs REAL detector; reviewer SHIP | verified-by-running |
+| A4 balance grounding | guard_against_invented_balance (untraceable balance → defer) | 17/17→14/14 pure-ruby; reviewer SHIP-with-fixes(boundary fixed); ruby -c | verified-by-running (logic). Live = prod-only |
+| A5 grader | DeepSeek 3x retry · dump first-200 · gratitude-excluded Tier-1 money-miss | ruby -c; markers confirmed | verified-in-code. Full corpus = prod-only |
+| A6 harness | [it6-A3/A2/P/M] sections, ok! 238→256 | ruby -c; pure it6 assertions ALL PASS (real Time.now) | verified-by-running (pure). orch sections = prod-only |
+| B agent-policy UI | screen (3 sections + bonus modal, responsive, light+dark) bound to account.settings['agent_policy'] | vite build ✓ 35.69s (compiles); convention-auditor (woot-button build-breaker FIXED, i18n/store/route/colors verified); SFC balance | verified-in-code + compiles. Rendered screen / save round-trip / admin gating = cannot-physically-click (Genius tests in browser) |
+| C responsive | (prior run) drawer + report scroll + rAF spotlight | PATRA_RESPONSIVE_LOG.md symptom→fix→confidence table | prior-run; verified intact + isolated |
+
+## AGENT_POLICY JSON SHAPE + SCHEMA — see "AGENT_POLICY MODEL" under GATE 1 above (the exact shape Lane B
+writes + AGENT_POLICY_SCHEMA validates + PolicyResolver reads). OWNER-MUST-FILL fields listed there.
+
+## LANE ISOLATION (verified by git diff --name-only 7b2f10f6f..HEAD)
+- My run touched 3 hot files (reply_service, conversation_orchestrator, intent_detector) — NOT
+  chatwoot_bridge_service. Lane-C files (ConversationSidebar/SweepsReport/PatraReports): ZERO. Owner-WIP
+  (telegram_notifier/winback_service/base_provider/outbound_dispatcher/zernio_provider): ZERO. Lane B did
+  NOT touch Lane-C files; Lane C did NOT touch hot files or the Lane-B screen. CLEAN.
+
+## VITE: ONE build at finalize → `✓ built in 35.69s`, bundles committed (01c726994). Only build of the run.
+
+## HARNESS ASSERTIONS: 256 ok! sites (BP5 end 238 → it6 +18 literal / +~40 runtime). Only ever increased.
+
+## DESIGN PREVIEW: tmp/agent_policy_preview.html (open in browser; light+dark, all sections + bonus modal).
+
+## REVIEWER / RED-TEAM / AUDITOR LEDGER
+- code-reviewer SHIP on every hot-file phase (A1b/A1c/A3/A4/A2). DO-NOT-SHIP/with-fixes FIXED pre-commit:
+  A1c false-positives + 24 bypasses (2 red-team rounds), A4 capture boundary, A2 status-leg-not-read-only.
+- red-team: A1c (×2: 24+4 holes → all closed; 2 new → closed v3) · A2 (44 attacks, detector money-safe,
+  bail byte-identical to pre-A2, no double-pay/auto-cashout).
+- convention-auditor (Lane B): caught the `woot-button` build-breaker (hallucinated component) → replaced
+  with real `<Button>` + correct props; verified i18n 100%, store/route/sidebar/Tailwind-colors/imports.
+
+## NOT VERIFIABLE LOCALLY (prod-only / Render — Genius runs; encrypted agent_games creds + no DEEPSEEK key
+## + no full Rails boot): full money harness 100% · corpus Tier-1 re-baseline · Tier-2 DeepSeek grading ·
+## live reply grounding · the rendered UI + save round-trip. NO it6 Tier-1 delta number asserted locally
+## (prior BP5 baseline 54.3% resolved / 21,257 money-miss; it6 detector + grader-calibration shift is a
+## Render measurement). reply-grade % is prod-only — only the command is printed, never a number.
+
+## RENDER COMMANDS FOR GENIUS (after pull-before-push + Manual Deploy: Web + Worker both green)
+    # 1) full money harness — MUST be 100% (now includes [it6-A3/A2/P/M]):
+    bundle exec rails runner script/patra_money_harness.rb
+    # 2) Tier-1 corpus grader (full 73k, READ-ONLY; re-baselines money-miss with it6 detector + gratitude calib):
+    bundle exec rails runner script/patra_corpus_replay.rb
+    # 3) Tier-1 + Tier-2 DeepSeek reply grading, 3000-row sample (uses the worker's DEEPSEEK_API_KEY, retry→skip~0):
+    REPLAY_LLM_SAMPLE=3000 bundle exec rails runner script/patra_corpus_replay.rb
+    # 4) deeper Tier-2 pass, 10000-row sample:
+    REPLAY_LLM_SAMPLE=10000 bundle exec rails runner script/patra_corpus_replay.rb
+    # report → PATRA_REPLAY_REPORT.md.  Then configure agent_policy at: Settings → Agent Policy (admin only).
+
+## ENV HYGIENE: NO local Gemfile/Gemfile.lock edits committed (the boot-probe relax was reverted immediately;
+## tree clean). tmp/it6_*.rb + tmp/agent_policy_preview.html are uncommitted scratch. ZERO real sends, ZERO
+## pushes, ZERO deploys. bella_rag_pairs READ-ONLY (never written). STOP — Genius deploys.
+
 
