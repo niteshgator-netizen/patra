@@ -2,7 +2,7 @@ json.additional_attributes resource.additional_attributes
 json.availability_status resource.availability_status
 json.email resource.email
 json.id resource.id
-json.name resource.name
+json.name Patra::ContactPrivacy.display_name(resource, Current.account_user)
 json.phone_number resource.phone_number
 json.blocked resource.blocked
 json.identifier resource.identifier
