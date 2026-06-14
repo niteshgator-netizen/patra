@@ -121,7 +121,12 @@ module Games
       # bp iter3: "I won 100" — winnings announcement = cashout ask. Amount
       # deliberately NOT captured: the handler asks how much to cash out.
       # (?!['’]t) — "i won't" is not a win report.
-      /\bi\s+won\b(?!['’]t\b)/i
+      /\bi\s+won\b(?!['’]t\b)/i,
+      # bp GroupD-P1: amount AFTER the game name — "cash out Orion star 20.00".
+      # The 1-3 intervening tokens must EACH start with a letter, so the capture
+      # can't skip past a different dollar amount to grab a later one. Sits last,
+      # so the precise verb+amount patterns above always win first.
+      %r{\b(?:cash\s*out|cashout|redeem|withdraw)\s+(?:[a-z][a-z0-9'._-]*\s+){1,3}\$?(\d+(?:\.\d{1,2})?)\b}i
     ].freeze
 
     USERNAME_PATTERNS = [
@@ -878,7 +883,12 @@ module Games
         { intent: :request_multi_account_creation, game_slugs: slugs }
       end
 
-      MULTI_OP_DELIMITERS = /\s*(?:,|;|&|\band\b|\bthen\b|\balso\b|\bplus\b|\n)\s*/i
+      # bp GroupD-P1: also split on standalone "n"/"a" (customer shorthand for
+      # "and"), WORD-BOUNDARY only so real words/usernames never split (panda,
+      # again, vegas, an, Dan, channel all keep their internal n/a). Fail-closed:
+      # an over-split that yields a non-whitelisted leg returns nil -> normal
+      # single detection, never a misroute.
+      MULTI_OP_DELIMITERS = /\s*(?:,|;|&|\band\b|\bthen\b|\balso\b|\bplus\b|\bn\b|\ba\b|\n)\s*/i
 
       # it6 A2 — recognize a message bundling MULTIPLE distinct money/status ops. Splits on strong
       # delimiters and re-detects each segment with the SAME single-op detector (allow_split:false).
@@ -913,6 +923,13 @@ module Games
             end
           when :status_check
             legs << { intent: :status_check }
+          when :cashout_rules
+            # bp GroupD-P1: a trailing how-to question ("where do i request")
+            # must NOT nuke the real money legs. Record it (orchestrator may
+            # append the info); the >=1-money-leg guard below still holds. ONLY
+            # this explicit question intent is tolerated — any other off-whitelist
+            # / unparsed leg still returns nil (conservative, no misroute).
+            legs << { intent: :cashout_rules, game_slug: r[:game_slug] }
           else
             return nil
           end
