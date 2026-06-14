@@ -3031,8 +3031,20 @@ module Games
         collect.call(handle_load_intent(load_legs.first))
       end
 
-      # 2) CASHOUT legs through the EXISTING cashier-manual cashout path (each escalates; no auto-pay).
-      cashout_legs.each { |l| collect.call(handle_cashout_intent(l)) }
+      # 2) CASHOUT legs. DEFAULT (flag off): each through the existing
+      # cashier-manual path (escalates; no auto-pay) — BYTE-IDENTICAL to before.
+      # When MULTI_OP_KEEPIN_ENABLED=true AND the bundle is a SINGLE cashout leg
+      # carrying a keep/leave amount, that leg is COMPOSED through the existing
+      # partial-keep-in handler instead (cashout part + record the held remainder
+      # as a reload). Reuses the same dedup/escalation; no new money path. Flag
+      # is read at call time so it flips without a redeploy. Single-leg-only so
+      # the keep-in handler's raw-message re-parse cannot double-count.
+      keepin_compose = ENV.fetch('MULTI_OP_KEEPIN_ENABLED', 'false') == 'true' &&
+                       cashout_legs.size == 1 &&
+                       multi_op_keepin_request?(latest_customer_text || recent_customer_text)
+      cashout_legs.each do |l|
+        collect.call(keepin_compose ? handle_redeem_partial_replay(l) : handle_cashout_intent(l))
+      end
 
       # 3) STATUS leg: handle_status_check can itself finish an unloaded payment (it calls
       # handle_load_intent), so with a load leg already in this bundle we DON'T run it (avoid the
@@ -3053,6 +3065,14 @@ module Games
     rescue StandardError => e
       Rails.logger.error("[Orchestrator] handle_multi_op failed: #{e.class}: #{e.message}")
       nil
+    end
+
+    # bp GroupD-P2: true only when the bundle explicitly asks to keep/leave a $
+    # amount in the game. Mirrors handle_redeem_partial_replay's keep parser
+    # (keep|leave), so the keep-in route fires exactly when that handler will
+    # actually record the kept remainder. Used ONLY behind MULTI_OP_KEEPIN_ENABLED.
+    def multi_op_keepin_request?(text)
+      text.to_s.match?(/\b(?:keep|leave)\s+(?:the\s+)?\$?\d+(?:\.\d{1,2})?/i)
     end
 
     # E3: the pick menu must never loop. Order: (1) a platform this
