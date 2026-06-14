@@ -320,6 +320,14 @@ module Games
       /(?:and\s+)?keep\s+\$?(\d+(?:\.\d{1,2})?)\s+in/i
     ].freeze
 
+    # bp GroupD-Hold: a customer "holding"/"parking" winnings (NOT a cashout).
+    # Requires a NUMBER, so filler "hold on"/"hold up"/"on hold" never matches.
+    # \b anchored so "household 90" / "parking" do not match.
+    HOLD_PATTERNS = [
+      /\bhold\s+\$?(\d+(?:\.\d{1,2})?)\b/i,
+      /\bpark\s+\$?(\d+(?:\.\d{1,2})?)\b/i
+    ].freeze
+
     CASHOUT_METHOD_PATTERNS = [
       /(?:(?:via|to|on|using)\s+)?(?:my\s+)?(?:cashapp|cash\s*app)\s*(?:is\s+|tag\s+|handle\s+|:\s*)?([\$\@]?[a-zA-Z0-9_]{3,30})/i,
       /(?:(?:via|to|on|using)\s+)?(?:my\s+)?(?:chime|venmo|paypal|zelle)\s*(?:is\s+|tag\s+|handle\s+|:\s*)?([\$\@]?[a-zA-Z0-9_.@+]{3,50})/i,
@@ -684,6 +692,14 @@ module Games
                       tip_amount: extract_tip(text),
                       reload_amount: extract_reload(text)
                     }
+                  elsif (hm = match_any(text, HOLD_PATTERNS))
+                    # bp GroupD-Hold: "hold 90"/"park 90" with NO cashout verb
+                    # (cashout is checked above, so "redeem 50 hold 20" stays a
+                    # cashout keep-in). Orchestrator parks it: NO cashout, the
+                    # held $ is NOT stored as a deposit, and any deposit leg runs
+                    # through the gated load path.
+                    Rails.logger.info("[IntentDetector] matched hold amount=#{hm[1]}")
+                    { intent: :hold, amount: hm[1].to_f, game_slug: detect_game(text) }
                   elsif (orq = detect_outbound_request(text))
                     Rails.logger.info("[IntentDetector] matched outbound_request amount=#{orq[:amount].inspect}")
                     orq
