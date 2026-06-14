@@ -356,6 +356,10 @@ Rails.application.routes.draw do
             get 'game_health', to: 'game_health#index'
             # A3 — read-only seat usage (used / cap) for the Team & Roles screen.
             get 'seats', to: 'seats#show'
+            # SEC — read-only leaderboard + admin session management (force-logout).
+            get 'leaderboard', to: 'leaderboard#show'
+            get 'users/:user_id/sessions', to: 'sessions#index'
+            delete 'users/:user_id/sessions', to: 'sessions#destroy'
             resources :holidays, only: [:index, :create, :destroy]
             resource :settings, only: [:show, :update], controller: 'settings' do
               post :test_webhook

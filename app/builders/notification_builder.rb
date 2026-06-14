@@ -27,6 +27,9 @@ class NotificationBuilder
     return if notification_type == 'conversation_creation' && !user_subscribed_to_notification?
     # skip notifications for blocked conversations except for user mentions
     return if primary_actor.contact.blocked? && notification_type != 'conversation_mention'
+    # SEC — off-shift routing: skip notifications for a recipient who has configured shifts and is
+    # currently OFF shift (mentions always go through). Members with no shifts are unaffected.
+    return if off_shift? && notification_type != 'conversation_mention'
 
     user.notifications.create!(
       notification_type: notification_type,
@@ -35,5 +38,15 @@ class NotificationBuilder
       # secondary_actor is secondary_actor if present, else current_user
       secondary_actor: secondary_actor || current_user
     )
+  end
+
+  # SEC — true only when the recipient HAS active shifts configured AND none covers the current
+  # time. Members without shifts return false (normal notifications). Fail-open on any error.
+  def off_shift?
+    return false unless AgentShift.where(account_id: account.id, user_id: user.id, active: true).exists?
+
+    !AgentShift.agent_on_shift?(account: account, user: user)
+  rescue StandardError
+    false
   end
 end

@@ -4,11 +4,20 @@ class Api::V1::Accounts::PatraAuditLogsController < Api::V1::Accounts::BaseContr
   before_action :check_admin_authorization?
 
   def index
-    logs = Current.account.audit_logs.order(created_at: :desc).limit(100)
-    render json: logs.map { |log| serialize(log) }
+    logs = Current.account.audit_logs.order(created_at: :desc)
+    # SEC — per-agent activity viewer: optional filters by member and action (e.g. 'deception_flag').
+    logs = logs.where(user_id: params[:user_id]) if params[:user_id].present?
+    logs = logs.where(action: params[:action_type]) if params[:action_type].present?
+    render json: logs.limit(page_limit).map { |log| serialize(log) }
   end
 
   private
+
+  # Default 100, caller-configurable up to 500.
+  def page_limit
+    raw = params[:limit].to_i
+    raw.positive? ? [raw, 500].min : 100
+  end
 
   def serialize(log)
     {
