@@ -109,6 +109,10 @@ module Approvals
 
       if result[:ok]
         notify(approval, "Approved load EXECUTED: $#{amount} for #{username} on #{agent_game.game&.name} (#{meta['source']}, approval ##{approval.id})")
+        # it9 — DARK scaffold: tell the customer their approved freeplay landed. The load ALREADY
+        # ran once above (guarded by the appr_<id> order_id), so this only SENDS a message and can
+        # never double-load. Flag off => no customer message (byte-identical to today).
+        notify_customer_freeplay(approval, contact, amount, agent_game.game&.name) if flags['freeplay']
       else
         action_status = GameAction.find_by(account_id: approval.account_id, order_id: order_id)&.status || 'not created'
         notify(approval,
@@ -123,6 +127,32 @@ module Approvals
       Games::TelegramNotifier.send_to_cashout_group(text, account: approval.account)
     rescue StandardError => e
       Rails.logger.error("[AutoResume] telegram failed approval=#{approval.id}: #{e.class}: #{e.message}")
+    end
+
+    # it9 — notify-back SCAFFOLD (DARK behind PATRA_FREEPLAY_NOTIFY_ENABLED, default off). After an
+    # APPROVED freeplay has ALREADY been loaded by execute_load! (load_player ran exactly once,
+    # guarded by the appr_<id> order_id idempotency), tell the customer their freeplay landed. This
+    # method ONLY creates an outgoing message — it NEVER loads, so it cannot double-load. With the
+    # flag off it returns immediately (no customer message = today's behavior). Best-effort: any
+    # failure is logged and swallowed so it can never affect the load result.
+    def self.notify_customer_freeplay(approval, contact, amount, game_name)
+      return unless ENV['PATRA_FREEPLAY_NOTIFY_ENABLED'].to_s.casecmp('true').zero?
+      return unless contact
+
+      conv = Conversation.where(account_id: approval.account_id, contact_id: contact.id)
+                         .order(updated_at: :desc).first
+      return unless conv
+
+      amt = format('%g', amount.to_f)
+      conv.messages.create!(
+        account: approval.account,
+        inbox: conv.inbox,
+        content: "good news — your $#{amt} freeplay just landed#{game_name ? " on #{game_name}" : ''}, good luck! 🎰",
+        message_type: :outgoing,
+        additional_attributes: { 'freeplay_notify' => true, 'approval_request_id' => approval.id }
+      )
+    rescue StandardError => e
+      Rails.logger.warn("[AutoResume] freeplay notify-back failed approval=#{approval.id}: #{e.class}: #{e.message}")
     end
   end
 end
