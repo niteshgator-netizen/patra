@@ -137,4 +137,22 @@
     padding: 8px 12px;
     margin: 8px 0 16px;
   }
+
+  /* ---- Phone (<768px): stack the sidebar above the content so the main pane
+     is full-width instead of being crushed to ~195px next to the fixed w-56
+     sidebar. The nav is capped + scrolls so it doesn't eat the screen. Desktop
+     (>=768px) keeps the side-by-side row layout exactly as-is. ---- */
+  @media (max-width: 767px) {
+    .patra-admin-shell {
+      flex-direction: column;
+    }
+    .patra-admin-shell [role="navigation"] {
+      width: 100%;
+      height: auto;
+      max-height: 45vh;
+      overflow-y: auto;
+      border-right: none !important;
+      border-bottom: 1px solid var(--patra-border) !important;
+    }
+  }
 </style>
