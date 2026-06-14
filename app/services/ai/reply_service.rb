@@ -2184,15 +2184,54 @@ class Ai::ReplyService
       'Content-Type' => 'application/json'
     }
     Rails.logger.info("[AiReply] prompt_chars=#{system_prompt.to_s.length} history_msgs=#{llm_messages.size} conv=#{@conversation_id}")
-    # DeepSeek flash can emit reasoning_content; max_tokens caps reasoning+answer,
-    # so keep generous headroom or the reply gets starved to empty / truncated
-    # mid-reasoning (replay smoke June 11). ENV-tunable; default 800 -> 1600.
-    llm_body = {
+    # THINKING-DISABLED reply path (research fix, June 2026): DeepSeek v4-flash
+    # defaults thinking ON, so on multi-step asks it burns 5-7k chars of
+    # reasoning_content and hits finish_reason=length BEFORE writing the reply
+    # (ReplyGuard then rejects -> retry -> holding line: the #1 fail cluster).
+    # We disable thinking for Bella's customer reply ONLY, hard-cap tokens, and
+    # stop at a blank line so even a bad call ends clean at <=2 lines. Top-level
+    # `thinking:{type:disabled}` is the documented DeepSeek param (api-docs
+    # thinking_mode); recognized params don't error. ENV kill-switch
+    # DEEPSEEK_DISABLE_THINKING=false reverts to reasoning with no redeploy.
+    disable_thinking = use_deepseek && ENV.fetch('DEEPSEEK_DISABLE_THINKING', 'true') != 'false'
+    deepseek_opts = if !use_deepseek
+                      {}
+                    elsif disable_thinking
+                      { temperature: 0.7, stop: ["\n\n"], thinking: { type: 'disabled' } }
+                    else
+                      { temperature: 0.7 } # kill-switch reverted: byte-exact original body
+                    end
+    # Thinking off => the model writes only the 2-line answer, so a small cap is
+    # SAFE (no reasoning to starve); clamped so a stale high env can't ramble.
+    # Thinking ON (kill-switch reverted) keeps the old generous headroom so the
+    # flag is a CLEAN revert, not a worse-than-before starve.
+    reply_max = if !use_deepseek
+                  MAX_TOKENS
+                elsif disable_thinking
+                  [ENV.fetch('DEEPSEEK_MAX_TOKENS', 200).to_i, 512].min
+                else
+                  ENV.fetch('DEEPSEEK_MAX_TOKENS', 1600).to_i
+                end
+    llm_body_h = {
       model: use_deepseek ? ENV.fetch('DEEPSEEK_MODEL', 'deepseek-v4-flash') : MODEL,
-      max_tokens: use_deepseek ? ENV.fetch('DEEPSEEK_MAX_TOKENS', 1600).to_i : MAX_TOKENS,
+      max_tokens: reply_max,
       messages: [{ role: 'system', content: system_prompt }, *llm_messages],
-      **(use_deepseek ? { temperature: 0.7 } : {})
-    }.to_json
+      **deepseek_opts
+    }
+    llm_body = llm_body_h.to_json
+    # Phase 2: the regen must NOT replay identical params. With thinking off,
+    # tighten to one short line at half the tokens. When reverted to thinking,
+    # fall back to the original same-body regen (reasoning needs its headroom).
+    retry_body = if use_deepseek && disable_thinking
+                   llm_body_h.merge(
+                     max_tokens: 100,
+                     messages: [{ role: 'system',
+                                  content: "#{system_prompt}\n\nReply with ONE short line — the answer only, no reasoning, no preamble." },
+                                *llm_messages]
+                   ).to_json
+                 else
+                   llm_body
+                 end
     llm_timeout = use_deepseek ? ENV.fetch('DEEPSEEK_HTTP_TIMEOUT', 30).to_i : GROK_HTTP_TIMEOUT
     provider = use_deepseek ? 'DeepSeek' : 'xAI'
 
@@ -2239,21 +2278,29 @@ class Ai::ReplyService
       return nil
     end
 
-    # ReplyGuard - reasoning shipped as the reply never reaches the player:
-    # one same-prompt regeneration, then the human fallback + escalation.
-    unless self.class.reply_guard_valid?(text)
-      finish = begin
-        response.parsed_response.dig('choices', 0, 'finish_reason')
-      rescue StandardError
-        nil
-      end
-      Rails.logger.warn("[ReplyGuard] invalid generation conv=#{@conversation_id} finish=#{finish} chars=#{text.length} head=#{text[0, 200].inspect}")
-      retry_text = reply_guard_retry(llm_url, llm_headers, llm_body, llm_timeout)
-      if retry_text.nil?
+    # ReplyGuard - reasoning/over-length shipped as the reply never reaches the
+    # player. Regen on an invalid reply OR a finish_reason=length truncation,
+    # using the TIGHTENED retry_body (Phase 2) instead of identical params.
+    finish = begin
+      response.parsed_response.dig('choices', 0, 'finish_reason')
+    rescue StandardError
+      nil
+    end
+    guard_ok = self.class.reply_guard_valid?(text)
+    if !guard_ok || finish == 'length'
+      Rails.logger.warn("[ReplyGuard] regen conv=#{@conversation_id} guard_ok=#{guard_ok} finish=#{finish} chars=#{text.length} head=#{text[0, 200].inspect}")
+      retry_text = reply_guard_retry(llm_url, llm_headers, retry_body, llm_timeout)
+      if retry_text
+        text = retry_text
+      elsif !guard_ok
+        # original was invalid AND the tightened regen failed -> holding line.
+        # Log as a MEASURED DEGRADATION so the fallback rate stays countable.
+        Rails.logger.warn("[ReplyGuard] MEASURED_DEGRADATION fallback shipped conv=#{@conversation_id} finish=#{finish}")
         reply_guard_escalate(text)
         return REPLY_GUARD_FALLBACK
       end
-      text = retry_text
+      # else: original was guard-VALID (only finish=length) and regen failed ->
+      # keep the valid original rather than degrade to the holding line.
     end
 
     Rails.logger.info("[ReplyService] RAG-enhanced reply. Examples: #{@rag_examples&.length || 0}, tone: #{@reply_pref&.reply_tone || 'default'}")
