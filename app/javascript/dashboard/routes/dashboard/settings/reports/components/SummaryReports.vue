@@ -7,6 +7,7 @@ import { useAlert } from 'dashboard/composables';
 import Table from 'dashboard/components/table/Table.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
+import { reportTypePlural } from '../constants';
 import {
   useVueTable,
   createColumnHelper,
@@ -57,25 +58,22 @@ const isLoading = computed(() => uiFlags.value[flagMap[props.type]] ?? false);
 
 const rowItems = useMapGetter([props.getterKey]) || [];
 
-const pluralType = computed(
-  () =>
-    ({ agent: 'agents', team: 'teams', inbox: 'inboxes', label: 'labels' })[
-      props.type
-    ] || props.type
-);
-const emptyStateTitle = computed(
-  () => `No ${pluralType.value} to report on yet`
-);
-const emptyStateBody = computed(
-  () =>
-    `This report breaks activity down by ${props.type}. As soon as you have ${pluralType.value} with activity, the numbers show up here.`
-);
 const reportMetrics = useMapGetter([props.summaryKey]) || [];
 
 const getMetrics = id =>
   reportMetrics.value.find(metrics => metrics.id === Number(id)) || {};
 const columnHelper = createColumnHelper();
 const { t } = useI18n();
+
+const emptyStateTitle = computed(() =>
+  t('REPORT.EMPTY_STATE.TITLE', { entities: reportTypePlural(props.type) })
+);
+const emptyStateBody = computed(() =>
+  t('REPORT.EMPTY_STATE.BODY', {
+    entities: reportTypePlural(props.type),
+    type: props.type,
+  })
+);
 
 const defaulSpanRender = cellProps =>
   h(

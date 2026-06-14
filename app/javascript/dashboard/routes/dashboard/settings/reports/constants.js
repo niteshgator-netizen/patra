@@ -21,6 +21,12 @@ export const formatTime = timeInSeconds => {
   return `${days}d`;
 };
 
+// Maps a report filter type to its plural form for empty-state copy — shared by
+// WootReports + SummaryReports so the plural list lives in exactly one place.
+export const reportTypePlural = type =>
+  ({ agent: 'agents', team: 'teams', inbox: 'inboxes', label: 'labels' })[type] ||
+  type;
+
 export const GROUP_BY_FILTER = {
   1: { id: 1, period: 'day' },
   2: { id: 2, period: 'week' },

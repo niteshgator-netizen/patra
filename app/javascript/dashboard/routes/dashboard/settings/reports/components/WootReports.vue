@@ -3,7 +3,7 @@ import V4Button from 'dashboard/components-next/button/Button.vue';
 import { useAlert } from 'dashboard/composables';
 import ReportFilters from './ReportFilters.vue';
 import ReportContainer from '../ReportContainer.vue';
-import { GROUP_BY_FILTER } from '../constants';
+import { GROUP_BY_FILTER, reportTypePlural } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import ReportHeader from './ReportHeader.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
@@ -60,13 +60,7 @@ export default {
   },
   computed: {
     filterType() {
-      const pluralMap = {
-        agent: 'agents',
-        team: 'teams',
-        inbox: 'inboxes',
-        label: 'labels',
-      };
-      return pluralMap[this.type] || this.type;
+      return reportTypePlural(this.type);
     },
     filterItemsList() {
       return this.$store.getters[this.getterKey] || [];
@@ -88,10 +82,13 @@ export default {
       };
     },
     emptyStateTitle() {
-      return `No ${this.filterType} to report on yet`;
+      return this.$t('REPORT.EMPTY_STATE.TITLE', { entities: this.filterType });
     },
     emptyStateBody() {
-      return `This report breaks activity down by ${this.type}. As soon as you have ${this.filterType} with activity, the numbers show up here.`;
+      return this.$t('REPORT.EMPTY_STATE.BODY', {
+        entities: this.filterType,
+        type: this.type,
+      });
     },
   },
   mounted() {
