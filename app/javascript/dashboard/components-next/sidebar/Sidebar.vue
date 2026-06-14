@@ -774,13 +774,6 @@ const menuItems = computed(() => {
           activeOn: ['patra_backup_pages'],
         },
         {
-          name: 'Settings Patra Custom Attributes',
-          label: 'Custom Attributes',
-          icon: 'i-lucide-tags',
-          to: accountScopedRoute('patra_custom_attributes'),
-          activeOn: ['patra_custom_attributes'],
-        },
-        {
           name: 'Settings Billing',
           label: t('SIDEBAR.BILLING'),
           icon: 'i-lucide-credit-card',
