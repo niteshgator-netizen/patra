@@ -1,9 +1,15 @@
 class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
+  include Patra::MemberCap
+
   before_action :fetch_agent, except: [:create, :index, :bulk_create]
   before_action :validate_set_password, only: [:set_password]
   before_action :check_authorization
   before_action :validate_limit, only: [:create]
   before_action :validate_limit_for_bulk_create, only: [:bulk_create]
+  # A3 — Patra seat cap (separate from billing usage_limits; default 50). Blocks the invite
+  # that would exceed the cap; existing license-limit checks above are untouched.
+  before_action :validate_member_cap, only: [:create]
+  before_action :validate_member_cap_for_bulk, only: [:bulk_create]
 
   def index
     @agents = agents

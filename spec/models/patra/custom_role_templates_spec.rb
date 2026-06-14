@@ -24,4 +24,31 @@ RSpec.describe CustomRoleTemplates do
     custom = CustomRoleTemplates::TEMPLATES.find { |t| t[:key] == 'custom' }
     expect(custom[:permissions]).to eq([])
   end
+
+  # Patra (A3) — six-tier vocabulary (additive to the five starting-point templates above).
+  it 'exposes all six role tiers in canonical order' do
+    expect(CustomRoleTemplates.tier_keys).to eq(%w[owner admin manager cashier agent viewer])
+  end
+
+  it 'reports tiers_valid? => true' do
+    expect(CustomRoleTemplates.tiers_valid?).to be(true)
+  end
+
+  it 'marks the owner tier implicit, permanent and non-removable' do
+    owner = CustomRoleTemplates.tier('owner')
+    expect(owner[:kind]).to eq('implicit')
+    expect(owner[:removable]).to be(false)
+  end
+
+  it 'references only valid CustomRole permissions in every tier default' do
+    CustomRoleTemplates::TIERS.each do |tier|
+      invalid = Array(tier[:default_permissions]) - CustomRole::PERMISSIONS
+      expect(invalid).to be_empty, "tier #{tier[:key]} has invalid perms: #{invalid.inspect}"
+    end
+  end
+
+  it 'grants the manager template message_edit_delete (so the Manager tier may edit/delete)' do
+    manager = CustomRoleTemplates::TEMPLATES.find { |t| t[:key] == 'manager' }
+    expect(manager[:permissions]).to include('message_edit_delete')
+  end
 end

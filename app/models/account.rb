@@ -55,6 +55,10 @@ class Account < ApplicationRecord
   # JSONB shape validated by AGENT_POLICY_SCHEMA (AccountSettingsSchema). Read live each message
   # by Games::PolicyResolver (no redeploy). Owner-editable via the Agent Policy settings screen.
   store_accessor :settings, :agent_policy
+  # A3 (member cap): soft seat limit on the member invite path (default 50 via Patra::MemberCap).
+  # Owner-configurable; enforced by Patra::MemberCap, surfaced read-only by Patra::SeatsController.
+  # Distinct from billing usage_limits — never read or written by the billing path.
+  store_accessor :settings, :member_cap
   store_accessor :settings, :captain_auto_resolve_mode
   include AccountCaptainAutoResolve
 

@@ -354,6 +354,8 @@ Rails.application.routes.draw do
             get 'reports/sweeps', to: 'reports#sweeps'
             get 'conversations/export', to: 'conversations_export#show'
             get 'game_health', to: 'game_health#index'
+            # A3 — read-only seat usage (used / cap) for the Team & Roles screen.
+            get 'seats', to: 'seats#show'
             resources :holidays, only: [:index, :create, :destroy]
             resource :settings, only: [:show, :update], controller: 'settings' do
               post :test_webhook
