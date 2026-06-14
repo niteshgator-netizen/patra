@@ -19,6 +19,7 @@ import PatraOwnerDashboard from './patra/PatraOwnerDashboard.vue';
 import PatraReports from './patra/PatraReports.vue';
 import PatraFacebookAccounts from './patra/PatraFacebookAccounts.vue';
 import PatraBackupPages from './patra/PatraBackupPages.vue';
+import PatraTeamRoles from './patra/PatraTeamRoles.vue';
 import PatraCashierQueue from './patra/PatraCashierQueue.vue';
 import PatraReportsHub from './patra/PatraReportsHub.vue';
 import PatraAuditLogs from './patra/PatraAuditLogs.vue';
@@ -79,6 +80,14 @@ export default {
           path: 'patra/backup-pages',
           name: 'patra_backup_pages',
           component: PatraBackupPages,
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'patra/team-roles',
+          name: 'patra_team_roles',
+          component: PatraTeamRoles,
           meta: {
             permissions: ['administrator'],
           },
