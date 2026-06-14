@@ -79,6 +79,36 @@ module Games
       []
     end
 
+    # it8 — NEGOTIATION MARGIN: how many extra % above an active bonus Bella may offer on her
+    # own before she must escalate to a human. Reads policy['negotiation_margin']; default 5
+    # when unset; clamped 0–20 (matches AGENT_POLICY_SCHEMA). Fails to the default on any error.
+    def negotiation_margin
+      raw = numeric(policy['negotiation_margin'])
+      m = raw.nil? ? 5 : raw.to_i
+      m.clamp(0, 20)
+    rescue StandardError
+      5
+    end
+
+    # The negotiation CEILING per active bonus = its percent + negotiation_margin (so [30,50] with
+    # margin 5 => [35,55]). [] when nothing active => defer. This is the highest % Bella may ever
+    # state on her own; anything above must escalate.
+    def active_bonus_ceilings
+      m = negotiation_margin
+      active_bonus_percents.map { |p| p + m }
+    rescue StandardError
+      []
+    end
+
+    # [floor, ceiling] band per active bonus — the inclusive % range Bella may state on her own
+    # (configured up to configured+margin). The guard consumes this; above any band's ceiling => escalate.
+    def negotiable_bonus_bands
+      m = negotiation_margin
+      active_bonus_percents.map { |p| [p, p + m] }
+    rescue StandardError
+      []
+    end
+
     # --- referral ------------------------------------------------------------------------------------
 
     def referral
