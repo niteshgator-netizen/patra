@@ -27,6 +27,11 @@ class PatraTeamAPI extends ApiClient {
   forceLogout(userId) {
     return axios.delete(`${this.url}/users/${userId}/sessions`);
   }
+
+  // CAP-SETTER — owner/admin sets the member cap; persists to account.settings via patra/settings.
+  setMemberCap(cap) {
+    return axios.patch(`${this.url}/settings`, { member_cap: cap });
+  }
 }
 
 export default new PatraTeamAPI();

@@ -68,7 +68,7 @@ const GRANTED_MAINS = [
   { key: 'game_credentials', label: 'Game credentials' },
   { key: 'payment_handles', label: 'Payment handles' },
   { key: 'backup_pages', label: 'Backup pages' },
-  { key: 'roles', label: 'Roles' },
+  { key: 'secrets', label: 'Secrets' },
 ];
 
 const PRIVACY_STATES = [
@@ -92,6 +92,8 @@ const currentUser = useMapGetter('getCurrentUser');
 const inboxes = useMapGetter('inboxes/getInboxes');
 
 const seats = ref({ used: 0, cap: 50, remaining: 50 });
+const capDraft = ref(50);
+const savingCap = ref(false);
 const loading = ref(true);
 const selectedId = ref(null);
 const inviteEmail = ref('');
@@ -163,8 +165,27 @@ async function loadSeats() {
   try {
     const res = await PatraTeamAPI.seats();
     seats.value = res.data || seats.value;
+    capDraft.value = seats.value.cap;
   } catch {
     // seats are non-critical chrome; leave defaults
+  }
+}
+
+async function saveCap() {
+  const cap = parseInt(capDraft.value, 10);
+  if (!Number.isInteger(cap) || cap < 1) {
+    showAlert('Enter a member cap of 1 or more');
+    return;
+  }
+  savingCap.value = true;
+  try {
+    await PatraTeamAPI.setMemberCap(cap);
+    await loadSeats();
+    showAlert(`Member cap set to ${cap}`);
+  } catch {
+    showAlert('Failed to update member cap');
+  } finally {
+    savingCap.value = false;
   }
 }
 
@@ -371,6 +392,24 @@ const selectedTierLabel = computed(() =>
         >
           {{ seatsLabel }}
         </span>
+        <div v-if="isOwnerViewer" class="flex items-center gap-1">
+          <input
+            v-model.number="capDraft"
+            type="number"
+            min="1"
+            aria-label="Member cap"
+            class="w-16 p-1.5 rounded-lg bg-n-alpha-2 border border-n-weak text-xs text-n-slate-12"
+            @keyup.enter="saveCap"
+          />
+          <button
+            type="button"
+            :disabled="savingCap"
+            class="px-2 py-1.5 rounded-lg border border-n-weak text-xs text-n-slate-11 disabled:opacity-50"
+            @click="saveCap"
+          >
+            {{ savingCap ? '…' : 'Set cap' }}
+          </button>
+        </div>
         <form class="flex items-center gap-2" @submit.prevent="invite">
           <input
             v-model="inviteEmail"

@@ -36,6 +36,9 @@ class Api::V1::Accounts::Patra::SettingsController < Api::V1::Accounts::BaseCont
     end
 
     Current.account.update!(custom_attributes: attrs)
+
+    update_member_cap(settings_params[:member_cap]) if settings_params.key?(:member_cap)
+
     render json: settings_response
   end
 
@@ -68,6 +71,15 @@ class Api::V1::Accounts::Patra::SettingsController < Api::V1::Accounts::BaseCont
 
   private
 
+  # CAP-SETTER — member_cap lives on account.settings (Patra::MemberCap reads it there), NOT in
+  # custom_attributes. Clamp to a positive integer; MemberCap itself falls back to its default for
+  # any non-positive value, so this is belt-and-suspenders.
+  def update_member_cap(raw)
+    cap = raw.to_i
+    cap = Patra::MemberCap::MEMBER_CAP_DEFAULT unless cap.positive?
+    Current.account.update!(settings: (Current.account.settings || {}).merge('member_cap' => cap))
+  end
+
   def settings_response
     attrs = (Current.account.custom_attributes || {}).stringify_keys
     {
@@ -82,7 +94,8 @@ class Api::V1::Accounts::Patra::SettingsController < Api::V1::Accounts::BaseCont
       keyword_tag_mapping: attrs['keyword_tag_mapping'].presence || DEFAULT_KEYWORD_TAG_MAPPING,
       first_response_limit_minutes: attrs['first_response_limit_minutes'] || 5,
       resolution_limit_minutes: attrs['resolution_limit_minutes'] || 60,
-      sla_alerts_enabled: attrs.fetch('sla_alerts_enabled', true)
+      sla_alerts_enabled: attrs.fetch('sla_alerts_enabled', true),
+      member_cap: (Current.account.settings || {})['member_cap'] || Patra::MemberCap::MEMBER_CAP_DEFAULT
     }
   end
 
@@ -98,6 +111,7 @@ class Api::V1::Accounts::Patra::SettingsController < Api::V1::Accounts::BaseCont
       :first_response_limit_minutes,
       :resolution_limit_minutes,
       :sla_alerts_enabled,
+      :member_cap,
       business_hours: [:start, :end, :timezone, { days: [], ranges: [] }],
       keyword_tag_mapping: {},
       onboarding_checklist: {}
