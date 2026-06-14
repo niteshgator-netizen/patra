@@ -5,7 +5,7 @@ json.uuid conversation.uuid
 json.created_at conversation.created_at.to_i
 json.contact do
   json.id conversation.contact.id
-  json.name conversation.contact.name
+  json.name Patra::ContactPrivacy.display_name(conversation.contact, Current.account_user)
 end
 json.inbox do
   json.id conversation.inbox.id
@@ -16,7 +16,11 @@ json.messages do
   json.array! conversation.messages do |message|
     json.content message.content
     json.id message.id
-    json.sender_name message.sender.name if message.sender
+    if message.sender
+      json.sender_name(
+        message.sender.is_a?(Contact) ? Patra::ContactPrivacy.display_name(message.sender, Current.account_user) : message.sender.name
+      )
+    end
     json.message_type message.message_type_before_type_cast
     json.created_at message.created_at.to_i
   end

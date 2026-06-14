@@ -5,7 +5,7 @@ json.payload do
       conversation = applied_sla.conversation
       json.id conversation.display_id
       json.contact do
-        json.name conversation.contact.name if conversation.contact
+        json.name Patra::ContactPrivacy.display_name(conversation.contact, Current.account_user) if conversation.contact
       end
       json.labels conversation.cached_label_list
       json.assignee conversation.assignee.push_event_data if conversation.assignee
