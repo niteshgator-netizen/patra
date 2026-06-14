@@ -2576,8 +2576,19 @@ class Ai::ReplyService
       /\bpaid\b\s*(?:\$?\d[\d,.$\s]*)?✅/i
     ]
 
+    # it9 — a credential-delivery reply ("I sent your login/PW over", "here's your creds") trips
+    # the generic payout "sent" patterns even though NO money moved, getting rewritten to the
+    # cashout defer line. Forgive the payout classification ONLY when the reply delivers account
+    # credentials AND carries ZERO money context — no paid/paying/payout/cashout/withdraw/winnings/
+    # redeem/money/funds, no $amount, no "sent it/that", no "went out". So the ONLY payout trigger
+    # left to forgive is "sent your <login/pw>". Any real payout claim ("paid you $50", "sent it your
+    # way", "i sent you the money") carries a money signal -> credential_delivery is false -> the
+    # absolute lock holds. Only the :payout branch is gated; load/transfer gates are unchanged.
+    credential_delivery =
+      scan_text.match?(/\b(?:password|passcode|pwd|pw|login|log\s*in|username|user\s*name|creds|credentials?)\b/i) &&
+      !scan_text.match?(/\b(?:paid|paying|cash\s*out|cashout|payout|withdraw(?:al|n)?|winnings|redeem(?:ed|ing)?|money|funds?|cash|balance)\b|\$\s*\d|\bsent\s+(?:it|that|them|'?em)\b|\bwent\s+out\b/i)
     claim_kind =
-      if payout_claim_patterns.any? { |p| scan_text.match?(p) }
+      if !credential_delivery && payout_claim_patterns.any? { |p| scan_text.match?(p) }
         :payout
       elsif transfer_claim_patterns.any? { |p| scan_text.match?(p) }
         :transfer
