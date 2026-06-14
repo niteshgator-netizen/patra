@@ -883,12 +883,14 @@ module Games
         { intent: :request_multi_account_creation, game_slugs: slugs }
       end
 
-      # bp GroupD-P1: also split on standalone "n"/"a" (customer shorthand for
-      # "and"), WORD-BOUNDARY only so real words/usernames never split (panda,
-      # again, vegas, an, Dan, channel all keep their internal n/a). Fail-closed:
-      # an over-split that yields a non-whitelisted leg returns nil -> normal
-      # single detection, never a misroute.
-      MULTI_OP_DELIMITERS = /\s*(?:,|;|&|\band\b|\bthen\b|\balso\b|\bplus\b|\bn\b|\ba\b|\n)\s*/i
+      # bp GroupD-P1b: "n"/"a" as the word "and" ONLY when it's a standalone
+      # token IMMEDIATELY followed by an operation word (put/load/cash/redeem/
+      # request/hold/keep/...). Tightened after red-team caught greedy " a "
+      # splitting "thanks a lot". Strong delimiters (,/;/&/and/then/also/plus/
+      # newline) are unchanged. Still fail-closed: any over-split that yields a
+      # non-whitelisted leg returns nil -> normal single detection, no misroute.
+      MULTI_OP_OP_WORD = /(?:put|load|loading|cash|cashout|redeem|withdraw|request|hold|keep|deposit|recharge|add)\b/i.source
+      MULTI_OP_DELIMITERS = /\s*(?:,|;|&|\band\b|\bthen\b|\balso\b|\bplus\b|\n)\s*|\s+[na]\s+(?=#{MULTI_OP_OP_WORD})/i
 
       # it6 A2 — recognize a message bundling MULTIPLE distinct money/status ops. Splits on strong
       # delimiters and re-detects each segment with the SAME single-op detector (allow_split:false).
