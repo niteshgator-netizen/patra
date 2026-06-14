@@ -77,6 +77,20 @@ function protectionTone(pct) {
   return 'bad';
 }
 
+const fullyPctLabel = computed(() => `${fullyPct.value}%`);
+
+function roleBadgeClass(page) {
+  return page.role === 'main'
+    ? 'bg-patra/15 text-patra'
+    : 'bg-n-alpha-2 text-n-slate-11';
+}
+
+function statusPillClass(page) {
+  return isLive(page)
+    ? 'bg-n-teal-3 text-n-teal-11'
+    : 'bg-n-ruby-3 text-n-ruby-11';
+}
+
 async function loadPages() {
   loading.value = true;
   try {
@@ -265,9 +279,9 @@ onMounted(async () => {
           <div
             class="absolute inset-0 flex flex-col items-center justify-center"
           >
-            <span class="text-2xl font-semibold text-n-slate-12 mono"
-              >{{ fullyPct }}%</span
-            >
+            <span class="text-2xl font-semibold text-n-slate-12 mono">
+              {{ fullyPctLabel }}
+            </span>
             <span class="text-[11px] text-n-slate-11">fully protected</span>
           </div>
         </div>
@@ -323,9 +337,7 @@ onMounted(async () => {
       >
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-n-slate-12">Live pages</h3>
-          <span class="text-[11px] text-n-slate-11"
-            >1 main + up to 4 backups</span
-          >
+          <span class="text-[11px] text-n-slate-11">1 main + 4 backups</span>
         </div>
 
         <p
@@ -344,13 +356,10 @@ onMounted(async () => {
             <div class="flex items-center gap-2 min-w-0 sm:w-56">
               <span
                 class="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide"
-                :class="
-                  page.role === 'main'
-                    ? 'bg-patra/15 text-patra'
-                    : 'bg-n-alpha-2 text-n-slate-11'
-                "
-                >{{ page.role === 'main' ? 'Main' : 'Backup' }}</span
+                :class="roleBadgeClass(page)"
               >
+                {{ page.role === 'main' ? 'Main' : 'Backup' }}
+              </span>
               <span class="truncate text-sm text-n-slate-12">{{
                 page.page_name || page.page_id
               }}</span>
@@ -385,13 +394,10 @@ onMounted(async () => {
             <!-- status pill (live/banned) -->
             <span
               class="text-[11px] px-2 py-0.5 rounded-full font-medium"
-              :class="
-                isLive(page)
-                  ? 'bg-n-teal-3 text-n-teal-11'
-                  : 'bg-n-ruby-3 text-n-ruby-11'
-              "
-              >{{ isLive(page) ? 'Live' : 'Banned' }}</span
+              :class="statusPillClass(page)"
             >
+              {{ isLive(page) ? 'Live' : 'Banned' }}
+            </span>
 
             <!-- controls -->
             <div class="flex items-center gap-2">
@@ -508,10 +514,8 @@ onMounted(async () => {
           v-if="!drip.drip_master_enabled"
           class="rounded-lg border border-n-amber-6 bg-n-amber-3 text-n-amber-11 text-xs px-3 py-2"
         >
-          Sending is OFF until the master switch is enabled by ops (<code
-            class="mono"
-            >PATRA_BACKUP_DRIP_ENABLED</code
-          >). Your settings are saved and will take effect once it's on.
+          Sending is OFF until ops enable the master switch. Your settings are
+          saved and take effect once it's on.
         </p>
         <p
           v-else-if="drip.backup_drip_enabled"
