@@ -2215,6 +2215,15 @@ onUnmounted(() => {
 .pat-ai-train-head h1 svg {
   color: var(--patra-3, #a78bfa);
 }
+/* patra-ui: phone — stack breadcrumb -> title -> subtitle vertically instead of
+   crushing all three into one space-between row (the desktop row layout above
+   640px is unchanged). align-items override left-aligns the stacked children. */
+@media (max-width: 640px) {
+  .pat-ai-train-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 .pat-train-tabs {
   display: flex;
   gap: 4px;
