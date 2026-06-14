@@ -7,7 +7,7 @@ Genius — solo founder of Patra. Coding beginner: plain English, define terms i
 Chatwoot v4.13 hard fork → unified inbox SaaS. Vertical 1: sweepstakes/gaming ops (automate load/cashout/freeplay, manage FB ban risk). Vertical 2 (next): universal SaaS for any business. Positioning: "Shopify for sweepstakes." Lives at patrahq.com.
 
 ## STACK — THESE ARE FACTS, DO NOT GUESS
-Rails (backend) · Vue.js (frontend) · PostgreSQL + PgVector · Redis + Sidekiq · Render (deploy) · Grok 4.1 (primary Bella replies) + Anthropic + DeepSeek · Voyage AI 512-dim embeddings · JWT in localStorage as `unibox_token` (legacy — NEVER rename).
+Rails (backend) · Vue.js (frontend) · PostgreSQL + PgVector · Redis + Sidekiq · Render (deploy) · DeepSeek (sole Bella reply brain — parse `content` then fall back to `reasoning_content`; Grok is RETIRED from replies) · Anthropic (this harness) · Voyage AI 512-dim embeddings · JWT in localStorage as `unibox_token` (legacy — NEVER rename).
 If you see "Node.js" or "React" or "UniBox" anywhere — stale, ignore. Patra is Rails+Vue.
 
 ## TRUTH RULES — STRICTLY ENFORCED
@@ -17,6 +17,7 @@ If you see "Node.js" or "React" or "UniBox" anywhere — stale, ignore. Patra is
 - After ONE failed experiment, STOP. Next step inspects artifacts (read the file, run a diagnostic) — do NOT chain another theory.
 - REGISTERED ≠ FIRES. MANUAL_OK ≠ AUTO_FIRES. ONE_PANEL_GREEN ≠ ALL_HEALTHY. Defined ≠ wired. Prove the actual path.
 - When Genius asks "you sure?" — re-read the output line by line before answering. Don't double down to be agreeable.
+- Label every claim by what kind of proof backs it: verified-in-code (I read the file/call sites this session) / prod-only (only runs on Render, I cannot confirm locally) / needs-Genius-value (depends on a value or click only Genius has) / cannot-physically-click (I have no way to trigger the UI/panel). Never report a fake 100%.
 
 ## HOT FILES — EXTREME CARE
 These have crashed production before. Edit ONE per change, NEVER batch two hot files together.
@@ -47,6 +48,12 @@ Account 2 · FB Inbox 5 (Channel::Api, working) · Inbox 2 (Channel::FacebookPag
 - RAG cutover: when regex returns nil AND RAG confidence ≥ 0.60, route via RAG_TO_INTENT_MAP.
 - 27 real_intent labels in DB. RAG_TO_INTENT_MAP currently covers 16 — gap.
 
+## AGENT POLICY ENGINE (it6, shipped)
+- Config lives in `account.settings` as an `agent_policy` JSONB column, exposed via `store_accessor`.
+- `Games::PolicyResolver` reads it LIVE (no restart) for bonuses / referral / cashout, honoring per-rule time-windows.
+- reply_service guards keep Bella honest: `guard_against_policy_freelancing`, `guard_against_invented_balance`, `guard_against_false_load_claim` — she states ONLY configured numbers and defers when policy is empty.
+- Multi-op handling: `detect_multi_op` flags a message asking for several actions; `handle_multi_op` composes the existing per-op gated handlers (no new ungated paths).
+
 ## HOW WE SHIP — THE LOOP (do not skip)
 1. Read actual live code before proposing any change. Never guess at file contents.
 2. Make the change. Show the diff.
@@ -56,24 +63,24 @@ Account 2 · FB Inbox 5 (Channel::Api, working) · Inbox 2 (Channel::FacebookPag
 6. Only then move on — or fix what broke first.
 
 ## DEPLOY — GENIUS RUNS THIS, NOT YOU
-Standard sequence:
-  git add <specific files>
-  git add public/vite/
+`clean` is BOTH the Render deploy target AND the source of truth. `origin` is stale and unused — ignore it.
+Pull-first flow (Genius runs every line; Claude Code NEVER pushes):
+  git checkout -- public/vite/ public/packs/   # drop local bundle churn first
+  git clean -fd                                # remove stray untracked files
+  git pull clean main --no-rebase              # merge in clean's current state
+  # on a bundle conflict: keep OURS on public/vite/ + public/packs/, then rebuild:
+  pnpm exec vite build
+  git add <specific files> public/vite/ public/packs/
   git commit --no-verify -m "msg"
-  git push clean main --force      # clean = Render deploy mirror, the one that matters
-  git push origin main             # origin = backup; NO --force
-
-Origin almost always rejects with a non-fast-forward error because GitHub Actions
-auto-commits vite bundles. When that happens, Genius runs:
-  git fetch origin
-  git rebase origin/main
-  git checkout --theirs public/vite/   # accept remote's vite bundles
-  git add public/vite/
-  git rebase --continue                # opens Vim — save with Esc then :wq then Enter
-  git push origin main
+  git push clean main
 
 NEVER push to clean yourself. Show the diff, print the DUMP, hand off. Genius deploys.
-After both pushes, Genius triggers Manual Deploy on Render (Web Service + Background Worker — both must go green).
+After the push, Genius triggers Manual Deploy on Render (Web Service + Background Worker — both must go green).
+
+## RENDER + GATES
+- Render services: web service `srv-d8fos2m`, worker `srv-d8four`. BOTH must go green after a deploy.
+- The full money harness and the corpus grader are RENDER-ONLY — NEVER run them locally. `agent_games.credentials` is ActiveRecord-encrypted; running these locally destroys prod panel creds.
+- Local gate (all Claude Code may do): `ruby -c <file>` for syntax + the `tmp/bp_section_runner` subset. Anything beyond that is prod-only — label it accordingly.
 
 ## DESTRUCTIVE ACTIONS
 Never delete code/files without showing a diff and getting an explicit yes. Never run a migration or `update_all` on bella_rag_pairs (73K rows) inside Rails — it times out. Use `psql $DATABASE_URL -c "..."` for bulk DB ops.
