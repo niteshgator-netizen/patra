@@ -5,7 +5,7 @@ import { useAlert } from 'dashboard/composables';
 import NotificationChannelsAPI from 'dashboard/api/notificationChannels';
 
 const { t } = useI18n();
-const showAlert = useAlert();
+const showAlert = useAlert;
 
 // The 10 backend event_filters keys (NotificationChannel::DEFAULT_EVENT_FILTERS),
 // each shown as a toggle. Order = display order.
