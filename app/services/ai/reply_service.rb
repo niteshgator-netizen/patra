@@ -2567,7 +2567,13 @@ class Ai::ReplyService
       # so they pass. A TRUE payout still clears via the recent-cashout evidence
       # gate below; only an unbacked claim is rewritten to the defer line.
       /\A\s*(?:sure|ok|okay|yes|yep|yeah|aight|alright|right|done|got\s*it|lmc|k|np|all\s+good)?[\s,!.]*paid\b/i,
-      /\bpaid\s+(?:hun|love|babe|boo|fam|bro|sis|dear|now|already)\b/i
+      /\bpaid\s+(?:hun|love|babe|boo|fam|bro|sis|dear|now|already)\b/i,
+      # money-critical: "paid" stamped with ✅ (optional $/amount between) = Bella
+      # signalling a completed payout ("Paid 50$ ✅"). The \A bare-paid pattern misses
+      # these mid-sentence; without this they fall to :load (/✅/) and wrongly clear via
+      # the load gate. Amount-only gap (no room for "you"/"weekly"/"up") keeps
+      # customer lines like "you get paid weekly ✅" OUT.
+      /\bpaid\b\s*(?:\$?\d[\d,.$\s]*)?✅/i
     ]
 
     claim_kind =
@@ -2580,6 +2586,18 @@ class Ai::ReplyService
       end
     return reply_text unless claim_kind
 
+    # MONEY-CRITICAL ABSOLUTE LOCK (Genius-confirmed): Bella must NEVER originate a
+    # payment-completion claim from her own judgment. Real payouts are sent MANUALLY by
+    # a human and confirmed in the Telegram ops group; a recorded cashout GameAction
+    # does NOT prove a human sent the money. So a payout claim ALWAYS defers — no
+    # DB-evidence escape, no dependence on contact_id. Relaying a REAL Telegram "paid"
+    # back to the customer is a SEPARATE relay build, not here.
+    if claim_kind == :payout
+      Rails.logger.warn("[ReplyService] BLOCKED_PAYOUT_LOCK reply=#{reply_text.inspect[0..120]}")
+      add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
+      return "on it — your cashout's being processed, I'll confirm here the moment it's sent 🙏"
+    end
+
     cid = fetch_sender_contact_id
     return reply_text if cid.blank?
 
@@ -2589,7 +2607,8 @@ class Ai::ReplyService
     evidence =
       case claim_kind
       when :load then recent_success.where(action_type: 'load').exists?
-      when :payout then recent_success.where(action_type: 'cashout').exists?
+      # :payout is handled above (absolute lock) and never reaches here; :load and
+      # :transfer evidence gates below are UNCHANGED.
       when :transfer
         # a real game-to-game transfer = redeem (cashout) + recharge (load)
         recent_success.where(action_type: 'cashout').exists? &&
