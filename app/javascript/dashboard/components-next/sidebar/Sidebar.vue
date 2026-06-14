@@ -511,13 +511,6 @@ const menuItems = computed(() => {
             ]
           : []),
         {
-          name: 'Backup Pages',
-          label: 'Backup Pages',
-          icon: 'i-lucide-archive',
-          to: accountScopedRoute('patra_backup_pages'),
-          activeOn: ['patra_backup_pages'],
-        },
-        {
           // patra-final P3: agents send feedback to the owner; admins read
           // the same page as an inbox.
           name: 'Feedback',
@@ -763,6 +756,29 @@ const menuItems = computed(() => {
           icon: 'i-lucide-scroll-text',
           to: accountScopedRoute('patra_audit_logs'),
           activeOn: ['patra_audit_logs'],
+        },
+        // patra: surface 3 previously-hidden admin screens into Settings
+        // (Team & Roles + Custom Attributes were URL-only; Backup Pages moved here from "More").
+        {
+          name: 'Settings Team Roles',
+          label: 'Team & Roles',
+          icon: 'i-lucide-users',
+          to: accountScopedRoute('patra_team_roles'),
+          activeOn: ['patra_team_roles'],
+        },
+        {
+          name: 'Settings Backup Pages',
+          label: 'Backup Pages',
+          icon: 'i-lucide-archive',
+          to: accountScopedRoute('patra_backup_pages'),
+          activeOn: ['patra_backup_pages'],
+        },
+        {
+          name: 'Settings Patra Custom Attributes',
+          label: 'Custom Attributes',
+          icon: 'i-lucide-tags',
+          to: accountScopedRoute('patra_custom_attributes'),
+          activeOn: ['patra_custom_attributes'],
         },
         {
           name: 'Settings Billing',

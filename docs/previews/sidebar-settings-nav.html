@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Patra — Sidebar nav change preview (Settings + More)</title>
+    <style>
+      :root {
+        --canvas: #050409;
+        --surface: #0c0b12;
+        --surface-2: #131119;
+        --border: #171520;
+        --patra: #6e56cf;
+        --text: #ededf2;
+        --text-2: #a8a6b6;
+        --text-3: #75727f;
+        --green: #3fb950;
+        --amber: #e3a008;
+        --red: #f85149;
+        font-family: 'Inter', system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 32px;
+        background: var(--canvas);
+        color: var(--text);
+      }
+      h1 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 20px;
+        margin: 0 0 4px;
+      }
+      p.sub {
+        color: var(--text-2);
+        margin: 0 0 24px;
+        font-size: 13px;
+      }
+      .cols {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        min-width: 360px;
+        flex: 1;
+      }
+      .card h2 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-2);
+        margin: 0 0 12px;
+      }
+      ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 8px;
+        border-radius: 9px;
+        font-size: 13px;
+      }
+      li + li {
+        border-top: 1px solid var(--border);
+      }
+      .ic {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--patra);
+        background: rgba(110, 86, 207, 0.14);
+        padding: 2px 6px;
+        border-radius: 6px;
+        white-space: nowrap;
+      }
+      .label {
+        flex: 1;
+      }
+      .route {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-3);
+      }
+      .new {
+        background: rgba(63, 185, 80, 0.1);
+      }
+      .badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 6px;
+      }
+      .badge.new {
+        background: rgba(63, 185, 80, 0.16);
+        color: var(--green);
+      }
+      .badge.moved {
+        background: rgba(227, 160, 8, 0.16);
+        color: var(--amber);
+      }
+      .removed {
+        opacity: 0.55;
+        text-decoration: line-through;
+      }
+      .note {
+        margin-top: 24px;
+        font-size: 12px;
+        color: var(--text-3);
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sidebar nav change — Patra Settings + “More”</h1>
+    <p class="sub">
+      Static preview for owner sign-off (no browser available to the build). Shows the resulting
+      menu after surfacing 3 previously-hidden screens into <b>Patra Settings</b> and removing the
+      duplicate Backup Pages from <b>More</b>. Each item lists its lucide icon and the real route it
+      links to. The 3 green rows are new; Backup Pages is struck through under “More”.
+    </p>
+
+    <div class="cols">
+      <div class="card">
+        <h2>Patra Settings (resulting order)</h2>
+        <ul>
+          <li><span class="ic">i-lucide-briefcase</span><span class="label">Account Settings</span><span class="route">general_settings_index</span></li>
+          <li><span class="ic">i-woot-messenger</span><span class="label">Facebook Accounts</span><span class="route">patra_facebook_accounts</span></li>
+          <li><span class="ic">i-lucide-square-user</span><span class="label">Agents</span><span class="route">agent_list</span></li>
+          <li><span class="ic">i-lucide-users</span><span class="label">Teams</span><span class="route">settings_teams_list</span></li>
+          <li><span class="ic">i-lucide-user-cog</span><span class="label">Auto-routing <span class="route">(if assignment v2)</span></span><span class="route">assignment_policy_index</span></li>
+          <li><span class="ic">i-lucide-inbox</span><span class="label">Inboxes</span><span class="route">settings_inbox_list</span></li>
+          <li><span class="ic">i-lucide-tags</span><span class="label">Labels</span><span class="route">labels_list</span></li>
+          <li><span class="ic">i-lucide-list-checks</span><span class="label">Custom Attributes (core)</span><span class="route">attributes_list</span></li>
+          <li><span class="ic">i-lucide-zap</span><span class="label">Macros</span><span class="route">macros_wrapper</span></li>
+          <li><span class="ic">i-lucide-repeat</span><span class="label">Automation</span><span class="route">automation_list</span></li>
+          <li><span class="ic">i-lucide-message-square-quote</span><span class="label">Canned Responses</span><span class="route">canned_list</span></li>
+          <li><span class="ic">i-lucide-wallet</span><span class="label">Payment Handles</span><span class="route">settings_integrations_payment_handles</span></li>
+          <li><span class="ic">i-lucide-gamepad-2</span><span class="label">Games</span><span class="route">settings_integrations_games</span></li>
+          <li><span class="ic">i-lucide-scroll-text</span><span class="label">Game Rules</span><span class="route">settings_game_rules</span></li>
+          <li><span class="ic">i-lucide-shield-check</span><span class="label">Agent Policy</span><span class="route">settings_agent_policy_index</span></li>
+          <li><span class="ic">i-lucide-layers</span><span class="label">Player Tiers</span><span class="route">settings_player_tiers</span></li>
+          <li><span class="ic">i-lucide-user-plus</span><span class="label">Referrals</span><span class="route">settings_referrals</span></li>
+          <li><span class="ic">i-lucide-message-circle</span><span class="label">Reply Style</span><span class="route">settings_reply_style</span></li>
+          <li><span class="ic">i-lucide-shield-check</span><span class="label">Automation Safety</span><span class="route">settings_automation_safety</span></li>
+          <li><span class="ic">i-lucide-brain</span><span class="label">AI Training</span><span class="route">patra_ai_training</span></li>
+          <li><span class="ic">i-lucide-bell</span><span class="label">Notifications</span><span class="route">settings_integrations_notifications</span></li>
+          <li><span class="ic">i-lucide-timer</span><span class="label">SLA</span><span class="route">sla_list</span></li>
+          <li><span class="ic">i-lucide-scroll-text</span><span class="label">Audit Logs</span><span class="route">patra_audit_logs</span></li>
+          <li class="new"><span class="ic">i-lucide-users</span><span class="label">Team &amp; Roles</span><span class="route">patra_team_roles</span><span class="badge new">NEW</span></li>
+          <li class="new"><span class="ic">i-lucide-archive</span><span class="label">Backup Pages</span><span class="route">patra_backup_pages</span><span class="badge moved">MOVED</span></li>
+          <li class="new"><span class="ic">i-lucide-tags</span><span class="label">Custom Attributes</span><span class="route">patra_custom_attributes</span><span class="badge new">NEW</span></li>
+          <li><span class="ic">i-lucide-credit-card</span><span class="label">Billing</span><span class="route">billing_settings_index</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>“More” submenu (PatraMore — after)</h2>
+        <ul>
+          <li><span class="ic">i-lucide-book-open</span><span class="label">Knowledge Base</span><span class="route">patra_knowledge</span></li>
+          <li><span class="ic">i-lucide-list-todo</span><span class="label">Cashier Queue</span><span class="route">patra_cashier_queue</span></li>
+          <li><span class="ic">i-lucide-trophy</span><span class="label">Leaderboard</span><span class="route">patra_leaderboard</span></li>
+          <li><span class="ic">i-lucide-banknote</span><span class="label">Sweeps Report <span class="route">(if enabled)</span></span><span class="route">patra_sweeps_report</span></li>
+          <li class="removed"><span class="ic">i-lucide-archive</span><span class="label">Backup Pages</span><span class="route">patra_backup_pages</span><span class="badge moved">→ moved to Settings</span></li>
+          <li><span class="ic">i-lucide-message-square-heart</span><span class="label">Feedback</span><span class="route">patra_feedback</span></li>
+          <li><span class="ic">i-lucide-megaphone</span><span class="label">Broadcasts</span><span class="route">patra_broadcast_list</span></li>
+          <li><span class="ic">i-lucide-scroll-text</span><span class="label">Audit Logs</span><span class="route">patra_audit_logs</span></li>
+        </ul>
+        <p class="note">
+          Only the struck-through <b>Backup Pages</b> row changed in “More” — it was removed (it now
+          lives in Settings). Every other “More” item is untouched. Icon names for the unchanged
+          “More” rows are indicative; the only edited rows are the 3 added to Settings and the one
+          removed here.
+        </p>
+      </div>
+    </div>
+
+    <p class="note">
+      All 3 new Settings items wire to routes that already exist in
+      <code>dashboard.routes.js</code> (<code>patra_team_roles</code>, <code>patra_backup_pages</code>,
+      <code>patra_custom_attributes</code>) and carry <code>activeOn</code> matching their route name.
+      Access stays admin/owner-gated by each route’s <code>permissions</code> meta (same as the
+      neighbouring Settings items). Visual sign-off (placement / labels / order) is the owner’s.
+    </p>
+  </body>
+</html>
