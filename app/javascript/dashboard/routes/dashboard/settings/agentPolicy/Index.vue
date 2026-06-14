@@ -20,6 +20,7 @@ const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const emptyPolicy = () => ({
   bonuses: [],
+  negotiation_margin: 5,
   referral: { percent: null, trigger_deposit_number: 1, cap: null, active: false },
   cashout: {
     min: null,
@@ -56,6 +57,9 @@ const loadPolicy = () => {
       if (!base.cashout.per_platform || typeof base.cashout.per_platform !== 'object') {
         base.cashout.per_platform = {};
       }
+    }
+    if (typeof raw.negotiation_margin === 'number') {
+      base.negotiation_margin = raw.negotiation_margin;
     }
   }
   policy.value = base;
@@ -254,6 +258,24 @@ const save = async () => {
             </div>
           </div>
         </div>
+      </div>
+      <!-- negotiation margin: extra % above a bonus the agent may offer before escalating -->
+      <div class="pt-3 mt-4 border-t border-slate-100 dark:border-slate-800">
+        <label class="flex flex-col max-w-xs gap-1 text-sm">
+          {{ $t('AGENT_POLICY.BONUS.NEGOTIATION_MARGIN') }}
+          <input
+            v-model.number="policy.negotiation_margin"
+            type="number"
+            min="0"
+            max="20"
+            step="1"
+            class="ap-input"
+            placeholder="5"
+          />
+          <span class="text-xs text-slate-400 dark:text-slate-500">
+            {{ $t('AGENT_POLICY.BONUS.NEGOTIATION_MARGIN_HINT') }}
+          </span>
+        </label>
       </div>
     </section>
 

@@ -28,6 +28,8 @@
       "MIN_DEPOSIT": "Min deposit $",
       "MAX_DEPOSIT": "Max deposit $",
       "CAP": "Max bonus $",
+      "NEGOTIATION_MARGIN": "Negotiation margin (%)",
+      "NEGOTIATION_MARGIN_HINT": "Extra % above a bonus your agent may offer on her own before escalating to you for approval (0–20).",
       "ACTIVE": "This bonus is active",
       "SAVE": "Save bonus",
       "SCHEDULE": {
