@@ -30,7 +30,7 @@ Before editing any hot file: read the FULL current version first. After editing:
 ## CODING INVARIANTS (learned from real crashes)
 - Wrap all Telegram calls in `safe_telegram { ... }`.
 - Wrap all external API calls in `begin/rescue StandardError`.
-- `useAlert` is called as `const showAlert = useAlert()` — not destructured.
+- `useAlert` IS the toast function (composables/index.js) — call it directly `useAlert('msg')`, or alias `const showAlert = useAlert;` with NO parens. NEVER write `useAlert()` — that fires a blank toast on mount and makes the alias undefined.
 - Redis locks in Sidekiq: `Sidekiq.redis { |conn| conn.set(...) }` — never `$redis` or `Redis.current`.
 - `neighbor` gem needs `.to_a` before pgvector COUNT (avoids double-alias SQL bug).
 - DeepSeek reasoning models output in `reasoning_content`, NOT `content` — parser must fall back.
