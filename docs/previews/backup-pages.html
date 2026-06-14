@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Backup Pages — Patra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --canvas:#F6F5F9; --surface:#FFFFFF; --surface-2:#F1F0F6; --surface-3:#E9E7F1; --surface-4:#E9E7F1;
+    --border:#E7E5EF; --border-hi:#D3CFE3;
+    --patra:#6E56CF; --patra-2:#8B5CF6; --patra-3:#A78BFA;
+    --text:#16151C; --text-2:#56546A; --text-3:#86849A;
+    --green:#1A7F37; --amber:#9A6700; --red:#CF222E;
+    --green-bg:rgba(26,127,55,.12); --amber-bg:rgba(154,103,0,.12); --red-bg:rgba(207,34,46,.12);
+    --patra-bg:rgba(110,86,207,.10);
+    --shadow:0 1px 2px rgba(20,18,40,.06), 0 8px 28px rgba(20,18,40,.06);
+  }
+  :root.dark{
+    --canvas:#050409; --surface:#0C0B12; --surface-2:#131119; --surface-3:#1B1925; --surface-4:#252233;
+    --border:#171520; --border-hi:#2E2940;
+    --patra:#6E56CF; --patra-2:#8B5CF6; --patra-3:#A78BFA;
+    --text:#EDEDF2; --text-2:#A8A6B6; --text-3:#75727F;
+    --green:#3FB950; --amber:#E3A008; --red:#F85149;
+    --green-bg:rgba(63,185,80,.13); --amber-bg:rgba(227,160,8,.13); --red-bg:rgba(248,81,73,.13);
+    --patra-bg:rgba(139,92,246,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.45);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--canvas);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    min-height:100vh;
+    transition:background .25s ease,color .25s ease;
+  }
+  .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}
+  h1,h2,h3,.display{font-family:'Space Grotesk','Inter',sans-serif;letter-spacing:-.01em;}
+
+  /* theme toggle */
+  .theme-toggle{
+    position:fixed;top:18px;right:18px;z-index:50;
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--surface-2);color:var(--text);
+    border:1px solid var(--border-hi);
+    padding:9px 14px;border-radius:999px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    cursor:pointer;box-shadow:var(--shadow);
+    transition:background .2s,border-color .2s,transform .15s;
+  }
+  .theme-toggle:hover{transform:translateY(-1px);border-color:var(--patra-2);}
+  .theme-toggle svg{width:16px;height:16px;}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 28px 72px;}
+
+  /* header */
+  .page-head{margin-bottom:28px;}
+  .page-head .eyebrow{
+    display:inline-flex;align-items:center;gap:7px;
+    font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--patra-3);background:var(--patra-bg);
+    border:1px solid var(--border-hi);border-radius:999px;padding:5px 11px;margin-bottom:14px;
+  }
+  .page-head h1{font-size:30px;font-weight:700;margin:0 0 8px;}
+  .page-head .sub{font-size:15px;color:var(--text-2);max-width:680px;margin:0;}
+
+  .layout{display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start;}
+  @media (max-width:920px){.layout{grid-template-columns:1fr;}}
+
+  /* cards */
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+  }
+  .card + .card{margin-top:20px;}
+  .card-head{padding:18px 20px 0;}
+  .card-head h2{font-size:16px;font-weight:600;margin:0 0 3px;}
+  .card-head .hint{font-size:12.5px;color:var(--text-3);margin:0;}
+  .card-body{padding:18px 20px 20px;}
+
+  /* LEFT — channels list */
+  .channels .card-head{padding:18px 20px 14px;}
+  .chan-list{display:flex;flex-direction:column;}
+  .chan-row{
+    display:flex;align-items:center;gap:12px;
+    padding:13px 20px;cursor:pointer;
+    border-left:3px solid transparent;
+    border-top:1px solid var(--border);
+    transition:background .15s;
+  }
+  .chan-row:hover{background:var(--surface-2);}
+  .chan-row.selected{
+    background:var(--patra-bg);
+    border-left-color:var(--patra-2);
+  }
+  .chan-ico{
+    width:38px;height:38px;border-radius:10px;flex:none;
+    display:grid;place-items:center;
+    background:var(--surface-3);border:1px solid var(--border-hi);
+    color:var(--text-2);
+  }
+  .chan-ico svg{width:20px;height:20px;}
+  .chan-row.selected .chan-ico{color:var(--patra-3);border-color:var(--patra-2);}
+  .chan-meta{flex:1;min-width:0;}
+  .chan-name{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .chan-plat{font-size:11.5px;color:var(--text-3);margin-top:1px;}
+
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12px;font-weight:600;border-radius:999px;
+    padding:4px 9px;white-space:nowrap;
+  }
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .pill.green{color:var(--green);background:var(--green-bg);}
+  .pill.amber{color:var(--amber);background:var(--amber-bg);}
+  .pill.red{color:var(--red);background:var(--red-bg);}
+  .pill.protect .num{font-weight:700;}
+
+  /* RIGHT */
+  /* coverage ring card */
+  .coverage{display:flex;align-items:center;gap:28px;flex-wrap:wrap;}
+  .ring-wrap{position:relative;width:184px;height:184px;flex:none;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;
+  }
+  .ring-pct{font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:700;line-height:1;letter-spacing:-.02em;}
+  .ring-label{font-size:12.5px;color:var(--text-2);margin-top:5px;font-weight:500;}
+  .coverage-side{flex:1;min-width:220px;}
+  .coverage-side .big{
+    font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600;line-height:1.25;margin:0 0 6px;
+  }
+  .coverage-side .big .num{color:var(--patra-3);}
+  .coverage-side .desc{font-size:13.5px;color:var(--text-2);margin:0;}
+  .legend{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap;}
+  .legend .li{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2);}
+  .legend .sw{width:11px;height:11px;border-radius:3px;}
+
+  /* live pages */
+  .lp-row{
+    display:flex;align-items:center;gap:14px;
+    padding:14px 0;border-top:1px solid var(--border);
+  }
+  .lp-row:first-child{border-top:none;padding-top:4px;}
+  .lp-main{flex:1;min-width:0;}
+  .lp-toprow{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+  .lp-name{font-size:14px;font-weight:600;color:var(--text);}
+  .marker{
+    font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 7px;border-radius:6px;border:1px solid var(--border-hi);
+  }
+  .marker.main{color:var(--patra-3);background:var(--patra-bg);border-color:var(--patra-2);}
+  .marker.backup{color:var(--text-3);background:var(--surface-2);}
+  .lp-count{font-size:12px;color:var(--text-2);margin-bottom:6px;}
+  .lp-count .num{color:var(--text);font-weight:600;}
+  .bar{height:6px;border-radius:99px;background:var(--surface-3);overflow:hidden;}
+  .bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--patra),var(--patra-2));}
+  .bar.muted > i{background:var(--surface-4);}
+  .lp-right{display:flex;flex-direction:column;align-items:flex-end;gap:9px;flex:none;}
+  .lp-actions{display:flex;gap:6px;}
+  .icon-btn{
+    width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);
+    cursor:pointer;transition:.15s;
+  }
+  .icon-btn:hover{border-color:var(--patra-2);color:var(--patra-3);}
+  .icon-btn svg{width:15px;height:15px;}
+  .banned-note{
+    font-size:11.5px;color:var(--red);background:var(--red-bg);
+    border:1px solid var(--border);border-left:3px solid var(--red);
+    border-radius:8px;padding:8px 11px;margin-top:6px;
+  }
+  .lp-footrow{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-top:16px;padding-top:14px;border-top:1px solid var(--border);
+  }
+  .lp-footrow .note{font-size:12px;color:var(--text-3);}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    padding:8px 14px;border-radius:9px;cursor:pointer;transition:.15s;border:1px solid transparent;
+  }
+  .btn svg{width:15px;height:15px;}
+  .btn.primary{background:var(--patra);color:#fff;}
+  .btn.primary:hover{background:var(--patra-2);}
+  .btn.ghost{background:var(--surface-2);color:var(--text);border-color:var(--border-hi);}
+  .btn.ghost:hover{border-color:var(--patra-2);color:var(--patra-3);}
+
+  /* invite editor */
+  textarea{
+    width:100%;resize:vertical;min-height:96px;
+    background:var(--surface-2);color:var(--text);
+    border:1px solid var(--border-hi);border-radius:11px;
+    padding:13px 14px;font-family:'Inter',sans-serif;font-size:13.5px;line-height:1.6;
+    outline:none;transition:border-color .15s;
+  }
+  textarea:focus{border-color:var(--patra-2);}
+  textarea .mono{font-family:'JetBrains Mono',monospace;}
+  .editor-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:12px;}
+  .editor-foot .note{font-size:12px;color:var(--text-3);}
+
+  /* auto follow-up */
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
+  .toggle-label{font-size:14px;font-weight:600;}
+  .toggle-label small{display:block;font-size:12px;font-weight:400;color:var(--text-3);margin-top:2px;}
+  .switch{
+    width:46px;height:26px;border-radius:99px;flex:none;position:relative;cursor:pointer;
+    background:var(--surface-4);border:1px solid var(--border-hi);transition:.2s;
+  }
+  .switch > i{
+    position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+    background:var(--text-3);transition:.2s;
+  }
+  .switch.on{background:var(--patra);border-color:var(--patra);}
+  .switch.on > i{left:22px;background:#fff;}
+
+  .seg-label{font-size:12.5px;color:var(--text-2);font-weight:600;margin-bottom:8px;}
+  .segmented{
+    display:inline-flex;background:var(--surface-2);border:1px solid var(--border-hi);
+    border-radius:10px;padding:3px;gap:3px;
+  }
+  .seg{
+    font-size:12.5px;font-weight:600;color:var(--text-2);
+    padding:7px 13px;border-radius:7px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .seg.active{background:var(--patra);color:#fff;}
+  .seg:not(.active):hover{color:var(--text);}
+
+  .next-round{
+    display:flex;align-items:center;gap:9px;
+    font-size:13px;color:var(--text-2);margin-top:16px;
+  }
+  .next-round .num{color:var(--text);font-weight:600;}
+  .next-round svg{width:16px;height:16px;color:var(--patra-3);flex:none;}
+
+  .banner-amber{
+    display:flex;align-items:flex-start;gap:11px;
+    background:var(--amber-bg);color:var(--amber);
+    border:1px solid var(--border);border-left:3px solid var(--amber);
+    border-radius:11px;padding:13px 15px;margin-top:18px;
+    font-size:13px;font-weight:600;line-height:1.45;
+  }
+  .banner-amber svg{width:18px;height:18px;flex:none;margin-top:1px;}
+
+  /* coverage breakdown */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media (max-width:680px){.stats{grid-template-columns:repeat(2,1fr);}}
+  .stat{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
+    padding:14px 15px;
+  }
+  .stat .v{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;line-height:1;}
+  .stat .v.num{font-family:'JetBrains Mono',monospace;}
+  .stat .k{font-size:12px;color:var(--text-2);margin-top:7px;}
+  .stat.full .v{color:var(--green);}
+  .stat .k .swatch{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle;}
+
+  .footnote{font-size:11.5px;color:var(--text-3);text-align:center;margin-top:30px;}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme">
+  <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <span id="themeText">Light</span>
+</button>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header class="page-head">
+    <span class="eyebrow">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Ban protection
+    </span>
+    <h1>Backup Pages</h1>
+    <p class="sub">Keep every customer connected to all your pages — so if one goes down, the others already reach them.</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- LEFT: CHANNELS -->
+    <aside class="card channels">
+      <div class="card-head">
+        <h2>Channels</h2>
+        <p class="hint">Protection = share of customers reachable on this page</p>
+      </div>
+      <div class="chan-list">
+
+        <!-- Main Page (selected) -->
+        <div class="chan-row selected">
+          <div class="chan-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg>
+          </div>
+          <div class="chan-meta">
+            <div class="chan-name">Main Page</div>
+            <div class="chan-plat">Facebook · Messenger</div>
+          </div>
+          <span class="pill green protect"><span class="num">100%</span></span>
+        </div>
+
+        <!-- Backup A -->
+        <div class="chan-row">
+          <div class="chan-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg>
+          </div>
+          <div class="chan-meta">
+            <div class="chan-name">Backup A</div>
+            <div class="chan-plat">Facebook · Messenger</div>
+          </div>
+          <span class="pill green protect"><span class="num">88%</span></span>
+        </div>
+
+        <!-- Backup B -->
+        <div class="chan-row">
+          <div class="chan-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg>
+          </div>
+          <div class="chan-meta">
+            <div class="chan-name">Backup B</div>
+            <div class="chan-plat">Facebook · Messenger</div>
+          </div>
+          <span class="pill amber protect"><span class="num">64%</span></span>
+        </div>
+
+        <!-- Backup C -->
+        <div class="chan-row">
+          <div class="chan-ico">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg>
+          </div>
+          <div class="chan-meta">
+            <div class="chan-name">Backup C</div>
+            <div class="chan-plat">Facebook · Messenger</div>
+          </div>
+          <span class="pill red protect"><span class="num">32%</span></span>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- RIGHT -->
+    <main>
+
+      <!-- (a) COVERAGE RING -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Coverage</h2>
+          <p class="hint">Customers reachable on every live page right now</p>
+        </div>
+        <div class="card-body">
+          <div class="coverage">
+            <div class="ring-wrap">
+              <svg width="184" height="184" viewBox="0 0 184 184">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="var(--patra)"/>
+                    <stop offset="55%" stop-color="var(--patra-2)"/>
+                    <stop offset="100%" stop-color="var(--patra-3)"/>
+                  </linearGradient>
+                </defs>
+                <!-- track -->
+                <circle cx="92" cy="92" r="78" fill="none" stroke="var(--surface-3)" stroke-width="18"/>
+                <!-- progress: 78% of circumference (2*pi*78 = 490.1) -->
+                <circle cx="92" cy="92" r="78" fill="none" stroke="url(#ringGrad)" stroke-width="18"
+                        stroke-linecap="round" stroke-dasharray="490.1" stroke-dashoffset="107.8"/>
+              </svg>
+              <div class="ring-center">
+                <div class="ring-pct num">78%</div>
+                <div class="ring-label">fully protected</div>
+              </div>
+            </div>
+            <div class="coverage-side">
+              <p class="big"><span class="num">1,201</span> of <span class="num">1,540</span> customers</p>
+              <p class="desc">connected to every live page. If any one page goes down, these customers still reach you on the others.</p>
+              <div class="legend">
+                <div class="li"><span class="sw" style="background:linear-gradient(90deg,var(--patra),var(--patra-3));"></span> Connected everywhere</div>
+                <div class="li"><span class="sw" style="background:var(--surface-3);"></span> Gaps remaining</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- (b) LIVE PAGES -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Live pages</h2>
+          <p class="hint">1 main + up to 4 backups</p>
+        </div>
+        <div class="card-body">
+
+          <!-- Main -->
+          <div class="lp-row">
+            <div class="lp-main">
+              <div class="lp-toprow">
+                <span class="lp-name">Main Page</span>
+                <span class="marker main">Main</span>
+              </div>
+              <div class="lp-count"><span class="num">1,540</span> connected</div>
+              <div class="bar"><i style="width:100%"></i></div>
+            </div>
+            <div class="lp-right">
+              <span class="pill green"><span class="dot"></span> Live</span>
+              <div class="lp-actions">
+                <button class="icon-btn" title="Remove page" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backup A -->
+          <div class="lp-row">
+            <div class="lp-main">
+              <div class="lp-toprow">
+                <span class="lp-name">Backup A</span>
+                <span class="marker backup">Backup</span>
+              </div>
+              <div class="lp-count"><span class="num">1,355</span> connected</div>
+              <div class="bar"><i style="width:88%"></i></div>
+            </div>
+            <div class="lp-right">
+              <span class="pill green"><span class="dot"></span> Live</span>
+              <div class="lp-actions">
+                <button class="icon-btn" title="Remove page" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backup B -->
+          <div class="lp-row">
+            <div class="lp-main">
+              <div class="lp-toprow">
+                <span class="lp-name">Backup B</span>
+                <span class="marker backup">Backup</span>
+              </div>
+              <div class="lp-count"><span class="num">986</span> connected</div>
+              <div class="bar"><i style="width:64%"></i></div>
+            </div>
+            <div class="lp-right">
+              <span class="pill green"><span class="dot"></span> Live</span>
+              <div class="lp-actions">
+                <button class="icon-btn" title="Remove page" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backup C (Banned) -->
+          <div class="lp-row">
+            <div class="lp-main">
+              <div class="lp-toprow">
+                <span class="lp-name">Backup C</span>
+                <span class="marker backup">Backup</span>
+              </div>
+              <div class="lp-count"><span class="num">493</span> connected</div>
+              <div class="bar muted"><i style="width:32%"></i></div>
+              <div class="banned-note">Banned — dropped from coverage, percentages recalculated.</div>
+            </div>
+            <div class="lp-right">
+              <span class="pill red"><span class="dot"></span> Banned</span>
+              <div class="lp-actions">
+                <button class="icon-btn" title="Remove page" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="lp-footrow">
+            <span class="note">1 main + up to 4 backups · 1 slot open</span>
+            <button class="btn primary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Add page
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- (c) CONNECT-UP INVITE -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Connect-up invite</h2>
+          <p class="hint">The message that asks every customer to follow all your pages</p>
+        </div>
+        <div class="card-body">
+          <textarea spellcheck="false">Follow our other pages so we never lose touch — send a quick hi to each: m.me/yourpage-a  m.me/yourpage-b</textarea>
+          <div class="editor-foot">
+            <span class="note">Sent to customers who aren't yet on every live page.</span>
+            <button class="btn primary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Save
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- (d) AUTO FOLLOW-UP -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Auto follow-up</h2>
+          <p class="hint">Gently re-send the invite to customers who haven't connected everywhere</p>
+        </div>
+        <div class="card-body">
+
+          <div class="toggle-row">
+            <div class="toggle-label">
+              Automatic follow-up
+              <small>Resend the connect-up invite on a schedule</small>
+            </div>
+            <div class="switch" id="followSwitch" role="switch" aria-checked="false"><i></i></div>
+          </div>
+
+          <div class="seg-label">Cadence</div>
+          <div class="segmented">
+            <span class="seg">Every 2 days</span>
+            <span class="seg">Every 3 days</span>
+            <span class="seg active">Weekly</span>
+          </div>
+
+          <div class="next-round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <span>Next round in <span class="num">3</span> days <span style="color:var(--text-3)">→</span> reaches <span class="num">339</span> incomplete customers</span>
+          </div>
+
+          <div class="banner-amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+            Sending is OFF until the master switch is enabled by ops.
+          </div>
+
+        </div>
+      </section>
+
+      <!-- (e) COVERAGE BREAKDOWN -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Coverage breakdown</h2>
+          <p class="hint">How many of your 1,540 customers reach you on how many pages</p>
+        </div>
+        <div class="card-body">
+          <div class="stats">
+            <div class="stat full">
+              <div class="v num">1,201</div>
+              <div class="k"><span class="swatch" style="background:var(--green)"></span>All live pages</div>
+            </div>
+            <div class="stat">
+              <div class="v num">180</div>
+              <div class="k"><span class="swatch" style="background:var(--patra-2)"></span>3 backups</div>
+            </div>
+            <div class="stat">
+              <div class="v num">95</div>
+              <div class="k"><span class="swatch" style="background:var(--patra-3)"></span>2 backups</div>
+            </div>
+            <div class="stat">
+              <div class="v num">64</div>
+              <div class="k"><span class="swatch" style="background:var(--amber)"></span>Main only</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <p class="footnote">Visual preview · sample data only</p>
+
+</div>
+
+<script>
+  // Theme toggle only
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var txt = document.getElementById('themeText');
+    var ico = document.getElementById('themeIcon');
+    var sun = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
+    var moon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    function sync() {
+      var isDark = root.classList.contains('dark');
+      txt.textContent = isDark ? 'Light' : 'Dark';
+      ico.innerHTML = isDark ? sun : moon;
+    }
+    btn.addEventListener('click', function () {
+      root.classList.toggle('dark');
+      sync();
+    });
+    sync();
+  })();
+
+  // Inert demo interactions (visual only — no data)
+  (function () {
+    var sw = document.getElementById('followSwitch');
+    if (sw) sw.addEventListener('click', function () {
+      var on = sw.classList.toggle('on');
+      sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.segmented').forEach(function (group) {
+      group.querySelectorAll('.seg').forEach(function (s) {
+        s.addEventListener('click', function () {
+          group.querySelectorAll('.seg').forEach(function (x) { x.classList.remove('active'); });
+          s.classList.add('active');
+        });
+      });
+    });
+    document.querySelectorAll('.chan-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        document.querySelectorAll('.chan-row').forEach(function (x) { x.classList.remove('selected'); });
+        row.classList.add('selected');
+      });
+    });
+  })();
+</script>
+</body>
+</html>

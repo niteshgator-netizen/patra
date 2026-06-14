@@ -36,7 +36,9 @@ class Api::V1::Accounts::BackupPagesController < Api::V1::Accounts::BaseControll
   # B-COVERAGE — read-only coverage stats (% fully connected, breakdown, per-page counts). Like
   # #index, readable by any account member; reveals no page access tokens.
   def coverage
-    render json: Backup::CoverageStats.new(Current.account).call
+    render json: Backup::CoverageStats.new(Current.account).call.merge(
+      drip: drip_config_view(Current.account.custom_attributes || {})
+    )
   end
 
   # B-DRIP config — owner/granted-manager only (guarded above). Sets the per-account drip toggle,
