@@ -30,7 +30,10 @@ module Patra
     def check_main_feature_authorization!(feature)
       key = feature.to_s
       return if Current.user&.owner_of?(Current.account)
-      return if Current.account_user&.granted?(key)
+      # A grant only counts for a non-owner ADMINISTRATOR (a "manager"). Support/agents are denied
+      # even if a feature was granted to their membership — matches the owner/manager design and
+      # keeps the guard a hard backstop independent of who the owner pointed a grant at.
+      return if Current.account_user&.administrator? && Current.account_user&.granted?(key)
 
       render_main_feature_forbidden
     rescue StandardError
