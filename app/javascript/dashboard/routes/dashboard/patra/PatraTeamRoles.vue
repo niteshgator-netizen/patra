@@ -341,6 +341,19 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+const seatsLabel = computed(
+  () => `${seats.value.used} / ${seats.value.cap} seats`
+);
+
+function badgeLabel(member) {
+  const meta = tierMeta(tierOf(member));
+  return `${meta.locked ? '🔒 ' : ''}${meta.label}`;
+}
+
+const selectedTierLabel = computed(() =>
+  selectedMember.value ? tierMeta(tierOf(selectedMember.value)).label : ''
+);
 </script>
 
 <template>
@@ -355,8 +368,9 @@ onMounted(async () => {
       <div class="flex items-center gap-3">
         <span
           class="mono text-xs px-3 py-1.5 rounded-full bg-n-alpha-2 text-n-slate-11"
-          >{{ seats.used }} / {{ seats.cap }} seats</span
         >
+          {{ seatsLabel }}
+        </span>
         <form class="flex items-center gap-2" @submit.prevent="invite">
           <input
             v-model="inviteEmail"
@@ -416,8 +430,7 @@ onMounted(async () => {
             </div>
           </div>
           <span class="role-badge" :class="`rb-${tierOf(member)}`">
-            <span v-if="tierMeta(tierOf(member)).locked">🔒 </span
-            >{{ tierMeta(tierOf(member)).label }}
+            {{ badgeLabel(member) }}
           </span>
         </button>
       </aside>
@@ -427,10 +440,10 @@ onMounted(async () => {
         <div class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <h3 class="text-base font-semibold text-n-slate-12">
-              {{ selectedMember.name }}
-              <span class="text-n-slate-10 text-sm"
-                >— {{ tierMeta(tierOf(selectedMember)).label }}</span
-              >
+              {{ selectedMember.name }} —
+              <span class="text-n-slate-10 text-sm">{{
+                selectedTierLabel
+              }}</span>
             </h3>
           </div>
           <!-- role chips -->
