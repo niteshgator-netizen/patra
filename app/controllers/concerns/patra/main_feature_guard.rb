@@ -23,6 +23,7 @@ module Patra
       roles
       billing
       game_credentials
+      secrets
     ].freeze
 
     private

@@ -1,5 +1,11 @@
 class Api::V1::Accounts::SecretPhrasesController < Api::V1::Accounts::BaseController
+  include Patra::MainFeatureGuard
+
   before_action :load_phrase, only: [:show, :update, :destroy]
+  # SECRETS (granted-main) — managing secret phrases is an owner power, delegable to a manager via
+  # the 'secrets' grant. Owner always passes; a non-owner administrator only if granted. Reads
+  # (index/show) keep their existing access; only mutations are gated (mirrors backup_pages/payment_handles).
+  before_action(only: [:create, :update, :destroy]) { check_main_feature_authorization!(:secrets) }
 
   def index
     phrases = Current.account.secret_phrases.order(created_at: :desc)
