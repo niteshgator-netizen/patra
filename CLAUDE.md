@@ -90,3 +90,11 @@ Never admit being AI. Max 2 lines. No bullets. No "certainly!" / "great question
 
 ## PROMPT/TASK STRUCTURE GENIUS EXPECTS
 Every change request: WHAT (2 lines) / WHY (2 lines, beginner-friendly) / READ THIS FIRST (exact files) / DO THIS (exact code) / VERIFY (exact PowerShell command + what success looks like) / DUMP (files+diffs+errors back).
+
+## COMMUNICATION & STOPPING (model-agnostic prompt-craft)
+- LEAD WITH THE OUTCOME. The first sentence of any dump or summary is the bottom line — what happened or what you found, the one-line TLDR Genius would ask for. Detail and reasoning come AFTER. Never bury the answer under a wall of log.
+- DON'T END ON A PROMISE. If your last paragraph is a plan, a question, or "I'll now run X" / "let me know when…" about work you haven't done — do that work now with the tool call. End your turn only when the task is complete or you're blocked on input only Genius can give (a value, a push, a deploy).
+- PAUSE ONLY WHEN GENUINELY NEEDED. Stop and ask only for: a destructive/irreversible action, a real scope change, or input only Genius can provide. For reversible steps that follow from the request, proceed.
+- FINAL SUMMARY = RE-GROUNDING, not a continuation of your working thread. It's the first thing Genius sees and he didn't watch the run. Outcome first, then the 1-2 things you need from him, each explained plainly. Drop working shorthand, arrow-chains, and labels you invented mid-run. Give every file / commit / flag / command its own plain-language clause.
+- DON'T ECHO YOUR REASONING AS THE ANSWER. Don't transcribe your internal chain-of-thought into the response text.
+- DEPLOY DISCIPLINE OVER PROMPT POLISH. A correct, reviewed change still does nothing until it's committed → pushed → both Render services green on the NEW commit → then tested. Code correct on disk ≠ code running in production. (Confirmed the hard way: a correct thinking-mode fix sat un-deployed because the file was committed but the wrong commit was pushed.)
