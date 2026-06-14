@@ -13,5 +13,5 @@ json.payload @attachments do |attachment|
   json.width attachment.push_event_data[:width]
   json.height attachment.push_event_data[:height]
   json.created_at attachment.message.created_at.to_i
-  json.sender attachment.message.sender.push_event_data if attachment.message.sender
+  json.sender Patra::ContactPrivacy.event_data_for(attachment.message.sender, Current.account_user) if attachment.message.sender
 end

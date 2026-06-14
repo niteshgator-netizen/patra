@@ -27,8 +27,10 @@
 # - 'view_all_inboxes': Can see every inbox regardless of assignment (support/manager emergency coverage).
 # - 'money_action_manage': Can perform money actions when PATRA_RESTRICT_MONEY_ACTIONS=true.
 # - 'contact_pii_full': Name-privacy => sees the FULL player name. Mutually exclusive with contact_pii_hidden.
+# - 'contact_pii_first_name': Name-privacy => first name only ("John Dorian" -> "John"). Explicit form
+#   of the default; lets the owner pick first-name in the role editor. Mutually exclusive with the other two.
 # - 'contact_pii_hidden': Name-privacy => player name fully hidden ("Player").
-#   When neither contact_pii_* is present the role sees first-name-only (the default).
+#   When no contact_pii_* key is present the role still sees first-name-only (the default).
 
 class CustomRole < ApplicationRecord
   belongs_to :account
@@ -44,6 +46,7 @@ class CustomRole < ApplicationRecord
     view_all_inboxes
     money_action_manage
     contact_pii_full
+    contact_pii_first_name
     contact_pii_hidden
   ].freeze
 
