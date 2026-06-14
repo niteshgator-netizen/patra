@@ -410,6 +410,21 @@ elsif LLM_SAMPLE.positive?
           next
         end
 
+        # GRADER-GUARD PARITY: production wraps EVERY reply in
+        # guard_against_false_load_claim at the reply_service call sites (it
+        # internally also runs the bonus / policy-freelance / invented-balance
+        # guards and handle enforcement). The raw invoke_anthropic output above
+        # skips all of them, so an unbacked "Paid ✅" was graded as a fail a real
+        # customer would NEVER see — the guard rewrites it to a defer line first.
+        # Run the SAME guard here so the graded text == the text shipped in prod.
+        # Fail-open to the raw reply if the guard errors (never drop a sample).
+        reply = begin
+          guarded = svc.send(:guard_against_false_load_claim, reply)
+          guarded.to_s.strip.empty? ? reply : guarded
+        rescue StandardError
+          reply
+        end
+
         v = []
         lines = reply.split(/\r?\n/).reject { |l| l.strip.empty? }
         v << 'over-2-lines' if lines.size > 2
