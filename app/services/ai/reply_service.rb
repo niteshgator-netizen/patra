@@ -2539,6 +2539,9 @@ class Ai::ReplyService
     transfer_claim_patterns = [
       /\btransferr?ed\b/i,
       /\bswitch(?:ed|ing)\b[^.!?\n]{0,30}\b(?:now|over)\b/i,
+      # bp GroupD-FC: PAST-TENSE completed switch "switched to juwa". Gerund
+      # "switching to X for you" is an OFFER, not a completion -> excluded.
+      /\bswitched\b[^.!?\n]{0,30}\b(?:to|onto)\b/i,
       /\bmoved\s+(?:it|you|your|that|everything)\b/i
     ]
     payout_claim_patterns = [
@@ -2551,6 +2554,11 @@ class Ai::ReplyService
       /\b(?:payout|cashout|cash\s*out)\b[^.!?\n]{0,12}\bprocessed\b/i,
       /\bpaid\s+out\s+(?:your|the|it)\b/i,
       /\bwent\s+out\s+(?:a\s+min|already|just\s+now)\b/i,
+      # bp GroupD-FC: "sending your cashout now" — in-progress payout claim. GERUND
+      # "sending" only (NOT bare "send", so "send me your cashout tag" stays free),
+      # gated on a cashout/payout keyword so blessed "sending that request now"
+      # (no such keyword) stays untouched.
+      /\bsending\b[^.!?\n]{0,20}\b(?:cash\s*out|cashout|payout|winnings)\b/i,
       # bp: bare past-tense "paid" as Bella's OWN completion claim — no checkmark,
       # no cashout keyword, no i/we subject (e.g. "Sure Paid hun", "Paid", "ok
       # paid now"). Either the reply OPENS with paid (after light filler) OR it's
@@ -2558,7 +2566,7 @@ class Ai::ReplyService
       # you've paid" / "get paid?" don't open with paid and aren't paid+<list>,
       # so they pass. A TRUE payout still clears via the recent-cashout evidence
       # gate below; only an unbacked claim is rewritten to the defer line.
-      /\A\s*(?:sure|ok|okay|yes|yep|yeah|aight|alright|done|got\s*it|lmc|k|np|all\s+good)?[\s,!.]*paid\b/i,
+      /\A\s*(?:sure|ok|okay|yes|yep|yeah|aight|alright|right|done|got\s*it|lmc|k|np|all\s+good)?[\s,!.]*paid\b/i,
       /\bpaid\s+(?:hun|love|babe|boo|fam|bro|sis|dear|now|already)\b/i
     ]
 
