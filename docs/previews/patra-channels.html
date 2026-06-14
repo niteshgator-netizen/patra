@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Patra · Connected Channels — dark + light preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  /* ── preview chrome (not part of the component) ───────────────────────── */
+  body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: #1a1820;
+    color: #ddd;
+  }
+  .pv-banner {
+    padding: 16px 22px;
+    background: #0c0b12;
+    border-bottom: 1px solid #2e2940;
+  }
+  .pv-banner h1 {
+    margin: 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    color: #ededf2;
+  }
+  .pv-banner p {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    color: #a8a6b6;
+    max-width: 90ch;
+  }
+  .pv-section-label {
+    padding: 18px 22px 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: #8b88a0;
+    text-transform: uppercase;
+  }
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  .frame {
+    min-height: 200px;
+    padding: 8px 0;
+    position: relative;
+  }
+  .frame::after {
+    content: attr(data-label);
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 6px;
+    opacity: 0.7;
+  }
+  .frame-dark {
+    background: #050409;
+  }
+  .frame-dark::after {
+    background: #1b1925;
+    color: #a8a6b6;
+  }
+  .frame-light {
+    background: #f6f5f9;
+  }
+  .frame-light::after {
+    background: #ece9f2;
+    color: #4a4756;
+  }
+
+  /* ── theme variables (copied verbatim from patra-themes.css) ──────────── */
+  .frame-dark {
+    --canvas: #050409;
+    --surface: #0c0b12;
+    --surface-2: #131119;
+    --surface-3: #1b1925;
+    --border: #171520;
+    --border-hi: #2e2940;
+    --patra: #6e56cf;
+    --patra-3: #a78bfa;
+    --text: #ededf2;
+    --text-2: #a8a6b6;
+    --text-3: #75727f;
+    --text-4: #54515e;
+    --green: #3fb950;
+    --red: #f85149;
+    --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+    --patra-green-soft: rgba(63, 185, 80, 0.14);
+    --patra-red-soft: rgba(248, 81, 73, 0.14);
+  }
+  .frame-light {
+    --canvas: #f6f5f9;
+    --surface: #ffffff;
+    --surface-2: #f2f0f7;
+    --surface-3: #ece9f2;
+    --border: #e5e3eb;
+    --border-hi: #d6d3de;
+    --patra: #6e56cf;
+    --patra-3: #7c3aed;
+    --text: #1a1a24;
+    --text-2: #4a4756;
+    --text-3: #75727f;
+    --text-4: #a0a0ab;
+    --green: #16a34a;
+    --red: #dc2626;
+    --shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.12);
+    --patra-green-soft: rgba(22, 163, 74, 0.1);
+    --patra-red-soft: rgba(220, 38, 38, 0.1);
+  }
+
+  /* ── component CSS (mirrors PatraFacebookAccounts.vue <style scoped>) ──── */
+  .pat-channels {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 20px 24px 32px;
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+  }
+  .pc-head { margin-bottom: 18px; }
+  .pc-head h1 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 23px;
+    color: var(--text);
+    margin: 0;
+  }
+  .pc-sub { margin: 4px 0 0; font-size: 13px; color: var(--text-3); max-width: 62ch; }
+  .pc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 16px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .pc-card:hover { border-color: var(--patra); box-shadow: var(--shadow); }
+  .pc-acct-head { display: flex; align-items: center; gap: 13px; }
+  .pc-avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+    border: 1px solid var(--border-hi);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--patra); color: white; font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .pc-acct-info { flex: 1; min-width: 0; }
+  .pc-name {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 600; font-size: 15px; color: var(--text);
+  }
+  .pc-meta {
+    margin-top: 2px; font-size: 12px; color: var(--text-3);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .pc-pages { margin-top: 14px; border-top: 1px solid var(--border); }
+  .pc-pages-empty { margin-top: 12px; font-size: 12.5px; color: var(--text-3); }
+  .pc-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .pc-row:last-child { border-bottom: none; }
+  .pc-row--solo { padding: 2px 0; border-bottom: none; }
+  .pc-row-main { flex: 1; min-width: 0; }
+  .pc-row-name { font-size: 13.5px; font-weight: 500; color: var(--text); }
+  .pc-row-id {
+    margin-left: 8px; font-size: 11.5px; color: var(--text-4);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .pc-badge {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
+    padding: 4px 9px; border-radius: 7px;
+    font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
+  }
+  .pc-badge--active { color: var(--green); background: var(--patra-green-soft); }
+  .pc-badge--inactive { color: var(--red); background: var(--patra-red-soft); }
+  .pc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .pc-btn {
+    font-size: 12.5px; font-weight: 600; padding: 8px 13px;
+    border-radius: 9px; border: 1px solid var(--border-hi);
+    background: var(--surface-2); color: var(--text-2);
+    cursor: pointer; transition: all 0.18s ease; white-space: nowrap;
+  }
+  .pc-btn:hover { border-color: var(--patra); color: var(--text); }
+  .pc-btn--primary { background: var(--patra); border-color: transparent; color: white; }
+  .pc-btn--danger { color: var(--red); }
+  .pc-btn--danger:hover { border-color: var(--red); color: var(--red); }
+  .pc-btn--reconnect { color: var(--patra-3); }
+  .pc-btn--reconnect:hover { border-color: var(--patra); color: var(--patra-3); }
+  .pc-empty { text-align: center; padding: 30px 20px; color: var(--text-3); font-size: 13.5px; }
+
+  /* modal */
+  .pc-modal {
+    width: 420px; max-width: 100%;
+    background: var(--surface); border: 1px solid var(--border-hi);
+    border-radius: 16px; box-shadow: var(--shadow); overflow: hidden;
+    margin: 8px auto 20px;
+  }
+  .pc-modal-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border);
+  }
+  .pc-modal-title {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 600; font-size: 15px; color: var(--text);
+  }
+  .pc-modal-sub { margin-top: 2px; font-size: 12px; color: var(--text-3); }
+  .pc-modal-x {
+    width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-3); cursor: pointer; flex-shrink: 0;
+  }
+  .pc-modal-body { padding: 16px 18px; }
+  .pc-check-row {
+    display: flex; align-items: center; gap: 11px; padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pc-check-row:last-of-type { border-bottom: none; }
+  .pc-check { width: 16px; height: 16px; accent-color: var(--patra); flex-shrink: 0; }
+  .pc-check-name { flex: 1; font-size: 13.5px; color: var(--text); }
+  .pc-modal-note {
+    margin-top: 12px; font-size: 11.5px; line-height: 1.5; color: var(--text-3);
+  }
+  .pc-modal-foot {
+    display: flex; justify-content: flex-end; gap: 9px;
+    padding: 14px 18px; border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+  <div class="pv-banner">
+    <h1>Patra · Connected Channels — dark + light preview</h1>
+    <p>
+      Static render of the new Channels screen (PatraFacebookAccounts.vue), shown
+      in both themes. NOTE: there was no <code>docs/mockups/patra-channels.html</code>
+      mockup — this was built to the established Patra design language
+      (patra-settings.html / patra-games.html) using only patra-themes.css
+      variables, so it flips dark/light automatically. Colors here are copied
+      verbatim from patra-themes.css.
+    </p>
+  </div>
+
+  <div class="pv-section-label">Main screen — accounts, page rows, other channels</div>
+  <div class="compare">
+    <!-- DARK -->
+    <div class="frame frame-dark" data-label="DARK">
+      <div class="pat-channels">
+        <header class="pc-head">
+          <h1>Connected Channels</h1>
+          <p class="pc-sub">Manage every connected inbox. Disconnect keeps your conversation history; Delete removes the inbox for good.</p>
+        </header>
+
+        <section class="pc-card">
+          <div class="pc-acct-head">
+            <div class="pc-avatar">M</div>
+            <div class="pc-acct-info">
+              <div class="pc-name">Mausam Gang</div>
+              <div class="pc-meta">Facebook · 3 page(s)</div>
+            </div>
+            <div class="pc-actions">
+              <button class="pc-btn pc-btn--primary">Manage Pages</button>
+              <button class="pc-btn">Disconnect</button>
+              <button class="pc-btn pc-btn--danger">Delete</button>
+            </div>
+          </div>
+          <div class="pc-pages">
+            <div class="pc-row">
+              <div class="pc-row-main"><span class="pc-row-name">Football FANS PAGE</span><span class="pc-row-id">#1029384</span></div>
+              <span class="pc-badge pc-badge--active">Active</span>
+              <div class="pc-actions"><button class="pc-btn">Disconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+            </div>
+            <div class="pc-row">
+              <div class="pc-row-main"><span class="pc-row-name">Mausam Promo</span><span class="pc-row-id">#5566778</span></div>
+              <span class="pc-badge pc-badge--active">Active</span>
+              <div class="pc-actions"><button class="pc-btn">Disconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+            </div>
+            <div class="pc-row">
+              <div class="pc-row-main"><span class="pc-row-name">Old Sweeps Page</span><span class="pc-row-id">#2231009</span></div>
+              <span class="pc-badge pc-badge--inactive">Inactive</span>
+              <div class="pc-actions"><button class="pc-btn pc-btn--reconnect">Reconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="pc-card">
+          <div class="pc-acct-head">
+            <div class="pc-avatar">J</div>
+            <div class="pc-acct-info">
+              <div class="pc-name">Jay Promotions</div>
+              <div class="pc-meta">Facebook · 0 page(s)</div>
+            </div>
+            <div class="pc-actions">
+              <button class="pc-btn pc-btn--primary">Choose Pages</button>
+              <button class="pc-btn pc-btn--danger">Delete</button>
+            </div>
+          </div>
+          <div class="pc-pages-empty">No pages connected for this account yet — use Choose Pages above.</div>
+        </section>
+
+        <section class="pc-card">
+          <div class="pc-row pc-row--solo">
+            <div class="pc-row-main"><span class="pc-row-name">VIP Instagram</span><span class="pc-row-id">Instagram</span></div>
+            <span class="pc-badge pc-badge--active">Active</span>
+            <div class="pc-actions"><button class="pc-btn">Disconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+          </div>
+        </section>
+
+        <section class="pc-card">
+          <div class="pc-row pc-row--solo">
+            <div class="pc-row-main"><span class="pc-row-name">WhatsApp Line</span><span class="pc-row-id">WhatsApp</span></div>
+            <span class="pc-badge pc-badge--inactive">Inactive</span>
+            <div class="pc-actions"><button class="pc-btn pc-btn--reconnect">Reconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- LIGHT -->
+    <div class="frame frame-light" data-label="LIGHT">
+      <div class="pat-channels">
+        <header class="pc-head">
+          <h1>Connected Channels</h1>
+          <p class="pc-sub">Manage every connected inbox. Disconnect keeps your conversation history; Delete removes the inbox for good.</p>
+        </header>
+
+        <section class="pc-card">
+          <div class="pc-acct-head">
+            <div class="pc-avatar">M</div>
+            <div class="pc-acct-info">
+              <div class="pc-name">Mausam Gang</div>
+              <div class="pc-meta">Facebook · 3 page(s)</div>
+            </div>
+            <div class="pc-actions">
+              <button class="pc-btn pc-btn--primary">Manage Pages</button>
+              <button class="pc-btn">Disconnect</button>
+              <button class="pc-btn pc-btn--danger">Delete</button>
+            </div>
+          </div>
+          <div class="pc-pages">
+            <div class="pc-row">
+              <div class="pc-row-main"><span class="pc-row-name">Football FANS PAGE</span><span class="pc-row-id">#1029384</span></div>
+              <span class="pc-badge pc-badge--active">Active</span>
+              <div class="pc-actions"><button class="pc-btn">Disconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+            </div>
+            <div class="pc-row">
+              <div class="pc-row-main"><span class="pc-row-name">Mausam Promo</span><span class="pc-row-id">#5566778</span></div>
+              <span class="pc-badge pc-badge--active">Active</span>
+              <div class="pc-actions"><button class="pc-btn">Disconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+            </div>
+            <div class="pc-row">
+              <div class="pc-row-main"><span class="pc-row-name">Old Sweeps Page</span><span class="pc-row-id">#2231009</span></div>
+              <span class="pc-badge pc-badge--inactive">Inactive</span>
+              <div class="pc-actions"><button class="pc-btn pc-btn--reconnect">Reconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="pc-card">
+          <div class="pc-acct-head">
+            <div class="pc-avatar">J</div>
+            <div class="pc-acct-info">
+              <div class="pc-name">Jay Promotions</div>
+              <div class="pc-meta">Facebook · 0 page(s)</div>
+            </div>
+            <div class="pc-actions">
+              <button class="pc-btn pc-btn--primary">Choose Pages</button>
+              <button class="pc-btn pc-btn--danger">Delete</button>
+            </div>
+          </div>
+          <div class="pc-pages-empty">No pages connected for this account yet — use Choose Pages above.</div>
+        </section>
+
+        <section class="pc-card">
+          <div class="pc-row pc-row--solo">
+            <div class="pc-row-main"><span class="pc-row-name">VIP Instagram</span><span class="pc-row-id">Instagram</span></div>
+            <span class="pc-badge pc-badge--active">Active</span>
+            <div class="pc-actions"><button class="pc-btn">Disconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+          </div>
+        </section>
+
+        <section class="pc-card">
+          <div class="pc-row pc-row--solo">
+            <div class="pc-row-main"><span class="pc-row-name">WhatsApp Line</span><span class="pc-row-id">WhatsApp</span></div>
+            <span class="pc-badge pc-badge--inactive">Inactive</span>
+            <div class="pc-actions"><button class="pc-btn pc-btn--reconnect">Reconnect</button><button class="pc-btn pc-btn--danger">Delete</button></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="pv-section-label">Manage Pages modal — page picker (re-runs Facebook OAuth, connected pages pre-checked)</div>
+  <div class="compare">
+    <div class="frame frame-dark" data-label="DARK">
+      <div class="pc-modal">
+        <div class="pc-modal-head">
+          <div>
+            <div class="pc-modal-title">Manage Pages</div>
+            <div class="pc-modal-sub">Mausam Gang · pick the pages to keep connected</div>
+          </div>
+          <button class="pc-modal-x">✕</button>
+        </div>
+        <div class="pc-modal-body">
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" checked /><span class="pc-check-name">Football FANS PAGE</span><span class="pc-row-id">#1029384</span></label>
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" checked /><span class="pc-check-name">Mausam Promo</span><span class="pc-row-id">#5566778</span></label>
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" /><span class="pc-check-name">New Lucky Sweeps</span><span class="pc-row-id">#7781234</span></label>
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" /><span class="pc-check-name">Weekend Bonus Page</span><span class="pc-row-id">#9902311</span></label>
+          <p class="pc-modal-note">Unchecking a connected page disconnects it but keeps its conversation history. Checking a new page connects it.</p>
+        </div>
+        <div class="pc-modal-foot">
+          <button class="pc-btn">Cancel</button>
+          <button class="pc-btn pc-btn--primary">Save pages</button>
+        </div>
+      </div>
+    </div>
+    <div class="frame frame-light" data-label="LIGHT">
+      <div class="pc-modal">
+        <div class="pc-modal-head">
+          <div>
+            <div class="pc-modal-title">Manage Pages</div>
+            <div class="pc-modal-sub">Mausam Gang · pick the pages to keep connected</div>
+          </div>
+          <button class="pc-modal-x">✕</button>
+        </div>
+        <div class="pc-modal-body">
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" checked /><span class="pc-check-name">Football FANS PAGE</span><span class="pc-row-id">#1029384</span></label>
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" checked /><span class="pc-check-name">Mausam Promo</span><span class="pc-row-id">#5566778</span></label>
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" /><span class="pc-check-name">New Lucky Sweeps</span><span class="pc-row-id">#7781234</span></label>
+          <label class="pc-check-row"><input class="pc-check" type="checkbox" /><span class="pc-check-name">Weekend Bonus Page</span><span class="pc-row-id">#9902311</span></label>
+          <p class="pc-modal-note">Unchecking a connected page disconnects it but keeps its conversation history. Checking a new page connects it.</p>
+        </div>
+        <div class="pc-modal-foot">
+          <button class="pc-btn">Cancel</button>
+          <button class="pc-btn pc-btn--primary">Save pages</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

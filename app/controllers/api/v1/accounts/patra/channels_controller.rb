@@ -166,6 +166,9 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
   def channel_info(inbox)
     channel = inbox.channel
     attrs = channel.respond_to?(:additional_attributes) ? channel.additional_attributes.to_h : {}
+    # Lifecycle flag wins: a disconnected channel reports 'inactive' regardless of
+    # recent message activity. Otherwise fall back to the live/idle activity probe.
+    inactive = attrs[::Patra::ChannelLifecycleService::STATUS_KEY] == ::Patra::ChannelLifecycleService::STATUS_INACTIVE
 
     {
       id: inbox.id,
@@ -173,7 +176,8 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
       channel_type: inbox.channel_type,
       messaging_provider: inbox.messaging_provider,
       platform: derive_platform(inbox, attrs),
-      status: inbox_status(inbox),
+      status: inactive ? 'inactive' : inbox_status(inbox),
+      connection_status: inactive ? 'inactive' : 'active',
       conversations_count: inbox.conversations.count,
       created_at: inbox.created_at
     }

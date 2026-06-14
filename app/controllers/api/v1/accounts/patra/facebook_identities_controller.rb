@@ -36,7 +36,22 @@ class Api::V1::Accounts::Patra::FacebookIdentitiesController < Api::V1::Accounts
       fb_user_avatar_url: fi.fb_user_avatar_url,
       status: fi.status,
       token_expires_at: fi.token_expires_at,
-      inboxes: fi.inboxes.map { |i| { id: i.id, name: i.name } }
+      inboxes: fi.inboxes.map { |i| serialize_inbox(i) }
+    }
+  end
+
+  # Per-page row for the Channels screen: the lifecycle status (active/inactive)
+  # so each page shows its own badge, plus fb_page_id so "Manage Pages" can map
+  # the currently-connected pages back to Facebook's page list.
+  def serialize_inbox(inbox)
+    channel = inbox.channel
+    attrs = channel.respond_to?(:additional_attributes) ? (channel.additional_attributes || {}) : {}
+    inactive = attrs[::Patra::ChannelLifecycleService::STATUS_KEY] == ::Patra::ChannelLifecycleService::STATUS_INACTIVE
+    {
+      id: inbox.id,
+      name: inbox.name,
+      status: inactive ? 'inactive' : 'active',
+      fb_page_id: attrs['fb_page_id']
     }
   end
 end

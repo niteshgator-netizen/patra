@@ -77,6 +77,16 @@ export default {
           },
         },
         {
+          // Unified Connected Channels screen — same (repurposed) component,
+          // reachable at the semantic /patra/channels URL.
+          path: 'patra/channels',
+          name: 'patra_channels',
+          component: PatraFacebookAccounts,
+          meta: {
+            permissions: ['administrator'],
+          },
+        },
+        {
           path: 'patra/backup-pages',
           name: 'patra_backup_pages',
           component: PatraBackupPages,

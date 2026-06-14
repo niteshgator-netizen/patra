@@ -28,6 +28,23 @@ class PatraChannelsAPI extends ApiClient {
   resync(inboxId) {
     return axios.post(`${this.url}/${inboxId}/resync`);
   }
+
+  // POST /channels/:id/disconnect — soft-disconnect; conversation history stays.
+  disconnect(inboxId) {
+    return axios.post(`${this.url}/${inboxId}/disconnect`);
+  }
+
+  // POST /channels/:id/reconnect — returns { reauth_url } to restart OAuth.
+  reconnect(inboxId) {
+    return axios.post(`${this.url}/${inboxId}/reconnect`);
+  }
+
+  // DELETE /channels/:id — destroys the inbox + conversations. The backend
+  // refuses unless confirm:true, so we always send it; the UI gates with its own
+  // confirmation dialog first.
+  destroy(inboxId) {
+    return axios.delete(`${this.url}/${inboxId}`, { data: { confirm: true } });
+  }
 }
 
 export default new PatraChannelsAPI();
