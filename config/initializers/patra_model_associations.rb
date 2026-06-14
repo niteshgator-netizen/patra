@@ -3,6 +3,7 @@
 ActiveSupport::Reloader.to_prepare do
   Contact.class_eval do
     has_many :game_actions, dependent: :nullify
+    has_many :backup_page_connections, dependent: :destroy_async
   end
 
   Account.class_eval do
@@ -20,6 +21,7 @@ ActiveSupport::Reloader.to_prepare do
     has_many :knowledge_articles, dependent: :destroy_async
     has_many :cashier_claims, dependent: :destroy_async
     has_many :backup_pages, dependent: :destroy_async
+    has_many :backup_page_connections, dependent: :destroy_async
     has_many :accounting_syncs, dependent: :destroy_async
     has_many :patra_agent_feedbacks, dependent: :destroy_async
   end

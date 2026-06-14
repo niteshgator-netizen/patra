@@ -530,6 +530,9 @@ Rails.application.routes.draw do
           resources :backup_pages do
             collection do
               post :reorder
+              # B-COVERAGE (read) + B-DRIP config (owner/manager mutation).
+              get :coverage
+              patch :drip_config
             end
           end
           # TAB B launch-night live-AI endpoints (HB-1, HB-2)

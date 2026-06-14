@@ -163,6 +163,13 @@ backup_health_check_job:
   class: 'Backup::HealthCheckJob'
   queue: scheduled_jobs
 
+# Every hour (offset) — refresh backup-page coverage ledger; connect-up drip is DARK by default
+# (Backup::ConnectUpDrip no-ops unless PATRA_BACKUP_DRIP_ENABLED='true' AND the per-account toggle)
+backup_coverage_maintenance_job:
+  cron: '45 * * * *'
+  class: 'Backup::CoverageMaintenanceJob'
+  queue: scheduled_jobs
+
 # Every 8 hours — shift report for sweepstakes
 reports_shift_report_job:
   cron: '0 */8 * * *'
