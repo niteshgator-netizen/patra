@@ -38,7 +38,27 @@
       "CONVERSATION_PARTICIPATING_MANAGE": "Manage participating conversations and those assigned to them",
       "CONTACT_MANAGE": "Manage contacts",
       "REPORT_MANAGE": "Manage reports",
-      "KNOWLEDGE_BASE_MANAGE": "Manage knowledge base"
+      "KNOWLEDGE_BASE_MANAGE": "Manage knowledge base",
+      "VIEW_ALL_INBOXES": "View all inboxes",
+      "MONEY_ACTION_MANAGE": "Process money actions (loads, cashouts, transfers)",
+      "CASHOUT_APPROVE": "Approve cashout requests",
+      "MESSAGE_EDIT_DELETE": "Edit or delete sent messages",
+      "REPORT_VIEW": "View reports (read-only)",
+      "TEAM_MANAGE": "Manage team members",
+      "SETTINGS_MANAGE": "Manage account settings",
+      "INTEGRATIONS_MANAGE": "Manage integrations",
+      "FACEBOOK_CONNECT_MANAGE": "Connect & manage Facebook accounts",
+      "CHANNEL_LINK_MANAGE": "Link & manage channels",
+      "BACKUP_PAGE_MANAGE": "Manage backup pages",
+      "GAME_CREDENTIALS_MANAGE": "Manage game credentials",
+      "PAYMENT_HANDLE_MANAGE": "Manage payment handles",
+      "SECRETS_MANAGE": "Manage secrets",
+      "INCIDENT_PAUSE_AI": "Pause AI during incidents",
+      "BROADCAST_SEND": "Send broadcasts",
+      "BULK_REASSIGN": "Bulk reassign conversations",
+      "CONTACT_PII_FULL": "See full contact names",
+      "CONTACT_PII_FIRST_NAME": "See first name only",
+      "CONTACT_PII_HIDDEN": "Hide contact names"
     },
     "FORM": {
       "NAME": {

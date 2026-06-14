@@ -31,6 +31,18 @@
 #   of the default; lets the owner pick first-name in the role editor. Mutually exclusive with the other two.
 # - 'contact_pii_hidden': Name-privacy => player name fully hidden ("Player").
 #   When no contact_pii_* key is present the role still sees first-name-only (the default).
+# Patra (it8) additions — the full Patra capability universe surfaced in the role editor.
+# Enforcement status (honest: vocabulary present here != enforced everywhere yet):
+# - 'message_edit_delete': ENFORCED — gates editing/deleting sent messages (it8 B3, messages controller).
+# - 'view_all_inboxes' / 'money_action_manage' / 'contact_pii_*': ENFORCED (it7) via assigned_inboxes /
+#   MoneyActionGuard / ContactPrivacy.
+# - owner-only MAIN features are delegated via MainFeatureGuard grants, listed here only so the editor
+#   can present them: facebook_connect_manage, payment_handle_manage, backup_page_manage,
+#   game_credentials_manage, secrets_manage.
+# - 'cashout_approve', 'report_view', 'team_manage', 'settings_manage', 'integrations_manage',
+#   'channel_link_manage', 'incident_pause_ai', 'broadcast_send', 'bulk_reassign': capability VOCABULARY
+#   — each enforced at its own controller/guard as that endpoint adopts the check. NO billing_manage:
+#   billing is owner-only Account Settings, never a delegable team capability.
 
 class CustomRole < ApplicationRecord
   belongs_to :account
@@ -48,6 +60,21 @@ class CustomRole < ApplicationRecord
     contact_pii_full
     contact_pii_first_name
     contact_pii_hidden
+    cashout_approve
+    message_edit_delete
+    team_manage
+    settings_manage
+    integrations_manage
+    facebook_connect_manage
+    channel_link_manage
+    backup_page_manage
+    game_credentials_manage
+    payment_handle_manage
+    secrets_manage
+    incident_pause_ai
+    broadcast_send
+    bulk_reassign
+    report_view
   ].freeze
 
   validates :name, presence: true

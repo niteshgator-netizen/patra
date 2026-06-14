@@ -5,6 +5,25 @@ export const AVAILABLE_CUSTOM_ROLE_PERMISSIONS = [
   'contact_manage',
   'report_manage',
   'knowledge_base_manage',
+  // Patra capability universe (it7 + it8). Name-privacy (contact_pii_*) is rendered as a
+  // dedicated 3-state selector in the Team & Roles screen, not as flat checkboxes here.
+  'view_all_inboxes',
+  'money_action_manage',
+  'cashout_approve',
+  'message_edit_delete',
+  'report_view',
+  'team_manage',
+  'settings_manage',
+  'integrations_manage',
+  'facebook_connect_manage',
+  'channel_link_manage',
+  'backup_page_manage',
+  'game_credentials_manage',
+  'payment_handle_manage',
+  'secrets_manage',
+  'incident_pause_ai',
+  'broadcast_send',
+  'bulk_reassign',
 ];
 
 export const ROLES = ['agent', 'administrator'];
