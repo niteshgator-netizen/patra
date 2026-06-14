@@ -136,6 +136,21 @@ class Account < ApplicationRecord
     users.where(account_users: { role: :administrator })
   end
 
+  # Patra workspace OWNER = the user who created this workspace. We model the creator as the
+  # administrator membership that was not invited by anyone (inviter_id NULL). If that is
+  # missing/ambiguous we fall back to the earliest administrator (lowest account_user id).
+  # Returns a User (or nil). Memoized per instance; every DB call rescued to nil.
+  def owner
+    return @owner if defined?(@owner)
+
+    @owner = begin
+      admin_links = account_users.where(role: :administrator)
+      (admin_links.where(inviter_id: nil).order(:id).first || admin_links.order(:id).first)&.user
+    rescue StandardError
+      nil
+    end
+  end
+
   def all_conversation_tags
     # returns array of tags
     conversation_ids = conversations.pluck(:id)

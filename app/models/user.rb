@@ -137,6 +137,16 @@ class User < ApplicationRecord
     administrator? ? Current.account.inboxes : inboxes.where(account_id: Current.account.id)
   end
 
+  # Patra: true iff this user is the OWNER (creator) of the given account. Used by the
+  # main-feature guard so the owner always passes. Safe: blank/odd input rescues to false.
+  def owner_of?(account)
+    return false if account.blank?
+
+    account.respond_to?(:owner) && account.owner == self
+  rescue StandardError
+    false
+  end
+
   def serializable_hash(options = nil)
     super(options).merge(confirmed: confirmed?)
   end
