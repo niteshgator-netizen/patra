@@ -5061,6 +5061,14 @@ module Games
     # ApprovalRequest; approval pays the referrer through the normal load path
     # (Approvals::AutoResume load branch).
     def handle_referral(intent)
+      # bp GroupD-Referral: a pure QUESTION about the deal ("what's your referral
+      # bonus", "how does referral work") just states the policy — it does NOT
+      # create a referral record or escalate (those are for an actual claim).
+      # Misclassification is money-safe either way (info reply vs escalate).
+      if referral_info_question?(latest_customer_text || recent_customer_text)
+        return { reply: referral_policy_summary, labels: ['referral-info'] }
+      end
+
       referral = begin
         Games::ReferralBonusService.create(account: account, referrer_contact: contact)
       rescue StandardError => e
@@ -5072,10 +5080,39 @@ module Games
       if pref.respond_to?(:referral_enabled) && pref.referral_enabled
         # Configured ON: the BUG-4 auto-pay path fires from link_referred once
         # the referred player is linked (and deposits, if required). Just ack.
-        return { reply: "thanks for the referral! i've noted it - your bonus hits as soon as your friend gets going", labels: ['referral-pending'] }
+        return { reply: "thanks for the referral! #{referral_policy_summary} — your bonus lands once your friend gets going", labels: ['referral-pending'] }
       end
 
       escalate_referral_claim(referral)
+    end
+
+    # bp GroupD-Referral: clear, policy-accurate summary built ONLY from the
+    # settings referral_reward_amount already uses — no new/unverified keys, and
+    # NO fabricated referee name or deposit count (Bella does not have those at
+    # claim time; the referee links only when they create an account).
+    def referral_policy_summary
+      mode = (generosity_setting('referral_reward_mode').presence || 'percent_of_deposit').to_s.strip
+      fixed = generosity_setting('referral_fixed_amount').to_f
+      if mode == 'fixed' && fixed.positive?
+        "you get $#{fmt_amt(fixed)} once your friend signs up and makes their first deposit"
+      else
+        pct = generosity_setting('referral_percent').to_f
+        pct = 10.0 unless pct.positive?
+        "you get #{pct.to_i}% of your friend's first deposit once they sign up and load"
+      end
+    rescue StandardError
+      'lemme grab our current referral deal for you — one sec'
+    end
+
+    # bp GroupD-Referral: a referral message ASKING about the deal, not claiming a
+    # bonus. Conservative: needs a referral word + a question word and NO claim
+    # signal ("i referred", "my referral bonus", "get my", "got them/her/him").
+    def referral_info_question?(text)
+      t = text.to_s
+      return false unless t.match?(/\brefer(?:ral|rals|red|s)?\b/i)
+      return false if t.match?(/\bi\s+referr?ed\b|\bmy\s+referral\s+bonus\b|\bget\s+my\b|\bgot\s+(?:them|her|him|'?em)\b/i)
+
+      t.match?(/\b(?:what|what'?s|whats|how|how'?s|hows|do\s+(?:you|u|yall|y'?all)|got\s+any|any|explain|tell\s+me)\b/i)
     end
 
     # G3 - reward math: 'fixed' -> referral_fixed_amount; 'percent_of_deposit'
