@@ -34,6 +34,17 @@ RSpec.describe 'PATRA_RESTRICT_MONEY_ACTIONS dark flag', type: :request do
       expect(response).to have_http_status(:success)
     end
 
+    it 'allows an agent whose custom_role grants money_action_manage (cashier)' do
+      cashier_role = create(:custom_role, account: account, permissions: ['money_action_manage'])
+      account.account_users.find_by(user_id: agent.id).update!(custom_role: cashier_role)
+
+      with_modified_env PATRA_RESTRICT_MONEY_ACTIONS: 'true' do
+        patch pref_url, params: payload, headers: agent.create_new_auth_token, as: :json
+      end
+
+      expect(response).to have_http_status(:success)
+    end
+
     it 'blocks agents from load_player' do
       agent_game = create(:agent_game, account: account)
 
