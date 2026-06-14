@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::BackupPagesController < Api::V1::Accounts::BaseController
+  include Patra::MainFeatureGuard
+
   before_action :fetch_page, only: [:show, :update, :destroy]
-  # Backup pages hold page access tokens (ban-recovery infra) — mutations are admin-only.
-  before_action :check_admin_authorization?, only: [:create, :update, :destroy, :reorder]
+  # Backup pages hold page access tokens (ban-recovery infra) — mutations are owner / granted-manager only.
+  before_action(only: [:create, :update, :destroy, :reorder]) { check_main_feature_authorization!(:backup_pages) }
 
   def index
     render json: Current.account.backup_pages.ordered

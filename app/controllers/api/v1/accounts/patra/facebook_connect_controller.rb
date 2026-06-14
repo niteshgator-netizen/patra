@@ -1,7 +1,10 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::BaseController
-  before_action :check_admin_authorization?
+  include Patra::MainFeatureGuard
+
+  # Owner always; a manager only if granted :facebook_connections; support/agents denied.
+  before_action { check_main_feature_authorization!(:facebook_connections) }
   before_action :validate_fb_connect_pages_limit!, only: [:fb_connect_pages]
 
   def fb_connect

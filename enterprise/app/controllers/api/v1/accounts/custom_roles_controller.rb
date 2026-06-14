@@ -1,6 +1,10 @@
 class Api::V1::Accounts::CustomRolesController < Api::V1::Accounts::EnterpriseAccountsController
+  include Patra::MainFeatureGuard
+
   before_action :fetch_custom_role, only: [:show, :update, :destroy]
   before_action :check_authorization
+  # Creating/editing/deleting roles is a main feature: owner / granted-manager only.
+  before_action(only: [:create, :update, :destroy]) { check_main_feature_authorization!(:roles) }
 
   def index
     @custom_roles = Current.account.custom_roles

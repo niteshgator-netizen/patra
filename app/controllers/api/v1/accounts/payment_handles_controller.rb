@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::PaymentHandlesController < Api::V1::Accounts::BaseController
+  include Patra::MainFeatureGuard
+
   before_action :fetch_payment_handle, except: [:index, :create]
   before_action :check_authorization
+  # Mutations are owner / granted-manager only; index + ledger stay readable to authorized agents.
+  before_action(only: [:create, :update, :destroy]) { check_main_feature_authorization!(:payment_handles) }
 
   def index
     @handles = policy_scope(Current.account.payment_handles).order(:platform, :priority)

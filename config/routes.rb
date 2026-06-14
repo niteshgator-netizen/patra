@@ -478,6 +478,8 @@ Rails.application.routes.draw do
           end
           resources :patra_audit_logs, only: [:index]
           resources :patra_agent_feedbacks, only: [:index, :create, :update]
+          # Patra (it7) — owner-only main-feature grants for managers (:id = account_user id)
+          resources :main_feature_grants, only: [:show, :update]
           resources :approval_requests, only: [:index] do
             member do
               post :approve

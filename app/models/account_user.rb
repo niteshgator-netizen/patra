@@ -57,6 +57,12 @@ class AccountUser < ApplicationRecord
     administrator? ? ['administrator'] : ['agent']
   end
 
+  # Patra (it7): has this membership been granted a specific owner-only "main feature"?
+  # granted_main_features is a jsonb array column (default []). Array() guards a nil/legacy row.
+  def granted?(feature)
+    Array(granted_main_features).include?(feature.to_s)
+  end
+
   def push_event_data
     {
       id: id,
