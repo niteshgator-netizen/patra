@@ -2550,7 +2550,16 @@ class Ai::ReplyService
       /\b(?:cash\s*out|cashout|payout|winnings)\b[^.!?\n]{0,20}\b(?:sent|paid|done|completed|processed|went\s+out)\b/i,
       /\b(?:payout|cashout|cash\s*out)\b[^.!?\n]{0,12}\bprocessed\b/i,
       /\bpaid\s+out\s+(?:your|the|it)\b/i,
-      /\bwent\s+out\s+(?:a\s+min|already|just\s+now)\b/i
+      /\bwent\s+out\s+(?:a\s+min|already|just\s+now)\b/i,
+      # bp: bare past-tense "paid" as Bella's OWN completion claim — no checkmark,
+      # no cashout keyword, no i/we subject (e.g. "Sure Paid hun", "Paid", "ok
+      # paid now"). Either the reply OPENS with paid (after light filler) OR it's
+      # paid + endearment/now/already. Customer-direction "you paid" / "once
+      # you've paid" / "get paid?" don't open with paid and aren't paid+<list>,
+      # so they pass. A TRUE payout still clears via the recent-cashout evidence
+      # gate below; only an unbacked claim is rewritten to the defer line.
+      /\A\s*(?:sure|ok|okay|yes|yep|yeah|aight|alright|done|got\s*it|lmc|k|np|all\s+good)?[\s,!.]*paid\b/i,
+      /\bpaid\s+(?:hun|love|babe|boo|fam|bro|sis|dear|now|already)\b/i
     ]
 
     claim_kind =
