@@ -27,6 +27,11 @@ class Enterprise::Billing::ReconcilePlanFeaturesService
     account.disable_features(*PREMIUM_PLAN_FEATURES)
     account.enable_features(*current_plan_features)
     account.enable_features(*manually_managed_features)
+    # Patra (it8 A6): Custom Roles is a base Patra capability — the entire RBAC layer is inert
+    # without it — so it must survive a plan-reconcile strip regardless of the account's billing
+    # plan. Re-enable unconditionally after the standard reconcile. Reversible: delete this line
+    # to restore stock Chatwoot behavior (custom_roles back to Business-tier only).
+    account.enable_features('custom_roles')
     account.save!
   end
 
