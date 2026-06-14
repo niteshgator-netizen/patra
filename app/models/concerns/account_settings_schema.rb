@@ -58,7 +58,11 @@ module AccountSettingsSchema
           'active': { 'type': %w[boolean null] }
         },
         'additionalProperties': false
-      }
+      },
+      # it8 — negotiation margin: how many extra % above each ACTIVE bonus Bella may offer
+      # on her own before she must escalate to a human. Default applied at read-time in
+      # Games::PolicyResolver#negotiation_margin (5). Capped 0–20 so it can't be set absurdly high.
+      'negotiation_margin': { 'type': %w[integer null], 'minimum': 0, 'maximum': 20 }
     },
     'additionalProperties': false
   }.freeze
