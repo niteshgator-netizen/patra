@@ -10,7 +10,6 @@ class Api::V1::Accounts::Patra::FacebookIdentitiesController < Api::V1::Accounts
   end
 
   def destroy
-    @identity.inboxes.update_all(facebook_identity_id: nil) if @identity.respond_to?(:inboxes)
     @identity.destroy!
     render json: { success: true }
   rescue StandardError => e
