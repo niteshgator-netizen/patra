@@ -134,7 +134,13 @@ class User < ApplicationRecord
   end
 
   def assigned_inboxes
-    administrator? ? Current.account.inboxes : inboxes.where(account_id: Current.account.id)
+    # DEFAULT (unchanged): administrators see every inbox; agents see only their membership-scoped
+    # inboxes. Patra (it7) overlay: an agent whose custom_role grants 'view_all_inboxes' also sees
+    # every inbox (support/manager emergency coverage). Assignment/round-robin is untouched.
+    return Current.account.inboxes if administrator?
+    return Current.account.inboxes if view_all_inboxes?
+
+    inboxes.where(account_id: Current.account.id)
   end
 
   # Patra: true iff this user is the OWNER (creator) of the given account. Used by the
@@ -223,6 +229,17 @@ class User < ApplicationRecord
   end
 
   private
+
+  # Patra (it7): does this user's custom_role for the CURRENT account include 'view_all_inboxes'?
+  # Resolves the membership the same N+1-safe way administrator? does (current_account_user). Any
+  # error (no Current.account, no membership, no custom_role) falls back to false so the default
+  # membership-scoped visibility is preserved.
+  def view_all_inboxes?
+    permissions = current_account_user&.custom_role&.permissions
+    permissions.present? && permissions.include?('view_all_inboxes')
+  rescue StandardError
+    false
+  end
 
   def remove_macros
     macros.personal.destroy_all
