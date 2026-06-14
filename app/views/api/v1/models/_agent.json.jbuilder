@@ -12,3 +12,5 @@ json.name resource.name
 json.role resource.role
 json.thumbnail resource.avatar_url
 json.custom_role_id resource.current_account_user&.custom_role_id if ChatwootApp.enterprise?
+# Patra (it7): true only for the workspace owner (creator). Other administrators are "managers".
+json.is_owner resource.id == Current.account&.owner&.id
