@@ -290,6 +290,8 @@ module Games
         handle_multi_op(intent)
       when :cashout
         handle_cashout_intent(intent)
+      when :hold
+        handle_hold(intent)
       when :username_provided
         handle_username_provided(intent)
       when :request_account_creation
@@ -3073,6 +3075,49 @@ module Games
     # actually record the kept remainder. Used ONLY behind MULTI_OP_KEEPIN_ENABLED.
     def multi_op_keepin_request?(text)
       text.to_s.match?(/\b(?:keep|leave)\s+(?:the\s+)?\$?\d+(?:\.\d{1,2})?/i)
+    end
+
+    # bp GroupD-Hold: a "hold N" parks winnings. Bella does NOT cash out and does
+    # NOT store the held amount as a deposit (storing it would inflate the 4x/10x
+    # cashout math). Any fresh deposit in the same message goes through the normal
+    # GATED load path (handle_load_intent — payment screenshot + username gates).
+    # The running held total is read from conversation history, not a ledger.
+    # The team gets the full picture on Telegram.
+    def handle_hold(intent)
+      hold_amount = intent[:amount].to_f
+      return nil unless hold_amount.positive?
+
+      msg = (latest_customer_text || recent_customer_text).to_s
+      game_slug = chosen_game_slug(intent)
+      dep_m = msg.match(/(?:deposit|load|put|add)\s+\$?(\d+(?:\.\d{1,2})?)/i)
+      deposit_amount = dep_m ? dep_m[1].to_f : nil
+
+      deposit_reply = nil
+      if deposit_amount&.positive?
+        dep = handle_load_intent({ intent: :load, amount: deposit_amount, game_slug: game_slug })
+        deposit_reply = dep[:reply] if dep.is_a?(Hash)
+      end
+
+      safe_telegram do
+        Games::TelegramNotifier.human_escalation(
+          account: account, contact: contact,
+          reason: escalation_context(
+            wants: "to HOLD $#{fmt_amt(hold_amount)}#{game_slug ? " on #{game_slug}" : ''} (park it — NOT a cashout)",
+            done: deposit_amount&.positive? ? "fresh deposit $#{fmt_amt(deposit_amount)} sent through the normal gated load path" : 'no deposit leg',
+            left: "holding $#{fmt_amt(hold_amount)} in the game — NOTHING cashed out, nothing recorded as a deposit",
+            suggest: 'leave the held amount in play; clear it only if/when it is actually paid',
+            need: 'no action needed unless the held amount is later cashed/paid'
+          ),
+          conversation: conversation
+        )
+      end
+
+      reply = "got it — holding $#{fmt_amt(hold_amount)} for you, not cashing that out"
+      reply = "#{deposit_reply} #{reply}" if deposit_reply.present?
+      { reply: reply, labels: ['hold'] }
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] handle_hold failed: #{e.class}: #{e.message}")
+      nil
     end
 
     # E3: the pick menu must never loop. Order: (1) a platform this
