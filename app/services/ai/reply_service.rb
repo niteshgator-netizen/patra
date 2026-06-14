@@ -2656,7 +2656,7 @@ class Ai::ReplyService
   # enabled GameRule deposit_bonus_percentage, or the player's stored
   # bonus_percent_override / preferred_bonus_percentage). Plain percents with
   # no promise wording pass through. Fails open on any error.
-  BONUS_PROMISE_CONTEXT = /\b(?:bonus|match(?:ing)?|promo|extra|still\s+on|on\s+for\s+you|you\s+get|you'?ll\s+(?:get|see)|rate|pays?\s+out|comes?\s+(?:out\s+)?to|up\s+to|referral|between\s+us|call\s+it|we(?:'?re|\s+are)\s+at|i\s+got\s+(?:you|ya|u)\s+at|i'?ll\s+(?:give|add|throw|do|make|stretch)|i\s+can\s+(?:give|do|stretch)|stretch\s+it)\b/i
+  BONUS_PROMISE_CONTEXT = /\b(?:bonus|match(?:ing)?|promo|extra|still\s+on|on\s+for\s+you|you\s+get|you'?ll\s+(?:get|see)|rate|pays?\s+out|comes?\s+(?:out\s+)?to|up\s+to|referral|deposits?|sign[\s-]?up|between\s+us|call\s+it|we(?:'?re|\s+are)\s+at|i\s+got\s+(?:you|ya|u)\s+at|i'?ll\s+(?:give|add|throw|do|make|stretch)|i\s+can\s+(?:give|do|stretch)|stretch\s+it)\b/i
 
   def guard_against_unconfigured_bonus_claim(reply_text)
     return reply_text if reply_text.to_s.strip.empty?
@@ -2667,12 +2667,22 @@ class Ai::ReplyService
     return reply_text unless scan.match?(BONUS_PROMISE_CONTEXT)
 
     allowed = configured_bonus_percents
-    stray = percents.reject { |p| allowed.include?(p.to_f) }
+    # it8 — a % is allowed if it's an exact configured value OR within an active bonus's
+    # negotiation band (configured..configured+margin). So 30-35 / 50-55 pass; 40 stays stray.
+    bands = bonus_negotiation_bands
+    stray = percents.map(&:to_f).reject { |p| allowed.include?(p) || bands.any? { |lo, hi| p >= lo && p <= hi } }
     return reply_text if stray.empty?
 
     Rails.logger.warn("[ReplyService] BLOCKED_UNCONFIGURED_BONUS_CLAIM stray=#{stray.join(',')} reply=#{reply_text.inspect[0..120]}")
     add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
-    'lemme double check what bonus is running for you rn — one sec 🙏'
+    # it8 — a % above the ceiling means the customer is pushing for more than Bella may grant.
+    # When we know the ceiling, escalate for human approval instead of a generic stall.
+    if bands.any?
+      escalate_bonus_ceiling!(wanted: stray.max, bands: bands)
+      'let me check with my team on that 🙏'
+    else
+      'lemme double check what bonus is running for you rn — one sec 🙏'
+    end
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] bonus claim guard failed: #{e.class}: #{e.message}")
     reply_text
@@ -2718,7 +2728,13 @@ class Ai::ReplyService
     /\bi\s+got\s+(?:you|ya|u)\s+at\s+\$?\d/i,
     /\bround\s+(?:it\s+)?(?:up\s+|down\s+)?to\s+\$?\d/i,
     /\bbetween\s+us[,: ]+\$?\d/i,
-    /\b\d+\s*:\s*\d+\b/
+    /\b\d+\s*:\s*\d+\b/,
+    # it8 — bare agreement to a bonus % ("ok 40%", "yeah 40 percent", "40% it is") AND a standalone
+    # percent reply ("41%") so a caved-in number engages the ceiling check even without haggle
+    # phrasing. % required; standalone is 1-99 only so agreement slang "100%" and "ok, 2 min" stay free.
+    /\b(?:ok|okay|kk|yeah|yea|yep|yup|sure|fine|deal|done|alright|aight|cool|word)[,!.]*\s*\$?\d{1,3}\s*(?:%|percent\b)/i,
+    /\b\d{1,3}\s*(?:%|percent)\s*(?:it\s+is|works|then|for\s+(?:you|ya|u)|sounds?\s+good)\b/i,
+    /\A\s*\$?[1-9]\d?\s*(?:%|percent\b)[\s.!🙏]*\z/i
   )
   # promise to ADD value — blocked when money-flavored AND a money object follows the verb
   # (so "throw in the screenshot" / "add the extra info to your ticket" pass). The fix/sort
@@ -2745,14 +2761,34 @@ class Ai::ReplyService
     # smuggle a freelance phrase past the patterns.
     scan = normalize_guard_text(reply_text)
     has_number = scan.match?(/[$%]|\b\d/)
-    blocked = scan.match?(POLICY_ALWAYS_BLOCK) ||
-              (has_number && scan.match?(POLICY_NEGOTIATION_PATTERNS)) ||
-              (scan.match?(MONEY_FLAVOR) && scan.match?(POLICY_ADD_PATTERNS))
-    return reply_text unless blocked
+    always_block = scan.match?(POLICY_ALWAYS_BLOCK)
+    add_promise = scan.match?(MONEY_FLAVOR) && scan.match?(POLICY_ADD_PATTERNS)
+    negotiating = (has_number && scan.match?(POLICY_NEGOTIATION_PATTERNS)) || add_promise
+    return reply_text unless always_block || negotiating
+
+    # it8 — negotiation up to the configured ceiling is now ALLOWED. A reply that ONLY offers a
+    # bonus % is fine when every % is an exact configured value OR within an active band
+    # (configured..configured+margin), and there's no $-haggle / promise-to-add / match-double.
+    bands = bonus_negotiation_bands
+    allowed = configured_bonus_percents
+    ok_pct = ->(p) { allowed.include?(p) || bands.any? { |lo, hi| p >= lo && p <= hi } }
+    percents = scan.scan(/(\d{1,3}(?:\.\d{1,2})?)\s*(?:%|percent\b)/i).flatten.map(&:to_f)
+    has_dollar = scan.match?(/\$\s*\d/)
+    if !always_block && !add_promise && !has_dollar && percents.any? && percents.all?(&ok_pct)
+      return reply_text
+    end
 
     Rails.logger.warn("[ReplyService] BLOCKED_POLICY_FREELANCE reply=#{reply_text.inspect[0..120]}")
     add_conversation_labels!(%w[blocked-false-action-claim]) rescue nil
-    'lemme confirm what we got going for you right now — one sec 🙏'
+    # it8 — a bonus % ABOVE the ceiling escalates for human approval (never granted on her own);
+    # a $-haggle or match/double promise keeps the safe defer (no number to approve).
+    above = percents.reject(&ok_pct)
+    if !always_block && above.any? && bands.any?
+      escalate_bonus_ceiling!(wanted: above.max, bands: bands)
+      'let me check with my team on that 🙏'
+    else
+      'lemme confirm what we got going for you right now — one sec 🙏'
+    end
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] policy freelance guard failed: #{e.class}: #{e.message}")
     reply_text
@@ -2837,6 +2873,49 @@ class Ai::ReplyService
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] configured_bonus_percents failed: #{e.class}: #{e.message}")
     []
+  end
+
+  # it8 — [floor, ceiling] bonus bands from the LIVE policy (configured..configured+margin).
+  # The negotiation guards consume this so the margin is read from settings, never hardcoded.
+  # [] when no policy/active bonus => callers fall back to exact-configured / safe defer.
+  def bonus_negotiation_bands
+    policy_resolver&.negotiable_bonus_bands || []
+  rescue StandardError
+    []
+  end
+
+  # it8 — a customer pushing a bonus % ABOVE the ceiling is never granted by Bella on her own.
+  # Fire a human-approval escalation to Telegram with full context (wants X%, configured Y%,
+  # ceiling Z%). Best-effort and fully wrapped in rescue — must NEVER block the customer reply.
+  def escalate_bonus_ceiling!(wanted:, bands:)
+    return unless defined?(Games::TelegramNotifier)
+
+    esc_account = Account.find_by(id: account_id)
+    return unless esc_account
+
+    esc_contact_id = begin
+      fetch_sender_contact_id
+    rescue StandardError
+      nil
+    end
+    esc_contact = esc_contact_id ? esc_account.contacts.find_by(id: esc_contact_id) : nil
+    esc_conv = @conversation_id ? esc_account.conversations.find_by(display_id: @conversation_id) : nil
+    floors = bands.map { |lo, _hi| lo.to_i }.join('/')
+    ceils  = bands.map { |_lo, hi| hi.to_i }.join('/')
+    player_msg = @routing_last_incoming_raw_content.to_s.strip[0..160]
+    Games::TelegramNotifier.human_escalation(
+      account: esc_account,
+      contact: esc_contact,
+      reason: "BONUS ABOVE CEILING - needs approval | " \
+              "PLAYER WANTS: #{wanted.nil? ? 'more than allowed' : "#{wanted.to_i}%"} | " \
+              "CONFIGURED: #{floors}% | CEILING (configured+margin): #{ceils}% | " \
+              "PLAYER MSG: #{player_msg.empty? ? 'see conversation' : player_msg} | " \
+              "ALREADY DONE: Bella held at the ceiling and said she'd check with the team | " \
+              "NEEDS FROM HUMAN: approve a higher % (then reply by hand) or decline",
+      conversation: esc_conv
+    )
+  rescue StandardError => e
+    Rails.logger.error("[ReplyService] bonus-ceiling escalation failed conv=#{@conversation_id}: #{e.class}: #{e.message}")
   end
 
   # Payfix output guard: any $/@ tag in the reply that is NOT an exact active
@@ -3258,7 +3337,7 @@ class Ai::ReplyService
     resolver = policy_resolver
     return '' unless resolver&.configured?
 
-    lines = ["\nACTIVE PROMOTIONS & POLICY (state ONLY these — never invent, negotiate, or promise to add):"]
+    lines = ["\nACTIVE PROMOTIONS & POLICY (quote these directly when asked — never invent or exceed them):"]
     active = resolver.active_bonuses
     if active.any?
       active.each do |b|
@@ -3289,7 +3368,13 @@ class Ai::ReplyService
       lines << "  - Cashout: #{cb.join(', ')}" if cb.any?
       lines << "  - Cashout terms: #{c['terms_text']}" if c['terms_text'].to_s.strip.length.positive?
     end
-    lines << '  RULE: if a customer wants more, a different bonus, or one not listed/active now — say you will confirm. NEVER invent a number, negotiate, or promise to add/throw in a bonus.'
+    margin = resolver.negotiation_margin
+    if active.any? && margin.positive?
+      ceilings = resolver.active_bonus_ceilings.map(&:to_i).join('/')
+      lines << "  NEGOTIATION: answer a bonus question with the actual % above — never stall. If a customer pushes for more, you MAY offer up to +#{margin}% over a listed bonus (ceiling: #{ceilings}%); offer it directly (best i can do is X% style). For ANYTHING above the ceiling, say you'll check with your team — it gets escalated for approval. NEVER promise above the ceiling yourself, never invent a number, and never promise to add/throw in a bonus that isn't listed."
+    else
+      lines << '  RULE: if a customer wants more, a different bonus, or one not listed/active now — say you will confirm. NEVER invent a number, negotiate, or promise to add/throw in a bonus.'
+    end
     lines.join("\n")
   rescue StandardError => e
     Rails.logger.warn("[ReplyService] agent_policy_prompt_section failed: #{e.class}: #{e.message}")
