@@ -23,6 +23,12 @@
 # - 'contact_manage': Can manage contacts.
 # - 'report_manage': Can manage reports.
 # - 'knowledge_base_manage': Can manage knowledge base portals.
+# Patra (it7) additions:
+# - 'view_all_inboxes': Can see every inbox regardless of assignment (support/manager emergency coverage).
+# - 'money_action_manage': Can perform money actions when PATRA_RESTRICT_MONEY_ACTIONS=true.
+# - 'contact_pii_full': Name-privacy => sees the FULL player name. Mutually exclusive with contact_pii_hidden.
+# - 'contact_pii_hidden': Name-privacy => player name fully hidden ("Player").
+#   When neither contact_pii_* is present the role sees first-name-only (the default).
 
 class CustomRole < ApplicationRecord
   belongs_to :account
@@ -35,6 +41,10 @@ class CustomRole < ApplicationRecord
     contact_manage
     report_manage
     knowledge_base_manage
+    view_all_inboxes
+    money_action_manage
+    contact_pii_full
+    contact_pii_hidden
   ].freeze
 
   validates :name, presence: true
