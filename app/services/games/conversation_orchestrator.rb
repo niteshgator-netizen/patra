@@ -774,6 +774,17 @@ module Games
       (tier.presence || generosity_setting('freeplay_amount').presence || rules&.freeplay_amount.presence || 5.0).to_f
     end
 
+    # it9 — hard ceiling on any single freeplay grant. account custom_attributes['freeplay_cap']
+    # (via generosity_setting), default 5.0; non-positive/garbage falls back to 5.0. Money-safe:
+    # only ever clamps a grant DOWN, so it can prevent an over-grant but never create one.
+    def freeplay_cap_setting
+      v = generosity_setting('freeplay_cap')
+      n = v.present? ? Float(v.to_s, exception: false) : nil
+      n && n.positive? ? n : 5.0
+    rescue StandardError
+      5.0
+    end
+
     # MEGA2 P5 - minimum confirmed real deposits before any freeplay grant.
     # Default 1; explicit 0 disables the guard; garbage values fall back to 1.
     def freeplay_min_deposits_setting
@@ -906,6 +917,10 @@ module Games
 
     # G1 - the actual freeplay load (TABA-1 single record, freeplay flag set).
     def execute_freeplay_load(game_slug, fp_amount, rules, source:)
+      # it9 — hard safety ceiling: a freeplay grant can NEVER exceed the cap, no matter what the
+      # amount setting says (guards a fat-fingered freeplay_amount). Cap = account
+      # custom_attributes['freeplay_cap'] (default 5). Clamps DOWN only — never raises a grant.
+      fp_amount = [fp_amount.to_f, freeplay_cap_setting].min
       username = find_game_username_for_slug(contact, game_slug)
       unless username
         store_pending_question!('create_account_offer', game_slug: game_slug)
@@ -972,6 +987,9 @@ module Games
 
     # G1b - the unconfigured default: full case to Telegram + pending approval.
     def escalate_freeplay_ask(game_slug, fp_amount)
+      # it9 — cap the amount we ask a human to approve, so the approval-resume load (auto_resume)
+      # can never execute a freeplay above the cap either. Same ceiling as execute_freeplay_load.
+      fp_amount = [fp_amount.to_f, freeplay_cap_setting].min
       if recent_generosity_rejection?('bella_freeplay')
         log_generosity_decision(kind: 'freeplay', decision: 'denied', amount: 0, source: 'operator_reject')
         return { reply: "can't do freeplay for you right now - load up and i'll take care of you on the next one", labels: ['freeplay-denied'] }
