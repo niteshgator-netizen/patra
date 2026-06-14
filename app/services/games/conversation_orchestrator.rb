@@ -3045,7 +3045,7 @@ module Games
                        cashout_legs.size == 1 &&
                        multi_op_keepin_request?(latest_customer_text || recent_customer_text)
       cashout_legs.each do |l|
-        collect.call(keepin_compose ? handle_redeem_partial_replay(l) : handle_cashout_intent(l))
+        collect.call(keepin_compose ? handle_redeem_partial_replay(l, enforce_cashout_bounds: true) : handle_cashout_intent(l))
       end
 
       # 3) STATUS leg: handle_status_check can itself finish an unloaded payment (it calls
@@ -5189,7 +5189,7 @@ module Games
       { reply: "thanks for the referral! i've flagged it - your reward lands once a teammate confirms it", labels: %w[referral-pending needs-human] }
     end
 
-    def handle_redeem_partial_replay(intent)
+    def handle_redeem_partial_replay(intent, enforce_cashout_bounds: false)
       game_slug = chosen_game_slug(intent)
       unless game_slug
         store_pending_question!('which_game', flow: 'partial_redeem')
@@ -5200,7 +5200,17 @@ module Games
       # TAB A fix: prefer the number right after the cashout verb - first-number
       # parsing cashed out the wrong amount on "keep 30 in and cash out 50".
       verb_m = msg.match(/(?:cash\s*out|cashout|redeem|withdraw|payout|take\s+out)\s+\$?(\d+(?:\.\d{1,2})?)/i)
-      amount = verb_m ? verb_m[1].to_f : msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+      # it9 Q2 — keep-in compose ONLY (enforce_cashout_bounds): the cashout amount comes from the
+      # CASHOUT LEG — the detector-verified leg amount, else the number right after a cashout verb —
+      # NEVER the raw first-number scan (which can grab the load/keep leg's number). The direct and
+      # pending partial-redeem call sites pass false, so their legacy parse is byte-identical.
+      amount =
+        if enforce_cashout_bounds
+          leg_amt = intent.is_a?(Hash) ? intent[:amount].to_f : 0.0
+          leg_amt.positive? ? leg_amt : (verb_m ? verb_m[1].to_f : nil)
+        else
+          verb_m ? verb_m[1].to_f : msg.scan(/\$?(\d+(?:\.\d{1,2})?)/).flatten.first&.to_f
+        end
       # R5 - the kept-in amount ("cash out 30, keep 20" -> 20). Recorded after a
       # successful cashout as a NEW deposit so it drives the next rules.
       keep_m = msg.match(/(?:keep|leave)\s+(?:the\s+)?\$?(\d+(?:\.\d{1,2})?)/i)
@@ -5224,6 +5234,12 @@ module Games
       if recent_cashout_duplicate?(agent_game: ag, amount: amount)
         Rails.logger.info("[Orchestrator] redeem-partial DEDUP: $#{fmt_amt(amount)} on #{ag.game.name} within #{CASHOUT_DEDUP_WINDOW_SECONDS}s — skipping duplicate")
         return { reply: "already processing your $#{fmt_amt(amount)} cashout — hang tight!", labels: ['partial-cashout', 'duplicate-skipped'] }
+      end
+      # it9 Q4 — keep-in compose ONLY: enforce the SAME 4x/10x min/max bounds the normal cashout
+      # path enforces, BEFORE the panel cashout, so a keep-in combo can never compose a cashout
+      # below min or above max. Out of bounds returns the normal path's defer message.
+      if enforce_cashout_bounds && (bounds = cashout_bounds_message(game_slug, amount))
+        return bounds
       end
       result = executor.cashout_player(
         game_username: username,
@@ -5264,6 +5280,45 @@ module Games
           labels: ['cashout-failed', 'needs-human']
         }
       end
+    end
+
+    # it9 Q4 — the SAME min/max validation handle_cashout_intent runs, factored so the keep-in
+    # compose path can reuse it. Returns a {reply, labels} defer when the requested cashout is below
+    # the per-deposit minimum or above the max; nil when in bounds (or no GameRule to enforce,
+    # mirroring handle_cashout_intent). Fail-CLOSED on error: a defer, never a silent out-of-bounds
+    # auto-cashout.
+    def cashout_bounds_message(game_slug, requested_amount)
+      return nil unless requested_amount
+
+      game = Game.find_by(slug: game_slug)
+      rules = game ? GameRule.find_by(account_id: conversation.account_id, game_id: game.id) : nil
+      return nil unless rules
+
+      last_dep = last_deposit_for_cashout(game_slug)
+      if last_dep && last_dep[:type] == 'freeplay'
+        min_cashout = last_dep[:amount] * (rules.cashout_freeplay_multiplier || 5).to_f
+        max_cashout = (rules.cashout_freeplay_max || 50).to_f
+      elsif last_dep
+        min_cashout = last_dep[:amount] * (rules.cashout_min_multiplier || 4).to_f
+        max_cashout = [last_dep[:amount] * (rules.cashout_max_multiplier || 10).to_f, (rules.cashout_max_amount || 250).to_f].min
+      else
+        min_cashout = 0.0
+        max_cashout = (rules.cashout_freeplay_max || 50).to_f
+      end
+
+      if requested_amount < (rules.cashout_min_amount || 10)
+        return { reply: "minimum cashout is $#{(rules.cashout_min_amount || 10).to_i}", labels: [] }
+      end
+      if last_dep && min_cashout > 0 && requested_amount < min_cashout
+        return { reply: "min cashout on a $#{fmt_amt(last_dep[:amount])} #{last_dep[:type]} is $#{fmt_amt(min_cashout)}", labels: [] }
+      end
+      if requested_amount > max_cashout
+        return handle_over_max_cashout(game_slug, requested_amount, max_cashout, last_dep)
+      end
+      nil
+    rescue StandardError => e
+      Rails.logger.error("[Orchestrator] cashout_bounds_message failed: #{e.message}")
+      { reply: 'lemme double-check the cashout limit on that — one sec 🙏', labels: %w[cashier-action-needed] }
     end
 
     # R5 - records the kept-in part of a partial cashout as a NEW deposit
