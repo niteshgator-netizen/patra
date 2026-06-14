@@ -1,5 +1,13 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController
+  include Patra::MessageActionGuard
+
   before_action :ensure_api_inbox, only: :update, unless: :pin_update_requested?
+  # B3 — role gate: delete is always gated; update is gated ONLY when it carries a real content
+  # edit (not a pin/status update), so benign agent pin/status calls stay ungated. Accountability
+  # (one audit row + one Telegram per edit/delete) is already wired in patra_audit_hooks.rb and is
+  # deliberately NOT re-wired here — the gate only allows/denies before the action runs.
+  before_action :authorize_message_edit_delete!, only: [:destroy]
+  before_action :authorize_message_edit_delete!, only: [:update], if: :message_content_edit_requested?
 
   def index
     @messages = message_finder.perform
