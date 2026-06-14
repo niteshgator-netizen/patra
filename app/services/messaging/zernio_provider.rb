@@ -100,11 +100,16 @@ module Messaging
       "https://zernio.com/oauth/connect/facebook?redirect_uri=#{CGI.escape(callback_url)}"
     end
 
+    # Tear down the Zernio billing account for this inbox. DELETE /v1/accounts/{id}
+    # stops Zernio's daily per-account charge. (Earlier code hit a stale per-page
+    # connection endpoint, which is not the account-teardown route.)
+    # Best-effort: any failure is logged and returns false so the caller can still
+    # flip the inbox to inactive locally.
     def disconnect!
       return true if zernio_account_id.blank?
 
       response = HTTParty.delete(
-        "#{API_BASE}/connections/#{zernio_account_id}",
+        "#{API_BASE}/accounts/#{zernio_account_id}",
         headers: api_headers,
         timeout: HTTP_TIMEOUT
       )

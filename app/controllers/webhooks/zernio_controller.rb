@@ -45,8 +45,10 @@ module Webhooks
           "message=#{payload['message']&.slice('id', 'conversationId', 'platform').inspect} " \
           "conversation=#{payload['conversation']&.slice('id').inspect}"
         )
+      when 'account.disconnected'
+        handle_account_disconnected(payload)
       else
-        # message.sent / account.* — ack only for now
+        # message.sent / account.connected — ack only for now
         Rails.logger.info("[ZernioWebhook] ack event=#{event}")
       end
 
@@ -169,6 +171,34 @@ module Webhooks
 
       Message.find_by(source_id: zernio_id.to_s) ||
         Message.where("content_attributes->>'zernio_message_id' = ?", zernio_id.to_s).first
+    end
+
+    # Zernio reports a connected account was disconnected upstream (page removed,
+    # token revoked, billing lapsed). Reflect it locally: flip the matching inbox
+    # to INACTIVE and flag it for re-auth — NEVER delete it or its conversations.
+    def handle_account_disconnected(payload)
+      account_uid = (payload.dig('account', 'id') || payload.dig('account', 'accountId')).to_s
+      return if account_uid.blank?
+
+      inbox = find_inbox_by_zernio_account(account_uid)
+      unless inbox
+        Rails.logger.info("[ZernioWebhook] account.disconnected unknown account_uid=#{account_uid}")
+        return
+      end
+
+      ::Patra::ChannelLifecycleService.new.mark_disconnected!(inbox, reason: 'zernio_webhook')
+      Rails.logger.info("[ZernioWebhook] account.disconnected inbox=#{inbox.id} flipped inactive")
+    rescue StandardError => e
+      Rails.logger.error("[ZernioWebhook] account.disconnected failed account_uid=#{account_uid} #{e.class}: #{e.message}")
+    end
+
+    # Resolve a Zernio account id to its local Channel::Api -> Inbox. Mirrors the
+    # JSONB lookup used by Zernio::OauthService.
+    def find_inbox_by_zernio_account(account_uid)
+      ::Channel::Api
+        .where("additional_attributes->>'zernio_account_id' = ?", account_uid.to_s)
+        .first
+        &.inbox
     end
 
     def verify_signature(raw_body)

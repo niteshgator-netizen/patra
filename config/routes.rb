@@ -371,6 +371,7 @@ Rails.application.routes.draw do
 
             post 'fb_connect', to: 'facebook_connect#fb_connect'
             post 'fb_connect_pages', to: 'facebook_connect#fb_connect_pages'
+            post 'sync_pages', to: 'facebook_connect#sync_pages'
             post 'inboxes/:inbox_id/migrate_fb_to_api', to: 'facebook_connect#migrate_fb_to_api'
             get 'meta_app', to: 'facebook_connect#get_meta_app'
             get 'meta_app/preview_disconnect', to: 'facebook_connect#preview_disconnect_meta_app'
@@ -384,13 +385,15 @@ Rails.application.routes.draw do
               end
             end
 
-            resources :channels, only: [:index] do
+            resources :channels, only: [:index, :destroy] do
               collection do
                 post :connect
                 post :complete
               end
               member do
                 post :resync
+                post :disconnect
+                post :reconnect
               end
             end
 

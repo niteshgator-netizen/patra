@@ -5,7 +5,7 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
 
   # Owner always; a manager only if granted :facebook_connections; support/agents denied.
   before_action { check_main_feature_authorization!(:facebook_connections) }
-  before_action :validate_fb_connect_pages_limit!, only: [:fb_connect_pages]
+  before_action :validate_fb_connect_pages_limit!, only: [:fb_connect_pages, :sync_pages]
 
   def fb_connect
     short_token = params.require(:access_token).to_s
@@ -59,6 +59,68 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     render json: { error: e.message }, status: :unprocessable_entity
   rescue StandardError => e
     Rails.logger.error("[PatraFB] fb_connect_pages failed: #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # POST /patra/sync_pages
+  # Reconcile the account's Facebook-bridge inboxes against the page list the user
+  # just (re)authorized. Pages present now but absent from the desired list are
+  # SOFT-disconnected (kept, flipped inactive); pages in the desired list are
+  # created/updated and ensured active. NEVER deletes an inbox or its history.
+  #
+  # Body: { user_access_token:, pages: [{ id, name, access_token }], facebook_identity_id? }
+  def sync_pages
+    user_token = params.require(:user_access_token).to_s
+    pages_param = params.require(:pages)
+    raise ActionController::ParameterMissing, 'pages' unless pages_param.is_a?(Array)
+
+    identity_id = resolved_facebook_identity_id
+    desired = pages_param.filter_map { |raw| raw.permit(:id, :name, :access_token).to_h.presence }
+    desired_ids = desired.filter_map { |p| p['id'].to_s.presence }
+
+    lifecycle = ::Patra::ChannelLifecycleService.new
+    connected = []
+    soft_disconnected = []
+
+    ActiveRecord::Base.transaction do
+      # Additions / updates — reuse the existing per-page connect path, then make
+      # sure a previously-disconnected page comes back active.
+      desired.each do |page|
+        next if page['id'].blank? || page['access_token'].blank?
+
+        result = connect_page!(page, user_token, facebook_identity_id: identity_id)
+        connected << result
+        inbox = Current.account.inboxes.find_by(id: result[:inbox_id])
+        lifecycle.reactivate!(inbox) if inbox
+      end
+
+      # Removals — soft-disconnect every bridge inbox whose page is no longer
+      # desired. Keep-history: this flips inactive, it does NOT destroy.
+      bridge_channels_with_page.each do |channel|
+        page_id = channel.additional_attributes['fb_page_id'].to_s
+        next if page_id.blank? || desired_ids.include?(page_id)
+
+        inbox = channel.inbox
+        next unless inbox
+
+        lifecycle.disconnect!(inbox, reason: 'page_removed_from_sync')
+        soft_disconnected << page_id
+      end
+    end
+
+    render json: {
+      desired_count: desired_ids.size,
+      connected: connected,
+      soft_disconnected: soft_disconnected,
+      facebook_identity_id: identity_id
+    }
+  rescue ActionController::ParameterMissing => e
+    render json: { error: e.message }, status: :bad_request
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error("[PatraFB] sync_pages validation: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[PatraFB] sync_pages failed: #{e.class}: #{e.message}")
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
@@ -215,6 +277,12 @@ class Api::V1::Accounts::Patra::FacebookConnectController < Api::V1::Accounts::B
     Current.account.api_channels.find_by(
       ["additional_attributes->>'fb_page_id' = ?", page_id.to_s]
     )
+  end
+
+  # All of this account's Facebook-bridge channels (Channel::Api carrying an
+  # fb_page_id). Used by sync_pages to find pages to soft-disconnect.
+  def bridge_channels_with_page
+    Current.account.api_channels.where("additional_attributes->>'fb_page_id' IS NOT NULL")
   end
 
   def validate_fb_connect_pages_limit!

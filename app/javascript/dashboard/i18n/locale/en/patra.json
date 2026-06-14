@@ -186,8 +186,8 @@
       "SUGGESTED": "Suggested:"
     },
     "CHANNELS": {
-      "TELEGRAM_BOT_TOKEN_COMING_SOON": "Telegram connects via bot token — coming soon. Zernio OAuth is not available for this channel yet.",
-      "CONNECT_NO_AUTH_URL": "Connect failed: no auth URL returned by Zernio."
+      "TELEGRAM_BOT_TOKEN_COMING_SOON": "Telegram connects via bot token — coming soon. OAuth is not available for this channel yet.",
+      "CONNECT_NO_AUTH_URL": "Connect failed: no auth URL returned by the connection service."
     },
     "SCHEDULED": {
       "SEND_LATER": "Schedule send",

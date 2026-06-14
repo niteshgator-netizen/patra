@@ -28,7 +28,7 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
   # `index` is read-only and needed by the agent sidebar; the other actions
   # mutate state (create channels, kick off background sync) so they're gated
   # to admins per the existing Patra::FacebookConnectController pattern.
-  before_action :check_admin_authorization?, only: [:connect, :complete, :resync]
+  before_action :check_admin_authorization?, only: [:connect, :complete, :resync, :disconnect, :reconnect, :destroy]
 
   def index
     inboxes = Current.account.inboxes.includes(:channel).order(:name)
@@ -56,6 +56,10 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
       page_name: params.require(:page_name).to_s,
       page_username: params[:page_username].presence
     )
+
+    # A reconnect reuses the existing (possibly inactive) inbox — flip it back to
+    # active and clear the re-auth flag now that OAuth has completed successfully.
+    ::Patra::ChannelLifecycleService.new.reactivate!(inbox)
 
     render json: {
       success: true,
@@ -94,6 +98,67 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
 
     Zernio::SyncHistoryJob.perform_later(Current.account.id, inbox.id)
     render json: { success: true, message: 'History sync queued.' }
+  end
+
+  # POST /channels/:id/disconnect  (admin-only)
+  # Tears down the upstream connection and flips the inbox INACTIVE while keeping
+  # every conversation. Never deletes anything.
+  def disconnect
+    inbox = Current.account.inboxes.find(params[:id])
+    service = ::Patra::ChannelLifecycleService.new
+    unless service.patra_managed?(inbox)
+      return render(json: { error: 'This channel is not a Patra-managed connection.' }, status: :unprocessable_entity)
+    end
+
+    service.disconnect!(inbox, reason: 'manual')
+    render json: { success: true, inbox_id: inbox.id, status: 'inactive' }
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Channel not found' }, status: :not_found
+  rescue StandardError => e
+    Rails.logger.error("[Patra::Channels] disconnect failed account=#{Current.account.id} #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # POST /channels/:id/reconnect  (admin-only)
+  # Returns the provider's re-auth URL so the frontend can restart OAuth. The
+  # inbox flips back to active on /complete once the round-trip succeeds.
+  def reconnect
+    inbox = Current.account.inboxes.find(params[:id])
+    service = ::Patra::ChannelLifecycleService.new
+    unless service.patra_managed?(inbox)
+      return render(json: { error: 'This channel is not a Patra-managed connection.' }, status: :unprocessable_entity)
+    end
+
+    result = service.reconnect!(
+      inbox,
+      callback_url: params[:redirect_url].presence || default_redirect_url
+    )
+    render json: { success: true, inbox_id: inbox.id }.merge(result || {})
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Channel not found' }, status: :not_found
+  rescue ::Patra::ChannelLifecycleService::Error => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[Patra::Channels] reconnect failed account=#{Current.account.id} #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # DELETE /channels/:id  (admin-only)
+  # Destroys the inbox + its conversations — but ONLY when confirm:true is passed.
+  # Without confirm the service refuses (ConfirmationRequired) and nothing is touched.
+  def destroy
+    inbox = Current.account.inboxes.find(params[:id])
+    deleted_id = inbox.id
+    confirm = ActiveModel::Type::Boolean.new.cast(params[:confirm])
+    ::Patra::ChannelLifecycleService.new.delete!(inbox, confirm: confirm)
+    render json: { success: true, deleted_inbox_id: deleted_id }
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Channel not found' }, status: :not_found
+  rescue ::Patra::ChannelLifecycleService::ConfirmationRequired => e
+    render json: { error: e.message, requires_confirmation: true }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[Patra::Channels] delete failed account=#{Current.account.id} #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private
