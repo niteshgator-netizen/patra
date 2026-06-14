@@ -2,7 +2,8 @@
 
 # Patra (SEC) — read-only agent leaderboard. Reuses Analytics::AgentPerformanceService (the same
 # data already surfaced inside patra/reports) as a standalone, sortable endpoint for the team view.
-# Read-access via the report policy, so a viewer with report_view can read it but cannot mutate.
+# Read-only: visible to administrators and any custom_role carrying report_view OR report_manage —
+# so the Viewer tier (which holds report_view) can read it. No mutation path exists.
 class Api::V1::Accounts::Patra::LeaderboardController < Api::V1::Accounts::BaseController
   before_action :check_authorization
 
@@ -13,8 +14,13 @@ class Api::V1::Accounts::Patra::LeaderboardController < Api::V1::Accounts::BaseC
 
   private
 
+  # NOTE: ReportPolicy#view? gates on report_manage only, which would exclude a report_view-only
+  # Viewer. We authorize explicitly here so the read-only Viewer tier can see the leaderboard.
   def check_authorization
-    authorize :report, :view?
+    return if Current.account_user&.administrator?
+    return if (Array(Current.account_user&.custom_role&.permissions) & %w[report_view report_manage]).any?
+
+    raise Pundit::NotAuthorizedError
   end
 
   def period
