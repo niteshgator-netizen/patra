@@ -24,6 +24,21 @@ class PatraChannelsAPI extends ApiClient {
     return axios.post(`${this.url}/complete`, params);
   }
 
+  // POST /channels/fb_list_pages  body: { connect_token, temp_token, profile_id }
+  // Returns { pages: [{ id, name, username, category, ... }] } — the Facebook
+  // pages to choose from after Zernio's headless OAuth returns the browser.
+  fbListPages(payload) {
+    return axios.post(`${this.url}/fb_list_pages`, payload);
+  }
+
+  // POST /channels/fb_connect_pages
+  // body: { connect_token, temp_token, profile_id, user_profile, page_ids: [..] }
+  // Saves the chosen pages on Zernio and creates the matching inboxes.
+  // Returns { saved: [...], inboxes: [{ id, name }] }.
+  fbConnectPages(payload) {
+    return axios.post(`${this.url}/fb_connect_pages`, payload);
+  }
+
   // POST /channels/:id/resync
   resync(inboxId) {
     return axios.post(`${this.url}/${inboxId}/resync`);

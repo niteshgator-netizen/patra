@@ -168,6 +168,86 @@ module Zernio
       []
     end
 
+    # ── Headless Facebook page-selection handshake ───────────────────────────
+    # After Zernio redirects the browser back to /patra/connect-facebook with a
+    # short-lived connect_token (+ tempToken, profileId, userProfile), Patra must
+    # (1) LIST the user's Facebook pages, (2) let the user pick, then (3) SAVE
+    # each chosen page to Zernio — only step (3) actually persists the upstream
+    # connection. Both calls authenticate with the X-Connect-Token header
+    # (NOT the API key), and the connect_token is single-flow + ~15-min lived.
+
+    # GET /connect/facebook/select-page — list the pages this user can connect.
+    # Returns an Array of page hashes ({ id, name, username, category, ... }).
+    # An empty Array is a valid result (user admins no pages) — callers surface
+    # the "must be an admin of at least one page" message.
+    def fb_list_pages(connect_token:, temp_token:, profile_id:)
+      raise ArgumentError, 'connect_token required' if connect_token.blank?
+      raise ArgumentError, 'temp_token required' if temp_token.blank?
+      raise ArgumentError, 'profile_id required' if profile_id.blank?
+
+      resp = zernio_get(
+        '/connect/facebook/select-page',
+        { profileId: profile_id, tempToken: temp_token },
+        headers: connect_headers(connect_token)
+      )
+      Array(resp['pages'])
+    rescue ArgumentError
+      raise
+    rescue StandardError => e
+      Rails.logger.error("[Zernio::Headless] fb_list_pages account=#{@account.id} failed: #{e.class}: #{e.message}")
+      raise headless_error_message(e)
+    end
+
+    # POST /connect/facebook/select-page — persist ONE chosen page on Zernio.
+    # Without this call nothing is saved upstream. user_profile is forwarded
+    # as-is (the URL-decoded JSON string Zernio handed back). Returns the
+    # parsed Zernio response ({ redirect_url, ... }).
+    def fb_save_page(connect_token:, temp_token:, profile_id:, page_id:, user_profile:)
+      raise ArgumentError, 'connect_token required' if connect_token.blank?
+      raise ArgumentError, 'temp_token required' if temp_token.blank?
+      raise ArgumentError, 'profile_id required' if profile_id.blank?
+      raise ArgumentError, 'page_id required' if page_id.blank?
+
+      zernio_post(
+        '/connect/facebook/select-page',
+        {
+          profileId: profile_id,
+          pageId: page_id,
+          tempToken: temp_token,
+          userProfile: user_profile,
+          redirect_url: default_success_url
+        },
+        headers: connect_headers(connect_token)
+      )
+    rescue ArgumentError
+      raise
+    rescue StandardError => e
+      Rails.logger.error("[Zernio::Headless] fb_save_page account=#{@account.id} page_id=#{page_id} failed: #{e.class}: #{e.message}")
+      raise headless_error_message(e)
+    end
+
+    # After pages are saved on Zernio, enumerate the now-connected accounts and
+    # create the matching Patra inbox for each NEW one. Idempotent: skips any
+    # Zernio account that already has an inbox on this Patra account (so re-runs
+    # never duplicate). Returns ONLY the inboxes created in THIS call, so callers
+    # can report an accurate "connected N" count.
+    def sync_connected_accounts!
+      created = []
+      list_accounts.each do |acct|
+        zernio_account_id = acct['_id'].presence || acct['id'].presence
+        next if zernio_account_id.blank?
+        next if find_inbox_by_zernio_account(zernio_account_id)
+
+        inbox = complete_connect(
+          platform: 'facebook',
+          zernio_account_id: zernio_account_id,
+          page_name: acct['name'].presence || acct['displayName'].presence || acct['username'].presence
+        )
+        created << inbox if inbox
+      end
+      created
+    end
+
     private
 
     def zernio_api_platform(platform)
@@ -196,10 +276,13 @@ module Zernio
       }
     end
 
-    def zernio_get(path, query = {})
+    # `headers:` defaults to auth_headers (Bearer API key) so existing callers
+    # are unchanged; the headless page-selection calls pass connect_headers
+    # (X-Connect-Token) instead.
+    def zernio_get(path, query = {}, headers: auth_headers)
       response = HTTParty.get(
         "#{ZERNIO_BASE}#{path}",
-        headers: auth_headers,
+        headers: headers,
         query: query,
         timeout: HTTP_TIMEOUT
       )
@@ -209,10 +292,10 @@ module Zernio
       parsed.is_a?(Hash) ? parsed : (JSON.parse(response.body.to_s) rescue {})
     end
 
-    def zernio_post(path, body = {})
+    def zernio_post(path, body = {}, headers: auth_headers)
       response = HTTParty.post(
         "#{ZERNIO_BASE}#{path}",
-        headers: auth_headers,
+        headers: headers,
         body: body.to_json,
         timeout: HTTP_TIMEOUT
       )
@@ -222,7 +305,42 @@ module Zernio
       parsed.is_a?(Hash) ? parsed : (JSON.parse(response.body.to_s) rescue {})
     end
 
+    # Headers for the headless page-selection handshake. Authenticates with the
+    # short-lived X-Connect-Token (NOT the API key) — same token for LIST + SAVE.
+    def connect_headers(token)
+      {
+        'X-Connect-Token' => token,
+        'Content-Type' => 'application/json',
+        'Accept' => 'application/json'
+      }
+    end
+
+    # Where Zernio's SAVE response should point the browser, and where Patra
+    # navigates the user after inboxes are created — the connected-channels list.
+    def default_success_url
+      "#{ENV.fetch('FRONTEND_URL', 'https://patrahq.com').to_s.chomp('/')}/app/accounts/#{@account.id}/patra/facebook-accounts"
+    end
+
+    # Map a raw Zernio/HTTP failure to a short, user-safe message. The raw HTTP
+    # status + body is already logged (raise_for_response! and the
+    # [Zernio::Headless] rescue), so we never leak it to the end user here.
+    def headless_error_message(error)
+      msg = error.message.to_s
+      if msg.match?(/invalid access token/i) || msg.match?(/expired/i) ||
+         msg.match?(/\bHTTP 401\b/) || msg.match?(/\bHTTP 403\b/)
+        'Facebook session expired — reconnect.'
+      elsif msg.match?(/no pages/i)
+        'No Facebook pages found — you must be an admin of at least one page.'
+      else
+        'Could not complete the Facebook connection. Please try reconnecting.'
+      end
+    end
+
     def raise_for_response!(verb, path, response)
+      # The full body is logged here (server-side) for debugging; the raised
+      # message carries only the HTTP status so no raw upstream body can reach
+      # the client through a controller's generic rescue. headless_error_message
+      # maps that status (401/403) to the user-facing "session expired" copy.
       Rails.logger.error(
         "[Zernio::Oauth] #{verb} #{path} HTTP #{response.code} body=#{response.body.to_s[0, 200]}"
       )

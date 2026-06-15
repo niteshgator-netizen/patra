@@ -28,7 +28,8 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
   # `index` is read-only and needed by the agent sidebar; the other actions
   # mutate state (create channels, kick off background sync) so they're gated
   # to admins per the existing Patra::FacebookConnectController pattern.
-  before_action :check_admin_authorization?, only: [:connect, :complete, :resync, :disconnect, :reconnect, :destroy]
+  before_action :check_admin_authorization?,
+                only: [:connect, :complete, :fb_list_pages, :fb_connect_pages, :resync, :disconnect, :reconnect, :destroy]
 
   def index
     inboxes = Current.account.inboxes.includes(:channel).order(:name)
@@ -74,6 +75,66 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
     render json: { error: e.message }, status: :unprocessable_entity
   rescue StandardError => e
     Rails.logger.error("[Patra::Channels] complete failed account=#{Current.account.id} #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # POST /channels/fb_list_pages  (admin-only)
+  # Body: { connect_token, temp_token, profile_id }
+  # Lists the Facebook pages the user can connect, after Zernio bounced the
+  # browser back with the short-lived connect_token. Returns { pages: [...] }.
+  def fb_list_pages
+    pages = Zernio::OauthService.new(Current.account).fb_list_pages(
+      connect_token: params.require(:connect_token).to_s,
+      temp_token: params.require(:temp_token).to_s,
+      profile_id: params.require(:profile_id).to_s
+    )
+
+    render json: { pages: pages }
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[Patra::Channels] fb_list_pages account=#{Current.account.id} #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :unprocessable_entity
+  end
+
+  # POST /channels/fb_connect_pages  (admin-only)
+  # Body: { connect_token, temp_token, profile_id, user_profile, page_ids: [..] }
+  # Saves each chosen page on Zernio (per-page, so one bad page doesn't sink the
+  # rest), then creates the matching Patra inbox for every newly-connected
+  # account. Returns { saved: [...], inboxes: [{id, name}, ...] }.
+  def fb_connect_pages
+    oauth = Zernio::OauthService.new(Current.account)
+
+    connect_token = params.require(:connect_token).to_s
+    temp_token = params.require(:temp_token).to_s
+    profile_id = params.require(:profile_id).to_s
+    user_profile = params[:user_profile]
+    page_ids = Array(params[:page_ids]).map(&:to_s).reject(&:blank?).uniq
+    raise ArgumentError, 'Select at least one page to connect.' if page_ids.empty?
+
+    saved = []
+    page_ids.each do |pid|
+      saved << { page_id: pid, result: oauth.fb_save_page(
+        connect_token: connect_token,
+        temp_token: temp_token,
+        profile_id: profile_id,
+        page_id: pid,
+        user_profile: user_profile
+      ) }
+    rescue StandardError => e
+      Rails.logger.error("[Patra::Channels] fb_save_page pid=#{pid}: #{e.message}")
+      saved << { page_id: pid, error: e.message }
+    end
+
+    created = oauth.sync_connected_accounts!
+    render json: {
+      saved: saved,
+      inboxes: created.map { |ib| { id: ib.id, name: ib.name } }
+    }
+  rescue ArgumentError => e
+    render json: { error: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[Patra::Channels] fb_connect_pages account=#{Current.account.id} #{e.class}: #{e.message}")
     render json: { error: e.message }, status: :unprocessable_entity
   end
 

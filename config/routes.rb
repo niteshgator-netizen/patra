@@ -389,6 +389,8 @@ Rails.application.routes.draw do
               collection do
                 post :connect
                 post :complete
+                post :fb_list_pages
+                post :fb_connect_pages
               end
               member do
                 post :resync

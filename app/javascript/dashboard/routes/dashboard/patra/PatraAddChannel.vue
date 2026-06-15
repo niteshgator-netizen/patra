@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import PatraChannelsAPI from 'dashboard/api/patraChannels';
@@ -166,6 +167,105 @@ const connectingPlatform = ref(null);
 const loadError = ref('');
 const { t } = useI18n();
 
+const route = useRoute();
+const router = useRouter();
+
+// Page-selection mode: entered when Zernio bounces the browser back to
+// /patra/connect-facebook with ?step=select_page&connect_token=… . We then
+// list the user's Facebook pages and let them pick which ones to connect.
+const selectionMode = ref(false);
+const oauthCtx = ref({});
+const pages = ref([]);
+const selectedIds = ref(new Set());
+const loadingPages = ref(false);
+const saving = ref(false);
+const returnError = ref('');
+
+const apiErr = e => e?.response?.data?.error || e?.message || 'unknown error';
+
+const goToConnectedChannels = () => {
+  router.push({
+    name: 'patra_facebook_accounts',
+    params: { accountId: route.params.accountId },
+  });
+};
+
+const togglePage = id => {
+  // Reassign a fresh Set so the change is always reactive.
+  const next = new Set(selectedIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  selectedIds.value = next;
+};
+
+const loadPagesForSelection = async () => {
+  selectionMode.value = true;
+  oauthCtx.value = {
+    connectToken: route.query.connect_token,
+    tempToken: route.query.tempToken,
+    profileId: route.query.profileId,
+    userProfile: route.query.userProfile,
+  };
+  loadingPages.value = true;
+  returnError.value = '';
+  try {
+    const res = await PatraChannelsAPI.fbListPages({
+      connect_token: oauthCtx.value.connectToken,
+      temp_token: oauthCtx.value.tempToken,
+      profile_id: oauthCtx.value.profileId,
+    });
+    pages.value = res?.data?.pages || [];
+    // Everything checked by default — the common case is "connect them all".
+    selectedIds.value = new Set(pages.value.map(p => p.id));
+  } catch (e) {
+    returnError.value = apiErr(e);
+  } finally {
+    loadingPages.value = false;
+  }
+};
+
+const connectSelectedPages = async () => {
+  if (selectedIds.value.size === 0 || saving.value) return;
+  saving.value = true;
+  returnError.value = '';
+  try {
+    const res = await PatraChannelsAPI.fbConnectPages({
+      connect_token: oauthCtx.value.connectToken,
+      temp_token: oauthCtx.value.tempToken,
+      profile_id: oauthCtx.value.profileId,
+      user_profile: oauthCtx.value.userProfile,
+      page_ids: [...selectedIds.value],
+    });
+    const inboxes = res?.data?.inboxes || [];
+    const failures = (res?.data?.saved || []).filter(s => s && s.error);
+
+    if (inboxes.length === 0 && failures.length > 0) {
+      // Every selected page failed to save — keep the user here so they retry.
+      returnError.value = `Could not connect the selected page(s): ${failures[0].error}`;
+      saving.value = false;
+      return;
+    }
+
+    if (inboxes.length > 0) {
+      const base = `Connected ${inboxes.length} channel${inboxes.length === 1 ? '' : 's'}`;
+      // Surface a partial failure so it isn't silently swallowed.
+      useAlert(
+        failures.length
+          ? `${base}; ${failures.length} page(s) couldn't be connected.`
+          : base
+      );
+    } else {
+      // Saves reported success but no NEW inbox appeared — almost always an
+      // idempotent re-run. Hedged wording so it stays truthful either way.
+      useAlert('No new channels added — they may already be connected.');
+    }
+    goToConnectedChannels();
+  } catch (e) {
+    returnError.value = apiErr(e);
+    saving.value = false;
+  }
+};
+
 const platformIsConnected = platformKey =>
   channels.value.some(
     c => c.platform === platformKey && c.messaging_provider === 'zernio'
@@ -227,7 +327,13 @@ const connectedCount = computed(
 );
 
 onMounted(() => {
-  fetchChannels();
+  // Returning from Zernio's headless FB OAuth → show the page picker.
+  // Otherwise (FB cancelled, or a normal visit) → the platform tiles.
+  if (route.query.step === 'select_page' && route.query.connect_token) {
+    loadPagesForSelection();
+  } else {
+    fetchChannels();
+  }
 });
 </script>
 
@@ -235,6 +341,108 @@ onMounted(() => {
   <div class="pat-page-wrap">
     <div class="pat-page-main">
       <div class="flex flex-col w-full h-full max-w-5xl px-6 py-8 mx-auto">
+        <!-- Page-selection mode: pick which Facebook pages to connect -->
+        <template v-if="selectionMode">
+          <header class="mb-8">
+            <h1 class="text-2xl font-semibold text-n-slate-12">
+              Choose pages to connect
+            </h1>
+            <p class="mt-1 text-sm text-n-slate-11">
+              Select the Facebook pages you want to manage in Patra. Each page
+              becomes its own inbox — you can connect more later.
+            </p>
+          </header>
+
+          <p v-if="returnError" class="mb-4 text-sm text-n-ruby-9">
+            {{ returnError }}
+          </p>
+          <button
+            v-if="returnError && pages.length === 0"
+            type="button"
+            class="mb-4 text-sm font-medium text-n-blue-11"
+            @click="goToConnectedChannels"
+          >
+            Back to channels
+          </button>
+
+          <div v-if="loadingPages" class="text-sm text-n-slate-11">
+            Loading your Facebook pages…
+          </div>
+
+          <template v-else>
+            <div
+              v-if="pages.length === 0 && !returnError"
+              class="p-6 text-center border rounded-lg bg-n-background border-n-weak"
+            >
+              <p class="text-sm text-n-slate-11">
+                No Facebook pages found — you must be an admin of at least one
+                page.
+              </p>
+              <button
+                type="button"
+                class="mt-3 text-sm font-medium text-n-blue-11"
+                @click="goToConnectedChannels"
+              >
+                Back to channels
+              </button>
+            </div>
+
+            <div v-else-if="pages.length">
+              <ul
+                class="border rounded-lg divide-y bg-n-background border-n-weak"
+              >
+                <li v-for="page in pages" :key="page.id">
+                  <label
+                    class="flex items-center gap-3 p-4 cursor-pointer hover:bg-n-slate-2"
+                  >
+                    <input
+                      type="checkbox"
+                      class="shrink-0 size-4"
+                      :checked="selectedIds.has(page.id)"
+                      @change="togglePage(page.id)"
+                    />
+                    <span class="flex-1 min-w-0">
+                      <span class="block text-sm font-medium text-n-slate-12">
+                        {{ page.name }}
+                      </span>
+                      <span class="block text-xs text-n-slate-11 truncate">
+                        <span v-if="page.username">@{{ page.username }}</span>
+                        <span v-if="page.username && page.category"> · </span>
+                        <span v-if="page.category">{{ page.category }}</span>
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              </ul>
+
+              <div class="flex items-center gap-3 mt-6">
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium text-white rounded-lg bg-n-blue-9 hover:bg-n-blue-10 disabled:opacity-60 disabled:cursor-not-allowed"
+                  :disabled="selectedIds.size === 0 || saving"
+                  @click="connectSelectedPages"
+                >
+                  {{
+                    saving
+                      ? 'Connecting…'
+                      : `Connect selected (${selectedIds.size})`
+                  }}
+                </button>
+                <button
+                  type="button"
+                  class="px-4 py-2 text-sm font-medium border rounded-lg text-n-slate-12 border-n-weak hover:bg-n-slate-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  :disabled="saving"
+                  @click="goToConnectedChannels"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </template>
+        </template>
+
+        <!-- Default mode: multi-platform tile picker -->
+        <template v-else>
         <header class="mb-8">
           <h1 class="text-2xl font-semibold text-n-slate-12">Add a channel</h1>
           <p class="mt-1 text-sm text-n-slate-11">
@@ -307,6 +515,7 @@ onMounted(() => {
             </button>
           </div>
         </section>
+        </template>
       </div>
     </div>
   </div>
