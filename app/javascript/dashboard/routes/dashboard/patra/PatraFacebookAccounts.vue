@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
 import { loadScript } from 'dashboard/helper/DOMHelpers';
 import PatraChannelsAPI from 'dashboard/api/patraChannels';
@@ -7,6 +8,8 @@ import PatraFacebookIdentitiesAPI from 'dashboard/api/patraFacebookIdentities';
 import PatraFacebookConnectAPI from 'dashboard/api/patraFacebookConnect';
 
 const showAlert = useAlert;
+const router = useRouter();
+const route = useRoute();
 
 const identities = ref([]);
 const channels = ref([]);
@@ -53,14 +56,11 @@ const fbInboxIds = computed(() => {
   return ids;
 });
 
-// Channels that are not Facebook pages (Instagram / WhatsApp / Telegram / …).
-// Facebook-platform inboxes belong under their FB account section; excluding
-// them by platform also keeps an orphaned bridge inbox (one with no linked
-// identity) from showing up here as a mislabeled standalone "Facebook" card.
+// Every channel not already shown under a Facebook account section. Orphan /
+// Zernio Facebook inboxes (a bridge inbox with no linked identity) intentionally
+// render here as their own cards, so every inbox stays visible and manageable.
 const otherChannels = computed(() =>
-  channels.value.filter(
-    c => !fbInboxIds.value.has(c.id) && c.platform !== 'facebook'
-  )
+  channels.value.filter(c => !fbInboxIds.value.has(c.id))
 );
 
 const isInactive = row =>
@@ -82,6 +82,53 @@ const platformLabel = c => {
 
 const apiErr = e =>
   e?.response?.data?.error || e?.message || 'unknown error';
+
+// "4m" / "1h" / "3d"; "" when nil.
+const timeAgo = ts => {
+  if (!ts) return '';
+  const mins = Math.max(1, Math.floor((Date.now() - new Date(ts).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
+};
+
+// channels#index carries last_message_at + conversations_count + live status for
+// EVERY inbox (FB pages too); map by inbox id so a page row can show its activity.
+const channelById = computed(() => {
+  const m = new Map();
+  channels.value.forEach(c => m.set(c.id, c));
+  return m;
+});
+const channelFor = row => channelById.value.get(row?.id) || row || {};
+
+const activeCount = identity =>
+  (identity.inboxes || []).filter(p => !isInactive(p)).length;
+
+const totalInboxes = computed(
+  () =>
+    identities.value.reduce((n, idn) => n + (idn.inboxes || []).length, 0) +
+    otherChannels.value.length
+);
+
+const statusLine = row => {
+  const ch = channelFor(row);
+  const convos = ch.conversations_count ?? 0;
+  if (isInactive(row)) {
+    return `Disconnected · history kept · ${convos} conversations`;
+  }
+  const ago = timeAgo(ch.last_message_at);
+  return ago
+    ? `Last message ${ago} ago · ${convos} conversations`
+    : `No messages yet · ${convos} conversations`;
+};
+
+function goAddChannel() {
+  router.push({
+    name: 'patra_connect_facebook',
+    params: { accountId: route.params.accountId },
+  });
+}
 
 async function disconnectInbox(inbox) {
   busyInbox.value = inbox.id;
@@ -306,10 +353,20 @@ function closeManagePages() {
 <template>
   <div class="pat-channels">
     <header class="pc-head">
-      <h1>Connected Channels</h1>
-      <p class="pc-sub">
-        Manage every connected inbox. Disconnect keeps your conversation history;
-        Delete removes the inbox for good.
+      <div class="pc-head-row">
+        <div class="pc-head-text">
+          <h1>Connected Channels</h1>
+          <p class="pc-sub">
+            Connect and manage every channel — disconnect anytime, your chat
+            history always stays.
+          </p>
+        </div>
+        <button class="pc-btn pc-btn--primary pc-add-btn" @click="goAddChannel">
+          ＋ Add channel
+        </button>
+      </div>
+      <p class="pc-count">
+        {{ identities.length }} accounts · {{ totalInboxes }} inboxes
       </p>
     </header>
 
@@ -345,7 +402,11 @@ function closeManagePages() {
           <div class="pc-acct-info">
             <div class="pc-name">{{ identity.fb_user_name }}</div>
             <div class="pc-meta">
-              Facebook · {{ (identity.inboxes || []).length }} page(s)
+              {{
+                (identity.inboxes || []).length
+                  ? `Facebook · ${(identity.inboxes || []).length} Pages · ${activeCount(identity)} active`
+                  : 'Facebook · 0 Pages connected'
+              }}
             </div>
           </div>
 
@@ -357,30 +418,14 @@ function closeManagePages() {
             >
               {{ (identity.inboxes || []).length ? 'Manage Pages' : 'Choose Pages' }}
             </button>
-            <button
-              class="pc-btn"
-              :disabled="busyAccount === identity.id || !(identity.inboxes || []).length"
-              @click="disconnectAccount(identity)"
-            >
-              Disconnect
-            </button>
-            <button
-              class="pc-btn pc-btn--danger"
-              :disabled="busyAccount === identity.id"
-              @click="deleteAccount(identity)"
-            >
-              Delete
-            </button>
           </div>
         </div>
 
         <div v-if="(identity.inboxes || []).length" class="pc-pages">
           <div v-for="page in identity.inboxes" :key="page.id" class="pc-row">
             <div class="pc-row-main">
-              <span class="pc-row-name">{{ page.name }}</span>
-              <span v-if="page.fb_page_id" class="pc-row-id">
-                #{{ page.fb_page_id }}
-              </span>
+              <div class="pc-row-name">{{ page.name }}</div>
+              <div class="pc-row-sub">{{ statusLine(page) }}</div>
             </div>
             <span
               class="pc-badge"
@@ -416,7 +461,25 @@ function closeManagePages() {
           </div>
         </div>
         <div v-else class="pc-pages-empty">
-          No pages connected for this account yet — use Choose Pages above.
+          📄 No Pages connected from this account yet. Tap Choose Pages to pick
+          which ones become inboxes — change anytime.
+        </div>
+
+        <div class="pc-acct-foot">
+          <button
+            class="pc-btn pc-btn--danger"
+            :disabled="busyAccount === identity.id || !(identity.inboxes || []).length"
+            @click="disconnectAccount(identity)"
+          >
+            Disconnect account
+          </button>
+          <button
+            class="pc-btn pc-btn--muted"
+            :disabled="busyAccount === identity.id"
+            @click="deleteAccount(identity)"
+          >
+            Delete account
+          </button>
         </div>
       </section>
 
@@ -428,8 +491,10 @@ function closeManagePages() {
       >
         <div class="pc-row pc-row--solo">
           <div class="pc-row-main">
-            <span class="pc-row-name">{{ ch.name }}</span>
-            <span class="pc-row-id">{{ platformLabel(ch) }}</span>
+            <div class="pc-row-name">{{ ch.name }}</div>
+            <div class="pc-row-sub">
+              {{ platformLabel(ch) }} · {{ statusLine(ch) }}
+            </div>
           </div>
           <span
             class="pc-badge"
@@ -462,6 +527,27 @@ function closeManagePages() {
               Delete
             </button>
           </div>
+        </div>
+      </section>
+
+      <section class="pc-explainer">
+        <div class="pc-explainer-title">
+          Disconnect vs Delete — same for every channel
+        </div>
+        <div class="pc-explainer-row">
+          <span class="pc-pill pc-pill--red">DISCONNECT</span>
+          <span class="pc-explainer-body">
+            Stops new messages and <b>stops billing</b> for that inbox, but it
+            goes <b>Inactive</b> and <b>every past conversation stays</b>.
+            Reconnect anytime. Never deletes chat history.
+          </span>
+        </div>
+        <div class="pc-explainer-row">
+          <span class="pc-pill pc-pill--muted">DELETE</span>
+          <span class="pc-explainer-body">
+            Permanently removes the inbox <b>and its conversations</b>. Confirms
+            first. Use only when you want it gone for good.
+          </span>
         </div>
       </section>
     </template>
@@ -547,6 +633,21 @@ function closeManagePages() {
   color: var(--text-3);
   max-width: 62ch;
 }
+.pc-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.pc-add-btn {
+  flex-shrink: 0;
+}
+.pc-count {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-4);
+  font-family: 'JetBrains Mono', monospace;
+}
 
 .pc-card {
   background: var(--surface);
@@ -596,8 +697,9 @@ function closeManagePages() {
 .pc-meta {
   margin-top: 2px;
   font-size: 12px;
-  color: var(--text-3);
-  font-family: 'JetBrains Mono', monospace;
+  font-weight: 400;
+  color: var(--text-4);
+  font-family: 'Inter', sans-serif;
 }
 
 .pc-pages {
@@ -638,6 +740,11 @@ function closeManagePages() {
   font-size: 11.5px;
   color: var(--text-4);
   font-family: 'JetBrains Mono', monospace;
+}
+.pc-row-sub {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-3);
 }
 
 .pc-badge {
@@ -706,6 +813,20 @@ function closeManagePages() {
   border-color: var(--patra);
   color: var(--patra-3);
 }
+.pc-btn--muted {
+  color: var(--text-3);
+}
+.pc-btn--muted:hover {
+  border-color: var(--text-3);
+  color: var(--text-2);
+}
+.pc-acct-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
 
 .pc-empty {
   text-align: center;
@@ -717,6 +838,57 @@ function closeManagePages() {
   font-size: 30px;
   margin-bottom: 10px;
   opacity: 0.6;
+}
+
+.pc-explainer {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-top: 8px;
+}
+.pc-explainer-title {
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 12px;
+}
+.pc-explainer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pc-explainer-row:last-child {
+  margin-bottom: 0;
+}
+.pc-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.pc-pill--red {
+  color: var(--red);
+  background: var(--patra-red-soft);
+}
+.pc-pill--muted {
+  color: var(--text-3);
+  border: 1px solid var(--border-hi);
+}
+.pc-explainer-body {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.pc-explainer-body b {
+  color: var(--text-2);
+  font-weight: 600;
 }
 
 /* Manage Pages modal */

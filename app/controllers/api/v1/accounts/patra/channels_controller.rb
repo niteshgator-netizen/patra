@@ -179,7 +179,8 @@ class Api::V1::Accounts::Patra::ChannelsController < Api::V1::Accounts::BaseCont
       status: inactive ? 'inactive' : inbox_status(inbox),
       connection_status: inactive ? 'inactive' : 'active',
       conversations_count: inbox.conversations.count,
-      created_at: inbox.created_at
+      created_at: inbox.created_at,
+      last_message_at: inbox.messages.maximum(:created_at)
     }
   end
 
