@@ -889,7 +889,7 @@ const menuItems = computed(() => {
     </section>
     <SidebarQuickStats v-if="!isEffectivelyCollapsed" />
     <nav
-      class="grid overflow-y-scroll flex-grow gap-2 pb-5 no-scrollbar min-w-0"
+      class="grid overflow-y-scroll flex-grow gap-2 pb-5 no-scrollbar min-w-0 min-h-0"
       :class="isEffectivelyCollapsed ? 'px-1' : 'px-2'"
     >
       <ul
