@@ -88,6 +88,16 @@ module Games
     def load_player(game_username:, amount:, payment_method: nil, payment_handle: nil, metadata: {}, order_id: nil)
       return blacklist_error if blacklisted_contact?
 
+      # it9-close — SHARED freeplay cap at the load chokepoint: every freeplay load (orchestrator,
+      # approval-resume, referral) funnels through load_player. When THIS load is flagged freeplay,
+      # clamp the amount DOWN to the account cap so a grant can never exceed it from ANY path. Same
+      # source + default (5) as the orchestrator's freeplay_cap_setting. Clamp DOWN only — never
+      # raises; a non-freeplay load is byte-identical (no clamp).
+      if freeplay_load?(metadata)
+        cap = freeplay_cap_for(agent_game.account)
+        amount = cap if amount.to_f > cap
+      end
+
       limit_error = amount_limit_error('max_load_amount', amount)
       return limit_error if limit_error
 
@@ -288,6 +298,28 @@ module Games
       return nil unless amount.to_f > max
 
       { ok: false, error: "Amount $#{amount} exceeds max $#{max} for #{agent_game.game.name}" }
+    end
+
+    # it9-close — true when a load is flagged freeplay. Orchestrator + referral set a symbol key
+    # (freeplay: true); approval-resume sets a string key ('freeplay' => true). Accept either,
+    # truthy. Nil/non-hash metadata => not freeplay (no clamp).
+    def freeplay_load?(metadata)
+      return false unless metadata.is_a?(Hash)
+
+      v = metadata.key?(:freeplay) ? metadata[:freeplay] : metadata['freeplay']
+      v == true || v.to_s.casecmp('true').zero?
+    end
+
+    # it9-close — freeplay cap = account custom_attributes['freeplay_cap'] (default 5.0; garbage/<=0
+    # -> 5.0). SAME source + default as Games::ConversationOrchestrator#freeplay_cap_setting, which
+    # falls through generosity_setting to this exact attribute (ReplyPreference has no freeplay_cap),
+    # so the two reads can never disagree.
+    def freeplay_cap_for(account)
+      raw = (account.respond_to?(:custom_attributes) ? account.custom_attributes : nil).to_h['freeplay_cap']
+      n = raw.to_s.strip.empty? ? nil : Float(raw.to_s, exception: false)
+      n && n.positive? ? n : 5.0
+    rescue StandardError
+      5.0
     end
 
     def check_low_balance_alert(result)
