@@ -111,6 +111,14 @@ const totalInboxes = computed(
     otherChannels.value.length
 );
 
+// A standalone channel is its own "account" too, so count identities + the
+// non-FB channel cards for the header count line.
+const accountsCount = computed(
+  () => identities.value.length + otherChannels.value.length
+);
+
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
 const statusLine = row => {
   const ch = channelFor(row);
   const convos = ch.conversations_count ?? 0;
@@ -366,7 +374,7 @@ function closeManagePages() {
         </button>
       </div>
       <p class="pc-count">
-        {{ identities.length }} accounts · {{ totalInboxes }} inboxes
+        {{ plural(accountsCount, 'account') }} · {{ plural(totalInboxes, 'inbox') }}
       </p>
     </header>
 
