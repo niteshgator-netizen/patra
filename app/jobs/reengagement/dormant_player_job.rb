@@ -40,6 +40,9 @@ module Reengagement
 
     def stale_facebook_messenger_conversation_ids(account)
       Message
+        # strip Message's default_scope { order(created_at: :asc) } so the GROUP BY below is valid
+        # (Postgres rejects ORDER BY created_at alongside GROUP BY messages.conversation_id).
+        .reorder(nil)
         .where(message_type: Message.message_types[:incoming], private: false, sender_type: 'Contact')
         .joins(conversation: :inbox)
         .where(conversations: { account_id: account.id })
