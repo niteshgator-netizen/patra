@@ -92,8 +92,14 @@ export function useSidebarContext() {
   const { shouldShow } = usePolicy();
 
   const resolvePath = to => {
-    if (to) return router.resolve(to)?.path || '/';
-    return '/';
+    if (!to) return '/';
+    try {
+      return router.resolve(to)?.path || '/';
+    } catch (e) {
+      // An unresolvable `to` (e.g. a named route missing a required param) must
+      // not throw during active-state calc — fall back to '/' so the menu renders.
+      return '/';
+    }
   };
 
   // Helper to find route definition by name without resolving

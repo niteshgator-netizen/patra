@@ -482,7 +482,11 @@ const menuItems = computed(() => {
           name: 'Help Center',
           label: 'Help Center',
           icon: 'i-lucide-library',
-          to: accountScopedRoute('portals_index'),
+          // portals_index requires a :navigationPath param that accountScopedRoute can't
+          // supply (it would throw "Missing required param navigationPath" while the sidebar
+          // renders). The bare /portals path already redirects to the Knowledge Base, so point
+          // there as a plain account-scoped URL — resolvable with no missing param.
+          to: accountScopedUrl('portals'),
           activeOn: ['portals_index'],
         },
         {

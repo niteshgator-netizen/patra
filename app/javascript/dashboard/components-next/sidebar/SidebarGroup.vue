@@ -49,6 +49,21 @@ const navigableChildren = computed(() => {
 
 const route = useRoute();
 const router = useRouter();
+
+// A child whose `to` can't be resolved by the router (e.g. a named route missing a
+// required param) must not crash the group. isResolvable is checked BEFORE isAllowed
+// at every render/filter site because isAllowed -> router.resolve also throws on such
+// a `to`; short-circuiting here makes one bad item inert while siblings render.
+const isResolvable = to => {
+  if (!to) return false;
+  try {
+    router.resolve(to);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 const isExpanded = computed(() => expandedItem.value === props.name);
 const isExpandable = computed(() => props.children);
 const hasChildren = computed(
@@ -108,8 +123,9 @@ const accessibleItems = computed(() => {
   return props.children.filter(child => {
     // If a item has no link, it means it's just a subgroup header
     // So we don't need to check for permissions here, because there's nothing to
-    // access here anyway
-    return child.to && isAllowed(child.to);
+    // access here anyway. isResolvable is checked first so an un-resolvable `to`
+    // can't throw out of isAllowed and crash the whole group.
+    return child.to && isResolvable(child.to) && isAllowed(child.to);
   });
 });
 
@@ -273,7 +289,7 @@ watch(
         <ul class="snav-list">
           <template v-for="child in children" :key="child.name">
             <Policy
-              v-if="child.to && isAllowed(child.to)"
+              v-if="child.to && isResolvable(child.to) && isAllowed(child.to)"
               :permissions="resolvePermissions(child.to)"
               :feature-flag="resolveFeatureFlag(child.to)"
               as="li"
@@ -319,7 +335,7 @@ watch(
               :active-child="activeChild"
             />
             <SidebarGroupLeaf
-              v-else-if="isAllowed(child.to)"
+              v-else-if="isResolvable(child.to) && isAllowed(child.to)"
               v-show="isExpanded || activeChild?.name === child.name"
               v-bind="child"
               :active="activeChild?.name === child.name"
