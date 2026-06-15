@@ -139,7 +139,13 @@ module Approvals
       return unless ENV['PATRA_FREEPLAY_NOTIFY_ENABLED'].to_s.casecmp('true').zero?
       return unless contact
 
+      # it9-close — only ever message an OPEN conversation (never closed/resolved/pending/snoozed),
+      # most-recently-active first. The approval (target AgentGame) carries no conversation_id or
+      # inbox, so the correct inbox isn't determinable here — the latest OPEN thread is the active
+      # one the customer is waiting in. If there's NO open conversation, send NOTHING (return
+      # quietly): the customer simply doesn't get the auto-note. Never picks a stale/wrong-status thread.
       conv = Conversation.where(account_id: approval.account_id, contact_id: contact.id)
+                         .open
                          .order(updated_at: :desc).first
       return unless conv
 
