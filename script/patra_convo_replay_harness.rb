@@ -71,7 +71,12 @@ MAX_TURNS = [ENV.fetch('MAX_TURNS', '60').to_i, 1].max
 RESUME = ENV['RESUME'] == '1'
 PARSE_ONLY = ENV['PARSE_ONLY'] == '1'
 
-abort "[harness] unknown MODE=#{MODE} (route|execute|full)" unless %w[route execute full].include?(MODE)
+TEST_USERNAME = ENV.fetch('TEST_USERNAME', 'testuser1')
+PERSONA_NAME = ENV.fetch('PERSONA_NAME', 'Bella') # historical agent names in customer turns become this
+# known OLD agent names a customer might greet by name ("hi Shirley") even when
+# that name isn't the sender — always swapped to PERSONA_NAME. Add more via ENV.
+PERSONA_ALIASES = ENV.fetch('PERSONA_ALIASES', 'shirley').split(',').map { |s| s.strip.downcase }.reject(&:empty?)
+abort "[harness] unknown MODE=#{MODE} (route|execute|full|export)" unless %w[route execute full export].include?(MODE)
 abort "[harness] corpus dir not found: #{DIR} — commit the JSON folder first (see report/DUMP)" unless Dir.exist?(DIR)
 if MODE == 'full' && ENV['DEEPSEEK_API_KEY'].to_s.strip.empty?
   abort '[harness] MODE=full needs DEEPSEEK_API_KEY (run on the Render worker shell)'
@@ -265,9 +270,20 @@ def mine_source_tokens(all_text, sender_names)
   { names: names, usernames: usernames, amounts: amounts }
 end
 
-def substitute_identity(text, source_tokens, customer_name_tokens, test_username)
+def substitute_identity(text, source_tokens, customer_name_tokens, test_username, agent_name_tokens = [])
   out = text.dup
   subs = 0
+  # the customer sometimes greets the OLD agent by name ("hi Shirley") — swap
+  # any historical agent name (this chat's agent senders + known aliases) to the
+  # current persona ("hi Bella").
+  (Array(agent_name_tokens) + PERSONA_ALIASES).uniq.each do |tok|
+    next if tok.to_s.length < 3 || tok.casecmp(PERSONA_NAME).zero?
+    re = /(?<![a-z0-9])#{Regexp.escape(tok)}(?![a-z0-9])/i
+    if out.match?(re)
+      subs += 1
+      out = out.gsub(re, PERSONA_NAME)
+    end
+  end
   (customer_name_tokens + source_tokens[:usernames].to_a).uniq.each do |tok|
     next if tok.to_s.length < 3
     re = /(?<![a-z0-9])#{Regexp.escape(tok)}(?![a-z0-9])/i
@@ -336,12 +352,16 @@ parsed.each do |path, r|
   customer_names = customer_turns.map { |t| t[:who] }.uniq
   name_tokens = customer_names.flat_map { |n| n.split(/\s+/) }.map(&:downcase)
                               .select { |tok| tok.length >= 3 && !STOPWORDS.include?(tok) }.uniq
+  agent_name_tokens = agent_turns.map { |t| t[:who] }.uniq
+                                 .flat_map { |n| n.split(/\s+/) }.map(&:downcase)
+                                 .select { |tok| tok.length >= 3 }.uniq
   convos << {
     path: path,
     customer_turns: customer_turns.first(MAX_TURNS).map { |t| t[:text] },
     agent_hints: agent_turns.first(MAX_TURNS).map { |t| t[:text] },
     source_tokens: mine_source_tokens(r[:turns].map { |t| t[:text] }.join(' '), r[:senders]),
     customer_name_tokens: name_tokens,
+    agent_name_tokens: agent_name_tokens,
     filtered: r[:filtered],
     truncated: truncated
   }
@@ -399,6 +419,71 @@ end
 
 if PARSE_ONLY
   write_report([parse_section(files, convos, unparseable, side_unresolved, frequent_agents)])
+  exit 0
+end
+
+# ── MODE=export — clean, paste-ready browser scripts for hand-testing ─────────
+# Reads every chat, strips noise, swaps the historical username to TEST_USERNAME,
+# keeps the ORIGINAL message order (the real flow), and marks each payment /
+# cashout point. Safe to run locally OR on Render — it never touches the panel,
+# agent_games credentials, Telegram, or the database beyond the pure-regex
+# IntentDetector. Nothing is sent; nothing is charged.
+if MODE == 'export'
+  out_dir = ENV.fetch('EXPORT_DIR', 'test_corpus_browser_scripts')
+  Dir.mkdir(out_dir) unless Dir.exist?(out_dir)
+  flow_order = %i[cashout load bonus freeplay transfer creation other]
+  by_flow = Hash.new { |h, k| h[k] = [] }
+  index = []
+  convos.each_with_index do |c, i|
+    per_turn_intent = c[:customer_turns].map do |t|
+      r = Games::IntentDetector.detect(t) rescue nil
+      r.is_a?(Hash) ? r[:intent] : nil
+    end
+    _all, classes = classify_flows(c[:customer_turns])
+    primary = flow_order.find { |f| classes.include?(f) } || :other
+    lines = []
+    c[:customer_turns].each_with_index do |t, ti|
+      fed, = substitute_identity(t, c[:source_tokens], c[:customer_name_tokens], TEST_USERNAME, c[:agent_name_tokens])
+      lines << "#{ti + 1}. #{fed}"
+      note =
+        case per_turn_intent[ti]
+        when :load, :load_bonus, :load_freeplay
+          '     ⮑ when Bella gives the payment handle: SEND THE REAL PAYMENT, then press paid in Telegram, then continue'
+        when :cashout, :redeem_partial_replay, :replay_from_balance
+          '     ⮑ a CASHOUT request will hit your Telegram group: PAY IT for real, press paid, then continue'
+        when :payment_sent_confirmation
+          '     ⮑ this is where you tell her you already sent it'
+        end
+      lines << note if note
+    end
+    section = +"### Chat ##{i + 1} — #{File.basename(c[:path])}   [flows: #{classes.to_a.join(', ')}]\n\n"
+    section << "Use `#{TEST_USERNAME}` wherever a username is asked.\n\n"
+    section << lines.join("\n") << "\n\n---\n\n"
+    by_flow[primary] << section
+    index << { n: i + 1, file: File.basename(c[:path]), flows: classes.to_a.join('/'),
+               turns: c[:customer_turns].size, primary: primary }
+  end
+
+  by_flow.each do |flow, sections|
+    header = +"# Browser test scripts — #{flow} (#{sections.size} chats)\n\n"
+    header << "HOW TO USE: open the page in your browser, message it from YOUR OWN test FB account,\n"
+    header << "and type each customer line below IN ORDER. Bella replies for real and real Telegram\n"
+    header << "alerts fire. Where a line is marked SEND THE PAYMENT / PAY IT, do it for real and press\n"
+    header << "paid in Telegram, then keep going. If a reply is wrong, note the chat number.\n\n"
+    File.write(File.join(out_dir, "#{flow}.md"), header + sections.join)
+  end
+
+  idx = +"# Browser test INDEX — #{convos.size} chats (work the money flows first)\n\n"
+  idx << "| # | flow(s) | turns | source file | script file |\n|---|---|---|---|---|\n"
+  index.sort_by { |r| [flow_order.index(r[:primary]) || 99, -r[:turns]] }.each do |r|
+    idx << "| #{r[:n]} | #{r[:flows]} | #{r[:turns]} | #{r[:file]} | #{r[:primary]}.md |\n"
+  end
+  File.write(File.join(out_dir, '_INDEX.md'), idx)
+
+  puts "[export] wrote #{convos.size} browser scripts to #{out_dir}/ (one .md per flow + _INDEX.md)"
+  write_report([parse_section(files, convos, unparseable, side_unresolved, frequent_agents),
+                "## EXPORT\n\nWrote paste-ready browser scripts for #{convos.size} chats into `#{out_dir}/`, " \
+                "grouped by flow, ordered by `_INDEX.md` (money flows first). Test username: `#{TEST_USERNAME}`.\n"])
   exit 0
 end
 
@@ -790,7 +875,7 @@ def process_chat(c, idx, _shared_account, default_slug)
   end
 
   c[:customer_turns].each do |raw_text|
-    fed, subs = substitute_identity(raw_text, c[:source_tokens], c[:customer_name_tokens], test_username)
+    fed, subs = substitute_identity(raw_text, c[:source_tokens], c[:customer_name_tokens], test_username, c[:agent_name_tokens])
     substitutions += subs
     reply = feed.call(fed)
     next unless AUTOCONFIRM && reply.to_s.match?(/\(yes\s*\/\s*no\)/i)
