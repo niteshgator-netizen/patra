@@ -404,6 +404,21 @@ def parse_section(files, convos, unparseable, side_unresolved, frequent_agents)
   s << "- customer turns: total #{convos.sum { |c| c[:customer_turns].size }}, avg #{convos.any? ? (convos.sum { |c| c[:customer_turns].size }.to_f / convos.size).round(1) : 0}/chat\n"
   s << "- noise filtered (NOT fed): #{filtered_totals.sort_by { |_k, v| -v }.map { |k, v| "#{k}=#{v}" }.join(' · ')}\n"
   s << "- chats truncated at MAX_TURNS=#{MAX_TURNS}: #{truncated_files} (overflow turns skipped, counted here — never silent)\n" if truncated_files.positive?
+
+  # EVERY agent-side name found across the real corpus, ranked by how many chats
+  # it worked. These are the names that get swapped to "#{PERSONA_NAME}" in
+  # customer turns automatically. Review this list: if a customer ever GREETS an
+  # old agent who is NOT the sender of that chat, add that name to
+  # PERSONA_ALIASES=... so "hi <name>" also becomes "hi #{PERSONA_NAME}".
+  agent_name_freq = Hash.new(0)
+  convos.each { |c| (c[:agent_name_tokens] || []).uniq.each { |t| agent_name_freq[t] += 1 } }
+  if agent_name_freq.any?
+    s << "\n### Agent names found in YOUR chats (auto-swapped to #{PERSONA_NAME})\n"
+    s << "Current PERSONA_ALIASES (always swapped even if only greeted): #{PERSONA_ALIASES.join(', ')}\n\n"
+    s << "| agent name | # chats worked |\n|---|---|\n"
+    agent_name_freq.sort_by { |_n, c| -c }.first(60).each { |n, c| s << "| #{n} | #{c} |\n" }
+    s << "- ...and #{agent_name_freq.size - 60} more distinct agent names\n" if agent_name_freq.size > 60
+  end
   if unparseable.any?
     s << "\n### Unparseable files (fix or accept)\n"
     unparseable.first(50).each { |(f, e)| s << "- #{File.basename(f)}: #{e}\n" }
