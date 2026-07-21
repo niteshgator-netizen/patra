@@ -84,12 +84,15 @@ STOPWORDS = Set.new(%w[
   bella shirley cashapp cash venmo paypal chime zelle varo boltpay apple google visa mastercard
   juwa juwa2 game games vault vegas sweeps ultra panda milky way fire kirin
   master orion stars vblink mafia gameroom machine tester
+  firekirin gamevault pandamaster milkyway orionstars vegassweeps ultrapanda
+  mrallinone cashmachine facebook messenger
   monday tuesday wednesday thursday friday saturday sunday
   today tomorrow tonight morning night weekend
   just send sent what when where which your this that okay sure sorry once done
   thanks thank welcome please congrats good great nice cool love perfect
   loaded loading load cashout redeem bonus freeplay deposit account username
-  password screenshot balance points play playing win winning
+  password screenshot balance points play playing win winning withdraw minimum
+  need give want make check wait ready money time name same best link
   hello there here have will from with then they their about gonna wanna lemme
   yeah alright right also should could would still after before
 ]).freeze
@@ -545,7 +548,7 @@ end
 $LIVE_APPROVAL_IDS = []
 $AP_MUTEX = Mutex.new
 stub_singleton(Approvals::CashoutApprovalGate, :create_request!) do |**k|
-  (Thread.current[:approval_log] ||= []) << k.slice(:amount, :kind, :reason)
+  (Thread.current[:approval_log] ||= []) << { amount: k[:amount], keys: k.keys }
   if GATE == 'live' && $orig[[Approvals::CashoutApprovalGate, :create_request!]]
     rec = $orig[[Approvals::CashoutApprovalGate, :create_request!]].call(**k)
     $AP_MUTEX.synchronize { $LIVE_APPROVAL_IDS << rec.id if rec.respond_to?(:id) }
@@ -574,9 +577,11 @@ abort '[harness] no active agent_games on account 2' if actives.empty?
 default_slug = actives.first.game.slug
 active_slugs = actives.map { |a| a.game.slug }
 
+# referral pin happens INSIDE the begin/ensure below so a crash can never
+# leave referral_enabled=false behind permanently.
 pref_row = ReplyPreference.for_account(ACCOUNT_ID)
-saved_referral = pref_row.respond_to?(:referral_enabled) ? pref_row.referral_enabled : nil
-pref_row.update!(referral_enabled: false) if pref_row.respond_to?(:referral_enabled)
+saved_referral = nil
+referral_pinned = false
 
 # text Bella is allowed to echo regardless of the source chat (account config)
 account_allowed = +''
@@ -664,9 +669,10 @@ def source_leak_hits(reply, source_tokens, fed_blob, account_allowed, test_usern
   (source_tokens[:names] | source_tokens[:usernames]).each do |tok|
     next if tok.length < 4 || tok == test_username
     next if fed_blob.include?(tok) || account_allowed.include?(tok)
-    hits << tok if scan.match?(/(?<![a-z0-9$@_.])#{Regexp.escape(tok)}(?![a-z0-9_.])/)
+    hits << tok if scan.match?(/(?<![a-z0-9$@_.-])#{Regexp.escape(tok)}(?![a-z0-9_.-])/)
   end
   reply_amounts = scan.scan(DOLLAR_SHAPE).flatten.map { |a| a.delete(',').to_f }
+  reply_amounts.concat(scan.scan(/\b(\d[\d,]{0,8}(?:\.\d{1,2})?)\s*(?:dollars?|bucks)\b/).flatten.map { |a| a.delete(',').to_f })
   fed_amounts = fed_blob.scan(/\d[\d,]{0,8}(?:\.\d{1,2})?/).map { |a| a.delete(',').to_f }
   reply_amounts.each do |amt|
     next unless source_tokens[:amounts].any? { |sa| (sa - amt).abs < 0.01 }
@@ -695,7 +701,10 @@ def append_result!(row)
   $RESULTS_MUTEX.synchronize { File.open(RESULTS_PATH, 'a') { |f| f.puts(JSON.generate(row)) } }
 end
 
-def process_chat(c, idx, account, default_slug)
+def process_chat(c, idx, _shared_account, default_slug)
+  # fresh per-thread Account instance — association caches on a shared AR
+  # object are not thread-safe.
+  account = Account.find(ACCOUNT_ID)
   fake = (Thread.current[:fake_client] ||= FakeClient.new).reset!
   Thread.current[:tg_log] = []
   Thread.current[:approval_log] = []
@@ -759,7 +768,8 @@ def process_chat(c, idx, account, default_slug)
       end
     end
     msgs << { role: 'assistant', content: reply } if reply.present?
-    turn_rows << { synthetic: synthetic, text: text[0, 160], intent: detected, route: route, reply: reply&.slice(0, 200) }
+    turn_rows << { synthetic: synthetic, text: text[0, 160], intent: detected, route: route,
+                   reply: reply&.slice(0, 200), reply_full: reply }
     reply
   end
 
@@ -792,10 +802,11 @@ def process_chat(c, idx, account, default_slug)
   high = []
   style = Hash.new(0)
   turn_rows.each do |t|
-    next if t[:reply].to_s.empty?
-    style_violations(t[:reply]).each { |v| style[v] += 1 }
-    leaks = source_leak_hits(t[:reply], c[:source_tokens], fed_blob, Thread.current[:account_allowed_blob], test_username)
-    high << "source-chat-leak(#{leaks.join(',')}): #{t[:reply][0, 120]}" if leaks.any?
+    full = t.delete(:reply_full).to_s # grade the FULL reply; JSONL keeps the 200-char cut
+    next if full.empty?
+    style_violations(full).each { |v| style[v] += 1 }
+    leaks = source_leak_hits(full, c[:source_tokens], fed_blob, Thread.current[:account_allowed_blob], test_username)
+    high << "source-chat-leak(#{leaks.join(',')}): #{full[0, 120]}" if leaks.any?
   end
   fake.calls.select { |call| %i[get_user_id add_user].include?(call[0]) }.each do |(_op, uname)|
     u = uname.to_s.downcase
@@ -840,13 +851,21 @@ work = selected.each_with_index.reject { |(c, _i)| done.key?(c[:path]) }
 puts "[run] #{work.size} chats to replay (#{selected.size - work.size} resumed as done)"
 
 threads = [[ENV.fetch('THREADS', '1').to_i, 1].max, ActiveRecord::Base.connection_pool.size - 1].min
+threads = 1 if threads < 1
 queue = Queue.new
 work.each { |item| queue << item }
 results = []
 $RESULTS_COLLECT_MUTEX = Mutex.new
 t0 = Time.now
+run_started_at = Time.current
 
 begin
+  if pref_row.respond_to?(:referral_enabled)
+    saved_referral = pref_row.referral_enabled
+    pref_row.update!(referral_enabled: false)
+    referral_pinned = true
+  end
+
   workers = threads.times.map do
     Thread.new do
       Thread.current[:account_allowed_blob] = account_allowed
@@ -929,12 +948,24 @@ ensure
       ApprovalRequest.where(id: $LIVE_APPROVAL_IDS).delete_all
       puts "[cleanup] deleted #{$LIVE_APPROVAL_IDS.size} live approval rows"
     end
+    # the orchestrator also creates ApprovalRequest rows DIRECTLY (generosity
+    # payouts + over-threshold load holds), bypassing the stubbed gate — sweep
+    # any that point at contacts this run created.
+    all_ids = (cids + (defined?(stray_ids) && stray_ids ? stray_ids : [])).uniq
+    if defined?(ApprovalRequest) && all_ids.any?
+      swept = ApprovalRequest.where(account_id: ACCOUNT_ID)
+                             .where('created_at >= ?', run_started_at)
+                             .where("(metadata->>'contact_id' IN (?)) OR (target_type = 'Contact' AND target_id IN (?))",
+                                    all_ids.map(&:to_s), all_ids)
+                             .delete_all
+      puts "[cleanup] swept #{swept} orchestrator-created approval rows" if swept.positive?
+    end
     puts "[cleanup] removed #{ids.size} conversations, #{cids.size} contacts"
   rescue StandardError => e
     puts "[cleanup] FAILED (#{e.class}: #{e.message}) — harness records are labeled harness-test / named TESTER_*"
   end
   begin
-    pref_row.update!(referral_enabled: saved_referral) unless saved_referral.nil?
+    pref_row.update!(referral_enabled: saved_referral) if referral_pinned
   rescue StandardError => e
     puts "[cleanup] referral_enabled restore failed: #{e.message}"
   end

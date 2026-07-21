@@ -77,7 +77,8 @@ EDITS << [
 ]
 
 # ── 5. Stopwords constant + candidates/allowed/guard methods ─────────────────
-NEW_GUARD_CODE = <<~'RUBY'
+# NOTE: <<- (not <<~) so the written indentation survives into the hot file.
+NEW_GUARD_CODE = <<-'RUBY'
 
   # RAGLEAK — capitalized / username-ish tokens in RAG examples that are NOT
   # another customer's identity (game names, payment platforms, weekdays,
@@ -86,12 +87,15 @@ NEW_GUARD_CODE = <<~'RUBY'
     bella cashapp cash venmo paypal chime zelle varo boltpay apple google visa mastercard
     juwa juwa2 game games vault vegas sweeps ultra panda milky way fire kirin
     master orion stars vblink mafia gameroom machine
+    firekirin gamevault pandamaster milkyway orionstars vegassweeps ultrapanda
+    mrallinone cashmachine facebook messenger
     monday tuesday wednesday thursday friday saturday sunday
     today tomorrow tonight morning night weekend
     just send sent what when where which your this that okay sure sorry once done
     thanks thank welcome please congrats good great nice cool love perfect
     loaded loading load cashout redeem bonus freeplay deposit account username
-    password screenshot balance points play playing win winning
+    password screenshot balance points play playing win winning withdraw minimum
+    need give want make check wait ready money time name same best link
     hello there here have will from with then they their about gonna wanna lemme
     yeah alright right also should could would still after before
   ]).freeze
@@ -149,6 +153,23 @@ NEW_GUARD_CODE = <<~'RUBY'
       rescue StandardError
         nil
       end
+      begin
+        # configured policy numbers are Bella's OWN numbers, never a leak:
+        # bonus percents, cashout min/max, game-rule caps and freeplay amounts.
+        parts.concat(configured_bonus_percents.map { |p| format('%g', p) })
+        if (pc = policy_resolver&.cashout).is_a?(Hash)
+          parts << format('%g', pc['min'].to_f) if pc['min']
+          parts << format('%g', pc['max'].to_f) if pc['max']
+        end
+        GameRule.where(account_id: account_id).each do |gr|
+          %i[cashout_max_amount freeplay_amount deposit_bonus_percentage deposit_bonus_min_amount].each do |attr|
+            v = gr.try(attr)
+            parts << format('%g', v.to_f) if v.present?
+          end
+        end
+      rescue StandardError
+        nil
+      end
       parts.join(' ').downcase
     end
   end
@@ -171,10 +192,11 @@ NEW_GUARD_CODE = <<~'RUBY'
       next if tok.length < 4
       next if allowed.include?(tok)
 
-      leaked << tok if scan.match?(/(?<![a-z0-9$@_.])#{Regexp.escape(tok)}(?![a-z0-9_.])/)
+      leaked << tok if scan.match?(/(?<![a-z0-9$@_.-])#{Regexp.escape(tok)}(?![a-z0-9_.-])/)
     end
 
     reply_amounts = scan.scan(/\$\s*(\d[\d,]{0,8}(?:\.\d{1,2})?)/).flatten.map { |a| a.delete(',').to_f }
+    reply_amounts.concat(scan.scan(/\b(\d[\d,]{0,8}(?:\.\d{1,2})?)\s*(?:dollars?|bucks)\b/).flatten.map { |a| a.delete(',').to_f })
     if reply_amounts.any?
       allowed_amounts = allowed.scan(/\d[\d,]{0,8}(?:\.\d{1,2})?/).map { |a| a.delete(',').to_f } + customer_provided_numbers
       reply_amounts.each do |amt|
@@ -202,7 +224,7 @@ EDITS << [
 ]
 
 # ── 6. Prompt-side sanitizer ─────────────────────────────────────────────────
-SANITIZER_CODE = <<~'RUBY'
+SANITIZER_CODE = <<-'RUBY'
   # RAGLEAK — neutralize identifying details in a RAG example BEFORE it enters
   # the prompt: $ amounts -> $X, "66 bucks" -> X bucks, username-shaped tokens
   # -> [username], capitalized person-name-like words -> [name]. Fails open.
@@ -229,7 +251,7 @@ EDITS << [
 ]
 
 # ── 7. build_rag_enhanced_prompt: sanitize + reword the wrapper ──────────────
-OLD_EXAMPLES_BLOCK = <<~'RUBY'.chomp
+OLD_EXAMPLES_BLOCK = <<-'RUBY'.chomp
     examples_section = if rag_examples.present?
       examples_text = rag_examples.map do |ex|
         "Customer: #{ex[:customer]}\nCashier: #{ex[:cashier]}"
@@ -241,7 +263,7 @@ OLD_EXAMPLES_BLOCK = <<~'RUBY'.chomp
     end
 RUBY
 
-NEW_EXAMPLES_BLOCK = <<~'RUBY'.chomp
+NEW_EXAMPLES_BLOCK = <<-'RUBY'.chomp
     examples_section = if rag_examples.present?
       examples_text = rag_examples.map do |ex|
         "Customer: #{sanitize_rag_example_text(ex[:customer])}\nCashier: #{sanitize_rag_example_text(ex[:cashier])}"
